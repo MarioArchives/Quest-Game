@@ -345,16 +345,19 @@ describe('V2. reactions on feed posts', () => {
     await assertSucceeds(deleteDoc(doc(as('carol'), 'feed/f1/reactions/carol')));
   });
 
-  it('E1: accepts any emoji from the wider set', async () => {
-    for (const emoji of ['🎸', '🥳', '❤️', '🫶', '👑']) {
+  it('E1: accepts the quick set and any emoji typed from the keyboard', async () => {
+    for (const emoji of ['🎸', '🥳', '❤️', '🫶', '👑', '💩', '🦆', '👍🏽', '🇬🇧', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', '👩🏽‍❤️‍💋‍👨🏿', '👨‍👩‍👧‍👦']) {
       await assertSucceeds(setDoc(doc(as('carol'), 'feed/f1/reactions/carol'), react(emoji)));
     }
   });
 
   it.each([
     ["another player's reaction doc", 'alice', react('🔥')],
-    ['an emoji outside the set', 'carol', react('💩')],
     ['plain text', 'carol', react('lol')],
+    ['an emoji with text', 'carol', react('🔥 lol')],
+    ['an empty emoji', 'carol', react('')],
+    ['more than 16 code points', 'carol', react('😂'.repeat(17))],
+    ['a number', 'carol', react(5)],
     ['a client-chosen createdAt', 'carol', { emoji: '🔥', createdAt: T }],
     ['an extra field', 'carol', { ...react('🔥'), count: 9 }],
   ])('refuses %s', async (_label, docId, data) => {

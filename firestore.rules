@@ -146,19 +146,16 @@ service cloud.firestore {
       allow create: if isGM();
 
       // One emoji reaction per player per post: the doc id is the reactor's uid. No comments on posts.
+      // Any emoji from the keyboard: 1 to 16 code points and no ASCII, so no plain text (the app checks
+      // it is exactly one emoji; src/lib/emoji.ts has the same cap).
       match /reactions/{reactorUid} {
         allow read: if isPlayerOrGM();
         allow create, update: if isPlayer()
           && request.auth.uid == reactorUid
           && request.resource.data.keys().hasOnly(['emoji', 'createdAt'])
           && request.resource.data.keys().hasAll(['emoji', 'createdAt'])
-          && request.resource.data.emoji in [
-                 '🔥', '😂', '😍', '👏', '🤘', '😮',
-                 '🎸', '🎤', '🥁', '🎺', '🎷', '🎻',
-                 '🎶', '💃', '🕺', '🙌', '🤩', '🥳',
-                 '😎', '🤯', '😱', '🥲', '😭', '🤔',
-                 '👀', '💯', '❤️', '🍺', '🫶', '👑'
-               ]
+          && request.resource.data.emoji is string
+          && request.resource.data.emoji.matches('[^\\x00-\\x7F]{1,16}')
           && request.resource.data.createdAt == request.time;
         allow delete: if isPlayer() && request.auth.uid == reactorUid;
       }

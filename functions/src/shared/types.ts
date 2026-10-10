@@ -191,7 +191,7 @@ export interface Submission {
   refillQuestId?: string | null;
 }
 
-/** Reactions players can leave on feed posts. firestore.rules carries the same list (a unit test checks). */
+/** The quick picks in the reaction picker. Players can also react with any single emoji from their keyboard. */
 export const REACTION_EMOJI = [
   '🔥', '😂', '😍', '👏', '🤘', '😮',
   '🎸', '🎤', '🥁', '🎺', '🎷', '🎻',
@@ -203,7 +203,8 @@ export type ReactionEmoji = (typeof REACTION_EMOJI)[number];
 
 /** feed/{id}/reactions/{uid} — one per player per post (there are no comments) */
 export interface Reaction {
-  emoji: ReactionEmoji;
+  /** One emoji: from REACTION_EMOJI or typed from the keyboard (see src/lib/emoji.ts). */
+  emoji: string;
   createdAt: TS;
 }
 

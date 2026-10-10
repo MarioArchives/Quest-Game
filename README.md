@@ -78,7 +78,7 @@ Anyone can sign in with Google and ask to join with a display name. Nothing happ
 
 ## How to play
 
-- **Home** is the feed. A ranks strip sits at the top (tap a player to see them and make a guess), then the pinned announcement and the current side quest, then every post newest first: joins, approvals, rejections, side-quest news, exposures, fraud overrides and point adjustments. Each post carries a points chip and emoji reactions (one per player per post, no comments).
+- **Home** is the feed. A ranks strip sits at the top (tap a player to see them and make a guess), then the pinned announcement and the current side quest, then every post newest first: joins, approvals, rejections, side-quest news, exposures, fraud overrides and point adjustments. Each post carries a points chip and emoji reactions (one per player per post, no comments): pick from the quick set or type any emoji with the phone's keyboard.
 - **Account** is yours: status, rank, points and rerolls; your hand of quests; the **witness requests** other players have sent you (the tab shows a red dot while one is waiting); "add evidence" prompts; your side-quest entries; location sharing, profile and sign out.
 - **Map** shows the festival venues, what is playing now and the friends who share their location.
 - **GM** (admins only) lives behind the burger menu: join requests, pending claims, recent approvals, side quests, players, settings, announcements and the game controls. In **Players**, tap someone (yourself too, if you're playing) for one-tap −10 / +10 penalties and bonuses, extra rerolls (+1, or −1 to undo a mis-tap) and their points ledger.

@@ -1,20 +1,23 @@
 import { collection, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { friendlyError } from '../../api';
 import { BottomSheet } from '../../components/BottomSheet';
+import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { useCollection } from '../../data/hooks';
 import { db } from '../../firebase';
+import { orderReactions, singleEmoji } from '../../lib/emoji';
 import { useSession } from '../../session/SessionProvider';
-import { REACTION_EMOJI, type Reaction, type ReactionEmoji } from '../../shared';
+import { REACTION_EMOJI, type Reaction } from '../../shared';
 
 const PICKER_COLUMNS = 6;
 
 /**
  * Under a post: only the reactions people actually used, as plain emoji with their counts (yours is tinted
- * and underlined), then a small "+" that opens a picker with the whole set. One reaction per player per post
- * (stored at feed/{id}/reactions/{uid}): picking another emoji changes it, tapping your own takes it back.
+ * and underlined), then a small "+" that opens a picker: the quick set, or any emoji typed from the keyboard.
+ * One reaction per player per post (stored at feed/{id}/reactions/{uid}): picking another emoji changes it,
+ * tapping your own takes it back.
  * The counts come from the reactions themselves; `count` is the post's own total, so a post nobody has
  * reacted to doesn't open a listener until you add the first one.
  */
@@ -29,15 +32,15 @@ export function ReactionsBar({ feedId, count }: { feedId: string; count: number 
   );
 
   const counts = useMemo(() => {
-    const map = new Map<ReactionEmoji, number>();
+    const map = new Map<string, number>();
     for (const r of reactions.data) map.set(r.emoji, (map.get(r.emoji) ?? 0) + 1);
     return map;
   }, [reactions.data]);
   const mine = uid ? (reactions.data.find((r) => r.id === uid)?.emoji ?? null) : null;
-  // In the catalogue's order, so the row doesn't reshuffle as counts change.
-  const used = REACTION_EMOJI.filter((emoji) => (counts.get(emoji) ?? 0) > 0);
+  // In a fixed order, so the row doesn't reshuffle as counts change.
+  const used = orderReactions(counts.keys());
 
-  const react = async (emoji: ReactionEmoji) => {
+  const react = async (emoji: string) => {
     if (!uid || !player) return;
     setTouched(true);
     try {
@@ -103,9 +106,19 @@ export function ReactionsBar({ feedId, count }: { feedId: string; count: number 
   );
 }
 
-/** A grid of every reaction in a bottom sheet (so a post card can never clip it). Arrow keys move around the grid. */
-function ReactionPicker({ current, onPick, onClose }: { current: ReactionEmoji | null; onPick(emoji: ReactionEmoji): void; onClose(): void }) {
+/**
+ * The quick set as a grid in a bottom sheet (so a post card can never clip it), then a box for any other emoji
+ * from the phone's keyboard. Arrow keys move around the grid.
+ */
+function ReactionPicker({ current, onPick, onClose }: { current: string | null; onPick(emoji: string): void; onClose(): void }) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [typed, setTyped] = useState('');
+  const typedEmoji = singleEmoji(typed);
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (typedEmoji) onPick(typedEmoji);
+  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = refs.current.findIndex((el) => el === document.activeElement);
@@ -142,6 +155,31 @@ function ReactionPicker({ current, onPick, onClose }: { current: ReactionEmoji |
           </button>
         ))}
       </div>
+      <form className="picker__other" onSubmit={onSubmit}>
+        <label className="field__label" htmlFor="reaction-other">
+          Any other emoji
+        </label>
+        <div className="picker__other-row">
+          <input
+            id="reaction-other"
+            className="input"
+            value={typed}
+            autoComplete="off"
+            enterKeyHint="send"
+            placeholder="Use your emoji keyboard"
+            aria-describedby={typed.trim() && !typedEmoji ? 'reaction-other-hint' : undefined}
+            onChange={(event) => setTyped(event.target.value)}
+          />
+          <Button type="submit" variant="primary" disabled={!typedEmoji}>
+            React
+          </Button>
+        </div>
+        {typed.trim() && !typedEmoji ? (
+          <p id="reaction-other-hint" className="field__hint" role="status">
+            Just one emoji, please.
+          </p>
+        ) : null}
+      </form>
     </BottomSheet>
   );
 }
