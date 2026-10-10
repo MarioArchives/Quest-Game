@@ -5,13 +5,14 @@ import { addFeed } from './feed.js';
 import { fail, loadSettings, loadState, requireGM } from './guards.js';
 import { MIN_MS, millis, nextGlobalTime, toTs } from './util.js';
 import {
-  closeWithoutWinner,
+  closeEntries,
   closeWithTally,
   attachPosts,
+  finishChecking,
   readAllEntries,
+  readGMs,
   readPlayers,
   readVotes,
-  startVoting,
   type Entry,
   type Quest,
 } from './voting.js';
@@ -116,25 +117,19 @@ function fromTemplate(t: Picked, settings: Settings, source: GlobalQuestSource):
 
 const asQuest = (doc: QueryDocumentSnapshot): Quest => ({ id: doc.id, ref: doc.ref, gq: doc.data() as GlobalQuest });
 
-/** A live side quest whose entry window is over (or that the GM wants to move on): vote if anyone entered, else close. */
-function moveOnFromLive(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): 'voting' | 'closed' {
-  if (entries.length > 0) {
-    startVoting(tx, db, now, settings, q, entries);
-    return 'voting';
-  }
-  closeWithoutWinner(tx, q);
-  return 'closed';
+/** What one tick did: the side quest it opened, and the ones it closed, sent to checking or opened for voting. */
+export interface TickResult {
+  opened: string | null;
+  closed: string[];
+  checking: string[];
+  voting: string[];
 }
 
 /** The scheduled job (every 15 min) and the dev ticker both call this. */
-export async function runTick(
-  db: Db,
-  now: Date,
-  rng: () => number,
-): Promise<{ opened: string | null; closed: string[]; voting: string[] }> {
+export async function runTick(db: Db, now: Date, rng: () => number): Promise<TickResult> {
   return db.runTransaction(async (tx) => {
     const state = await loadState(db, tx);
-    if (state.status !== 'active') return { opened: null, closed: [], voting: [] };
+    if (state.status !== 'active') return { opened: null, closed: [], checking: [], voting: [] };
     const settings = await loadSettings(db, tx);
 
     const nowMs = now.getTime();
@@ -142,6 +137,10 @@ export async function runTick(
     const live = quests.filter((q) => q.get('status') === 'live');
     const expired = live.filter((q) => millis(q.get('endsAt')) <= nowMs);
     const running = live.filter((q) => !expired.includes(q));
+    // Checking that ran out of time: the unchecked entries go to the vote anyway.
+    const checkingOver = quests.filter(
+      (q) => q.get('status') === 'checking' && q.get('checkingEndsAt') && millis(q.get('checkingEndsAt')) <= nowMs,
+    );
     const votingOver = quests.filter((q) => q.get('status') === 'voting' && q.get('votingEndsAt') && millis(q.get('votingEndsAt')) <= nowMs);
 
     const nextAt = state.nextGlobalQuestAt;
@@ -150,25 +149,27 @@ export async function runTick(
 
     // Only one quest at a time: whatever is still running makes way for the new one.
     const moveOn = [...expired, ...(template ? running : [])];
-    const entries = moveOn.length + votingOver.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
-    await attachPosts(tx, db, moveOn.flatMap((q) => entries.get(q.id) ?? []));
+    const touched = moveOn.length + checkingOver.length + votingOver.length;
+    const entries = touched > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
+    await attachPosts(tx, db, [...moveOn, ...checkingOver].flatMap((q) => entries.get(q.id) ?? []));
+    const gms = moveOn.length > 0 ? await readGMs(tx, db) : [];
     const votes = new Map<string, Map<string, string>>();
     for (const q of votingOver) votes.set(q.id, await readVotes(tx, db, q.id));
     const players = votingOver.length > 0 ? await readPlayers(tx, db) : new Map();
 
-    const closed: string[] = [];
-    const voting: string[] = [];
+    const result: TickResult = { opened: null, closed: [], checking: [], voting: [] };
     for (const doc of moveOn) {
-      const next = moveOnFromLive(tx, db, now, settings, asQuest(doc), entries.get(doc.id) ?? []);
-      (next === 'voting' ? voting : closed).push(doc.id);
+      result[closeEntries(tx, db, now, settings, asQuest(doc), entries.get(doc.id) ?? [], gms)].push(doc.id);
+    }
+    for (const doc of checkingOver) {
+      result[finishChecking(tx, db, now, settings, asQuest(doc), entries.get(doc.id) ?? [])].push(doc.id);
     }
     for (const doc of votingOver) {
       closeWithTally(tx, db, now, settings, asQuest(doc), entries.get(doc.id) ?? [], votes.get(doc.id) ?? new Map(), players);
-      closed.push(doc.id);
+      result.closed.push(doc.id);
     }
-    if (!template) return { opened: null, closed, voting };
-    const opened = openGlobalQuest(tx, db, now, rng, settings, fromTemplate(template, settings, 'timer'));
-    return { opened, closed, voting };
+    if (template) result.opened = openGlobalQuest(tx, db, now, rng, settings, fromTemplate(template, settings, 'timer'));
+    return result;
   });
 }
 
@@ -228,11 +229,12 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
       spec = fromTemplate(template, settings, 'gm-random');
     }
 
-    // Only one quest at a time: the current live one moves on first (to voting if anyone entered).
+    // Only one quest at a time: the current live one moves on first (to checking or voting if anyone entered).
     const live = quests.filter((q) => q.get('status') === 'live');
     const entries = live.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
     await attachPosts(tx, db, live.flatMap((q) => entries.get(q.id) ?? []));
-    for (const doc of live) moveOnFromLive(tx, db, ctx.now, settings, asQuest(doc), entries.get(doc.id) ?? []);
+    const gms = live.length > 0 ? await readGMs(tx, db) : [];
+    for (const doc of live) closeEntries(tx, db, ctx.now, settings, asQuest(doc), entries.get(doc.id) ?? [], gms, ctx.uid);
     return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, settings, spec) };
   });
 }

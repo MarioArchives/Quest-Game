@@ -2,7 +2,7 @@
 import { FirebaseError } from 'firebase/app';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
-import type { GameStatus, SubmissionStatus } from './shared';
+import type { GameStatus, GlobalQuestStatus, SubmissionStatus } from './shared';
 
 /** An error from a callable, with a message that is safe to show to a player. */
 export class ApiError extends Error {
@@ -136,17 +136,21 @@ export interface EvidenceInput {
 export const addEvidence = (data: EvidenceInput & { submissionId: string }) =>
   call<typeof data, { ok?: boolean }>('addEvidence', data);
 
-/** Enter a side quest: no witness, no review. Opens voting when the last player has entered. */
+/** Enter a side quest: no witness. The last player in closes entries: the GM checks them (or voting opens). */
 export const enterSideQuest = (data: EvidenceInput & { globalQuestId: string }) =>
-  call<typeof data, { submissionId: string; votingOpened: boolean }>('enterSideQuest', data);
+  call<typeof data, { submissionId: string; votingOpened: boolean; checking: boolean }>('enterSideQuest', data);
 
 /** Vote for an entry (not your own). Re-voting replaces your vote; `closed` is true if that was the last vote. */
 export const castVote = (data: { globalQuestId: string; submissionId: string }) =>
   call<typeof data, { closed: boolean }>('castVote', data);
 
-/** GM: live -> voting, or voting -> closed (tally). */
+/** GM: live -> checking (or voting, or closed if nobody entered), checking -> voting, or voting -> closed (tally). */
 export const advanceGlobalQuest = (data: { globalQuestId: string }) =>
-  call<typeof data, { status: 'voting' | 'closed' }>('advanceGlobalQuest', data);
+  call<typeof data, { status: GlobalQuestStatus }>('advanceGlobalQuest', data);
+
+/** GM: accept or reject (no fine) a side-quest entry while its side quest is checking. Returns where the quest is now. */
+export const checkEntry = (data: { submissionId: string; accept: boolean; note?: string }) =>
+  call<typeof data, { checked: 'accepted' | 'rejected'; status: GlobalQuestStatus }>('checkEntry', data);
 
 export const reviewSubmission = (data: { submissionId: string; approve: boolean; note?: string }) =>
   call<typeof data, { status: SubmissionStatus }>('reviewSubmission', data);

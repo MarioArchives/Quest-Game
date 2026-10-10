@@ -38,10 +38,15 @@ function Pips({ filled, total }: { filled: number; total: number }) {
   );
 }
 
-/** The side quests that are open right now: entering while live, voting after. */
+/** Voting first, then entries being checked, then live. */
+const CARD_ORDER: Record<string, number> = { voting: 0, checking: 1, live: 2 };
+
+/** The side quests that are open right now: entering while live, waiting while the GM checks, voting after. */
 export function SideQuestCards() {
   const { globalQuests, state, settings } = useGame();
-  const open = globalQuests.filter((g) => g.status === 'live' || g.status === 'voting').sort((a, b) => (a.status === b.status ? 0 : a.status === 'voting' ? -1 : 1));
+  const open = globalQuests
+    .filter((g) => g.status === 'live' || g.status === 'checking' || g.status === 'voting')
+    .sort((a, b) => (CARD_ORDER[a.status] ?? 9) - (CARD_ORDER[b.status] ?? 9));
 
   if (open.length === 0) {
     // Nothing to promise while the game is not running (lobby, paused or over).
@@ -52,14 +57,22 @@ export function SideQuestCards() {
         <p className="quiet__title">None open right now</p>
         <p className="quiet__note">
           They drop at random, roughly every {Math.round((settings.globalIntervalMin / 60) * 10) / 10}&ndash;
-          {Math.round((settings.globalIntervalMax / 60) * 10) / 10} hours. Everyone enters, then everyone votes.
+          {Math.round((settings.globalIntervalMax / 60) * 10) / 10} hours. Everyone enters, the GM checks the entries, then everyone votes.
         </p>
       </section>
     );
   }
   return (
     <>
-      {open.map((quest) => (quest.status === 'voting' ? <VotingCard key={quest.id} quest={quest} /> : <LiveCard key={quest.id} quest={quest} />))}
+      {open.map((quest) =>
+        quest.status === 'voting' ? (
+          <VotingCard key={quest.id} quest={quest} />
+        ) : quest.status === 'checking' ? (
+          <CheckingCard key={quest.id} quest={quest} />
+        ) : (
+          <LiveCard key={quest.id} quest={quest} />
+        ),
+      )}
     </>
   );
 }
@@ -94,7 +107,7 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
         <p className="hero__eyebrow eyebrow">Side quest &middot; everyone plays</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
+        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. The GM checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
         <div className="hero__row">
           <Countdown endsAt={tsMs(quest.endsAt)} closedText="Closing" />
           <div className="hero__entries">
@@ -133,7 +146,7 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
               disabled={!active}
               onClick={() => setSheet({ mode: 'evidence', submission: mine as Doc<Submission>, title: quest.title })}
             >
-              You&apos;re in &middot; edit until voting starts
+              You&apos;re in &middot; edit until entries close
             </Button>
           ) : (
             <Button
@@ -154,6 +167,34 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
       </section>
       {sheet ? <EvidenceSheet target={sheet} onClose={() => setSheet(null)} /> : null}
     </>
+  );
+}
+
+/** Entries have closed and the GM is checking them; voting comes next. */
+function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
+  const { mySubmissions } = useGame();
+  const mine = mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id);
+  const rejected = mine?.status === 'rejected';
+
+  return (
+    <section className="hero halftone" aria-label="Side quest entries being checked">
+      <span className="sticker hero__sticker">Entries closed</span>
+      <p className="hero__eyebrow eyebrow">Side quest &middot; checking</p>
+      <h2 className="hero__title">{quest.title}</h2>
+      {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
+      <p className="hero__rule">The GM is checking the entries. Voting opens next &middot; +{quest.bonusPoints} to the winner</p>
+      {mine ? (
+        <div className="hero__mine">
+          {mine.thumbPath ? <PhotoThumb submissionId={mine.id} thumbPath={mine.thumbPath} label="Open your entry" size={52} /> : null}
+          <div className="hero__mine-text">
+            <span className={`tag ${rejected ? 'tag--red' : 'tag--tint'}`}>
+              {rejected ? (mine.checked === 'rejected' ? 'Not accepted' : 'Disqualified') : 'Hidden until voting'}
+            </span>
+            <p>{rejected ? (mine.reviewNote ? `GM: ${mine.reviewNote}` : 'It won’t go to the vote.') : 'Your entry is in.'}</p>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

@@ -30,7 +30,8 @@ export interface BadgeInput {
  * - home: a post by someone else (or a game/GM post) newer than when Home was last seen.
  * - account: a witness request; one of your claims reviewed (approved/rejected) since Account was last
  *   seen; or an approved personal claim still waiting for evidence (unless dismissed).
- * - gm: GMs only — a join request waiting, a live side quest past its window, or voting past its end.
+ * - gm: GMs only — a join request waiting, side-quest entries to check, a live side quest past its window, or
+ *   voting past its end.
  * - wrap: the game has ended and the wrap has not been opened on this device.
  */
 export function tabBadges(input: BadgeInput): { home: boolean; account: boolean; gm: boolean; wrap: boolean } {
@@ -43,7 +44,7 @@ export function tabBadges(input: BadgeInput): { home: boolean; account: boolean;
   const account =
     witnessRequests > 0 ||
     myClaims.some((claim) => {
-      // One of your claims was decided since you last looked (a rejected side-quest entry is a GM disqualification).
+      // One of your claims was decided since you last looked (a rejected side-quest entry: not accepted, or disqualified).
       const decided = claim.status === 'approved' || claim.status === 'rejected';
       const reviewed =
         decided && (claim.kind === 'personal' || claim.status === 'rejected') && claim.reviewedAt !== null && claim.reviewedAt > accountSeen;
@@ -57,6 +58,7 @@ export function tabBadges(input: BadgeInput): { home: boolean; account: boolean;
     (pendingJoins > 0 ||
       sideQuests.some(
         (quest) =>
+          quest.status === 'checking' ||
           (quest.status === 'live' && quest.endsAt <= now) ||
           (quest.status === 'voting' && quest.votingEndsAt !== null && quest.votingEndsAt <= now),
       ));

@@ -130,12 +130,14 @@ describe('addEvidence on a side-quest entry (X5, R6)', () => {
     expect(before.imagePath ?? null).toBeNull();
     expect(before.caption ?? null).toBeNull();
 
-    await advanceGlobalQuest(db(), ctx('gm', addMin(T0, 3)), { globalQuestId: 'gq1' });
+    await advanceGlobalQuest(db(), ctx('gm', addMin(T0, 3)), { globalQuestId: 'gq1' }); // entries close: checking
+    expect((await feedOf(db(), 'approved')).find((p) => p.submissionId === id)!.imagePath ?? null).toBeNull();
+    await advanceGlobalQuest(db(), ctx('gm', addMin(T0, 4)), { globalQuestId: 'gq1' }); // the vote opens
     const after = (await feedOf(db(), 'approved')).find((p) => p.submissionId === id)!;
     expect(after).toMatchObject({ ...photo('alice', 'e-2'), caption: 'Better one' });
   });
 
-  it.each(['voting', 'closed'] as const)('cannot change it once the side quest is %s', async (status) => {
+  it.each(['checking', 'voting', 'closed'] as const)('cannot change it once the side quest is %s', async (status) => {
     const id = await entered();
     await db().doc('globalQuests/gq1').update({ status });
     await expectCode(addEvidence(db(), ctx('alice', addMin(T0, 2)), { submissionId: id, caption: 'sneaky edit' }), 'failed-precondition');

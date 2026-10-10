@@ -55,6 +55,9 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null):
   switch (post.type) {
     case 'global-open':
       return { to: 'players', message: { title: 'New side quest', body: `New side quest: ${quest}`, link: HOME } };
+    case 'checking':
+      // Entries closed: the GMs check them before the vote (players hear when voting opens).
+      return { to: 'gms', exclude: post.actorUid ?? null, message: { title: 'Entries to check', body: `Check the entries for ${quest}`, link: GM_CONSOLE } };
     case 'voting-open':
       return { to: 'players', message: { title: 'Voting is open', body: `Vote now: ${quest}`, link: HOME } };
     case 'global-won':

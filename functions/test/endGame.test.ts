@@ -169,10 +169,12 @@ async function scenario() {
   }
 
   // gq1: already won by alice. gq2: still voting at the end, tied 1–1 between alice and bob.
-  // gq3: still live with no entries.
+  // gq3: still live with no entries. gq4: entries still being checked (bob's is in).
   await seedGlobalQuest(db(), 'gq1', { status: 'closed', winnerUids: ['alice'], endsAt: addMin(T0, -40) });
   await seedGlobalQuest(db(), 'gq2', { status: 'voting', endsAt: addMin(T0, -5), votingEndsAt: addMin(T0, 15) });
   await seedGlobalQuest(db(), 'gq3', { status: 'live', endsAt: addMin(T0, 10) });
+  await seedGlobalQuest(db(), 'gq4', { status: 'checking', endsAt: addMin(T0, -3), checkingEndsAt: addMin(T0, 20) });
+  await seedSubmission(db(), 'ec', { uid: 'bob', kind: 'global', questId: 'gq4', witnessUid: null, status: 'sealed', evidence: true, createdAt: addMin(T0, -4) });
   await seedSubmission(db(), 'ea', { uid: 'alice', kind: 'global', questId: 'gq2', witnessUid: null, status: 'approved', evidence: true, createdAt: addMin(T0, -8) });
   await seedSubmission(db(), 'eb', { uid: 'bob', kind: 'global', questId: 'gq2', witnessUid: null, status: 'approved', evidence: true, createdAt: addMin(T0, -7) });
   await db().doc('globalQuests/gq2/votes/alice').set({ submissionId: 'eb', createdAt: ts(addMin(T0, -2)) });
@@ -217,6 +219,7 @@ describe('endGame', () => {
 
     expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('closed');
     expect(await getData(db(), 'globalQuests/gq3')).toMatchObject({ status: 'closed', winnerUids: [] });
+    expect(await getData(db(), 'globalQuests/gq4')).toMatchObject({ status: 'closed', winnerUids: [] });
     expect(await allDocs(db(), 'locations')).toHaveLength(0);
 
     const final = await getData(db(), 'game/final');

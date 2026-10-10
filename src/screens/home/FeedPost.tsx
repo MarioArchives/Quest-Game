@@ -15,6 +15,7 @@ const BADGE_ICON: Record<FeedType, IconName> = {
   fraud: 'gm',
   exposed: 'pin',
   'global-open': 'megaphone',
+  checking: 'check',
   'voting-open': 'ballot',
   'global-won': 'trophy',
   announcement: 'megaphone',

@@ -79,10 +79,10 @@ function Console() {
   const counts: Partial<Record<GmSection, number>> = {
     joins: pendingJoins.length,
     review: pendingSubs.length,
-    quests: globalQuests.filter((g) => g.status === 'live' || g.status === 'voting').length,
+    quests: globalQuests.filter((g) => g.status === 'live' || g.status === 'checking' || g.status === 'voting').length,
   };
-  // The burger shows a dot when anything needs the GM (side quests running is not a chore, so it is left out).
-  const needsAttention = pendingJoins.length + pendingSubs.length;
+  // The burger shows a dot when anything needs the GM (side quests running is not a chore, but checking entries is).
+  const needsAttention = pendingJoins.length + pendingSubs.length + globalQuests.filter((g) => g.status === 'checking').length;
   const current = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]!;
   const currentCount = counts[section] ?? 0;
 

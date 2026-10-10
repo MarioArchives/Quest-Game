@@ -131,8 +131,15 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
 
       setPhase('saving');
       if (target.mode === 'enter') {
-        const { votingOpened } = await enterSideQuest({ globalQuestId: target.quest.id, ...evidence });
-        toast(votingOpened ? "You're in, and that was the last entry. Voting is open!" : "You're in the side quest.", 'success');
+        const { votingOpened, checking } = await enterSideQuest({ globalQuestId: target.quest.id, ...evidence });
+        toast(
+          votingOpened
+            ? "You're in, and that was the last entry. Voting is open!"
+            : checking
+              ? "You're in, and that was the last entry. The GM checks the entries, then voting opens."
+              : "You're in the side quest.",
+          'success',
+        );
       } else {
         await addEvidence({ submissionId: target.submission.id, ...evidence });
         toast(existing?.imagePath || existing?.caption ? 'Updated.' : 'Added to your post.', 'success');

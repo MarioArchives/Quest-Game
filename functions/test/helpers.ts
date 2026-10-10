@@ -211,6 +211,7 @@ export async function seedGlobalQuest(
     status?: GlobalQuestStatus;
     startsAt?: Date;
     endsAt?: Date;
+    checkingEndsAt?: Date | null;
     votingEndsAt?: Date | null;
     bonusPoints?: number;
     templateId?: string | null;
@@ -226,6 +227,7 @@ export async function seedGlobalQuest(
     startsAt: ts(opts.startsAt ?? addMin(T0, -10)),
     endsAt: ts(opts.endsAt ?? addMin(T0, 30)),
     status: opts.status ?? 'live',
+    ...(opts.checkingEndsAt === undefined ? {} : { checkingEndsAt: opts.checkingEndsAt ? ts(opts.checkingEndsAt) : null }),
     votingEndsAt: opts.votingEndsAt ? ts(opts.votingEndsAt) : null,
     winnerUids: opts.winnerUids ?? [],
     winningSubmissionIds: [],

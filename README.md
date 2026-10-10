@@ -94,11 +94,14 @@ Anyone can sign in with Google and ask to join with a display name. Nothing happ
 
 Every 60-120 minutes (outside quiet hours) a side quest opens for everyone and stays open about 40 minutes.
 
-1. **Enter** with a photo and/or a comment, once per player. Entries need no witness and are posted to the feed.
-2. **Vote.** When everyone has entered, or the window ends, voting opens (20 minutes by default) and everyone votes for their favourite entry (not their own). It closes when everyone has voted or time is up.
-3. **Win.** The most votes wins the bonus. Ties pay everyone tied in full, and no votes means no winner.
+1. **Enter** with a photo and/or a comment, once per player. Entries need no witness; the feed only says who entered, and entries stay hidden until voting.
+2. **Check.** When everyone has entered, or the window ends, entries close and the GMs get a push. A GM **accepts** or **rejects** each entry in GM › Side quests. A rejected entry is thrown out with no fine, and only its owner is told, with the GM's note. Nobody checks their own entry: a lone GM's entry goes to the vote unchecked. Voting opens as soon as every entry is checked, or after 30 minutes (`checkWindowMin`) with any unchecked entries in. With no GM to check them, entries go straight to the vote.
+3. **Vote.** Everyone votes for their favourite entry (not their own) for 20 minutes by default. It closes when everyone has voted or time is up.
+4. **Win.** The most votes wins the bonus. Ties pay everyone tied in full, and no votes means no winner (and nothing to vote on, if every entry was rejected).
 
-The GM can start or end voting early, fire a random or custom side quest, or disqualify an entry (treated like a fraud override).
+The GM can close entries, start voting or end voting early, fire a random or custom side quest, or disqualify an entry (treated like a fraud override, with the fine).
+
+Players can change their entry until entries close.
 
 ### Default scoring
 
@@ -113,6 +116,7 @@ The GM can start or end voting early, fire a random or custom side quest, or dis
 | Guess cooldown | **30 min** per target |
 | Rerolls (swap a quest for a new one) | **10** per player, plus any extras the GM grants |
 | Fraud fine (on top of the quest points being taken back) | **-50** |
+| Side-quest checking time (GM) | **30 min** |
 | Side-quest voting window | **20 min** |
 | Quiet hours (no side quests open) | **01:00-10:00** |
 
@@ -149,7 +153,7 @@ firestore.rules, storage.rules, firestore.indexes.json, firebase.json
 .github/workflows/    GitHub Pages deploy
 ```
 
-`npm run dev` also runs `scripts/dev-tick.mjs`, because the Functions emulator never runs scheduled functions: once a minute it calls the `devTick` function (the same job the 15-minute schedule runs in production) so side quests open, move to voting and close. It logs only when something happens; override with `DEV_TICK_SECONDS` or `DEV_TICK_URL`.
+`npm run dev` also runs `scripts/dev-tick.mjs`, because the Functions emulator never runs scheduled functions: once a minute it calls the `devTick` function (the same job the 15-minute schedule runs in production) so side quests open, move to checking and voting, and close. It logs only when something happens; override with `DEV_TICK_SECONDS` or `DEV_TICK_URL`.
 
 ### Editing the quests
 

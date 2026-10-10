@@ -38,20 +38,14 @@ Ignore the log noise from `MetadataLookupWarning`, `url.parse()` and `punycode` 
   - The repo is `MarioArchives/Lancaster-Lunatics-Musical-Mischief`, branch `master`.
   - Every push to `master` runs `.github/workflows/deploy.yml`, which builds with the `VITE_FIREBASE_*` repo secrets and publishes to Pages in about 1-2 minutes. Pages source is GitHub Actions.
 - **The workflow deploys only the frontend.** Rules, indexes and functions go out by hand with `npx firebase deploy`. When a change spans both, deploy the backend first if the new frontend calls a new or changed function.
-- **Functions:** 18 in production (`devTick` is emulator-only). The scheduled `globalQuestTick` runs every 15 minutes, Europe/London time, and opens, votes and closes side quests outside quiet hours. Firestore triggers: `onSubmissionCreated`, `onAdminCreated`, `onFeedReactionWritten`.
-- **Settings** live in the `game/settings` doc and are edited in the GM console. `DEFAULT_SETTINGS` (`functions/src/shared/settings.ts`) only fills keys that are missing, so changing a default does not change a running game.
-- **Reading prod data:** use the Firebase console, or a short Admin SDK script run with Node 24 (ADC needs no setup). Read before writing, and ask before writing.
+- **Functions:** 24 in production (`devTick` is emulator-only). The scheduled `globalQuestTick` runs every 15 minutes, Europe/London time, and opens, checks, votes and closes side quests (new drops only outside quiet hours). Firestore triggers: `onSubmissionCreated`, `onAdminCreated`, `onFeedCreated` (push), `onJoinRequestCreated` (push), `onFeedReactionWritten`.
+- **Push notifications** go through FCM Web Push (`functions/src/game/push.ts`, `public/push-sw.js`). The public VAPID key is in `.github/workflows/deploy.yml`.
+- **Storage uploads** need the Storage service agent to hold `roles/firebaserules.firestoreServiceAgent` (granted 2026-10-10), because `storage.rules` reads Firestore.
 
-### State as of 2026-10-10 04:30 (check with `git status` and `git log origin/master`)
+### State as of 2026-10-10 (check with `git status` and `git log origin/master`)
 
-- The live site is built from commit `4a404b0`.
-- Live functions, rules and indexes were deployed at 03:42 from the working tree as it was then.
-- Uncommitted work since then, not pushed or deployed:
-  - GM extra rerolls (`grantRerolls` callable, `functions/src/game/rerolls.ts`) and quick ±10 buttons (`src/lib/gmQuick.ts`).
-  - An `endGame` tweak.
-  - A rewrite of the quest catalogue in `scripts/data/quests.json`. Prod differs from it by 13 reworded, 3 new and 1 dropped quest; `npm run seed -- --prod` syncs it.
-  - The `--prod` flag for `seed` and `make-admin` (`scripts/lib/target.mjs`), `storage.cors.json`, this file and README updates.
-- To ship all of it: run the tests, deploy functions, re-seed prod, then commit and push. Get the user's go-ahead first.
+- Everything up to push notifications (`c248cf6`) is pushed and deployed: site, functions, rules and the prod quest catalogue.
+- The side-quest checking stage (`checkEntry` callable, `checkWindowMin` setting) ships with a functions deploy first, then a push.
 
 ## Shipping a fix during the festival
 

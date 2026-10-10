@@ -34,6 +34,8 @@ export interface Settings {
   rejectPenalty: number;
   /** How long side-quest voting stays open. */
   voteWindowMin: number;
+  /** How long the GM has to check side-quest entries once they close; then voting starts with the unchecked ones in. */
+  checkWindowMin: number;
   refillOnComplete: boolean;
   revealOnComplete: boolean;
   pointsFloorZero: boolean;
@@ -109,10 +111,10 @@ export interface QuestTemplate {
 }
 
 /**
- * Side quests: players enter while 'live' (claim + witness, evidence after approval), then everyone
- * votes ('voting'); the most-voted entries win (ties all win), then 'closed'.
+ * Side quests: players enter while 'live', then a GM checks the entries ('checking': accept or reject each),
+ * then everyone votes ('voting'); the most-voted entries win (ties all win), then 'closed'.
  */
-export type GlobalQuestStatus = 'live' | 'voting' | 'closed';
+export type GlobalQuestStatus = 'live' | 'checking' | 'voting' | 'closed';
 export type GlobalQuestSource = 'timer' | 'gm-random' | 'gm-custom';
 
 /** globalQuests/{id}. Votes live server-only in globalQuests/{id}/votes/{voterUid}. */
@@ -126,6 +128,8 @@ export interface GlobalQuest {
   /** End of the entry window. */
   endsAt: TS;
   status: GlobalQuestStatus;
+  /** Set when checking starts: entries still unchecked then go to the vote anyway. Absent on older docs. */
+  checkingEndsAt?: TS | null;
   /** Set when voting opens. */
   votingEndsAt: TS | null;
   /** Everyone tied on the most votes (empty if nobody won). */
@@ -144,7 +148,7 @@ export interface Vote {
 export type SubmissionKind = 'personal' | 'global';
 /**
  * 'sealed' = a side-quest entry that is hidden from other players until voting opens, when it becomes
- * 'approved' (visible and votable).
+ * 'approved' (visible and votable). A GM can reject it while the side quest is 'checking'.
  */
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'sealed';
 
@@ -189,6 +193,8 @@ export interface Submission {
   rejectReason?: string | null;
   questTitle?: string | null;
   refillQuestId?: string | null;
+  /** Side-quest entries: the GM's check once entries close. 'rejected' = thrown out with no fine (not a disqualification). */
+  checked?: 'accepted' | 'rejected' | null;
 }
 
 /** The quick picks in the reaction picker. Players can also react with any single emoji from their keyboard. */
@@ -270,6 +276,7 @@ export type FeedType =
   | 'fraud'
   | 'exposed'
   | 'global-open'
+  | 'checking'
   | 'voting-open'
   | 'global-won'
   | 'announcement'

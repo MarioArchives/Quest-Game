@@ -96,6 +96,14 @@ describe('P1. who hears about each feed post', () => {
   it('a join post sends nothing', () => {
     expect(pushFor(post('join', { uid: 'alice' }))).toBeNull();
   });
+
+  it('entries closing for a check goes to the GMs only, naming the side quest, never the GM who closed them', () => {
+    const plan = pushFor(post('checking', { questTitle: 'Hats only!', actorUid: 'gm' }));
+    expect(plan?.to).toBe('gms');
+    expect(plan?.exclude).toBe('gm');
+    expect(said(plan)).toContain('Hats only!');
+    expect(pushFor(post('checking', { questTitle: 'Hats only!' }))?.exclude ?? null).toBeNull();
+  });
 });
 
 describe('P2. side-quest entries', () => {
@@ -431,6 +439,7 @@ describe('P12. tap-through links', () => {
     ['fraud', '#/account'],
     ['exposed', '#/account'],
     ['adjust', '#/account'],
+    ['checking', '#/gm'],
   ] as const)('%s opens %s', (type, link) => {
     const plan = pushFor(post(type, { uid: 'alice', actorUid: 'bob', questTitle: 'Hats only!', points: 100 }), 'personal');
     expect(plan?.message.link).toBe(link);

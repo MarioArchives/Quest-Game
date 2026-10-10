@@ -5,7 +5,7 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
 
-/** The side quests you entered, and how each is going. You can change an entry until voting starts. */
+/** The side quests you entered, and how each is going. You can change an entry until entries close. */
 export function SideQuestEntries() {
   const { mySubmissions, globalQuests, state } = useGame();
   const now = useNow(30_000);
@@ -26,10 +26,11 @@ export function SideQuestEntries() {
           let status: string;
           let tone = 'tag--tint';
           if (s.status === 'rejected') {
-            status = 'Disqualified';
+            // Rejected at the GM's check (no fine), or disqualified as fraud (fined).
+            status = s.checked === 'rejected' ? 'Not accepted' : 'Disqualified';
             tone = 'tag--red';
           } else if (s.status === 'sealed') {
-            status = 'Hidden until voting';
+            status = quest?.status === 'checking' ? 'Being checked' : 'Hidden until voting';
           } else if (!quest) {
             status = 'Entered';
           } else if (quest.status === 'live') {
@@ -54,9 +55,10 @@ export function SideQuestEntries() {
                   <span className="history__ago">{formatAgo(tsMs(s.createdAt), now)}</span>
                 </p>
                 {s.caption ? <p className="history__note">Your comment: {s.caption}</p> : null}
+                {s.status === 'rejected' && s.reviewNote ? <p className="history__note">GM: {s.reviewNote}</p> : null}
                 {editable ? (
                   <button type="button" className="linkbtn" onClick={() => setSheet({ mode: 'evidence', submission: s, title })}>
-                    Edit entry (until voting starts)
+                    Edit entry (until entries close)
                   </button>
                 ) : null}
               </div>

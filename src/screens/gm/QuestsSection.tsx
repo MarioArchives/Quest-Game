@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { advanceGlobalQuest, fireGlobalQuest, friendlyError, reviewSubmission, type FireGlobalQuestInput } from '../../api';
+import { advanceGlobalQuest, checkEntry, fireGlobalQuest, friendlyError, reviewSubmission, type FireGlobalQuestInput } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
@@ -10,6 +10,7 @@ import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo, formatCountdown } from '../../lib/time';
+import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
 import { NoteSheet, clockTime, useRunner } from './common';
 
@@ -36,6 +37,7 @@ export function QuestsSection() {
   const [confirmRandom, setConfirmRandom] = useState(false);
 
   const live = globalQuests.filter((g) => g.status === 'live');
+  const checking = globalQuests.filter((g) => g.status === 'checking');
   const voting = globalQuests.filter((g) => g.status === 'voting');
   const past = globalQuests.filter((g) => g.status === 'closed').slice(0, 6);
   const active = state.status === 'active';
@@ -48,13 +50,16 @@ export function QuestsSection() {
     <>
       <section className="gm-card gm-hero halftone" aria-label="Fire a side quest">
         <p className="eyebrow">
-          Side quests · {live.length > 0 ? 'entries open' : voting.length > 0 ? 'voting' : 'none running'}
+          Side quests ·{' '}
+          {live.length > 0 ? 'entries open' : checking.length > 0 ? 'checking entries' : voting.length > 0 ? 'voting' : 'none running'}
         </p>
         {running ? (
           <h2 className="gm-hero__title">{running.title}</h2>
         ) : (
           <p className="gm-hero__none">
-            {voting.length > 0
+            {checking.length > 0
+              ? 'Entries are waiting for you to check.'
+              : voting.length > 0
               ? 'Voting is on.'
               : active
                 ? 'Nothing is open right now.'
@@ -86,6 +91,22 @@ export function QuestsSection() {
           {settings.voteWindowMin} min.
         </p>
       </section>
+
+      {checking.length > 0 ? (
+        <>
+          <div className="section-head">
+            <h2>Check entries</h2>
+            <span className="gm-count gm-count--on">{checking.length} waiting</span>
+          </div>
+          <ul className="gm-list gm-list--cards">
+            {checking.map((quest) => (
+              <li key={quest.id} className="gm-card">
+                <CheckingQuest quest={quest} now={now} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       {live.length > 0 ? (
         <>
@@ -152,15 +173,34 @@ export function QuestsSection() {
   );
 }
 
+/** What the GM hears after a check, depending on where the side quest went. */
+const CHECKED_TOAST: Record<'checking' | 'voting' | 'closed', (accepted: boolean) => string> = {
+  checking: (accepted) => (accepted ? 'Accepted.' : 'Rejected. Only they are told.'),
+  voting: (accepted) => `${accepted ? 'Accepted' : 'Rejected'}. That was the last one, so voting is open.`,
+  closed: () => 'Rejected. No entries are left, so the side quest closed with no winner.',
+};
+
 function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submission>[]; quest: Doc<GlobalQuest>; showVotes?: boolean }) {
   const { playersById, settings, state } = useGame();
+  const { user } = useSession();
   const toast = useToast();
+  const { busyKey, run } = useRunner();
   const now = useNow(30_000);
   const winners = new Set(quest.winningSubmissionIds ?? []);
   const [disqualifying, setDisqualifying] = useState<Doc<Submission> | null>(null);
+  const [rejecting, setRejecting] = useState<Doc<Submission> | null>(null);
   // Disqualifying is for entries still in play; a finished vote is overturned from Review > Recent approvals.
   const canDisqualify = quest.status !== 'closed' && state.status !== 'ended';
+  // Accept / reject: once entries close and before the vote.
+  const canCheck = quest.status === 'checking' && state.status !== 'ended';
   const dqName = disqualifying ? (playersById.get(disqualifying.uid)?.displayName ?? 'A player') : '';
+  const rejectName = rejecting ? (playersById.get(rejecting.uid)?.displayName ?? 'A player') : '';
+
+  const accept = (entry: Doc<Submission>) =>
+    void run(`accept:${entry.id}`, async () => {
+      const { status } = await checkEntry({ submissionId: entry.id, accept: true });
+      toast(CHECKED_TOAST[status === 'voting' || status === 'closed' ? status : 'checking'](true), 'success');
+    });
 
   return (
     <>
@@ -179,7 +219,9 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
                 <Avatar name={who?.displayName ?? '?'} src={who?.photoURL} size={22} />
                 <strong>{who?.displayName ?? 'A player'}</strong>
                 {won ? <span className="tag tag--red">Winner</span> : null}
-                {entry.status === 'sealed' ? <span className="tag tag--tint">Hidden until voting</span> : null}
+                {canCheck && entry.checked === 'accepted' ? <span className="tag tag--ink">Accepted</span> : null}
+                {canCheck && entry.uid === user?.uid ? <span className="tag tag--tint">Yours</span> : null}
+                {!canCheck && entry.status === 'sealed' ? <span className="tag tag--tint">Hidden until voting</span> : null}
                 {votes !== null ? (
                   <span className="tag tag--ink">
                     {votes} {votes === 1 ? 'vote' : 'votes'}
@@ -189,7 +231,21 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
               {entry.caption ? <p className="gm-entry__caption">&ldquo;{entry.caption}&rdquo;</p> : null}
               {!entry.thumbPath && !entry.caption ? <p className="gm-entry__meta">Entered with no photo or comment</p> : null}
               <p className="gm-entry__meta">{formatAgo(tsMs(entry.createdAt), now)}</p>
-              {canDisqualify ? (
+              {canCheck && entry.uid !== user?.uid ? (
+                <div className="gm-row gm-entry__pick">
+                  {entry.checked !== 'accepted' ? (
+                    <Button small variant="primary" busy={busyKey === `accept:${entry.id}`} disabled={busyKey !== null} onClick={() => accept(entry)}>
+                      Accept
+                    </Button>
+                  ) : null}
+                  <Button small disabled={busyKey !== null} onClick={() => setRejecting(entry)}>
+                    Reject
+                  </Button>
+                  <Button small variant="ghost" disabled={busyKey !== null} onClick={() => setDisqualifying(entry)}>
+                    Disqualify
+                  </Button>
+                </div>
+              ) : canDisqualify && !canCheck ? (
                 <Button small className="gm-entry__pick" onClick={() => setDisqualifying(entry)}>
                   Disqualify
                 </Button>
@@ -199,6 +255,27 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
         );
       })}
     </ul>
+    {rejecting ? (
+      <NoteSheet
+        title="Reject this entry?"
+        subtitle={`${rejectName} · ${quest.title}`}
+        intro={
+          <p>
+            The entry is thrown out, with <strong>no fine</strong>, and won&apos;t go to the vote. Only {rejectName} is told, with your note.
+            For cheating, use Disqualify instead.
+          </p>
+        }
+        noteLabel={`Why (only ${rejectName} sees this)`}
+        placeholder="e.g. That’s not a kazoo"
+        confirmLabel="Reject entry"
+        danger
+        onClose={() => setRejecting(null)}
+        onConfirm={async (note) => {
+          const { status } = await checkEntry({ submissionId: rejecting.id, accept: false, ...(note ? { note } : {}) });
+          toast(CHECKED_TOAST[status === 'voting' || status === 'closed' ? status : 'checking'](false), 'success');
+        }}
+      />
+    ) : null}
     {disqualifying ? (
       <NoteSheet
         title="Disqualify this entry?"
@@ -245,6 +322,55 @@ function LiveQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
       </p>
       {entries.length === 0 ? <p className="gm-hint">Nobody has entered yet.</p> : <EntryList entries={entries} quest={quest} />}
       <Button variant="primary" block onClick={() => setStarting(true)}>
+        Close entries now
+      </Button>
+      {starting ? (
+        <ConfirmSheet
+          title="Close entries now?"
+          confirmLabel="Close entries"
+          onClose={() => setStarting(false)}
+          onConfirm={async () => {
+            await advanceGlobalQuest({ globalQuestId: quest.id });
+          }}
+        >
+          <p>
+            Entries for <strong>&ldquo;{quest.title}&rdquo;</strong> close now. You accept or reject each one, then everyone votes for their
+            favourite. {entries.length} of {players.length} players have entered.
+          </p>
+          {entries.length === 0 ? <p className="muted">Nobody has entered, so there is nothing to vote on and it will end with no winner.</p> : null}
+        </ConfirmSheet>
+      ) : null}
+    </>
+  );
+}
+
+function CheckingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
+  const { user } = useSession();
+  const entries = useEntries(quest.id);
+  const [starting, setStarting] = useState(false);
+  const endsAt = tsMs(quest.checkingEndsAt);
+  // Your own entry is not yours to check; it goes to the vote as it is.
+  const toCheck = entries.filter((e) => e.uid !== user?.uid);
+  const unchecked = toCheck.filter((e) => e.checked !== 'accepted').length;
+
+  return (
+    <>
+      <p className="eyebrow">Checking · +{quest.bonusPoints} to the winner</p>
+      <h3 className="gm-q-title">{quest.title}</h3>
+      {quest.description ? <p className="gm-q-desc">{quest.description}</p> : null}
+      <p className="gm-q-facts">
+        <span className="gm-q-clock" role="timer">
+          {endsAt ? formatCountdown(endsAt, now) : '--:--'}
+        </span>
+        <span>
+          left · {toCheck.length - unchecked} of {toCheck.length} checked
+        </span>
+      </p>
+      <p className="gm-hint">
+        Accept or reject each entry. Voting opens by itself once they are all checked, or when the time runs out (unchecked entries go in).
+      </p>
+      {entries.length === 0 ? <p className="gm-hint">No entries are left.</p> : <EntryList entries={entries} quest={quest} />}
+      <Button variant="primary" block onClick={() => setStarting(true)}>
         Start voting now
       </Button>
       {starting ? (
@@ -257,10 +383,10 @@ function LiveQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
           }}
         >
           <p>
-            Entries for <strong>&ldquo;{quest.title}&rdquo;</strong> close now and everyone votes for their favourite. {entries.length} of{' '}
-            {players.length} players have entered.
+            Everyone votes on <strong>&ldquo;{quest.title}&rdquo;</strong> now.
+            {unchecked > 0 ? ` The ${unchecked} unchecked ${unchecked === 1 ? 'entry goes' : 'entries go'} in as ${unchecked === 1 ? 'it is' : 'they are'}.` : ''}
           </p>
-          {entries.length === 0 ? <p className="muted">Nobody has entered, so there is nothing to vote on and it will end with no winner.</p> : null}
+          {entries.length === 0 ? <p className="muted">No entries are left, so it will end with no winner.</p> : null}
         </ConfirmSheet>
       ) : null}
     </>
@@ -396,7 +522,7 @@ function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }
               Open for (minutes)
             </label>
             <input id="sq-window" className="input" inputMode="numeric" value={windowMin} disabled={busy} onChange={(e) => setWindowMin(e.target.value)} />
-            <span className="field__hint">5 to 180, then everyone votes</span>
+            <span className="field__hint">5 to 180, then you check entries and everyone votes</span>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="sq-points">

@@ -1,5 +1,7 @@
 // Edge cases 28–29 (quiet hours, runTick, fireGlobalQuest) as revised for voted side quests
-// (Revision 3 V13/V15: the timer moves expired side quests into voting and closes voting when it ends).
+// (Revision 3 V13/V15: the timer moves expired side quests into voting and closes voting when it ends;
+// with a GM to check them, entries go to 'checking' first, and the timer opens the vote when checking runs out).
+// tickSetup seeds no GM, so entries there go straight to the vote unless a test adds one.
 import { describe, expect, it } from 'vitest';
 import { fireGlobalQuest, isQuietHours, runTick } from '../src/game/globals.js';
 import { castVote } from '../src/game/votes.js';
@@ -71,7 +73,7 @@ describe('runTick', () => {
     await seedGlobalTemplate(db(), 'g01');
     await seedGlobalQuest(db(), 'old', { status: 'live', endsAt: addMin(T0, -5) });
     const res = await runTick(db(), T0, seededRng());
-    expect(res).toEqual({ opened: null, closed: [], voting: [] });
+    expect(res).toEqual({ opened: null, closed: [], checking: [], voting: [] });
     expect(await allDocs(db(), 'globalQuests')).toHaveLength(1);
     expect((await getData(db(), 'globalQuests/old'))?.status).toBe('live');
   });
@@ -138,14 +140,14 @@ describe('runTick', () => {
     expect(q!.bonusPoints).toBe(150);
   });
 
-  it('moves an expired live side quest with entries into voting, and closes one nobody entered', async () => {
+  it('with no GM to check them, moves an expired live side quest with entries into voting, and closes one nobody entered', async () => {
     await tickSetup({ next: addMin(T0, 30), settings: { voteWindowMin: 15 } });
     await seedGlobalQuest(db(), 'withEntries', { status: 'live', endsAt: addMin(T0, -1) });
     await seedGlobalQuest(db(), 'empty', { status: 'live', endsAt: T0 });
     await seedGlobalQuest(db(), 'running', { status: 'live', endsAt: addMin(T0, 10) });
     await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'withEntries', witnessUid: null, status: 'sealed', evidence: true });
     const res = await runTick(db(), T0, seededRng());
-    expect(res).toEqual({ opened: null, closed: ['empty'], voting: ['withEntries'] });
+    expect(res).toEqual({ opened: null, closed: ['empty'], checking: [], voting: ['withEntries'] });
     expect((await getData(db(), 'submissions/e1'))?.status).toBe('approved'); // revealed (R5)
     const voting = await getData(db(), 'globalQuests/withEntries');
     expect(voting?.status).toBe('voting');
@@ -161,6 +163,68 @@ describe('runTick', () => {
     await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'gq1', witnessUid: null, status: 'rejected', evidence: true });
     await runTick(db(), T0, seededRng());
     expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('closed');
+  });
+
+  it('with a GM, sends an expired side quest with entries to checking: entries stay sealed and the GMs are told', async () => {
+    await tickSetup({ next: addMin(T0, 30), settings: { checkWindowMin: 25 } });
+    await seedAdmin(db(), 'gm');
+    await seedGlobalQuest(db(), 'gq1', { status: 'live', endsAt: addMin(T0, -1) });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'gq1', witnessUid: null, status: 'sealed', evidence: true });
+    const res = await runTick(db(), T0, seededRng());
+    expect(res).toEqual({ opened: null, closed: [], checking: ['gq1'], voting: [] });
+    const gq = await getData(db(), 'globalQuests/gq1');
+    expect(gq?.status).toBe('checking');
+    expect(toMillis(gq!.checkingEndsAt)).toBe(T0.getTime() + 25 * MIN);
+    expect(gq?.votingEndsAt ?? null).toBeNull();
+    expect((await getData(db(), 'submissions/e1'))?.status).toBe('sealed');
+    expect(await feedOf(db(), 'checking')).toEqual([expect.objectContaining({ ref: 'gq1', questTitle: 'Global gq1', uid: null })]);
+    expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
+  });
+
+  it('a lone GM\'s own entry needs no check: it goes straight to the vote', async () => {
+    await tickSetup({ next: addMin(T0, 30) });
+    await seedAdmin(db(), 'gm');
+    await seedGlobalQuest(db(), 'gq1', { status: 'live', endsAt: addMin(T0, -1) });
+    await seedSubmission(db(), 'e1', { uid: 'gm', kind: 'global', questId: 'gq1', witnessUid: null, status: 'sealed', evidence: true });
+    expect((await runTick(db(), T0, seededRng())).voting).toEqual(['gq1']);
+  });
+
+  it('opens the vote when checking runs out, unchecked entries included; not before', async () => {
+    await tickSetup({ next: addMin(T0, 30), settings: { voteWindowMin: 15 } });
+    await seedAdmin(db(), 'gm');
+    await seedGlobalQuest(db(), 'gq1', { status: 'checking', endsAt: addMin(T0, -40), checkingEndsAt: addMin(T0, 10) });
+    await seedSubmission(db(), 'ea', { uid: 'alice', kind: 'global', questId: 'gq1', witnessUid: null, status: 'sealed', evidence: true, extra: { checked: 'accepted' } });
+    await seedSubmission(db(), 'eb', { uid: 'bob', kind: 'global', questId: 'gq1', witnessUid: null, status: 'sealed', evidence: true });
+
+    expect((await runTick(db(), addMin(T0, 9), seededRng())).voting).toEqual([]);
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+
+    expect(await runTick(db(), addMin(T0, 10), seededRng())).toEqual({ opened: null, closed: [], checking: [], voting: ['gq1'] });
+    const gq = await getData(db(), 'globalQuests/gq1');
+    expect(gq?.status).toBe('voting');
+    expect(toMillis(gq!.votingEndsAt)).toBe(addMin(T0, 10).getTime() + 15 * MIN);
+    expect((await getData(db(), 'submissions/ea'))?.status).toBe('approved');
+    expect((await getData(db(), 'submissions/eb'))?.status).toBe('approved');
+    expect(await feedOf(db(), 'voting-open')).toHaveLength(1);
+  });
+
+  it('closes a checking side quest with no winner when its time runs out and every entry was thrown out', async () => {
+    await tickSetup({ next: addMin(T0, 30) });
+    await seedAdmin(db(), 'gm');
+    await seedGlobalQuest(db(), 'gq1', { status: 'checking', endsAt: addMin(T0, -40), checkingEndsAt: addMin(T0, -1) });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'gq1', witnessUid: null, status: 'rejected', evidence: true, extra: { checked: 'rejected' } });
+    expect((await runTick(db(), T0, seededRng())).closed).toEqual(['gq1']);
+    expect(await getData(db(), 'globalQuests/gq1')).toMatchObject({ status: 'closed', winnerUids: [] });
+  });
+
+  it('a new timer side quest opens while another is still being checked, and leaves it alone', async () => {
+    await tickSetup();
+    await seedAdmin(db(), 'gm');
+    await seedGlobalTemplate(db(), 'g01');
+    await seedGlobalQuest(db(), 'gq1', { status: 'checking', endsAt: addMin(T0, -5), checkingEndsAt: addMin(T0, 20) });
+    const res = await runTick(db(), T0, seededRng());
+    expect(res.opened).toEqual(expect.any(String));
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
   });
 
   it('closes voting once votingEndsAt has passed and pays the winners', async () => {
@@ -311,13 +375,15 @@ describe('fireGlobalQuest', () => {
     expect(await allDocs(db(), 'globalQuests')).toHaveLength(0);
   });
 
-  it('moves the current live side quest on before opening a new one', async () => {
+  it('moves the current live side quest on (its entries to checking) before opening a new one', async () => {
     await tickSetup();
     await seedAdmin(db(), 'gm');
     await seedGlobalQuest(db(), 'old', { status: 'live', endsAt: addMin(T0, 20) });
     await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'old', witnessUid: null, status: 'sealed', evidence: true });
     const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), custom());
-    expect((await getData(db(), 'globalQuests/old'))?.status).toBe('voting');
+    expect((await getData(db(), 'globalQuests/old'))?.status).toBe('checking');
+    // The GM who fired it is right there, so the checking post doesn't buzz them.
+    expect((await feedOf(db(), 'checking'))[0]).toMatchObject({ ref: 'old', actorUid: 'gm' });
     expect((await liveQuests()).map((q) => q.id)).toEqual([globalQuestId]);
   });
 });

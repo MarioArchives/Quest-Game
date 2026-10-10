@@ -36,6 +36,7 @@ import { handleSubmissionCreated, reviewSubmission as doReviewSubmission } from 
 import {
   advanceGlobalQuest as doAdvanceGlobalQuest,
   castVote as doCastVote,
+  checkEntry as doCheckEntry,
   enterSideQuest as doEnterSideQuest,
 } from './game/votes.js';
 
@@ -82,6 +83,12 @@ export const castVote = callable((ctx, data: Parameters<typeof doCastVote>[2]) =
 export const advanceGlobalQuest = callable((ctx, data: Parameters<typeof doAdvanceGlobalQuest>[2]) =>
   doAdvanceGlobalQuest(db, ctx, data),
 );
+// A rejected entrant hears about it once the check is saved.
+export const checkEntry = callable(async (ctx, data: Parameters<typeof doCheckEntry>[2]) => {
+  const { push, ...result } = await doCheckEntry(db, ctx, data);
+  if (push) await sendPush(db, pushSender(), push);
+  return result;
+});
 export const savePushToken = callable((ctx, data: { token?: unknown }) => doSavePushToken(db, ctx, data));
 export const removePushToken = callable((ctx, data: { token?: unknown }) => doRemovePushToken(db, ctx, data));
 export const adjustPoints = callable((ctx, data: Parameters<typeof doAdjustPoints>[2]) => doAdjustPoints(db, ctx, data));

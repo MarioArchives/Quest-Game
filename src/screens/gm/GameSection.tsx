@@ -26,6 +26,7 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
   const [resetting, setResetting] = useState(false);
 
   const voting = globalQuests.filter((g) => g.status === 'voting');
+  const checking = globalQuests.filter((g) => g.status === 'checking');
   const live = globalQuests.find((g) => g.status === 'live');
   const status = state.status;
 
@@ -109,14 +110,18 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           <span className="gm-link__text">
             <strong>Side quests</strong>
             <span>
-              {live
-                ? `Entries open: ${live.title} · ${formatCountdown(tsMs(live.endsAt), now)} left`
-                : voting.length > 0
-                  ? `Voting: ${voting.map((g) => g.title).join(', ')}`
-                  : 'None running right now'}
+              {checking.length > 0
+                ? `Entries to check: ${checking.map((g) => g.title).join(', ')}`
+                : live
+                  ? `Entries open: ${live.title} · ${formatCountdown(tsMs(live.endsAt), now)} left`
+                  : voting.length > 0
+                    ? `Voting: ${voting.map((g) => g.title).join(', ')}`
+                    : 'None running right now'}
             </span>
           </span>
-          {live || voting.length > 0 ? <span className="gm-badge">{(live ? 1 : 0) + voting.length}</span> : null}
+          {live || checking.length + voting.length > 0 ? (
+            <span className="gm-badge">{(live ? 1 : 0) + checking.length + voting.length}</span>
+          ) : null}
           <Icon name="chevron" size={20} />
         </button>
       </section>
@@ -161,6 +166,15 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
                 {voting.length} side {voting.length === 1 ? 'quest is' : 'quests are'} still being voted on:
               </strong>{' '}
               {voting.map((g) => g.title).join(', ')}. The votes cast so far are counted and the winners paid now.
+            </p>
+          ) : null}
+          {checking.length > 0 ? (
+            <p className="note">
+              <strong>
+                {checking.length === 1 ? `“${checking[0]!.title}” has` : `${checking.length} side quests have`} entries waiting to be
+                checked.
+              </strong>{' '}
+              Nobody voted yet, so {checking.length === 1 ? 'it closes' : 'they close'} without a winner.
             </p>
           ) : null}
           {live ? (

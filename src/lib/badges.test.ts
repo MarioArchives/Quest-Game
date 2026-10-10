@@ -80,6 +80,11 @@ describe('tabBadges', () => {
       expect(tabBadges(input({ isGM: true, pendingJoins: 2 })).gm).toBe(true);
     });
 
+    it('lights up while side-quest entries are waiting to be checked', () => {
+      expect(tabBadges(input({ isGM: true, sideQuests: [{ status: 'checking', endsAt: NOW - MIN, votingEndsAt: null }] })).gm).toBe(true);
+      expect(tabBadges(input({ isGM: false, sideQuests: [{ status: 'checking', endsAt: NOW - MIN, votingEndsAt: null }] })).gm).toBe(false);
+    });
+
     it('lights up for a live side quest past its window, or voting past its end', () => {
       expect(tabBadges(input({ isGM: true, sideQuests: [{ status: 'live', endsAt: NOW - MIN, votingEndsAt: null }] })).gm).toBe(true);
       expect(tabBadges(input({ isGM: true, sideQuests: [{ status: 'voting', endsAt: NOW - 30 * MIN, votingEndsAt: NOW - MIN }] })).gm).toBe(true);
