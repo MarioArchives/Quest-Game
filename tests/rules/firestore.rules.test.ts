@@ -164,6 +164,8 @@ describe('3. player profiles', () => {
   it.each([
     ['points', { points: 9999 }],
     ['rerollsUsed', { rerollsUsed: 3 }],
+    ['extraRerolls (GM-granted rerolls)', { extraRerolls: 5 }],
+    ['extraRerolls alongside their photo', { photoURL: 'https://x/z.jpg', extraRerolls: 5 }],
     ['questsCompleted', { questsCompleted: 40 }],
     ['name and points together', { displayName: 'Ally', points: 1 }],
   ])('cannot change %s', async (_label, data) => {

@@ -167,6 +167,9 @@ export const fireGlobalQuest = (data: FireGlobalQuestInput) =>
 export const adjustPoints = (data: { uid: string; delta: number; reason: string }) =>
   call<typeof data, { points: number }>('adjustPoints', data);
 
+export const grantRerolls = (data: { uid: string; delta: number }) =>
+  call<typeof data, { extraRerolls: number; rerollsLeft: number }>('grantRerolls', data);
+
 export const setGameStatus = (data: { status: Extract<GameStatus, 'active' | 'paused'> }) =>
   call<typeof data, { status: GameStatus }>('setGameStatus', data);
 

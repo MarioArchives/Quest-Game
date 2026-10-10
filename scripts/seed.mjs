@@ -7,9 +7,12 @@
 //   npm run seed -- --reset-settings  overwrite game/settings with the defaults (discards GM edits)
 //   npm run seed -- --wait            poll until the emulators answer (up to 2 min) before seeding;
 //                                     `npm run dev` runs this so the catalogue is always loaded
+//   npm run seed -- --prod            game/state, game/settings and the catalogue in the real project
+//                                     (the "prod" alias in .firebaserc); demo data stays emulator-only
 //
-// Talks to the emulators only: honours FIRESTORE_EMULATOR_HOST / FIREBASE_STORAGE_EMULATOR_HOST (set by
-// `firebase emulators:exec`) and otherwise uses the firebase.json dev ports.
+// Talks to the emulators unless --prod: honours FIRESTORE_EMULATOR_HOST / FIREBASE_STORAGE_EMULATOR_HOST
+// (set by `firebase emulators:exec`) and otherwise uses the firebase.json dev ports. --prod signs in with
+// Application Default Credentials (`gcloud auth application-default login`).
 
 import { readFile } from 'node:fs/promises';
 import { initializeApp } from 'firebase-admin/app';
@@ -17,31 +20,36 @@ import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 // Node 24 strips the types, so the real defaults are shared with the functions.
 import { DEFAULT_SETTINGS } from '../functions/src/shared/settings.ts';
+import { explainCredentials, selectTarget } from './lib/target.mjs';
 
-const PROJECT_ID = 'demo-festival-quest';
-const BUCKET = `${PROJECT_ID}.appspot.com`;
 const CACHE_CONTROL = 'public,max-age=31536000,immutable';
 const CASTLE = { lat: 54.0495, lng: -2.8048 };
 const WAIT_MS = 120_000;
 const DEMO_SIDE_QUEST = 'demo-side';
 
-process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
-process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= '127.0.0.1:9199';
-// Skip the slow Google metadata-server probe (the emulators need no credentials).
-process.env.METADATA_SERVER_DETECTION ??= 'none';
-
-const FLAGS = ['--demo', '--reset-demo', '--reset-settings', '--wait', '--help', '-h'];
+const FLAGS = ['--demo', '--reset-demo', '--reset-settings', '--wait', '--prod', '--help', '-h'];
 const args = new Set(process.argv.slice(2));
 const unknown = [...args].filter((a) => !FLAGS.includes(a));
 if (args.has('--help') || args.has('-h') || unknown.length > 0) {
   if (unknown.length > 0) console.error(`Unknown option(s): ${unknown.join(' ')}\n`);
-  console.log('Usage: npm run seed -- [--demo] [--reset-demo] [--reset-settings] [--wait]');
+  console.log('Usage: npm run seed -- [--demo] [--reset-demo] [--reset-settings] [--wait] [--prod]');
   process.exit(unknown.length > 0 ? 1 : 0);
 }
 const RESET_DEMO = args.has('--reset-demo');
 const DEMO = args.has('--demo') || RESET_DEMO;
 const RESET_SETTINGS = args.has('--reset-settings');
 const WAIT = args.has('--wait');
+const PROD = args.has('--prod');
+if (PROD && (DEMO || WAIT)) {
+  console.error('--demo, --reset-demo and --wait are for the emulators only; they cannot be combined with --prod.');
+  process.exit(1);
+}
+
+const PROJECT_ID = selectTarget({
+  prod: PROD,
+  emulators: { FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199' },
+});
+const BUCKET = `${PROJECT_ID}.appspot.com`;
 
 initializeApp({ projectId: PROJECT_ID, storageBucket: BUCKET });
 const db = getFirestore();
@@ -139,6 +147,8 @@ async function seedSettings() {
 /**
  * Upsert the catalogue. An existing template keeps its `active` flag so GM retirements survive.
  * Quests never depend on a location or a win rule, so those legacy fields are removed from old docs.
+ * Seeded templates (ids `p-…` / `g-…`) that are no longer in quests.json are retired, so replacing the
+ * catalogue takes effect; GM-written templates have auto ids and are never touched.
  */
 async function seedTemplates(quests) {
   const items = [
@@ -161,8 +171,19 @@ async function seedTemplates(quests) {
     for (const legacy of ['venueId', 'winRule']) if (existing && legacy in existing) data[legacy] = FieldValue.delete();
     return [refs[i], data, { merge: true }];
   });
+  const listed = new Set(items.map((q) => q.id));
+  const dropped = (await db.collection('questTemplates').where('active', '==', true).get()).docs.filter(
+    (d) => /^[pg]-/.test(d.id) && !listed.has(d.id),
+  );
+  for (const d of dropped) entries.push([d.ref, { active: false }, { merge: true }]);
   await writeAll(entries);
-  return { personal: quests.personal.length, global: quests.global.length, created, updated: items.length - created };
+  return {
+    personal: quests.personal.length,
+    global: quests.global.length,
+    created,
+    updated: items.length - created,
+    retired: dropped.length,
+  };
 }
 
 // ---------------------------------------------------------------- demo data
@@ -630,15 +651,15 @@ async function countOf(query) {
 }
 
 async function main() {
-  await ensureEmulators();
-  console.log(`Seeding ${PROJECT_ID} (Firestore ${process.env.FIRESTORE_EMULATOR_HOST})`);
+  if (!PROD) await ensureEmulators();
+  console.log(`Seeding ${PROJECT_ID} (${PROD ? 'production Firestore' : `Firestore ${process.env.FIRESTORE_EMULATOR_HOST}`})`);
 
   const quests = JSON.parse(await readFile(new URL('./data/quests.json', import.meta.url), 'utf8'));
 
   console.log(`  game/state      ${await seedState()}`);
   console.log(`  game/settings   ${await seedSettings()}`);
   const t = await seedTemplates(quests);
-  console.log(`  questTemplates  ${t.personal} personal + ${t.global} global (${t.created} new, ${t.updated} updated)`);
+  console.log(`  questTemplates  ${t.personal} personal + ${t.global} global (${t.created} new, ${t.updated} updated, ${t.retired} old retired)`);
 
   if (DEMO) {
     if (RESET_DEMO) await resetDemo();
@@ -661,11 +682,11 @@ async function main() {
     locations: await countOf(db.collection('locations')),
   };
   console.log(`Firestore now holds: ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-  if (!DEMO) console.log('Tip: add `-- --demo` for demo players, photos, a live side quest and map pins.');
+  if (!DEMO && !PROD) console.log('Tip: add `-- --demo` for demo players, photos, a live side quest and map pins.');
   console.log('Done.');
 }
 
 main().catch((err) => {
-  console.error(`\nSeed failed: ${err?.message ?? err}`);
+  console.error(`\nSeed failed: ${PROD ? explainCredentials(err) : (err?.message ?? err)}`);
   process.exit(1);
 });

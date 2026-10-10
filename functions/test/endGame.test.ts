@@ -291,6 +291,14 @@ describe('endGame', () => {
     expect(w.award.key).toEqual(expect.any(String));
   });
 
+  it("records each player's reroll allowance (base limit plus GM extras) in their wrap (plan edge 12)", async () => {
+    await scenario();
+    await db().doc('players/bob').update({ extraRerolls: 3 });
+    await endGame(db(), ctx('gm'), { venues: VENUES });
+    expect((await getData(db(), 'wraps/alice'))!.rerollAllowance).toBe(10);
+    expect((await getData(db(), 'wraps/bob'))!.rerollAllowance).toBe(13);
+  });
+
   it('gives every player exactly one award, unique apart from good-sport', async () => {
     await scenario();
     await endGame(db(), ctx('gm'), { venues: VENUES });

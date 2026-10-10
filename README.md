@@ -4,7 +4,7 @@ A secret side-quest party game for a group of friends at the **Lancaster Music F
 
 Everyone gets a hand of five secret personal quests ("snap a setlist", "hear three genres in one hour", ...). To complete one you **claim** it and name a friend as your **witness**; they approve (or reject) it, and you can then add a photo or a comment to your post as evidence. Everything that happens lands in a social **feed** where everyone reacts with emoji. Along the way you can try to guess a rival's secret quest by watching what they get up to (right guess: they are exposed and you score; wrong guess: it costs you). Every hour or two a **side quest** opens for everyone at once ("show us a brass instrument on stage"): you enter with a photo or a comment and then everyone **votes**. The game master (GM) keeps things fair, can reject a claim, and can undo an approval as fraud. Best score when the GM ends the game wins, and every player gets a shareable "Wrap" of their festival.
 
-It is a mobile-first PWA (Vite + React + TypeScript) on Firebase (Auth, Firestore, Storage, Cloud Functions). For now everything runs locally on the Firebase Emulator Suite under the demo project `demo-festival-quest`; no Google account or billing is needed.
+It is a mobile-first PWA (Vite + React + TypeScript) on Firebase (Auth, Firestore, Storage, Cloud Functions). Local development runs on the Firebase Emulator Suite under the demo project `demo-festival-quest`, with no Google account or billing needed; the live game runs on `musical-mischief` (see [Production](#production)).
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ Phones on your Wi‑Fi can't join this setup yet: the app connects to the emulat
 
 | Command | What it does |
 |---|---|
-| `npm run seed` | Idempotent (and run for you by `npm run dev`). Creates `game/state` if missing, fills in any missing default settings without touching GM edits, upserts the quest catalogue from `scripts/data/quests.json` (retired templates stay retired). `--wait` first polls until the emulators answer (up to 2 minutes). |
+| `npm run seed` | Idempotent (and run for you by `npm run dev`). Creates `game/state` if missing, fills in any missing default settings without touching GM edits, upserts the quest catalogue from `scripts/data/quests.json` (retired templates stay retired; built-in quests no longer in the file are retired). `--wait` first polls until the emulators answer (up to 2 minutes). |
 | `npm run seed -- --demo` | Also adds demo players Maya, Sam, Priya and Jonah (uids `demo-*`): dealt hands, quests approved by another bot as witness (most with photo or comment evidence), one claim waiting for its witness, one rejected claim (-25), feed posts with emoji reactions, a live side quest with two entries, ledger and map locations. Safe to repeat; nothing is duplicated. |
 | `npm run seed -- --reset-demo` | Deletes the demo players and everything they own, then seeds them again (use it after the data shapes change). |
 | `npm run seed -- --reset-settings` | Overwrite `game/settings` with the defaults. |
@@ -70,7 +70,7 @@ Phones on your Wi‑Fi can't join this setup yet: the app connects to the emulat
 | `npm run make-admin -- <email>` | Adds the signed-in user to `admins/`. `--uid <uid>` skips the Auth lookup. |
 | `npm run import-schedule` | Refreshes the festival schedule (see below). |
 
-Scripts talk to the emulators only (they honour `FIRESTORE_EMULATOR_HOST` and friends, and otherwise use the ports in `firebase.json`).
+Scripts talk to the emulators (they honour `FIRESTORE_EMULATOR_HOST` and friends, and otherwise use the ports in `firebase.json`); `seed` and `make-admin` also take `--prod` (see [Production](#production)).
 
 ## How joining works
 
@@ -81,7 +81,7 @@ Anyone can sign in with Google and ask to join with a display name. Nothing happ
 - **Home** is the feed. A ranks strip sits at the top (tap a player to see them and make a guess), then the pinned announcement and the current side quest, then every post newest first: joins, approvals, rejections, side-quest news, exposures, fraud overrides and point adjustments. Each post carries a points chip and emoji reactions (one per player per post, no comments).
 - **Account** is yours: status, rank, points and rerolls; your hand of quests; the **witness requests** other players have sent you (the tab shows a red dot while one is waiting); "add evidence" prompts; your side-quest entries; location sharing, profile and sign out.
 - **Map** shows the festival venues, what is playing now and the friends who share their location.
-- **GM** (admins only) lives behind the burger menu: join requests, pending claims, recent approvals, side quests, players, settings, announcements and the game controls.
+- **GM** (admins only) lives behind the burger menu: join requests, pending claims, recent approvals, side quests, players, settings, announcements and the game controls. In **Players**, tap someone (yourself too, if you're playing) for one-tap −10 / +10 penalties and bonuses, extra rerolls (+1, or −1 to undo a mis-tap) and their points ledger.
 
 ### Quests
 
@@ -111,7 +111,7 @@ The GM can start or end voting early, fire a random or custom side quest, or dis
 | Correct guess of someone's quest | **+25** |
 | Wrong guess | **-10** |
 | Guess cooldown | **30 min** per target |
-| Rerolls (swap a quest for a new one) | **10** per player |
+| Rerolls (swap a quest for a new one) | **10** per player, plus any extras the GM grants |
 | Fraud fine (on top of the quest points being taken back) | **-50** |
 | Side-quest voting window | **20 min** |
 | Quiet hours (no side quests open) | **01:00-10:00** |
@@ -142,7 +142,7 @@ functions/            Cloud Functions (2nd gen, TypeScript, europe-west2)
   test/               Game logic tests (against the Firestore emulator)
 tests/rules/          Security rules tests
 scripts/              seed, make-admin, dev-tick, import-schedule
-  data/quests.json    The quest pool (66 personal, 24 side quests)
+  data/quests.json    The quest pool (68 personal, 20 side quests)
 public/data/          Festival schedule and venues (events.json, venues.json)
 design/               Visual design notes and mockups
 firestore.rules, storage.rules, firestore.indexes.json, firebase.json
@@ -153,7 +153,7 @@ firestore.rules, storage.rules, firestore.indexes.json, firebase.json
 
 ### Editing the quests
 
-Add, reword or remove quests in `scripts/data/quests.json` (`personal` and `global` lists, stable `id`s), then `npm run seed`. Personal quests end with a `Proof:` line saying what the witness should be told or shown; global (side) quests also take `windowMin` (minutes open). Quests never depend on a location or a win rule: witnesses judge personal ones and the vote judges side quests. Keep personal quests discreet: rivals guess them by watching.
+Add, reword or remove quests in `scripts/data/quests.json` (`personal` and `global` lists, stable `id`s), then `npm run seed`. A quest removed from the file is retired (never dealt again) if its id starts with `p-` (personal) or `g-` (side), so give new quests those prefixes; quests written in the GM console are left alone. Players already holding a removed quest can still complete it, but rivals can't guess it (the guess list only shows live quests), so swap the catalogue before a round starts, or use **GM console › Game › Reset** (everyone re-joins and is dealt from the new list). Personal quests end with a `Proof:` line saying what the witness should be told or shown (a photo, a comment, or a player who saw it: the app has no video); global (side) quests also take `windowMin` (minutes open). Quests never depend on a location or a win rule: witnesses judge personal ones and the vote judges side quests. The tone is mischief among friends: dares, wind-ups and getting someone to do something without them twigging. Keep them kind and safe (nothing rude, strangers only with their OK), and keep personal quests ambiguous enough that rivals have to watch to guess them.
 
 ## Refreshing the festival schedule
 
@@ -163,16 +163,42 @@ npm run import-schedule
 
 Pulls the line-up and venues from the Lancaster Music Festival's public listings and rewrites `public/data/events.json` and `public/data/venues.json` (plus `functions/src/data/venues.json`). All schedule data belongs to and is credited to [Lancaster Music Festival](https://lancastermusicfestival.com/); this project is an unofficial fan side-game and is not affiliated with the festival. Re-run it close to the weekend in case the programme changes.
 
-## Going live later
+## Production
 
-Not needed for local play. When the group wants it on their phones:
+The live game runs on the Firebase project **`musical-mischief`** (alias `prod` in `.firebaserc`, Blaze plan) and is served by GitHub Pages at <https://marioarchives.github.io/Lancaster-Lunatics-Musical-Mischief/>. Local play still needs none of this.
 
-1. **Create a Firebase project** and upgrade it to the **Blaze** plan (Cloud Functions need it). Add a **budget alert of about £5** in Google Cloud Billing; usage for ten friends is pennies.
-2. Create **Firestore** and set the default location to **europe-west2** (London). Deploy **Functions** to the same region, and create the default **Storage** bucket.
-3. In Authentication, enable the **Google** provider and add the authorised domain `<your-github-username>.github.io`.
-4. Register a **web app** in the project settings and copy the config values into repository secrets (or variables) named as in `.env.example`: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
-5. Point the CLI at the project (update `.firebaserc`, or `firebase use --add`) and deploy rules, indexes and functions: `firebase deploy --only firestore,storage,functions`. The GitHub workflow does **not** deploy these.
-6. Sign in once on the live site, then add yourself as GM: in the Firestore console create `admins/<your uid>` with `{ email: "you@example.com" }` (your uid is in Authentication > Users). Create `game/state`, `game/settings` and the `questTemplates` catalogue in the real project too. `scripts/seed.mjs` is emulator-only on purpose, so either adapt it (drop the emulator host defaults, use application default credentials) or import the data from the Emulator UI/console.
-7. In the GitHub repository, **Settings > Pages > Source: GitHub Actions**, then push to `main` (or run the workflow manually). The site appears at `https://<user>.github.io/<repository-name>/`.
+Already set up: Firestore and Functions in **europe-west2**, the default Storage bucket `musical-mischief.firebasestorage.app`, the Google sign-in provider with `marioarchives.github.io` as an authorised domain, the web app config in the repository secrets named as in `.env.example`, and Pages publishing from **GitHub Actions** (Settings > Pages > Source).
+
+**Frontend.** Every push to `master` runs `.github/workflows/deploy.yml`, which builds the app and publishes it to Pages.
+
+**Backend.** The workflow does **not** deploy rules, indexes or functions. Do that by hand whenever they change:
+
+```sh
+npx firebase deploy --only firestore,storage,functions --project prod
+```
+
+**Admin scripts against prod.** `seed` and `make-admin` take `--prod`, which writes to the real project with Application Default Credentials instead of the emulators. One-off sign-in (needs the [gcloud CLI](https://cloud.google.com/sdk/docs/install)):
+
+```sh
+gcloud auth application-default login
+gcloud auth application-default set-quota-project musical-mischief
+```
+
+Then:
+
+```sh
+npm run seed -- --prod                  # game/state, game/settings, quest catalogue (idempotent, keeps GM edits)
+npm run make-admin -- you@gmail.com --prod   # after signing in once on the live site
+```
+
+Demo players are emulator-only (`--demo` is refused with `--prod`). Re-run `npm run seed -- --prod` after editing `scripts/data/quests.json`.
+
+**Storage CORS.** The Wrap's "Save image" re-fetches photos from the bucket, which needs CORS for the site's origin (`storage.cors.json`):
+
+```sh
+gcloud storage buckets update gs://musical-mischief.firebasestorage.app --cors-file=storage.cors.json
+```
+
+**Budget.** Add a budget alert of about £5 in Google Cloud Billing; usage for ten friends is pennies.
 
 Local production preview against the emulators: `VITE_USE_EMULATORS=true npm run build && npm run preview`.

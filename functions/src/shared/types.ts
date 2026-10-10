@@ -75,6 +75,8 @@ export interface Player {
   joinedAt: TS;
   points: number;
   rerollsUsed: number;
+  /** Rerolls the GM granted on top of settings.rerollLimit. Absent on older docs (= 0). */
+  extraRerolls?: number;
   questsCompleted: number;
 }
 
@@ -343,6 +345,8 @@ export interface Wrap {
   topPhoto: { submissionId: string; thumbPath: string | null; imagePath: string | null; caption: string | null; reactionCount: number } | null;
   venues: { id: string; name: string }[];
   rerollsUsed: number;
+  /** settings.rerollLimit plus the player's GM extras when the game ended. Absent on older wraps. */
+  rerollAllowance?: number;
   award: Award;
 }
 

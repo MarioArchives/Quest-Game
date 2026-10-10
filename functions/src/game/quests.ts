@@ -1,3 +1,4 @@
+import { rerollsLeft } from '../shared/rerolls.js';
 import type { Quest } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { dealReplacement, readDealing } from './deal.js';
@@ -19,7 +20,7 @@ export async function rerollQuest(db: Db, ctx: Ctx, data: { questId?: unknown })
     if ((questSnap.data() as Quest).status !== 'active') fail('failed-precondition', 'That quest can no longer be rerolled.');
 
     const settings = await loadSettings(db, tx);
-    if (player.rerollsUsed >= settings.rerollLimit) fail('resource-exhausted', 'You have used all your rerolls.');
+    if (rerollsLeft(settings.rerollLimit, player) <= 0) fail('resource-exhausted', 'You have used all your rerolls.');
 
     const dealing = await readDealing(tx, db, uid);
     if (dealing.pool.length === 0) fail('failed-precondition', 'No fresh quests are left to deal.');

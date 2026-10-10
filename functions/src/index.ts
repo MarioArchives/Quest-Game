@@ -14,6 +14,7 @@ import { fireGlobalQuest as doFireGlobalQuest, runTick } from './game/globals.js
 import { guessQuest as doGuessQuest } from './game/guesses.js';
 import { handleAdminCreated, requestJoin as doRequestJoin, reviewJoinRequest as doReviewJoinRequest } from './game/join.js';
 import { adjustPoints as doAdjustPoints } from './game/points.js';
+import { grantRerolls as doGrantRerolls } from './game/rerolls.js';
 import { rerollQuest as doRerollQuest } from './game/quests.js';
 import { recountReactions } from './game/reactions.js';
 import { resetGame as doResetGame } from './game/reset.js';
@@ -69,6 +70,7 @@ export const advanceGlobalQuest = callable((ctx, data: Parameters<typeof doAdvan
   doAdvanceGlobalQuest(db, ctx, data),
 );
 export const adjustPoints = callable((ctx, data: Parameters<typeof doAdjustPoints>[2]) => doAdjustPoints(db, ctx, data));
+export const grantRerolls = callable((ctx, data: Parameters<typeof doGrantRerolls>[2]) => doGrantRerolls(db, ctx, data));
 export const setGameStatus = callable((ctx, data: Parameters<typeof doSetGameStatus>[2]) =>
   doSetGameStatus(db, ctx, data),
 );

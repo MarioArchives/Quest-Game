@@ -131,6 +131,8 @@ export async function seedPlayer(
     displayName?: string;
     points?: number;
     rerollsUsed?: number;
+    /** GM-granted rerolls. Omitted → the field is absent, like player docs written before it existed. */
+    extraRerolls?: number;
     questsCompleted?: number;
     joinedAt?: Date;
     quests?: SeedQuest[];
@@ -142,6 +144,7 @@ export async function seedPlayer(
     joinedAt: ts(opts.joinedAt ?? addMin(T0, -120)),
     points: opts.points ?? 0,
     rerollsUsed: opts.rerollsUsed ?? 0,
+    ...(opts.extraRerolls === undefined ? {} : { extraRerolls: opts.extraRerolls }),
     questsCompleted: opts.questsCompleted ?? 0,
   });
   for (const q of opts.quests ?? []) {

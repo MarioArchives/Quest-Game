@@ -7,7 +7,7 @@
 #
 # NOTE: this workflow does NOT deploy Firebase rules, indexes or Cloud Functions. Once the real
 # Firebase project exists, run `firebase deploy --only firestore,storage,functions` by hand
-# (see "Going live later" in README.md).
+# (see "Production" in README.md).
 
 name: Deploy to GitHub Pages
 

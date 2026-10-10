@@ -314,17 +314,18 @@ export function VenuesCard({ wrap }: { wrap: Wrap }) {
 
 export function RerollsCard({ wrap, limit }: { wrap: Wrap; limit: number }) {
   const used = wrap.rerollsUsed;
+  const allowance = wrap.rerollAllowance ?? limit;
   return (
     <>
       <p className="w-kicker">Rerolls used</p>
       <p className="w-mega">
         {used}
-        <span className="w-mega__of"> / {limit}</span>
+        <span className="w-mega__of"> / {allowance}</span>
       </p>
       <p className="w-sub">
         {used === 0
           ? 'Not once. Every quest played exactly as dealt.'
-          : used >= limit
+          : used >= allowance
             ? 'Every reroll spent. You wanted a better hand and you went and got one.'
             : `${plural(used, 'quest')} swapped for something you fancied more.`}
       </p>

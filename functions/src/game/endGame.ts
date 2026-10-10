@@ -1,6 +1,7 @@
 import { Timestamp, type WriteBatch } from 'firebase-admin/firestore';
 import venuesData from '../data/venues.json' with { type: 'json' };
 import { competitionRanks } from '../shared/ranking.js';
+import { rerollAllowance } from '../shared/rerolls.js';
 import { VENUE_RADIUS_M } from '../shared/settings.js';
 import type {
   Award,
@@ -293,6 +294,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
       },
       venues: visited.map((v) => ({ id: v.id, name: v.name })),
       rerollsUsed: player.rerollsUsed ?? 0,
+      rerollAllowance: rerollAllowance(settings.rerollLimit, player),
     });
   }
 

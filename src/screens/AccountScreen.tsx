@@ -11,7 +11,7 @@ import { useCollection } from '../data/hooks';
 import { useLocationSharing } from '../data/LocationProvider';
 import { db } from '../firebase';
 import { useSession } from '../session/SessionProvider';
-import type { LedgerEntry, Quest } from '../shared';
+import { rerollAllowance, rerollsLeft as rerollsLeftFor, type LedgerEntry, type Quest } from '../shared';
 import { AddEvidenceBanners } from './account/AddEvidenceBanners';
 import { ClaimHistory } from './account/ClaimHistory';
 import { Hand } from './account/Hand';
@@ -43,7 +43,8 @@ export default function AccountScreen() {
   if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
 
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
-  const rerollsLeft = player ? Math.max(0, settings.rerollLimit - (player.rerollsUsed ?? 0)) : 0;
+  const rerollsLeft = player ? rerollsLeftFor(settings.rerollLimit, player) : 0;
+  const rerollsTotal = player ? rerollAllowance(settings.rerollLimit, player) : settings.rerollLimit;
 
   const leave = async () => {
     setSigningOut(true);
@@ -80,7 +81,7 @@ export default function AccountScreen() {
             <div>
               <dt>Rerolls</dt>
               <dd>
-                {rerollsLeft}/{settings.rerollLimit}
+                {rerollsLeft}/{rerollsTotal}
               </dd>
             </div>
           </dl>

@@ -89,6 +89,34 @@ describe('adjustPoints', () => {
     expect(await adjustPoints(db(), ctx('gm'), { uid: 'alice', delta: -150, reason: 'r' })).toEqual({ points: 0 });
     expect(await ledgerFor(db(), 'alice')).toEqual([expect.objectContaining({ delta: -100 })]);
   });
+
+  // GM quick ±10 buttons (plan edge cases 13-15). The buttons call adjustPoints, so these guard it.
+  it('lets a GM who also plays dock or award their own points by 10 (edge 13)', async () => {
+    await setup();
+    await seedPlayer(db(), 'gm', { points: 50 });
+    expect(await adjustPoints(db(), ctx('gm'), { uid: 'gm', delta: -10, reason: 'Penalty' })).toEqual({ points: 40 });
+    expect(await adjustPoints(db(), ctx('gm'), { uid: 'gm', delta: 10, reason: 'Bonus' })).toEqual({ points: 50 });
+
+    const ledger = await ledgerFor(db(), 'gm');
+    expect(ledger).toHaveLength(2);
+    expect(ledger).toContainEqual(expect.objectContaining({ uid: 'gm', delta: -10, reason: 'adjust', note: 'Penalty', by: 'gm' }));
+    const posts = (await allDocs(db(), 'feed')).filter((f) => f.type === 'adjust' && f.uid === 'gm');
+    expect(posts).toHaveLength(2);
+    expect(posts).toContainEqual(expect.objectContaining({ actorUid: 'gm', note: 'Penalty', points: -10 }));
+  });
+
+  it('returns not-found when a GM who is not playing targets themselves (edge 14)', async () => {
+    await setup();
+    await expectCode(adjustPoints(db(), ctx('gm'), { uid: 'gm', delta: -10, reason: 'Penalty' }), 'not-found');
+    expect(await ledgerFor(db(), 'gm')).toHaveLength(0);
+  });
+
+  it('a quick -10 stops at the floor when pointsFloorZero is on (edge 15)', async () => {
+    await setup({ pointsFloorZero: true });
+    await seedPlayer(db(), 'bob', { points: 5 });
+    expect(await adjustPoints(db(), ctx('gm'), { uid: 'bob', delta: -10, reason: 'Penalty' })).toEqual({ points: 0 });
+    expect(await ledgerFor(db(), 'bob')).toEqual([expect.objectContaining({ delta: -5 })]);
+  });
 });
 
 describe('setGameStatus', () => {

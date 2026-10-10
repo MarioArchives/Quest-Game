@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["https://marioarchives.github.io", "http://localhost:4173"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]

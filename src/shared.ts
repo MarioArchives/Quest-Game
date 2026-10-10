@@ -35,6 +35,7 @@ export type {
 export { REACTION_EMOJI } from '../functions/src/shared/types';
 export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/settings';
 export { competitionRanks } from '../functions/src/shared/ranking';
+export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
 export { tallyVotes } from '../functions/src/shared/votes';
 
 /** A Firestore document with its id. */
