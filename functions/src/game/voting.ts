@@ -16,30 +16,38 @@ export interface Quest {
   gq: GlobalQuest;
 }
 
-/** An approved entry (a global submission) in a side quest. */
+/**
+ * A live entry (a global submission) in a side quest: 'sealed' until voting opens, then 'approved'.
+ * Disqualified (rejected) entries are never read.
+ */
 export interface Entry {
   id: string;
   ref: DocumentReference;
   data: Submission;
+  /** The entry's feed post, when it has one that exists (set by attachPosts). */
+  postRef?: DocumentReference | null;
 }
+
+const isLiveEntry = (data: Submission) => data.kind === 'global' && (data.status === 'sealed' || data.status === 'approved');
 
 const byEntryOrder = (a: Entry, b: Entry) => millis(a.data.createdAt) - millis(b.data.createdAt) || (a.id < b.id ? -1 : 1);
 
-/** Approved entries of one side quest, oldest first. */
+/** Sealed and approved entries of one side quest, oldest first. */
 export async function readEntries(tx: Transaction, db: Db, questId: string): Promise<Entry[]> {
   const snap = await tx.get(db.collection('submissions').where('questId', '==', questId));
   return snap.docs
     .map((d) => ({ id: d.id, ref: d.ref, data: d.data() as Submission }))
-    .filter((e) => e.data.kind === 'global' && e.data.status === 'approved')
+    .filter((e) => isLiveEntry(e.data))
     .sort(byEntryOrder);
 }
 
-/** Approved entries of every side quest, grouped by quest id. */
+/** Sealed and approved entries of every side quest, grouped by quest id. */
 export async function readAllEntries(tx: Transaction, db: Db): Promise<Map<string, Entry[]>> {
-  const snap = await tx.get(db.collection('submissions').where('kind', '==', 'global').where('status', '==', 'approved'));
+  const snap = await tx.get(db.collection('submissions').where('kind', '==', 'global'));
   const byQuest = new Map<string, Entry[]>();
   for (const d of snap.docs) {
     const data = d.data() as Submission;
+    if (!isLiveEntry(data)) continue;
     const list = byQuest.get(data.questId) ?? [];
     list.push({ id: d.id, ref: d.ref, data });
     byQuest.set(data.questId, list);
@@ -59,13 +67,42 @@ export async function readPlayers(tx: Transaction, db: Db): Promise<Map<string, 
   return new Map(snap.docs.map((d) => [d.id, d.data() as Player]));
 }
 
+/** The entries that can be voted for: the ones that have been revealed. */
+export const revealedEntries = (entries: Entry[]): Entry[] => entries.filter((e) => e.data.status === 'approved');
+
+/**
+ * Looks up the feed posts of the sealed entries about to be revealed. Reads only: call before any
+ * write, for every entry that startVoting will be given.
+ */
+export async function attachPosts(tx: Transaction, db: Db, entries: Entry[]): Promise<void> {
+  const sealed = entries.filter((e) => e.data.status === 'sealed' && e.data.feedId);
+  if (sealed.length === 0) return;
+  const posts = await tx.getAll(...sealed.map((e) => db.doc(`feed/${e.data.feedId}`)));
+  sealed.forEach((entry, i) => {
+    entry.postRef = posts[i].exists ? posts[i].ref : null;
+  });
+}
+
 /** Players who have at least one entry by someone else to choose from. */
 export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): string[] {
   return [...players.keys()].filter((uid) => entries.some((e) => e.data.uid !== uid));
 }
 
-/** Entries are done: open the vote. */
-export function startVoting(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest): void {
+/**
+ * Entries are done: open the vote. Every sealed entry is revealed — it becomes 'approved' (votable) and
+ * its current evidence goes onto its feed post. All routes into voting come through here.
+ */
+export function startVoting(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): void {
+  for (const entry of entries.filter((e) => e.data.status === 'sealed')) {
+    tx.update(entry.ref, { status: 'approved' });
+    if (entry.postRef) {
+      tx.update(entry.postRef, {
+        imagePath: entry.data.imagePath ?? null,
+        thumbPath: entry.data.thumbPath ?? null,
+        caption: entry.data.caption ?? null,
+      });
+    }
+  }
   tx.update(q.ref, { status: 'voting', votingEndsAt: toTs(new Date(now.getTime() + settings.voteWindowMin * MIN_MS)) });
   addFeed(tx, db, now, {
     type: 'voting-open',
@@ -95,6 +132,8 @@ export function closeWithTally(
   votes: Map<string, string>,
   players: Map<string, Player>,
 ): void {
+  // Only revealed entries can be voted for or win.
+  entries = revealedEntries(entries);
   const { counts, winners } = tallyVotes([...votes.values()], entries.map((e) => e.id));
   const winnerUids: string[] = [];
   const winningSubmissionIds: string[] = [];

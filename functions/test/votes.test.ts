@@ -67,7 +67,7 @@ const vote = (uid: string, submissionId: string, now = addMin(T0, 5)) =>
 const advance = (by = 'gm', now = addMin(T0, 5)) => advanceGlobalQuest(db(), ctx(by, now), { globalQuestId: 'gq1' });
 
 describe('enterSideQuest (X1, X2)', () => {
-  it('creates an approved, witness-free entry with its evidence and posts it to the feed', async () => {
+  it('R4: creates a sealed, witness-free entry; the feed only says that they entered', async () => {
     await setup();
     const res = await enter('alice');
     expect(res).toEqual({ submissionId: expect.any(String), votingOpened: false });
@@ -76,7 +76,7 @@ describe('enterSideQuest (X1, X2)', () => {
       uid: 'alice',
       kind: 'global',
       questId: 'gq1',
-      status: 'approved',
+      status: 'sealed',
       pointsAwarded: 0,
       ...photo('alice', 'alice-1'),
       caption: "alice's entry",
@@ -84,7 +84,10 @@ describe('enterSideQuest (X1, X2)', () => {
     expect(s?.witnessUid ?? null).toBeNull();
     const posts = await feedOf(db(), 'approved');
     expect(posts).toHaveLength(1);
-    expect(posts[0]).toMatchObject({ uid: 'alice', submissionId: res.submissionId, questTitle: 'Global gq1', ...photo('alice', 'alice-1') });
+    expect(posts[0]).toMatchObject({ uid: 'alice', submissionId: res.submissionId, questTitle: 'Global gq1' });
+    expect(posts[0].imagePath ?? null).toBeNull();
+    expect(posts[0].thumbPath ?? null).toBeNull();
+    expect(posts[0].caption ?? null).toBeNull();
     expect((await getPlayer(db(), 'alice')).points).toBe(0);
   });
 
@@ -99,7 +102,7 @@ describe('enterSideQuest (X1, X2)', () => {
     await setup();
     await seedPlayer(db(), 'gm');
     const { submissionId } = await enter('gm');
-    expect((await getData(db(), `submissions/${submissionId}`))?.status).toBe('approved');
+    expect((await getData(db(), `submissions/${submissionId}`))?.status).toBe('sealed');
   });
 
   it('refuses a second entry from the same player', async () => {
@@ -155,6 +158,25 @@ describe('voting opens (X3, V13)', () => {
     expect(gq?.status).toBe('voting');
     expect(toMillis(gq!.votingEndsAt)).toBe(addMin(T0, 3).getTime() + 20 * MIN);
     expect(await feedOf(db(), 'voting-open')).toHaveLength(1);
+  });
+
+  it('R5: opening the vote reveals every entry (approved) and puts its evidence on its feed post', async () => {
+    await setup();
+    const a = (await enter('alice')).submissionId;
+    await enter('bob');
+    await enter('carol');
+    const entries = (await allDocs(db(), 'submissions')).filter((x) => x.questId === 'gq1');
+    expect(entries.map((e) => e.status)).toEqual(['approved', 'approved', 'approved']);
+    const post = (await feedOf(db(), 'approved')).find((p) => p.submissionId === a)!;
+    expect(post).toMatchObject({ ...photo('alice', 'alice-1'), caption: "alice's entry" });
+  });
+
+  it('R5: a GM starting the vote early reveals the entries too', async () => {
+    await setup();
+    const a = (await enter('alice')).submissionId;
+    await advance();
+    expect((await getData(db(), `submissions/${a}`))?.status).toBe('approved');
+    expect((await feedOf(db(), 'approved')).find((p) => p.submissionId === a)).toMatchObject(photo('alice', 'alice-1'));
   });
 
   it('uses the voteWindowMin setting', async () => {

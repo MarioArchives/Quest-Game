@@ -2,6 +2,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { friendlyError } from '../api';
+import { useGame } from '../data/GameProvider';
 import { useLocationSharing } from '../data/LocationProvider';
 import { db } from '../firebase';
 import { uploadAvatar } from '../lib/upload';
@@ -18,6 +19,9 @@ import './ProfileSheet.css';
 export function ProfileSheet({ onClose }: { onClose(): void }) {
   const { user, player, isAdmin, signOut } = useSession();
   const { stopAndClear } = useLocationSharing();
+  const { state } = useGame();
+  // The rules refuse a name change once the game has started (and refuse the WHOLE write if it includes one).
+  const nameLocked = state.status !== 'lobby';
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -36,13 +40,13 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
     event.preventDefault();
     if (!user || !player) return;
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed && !nameLocked) return;
     setBusy(true);
     setError(null);
     try {
       // The rules refuse a write that changes nothing, and only allow these two keys.
       const changes: { displayName?: string; photoURL?: string | null } = {};
-      if (trimmed !== player.displayName) changes.displayName = trimmed;
+      if (!nameLocked && trimmed !== player.displayName) changes.displayName = trimmed;
       let nextPhoto: string | null;
       if (avatar.kind === 'custom') {
         setProgress(0);
@@ -98,8 +102,15 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
               value={name}
               maxLength={DISPLAY_NAME_MAX}
               required
+              readOnly={nameLocked}
+              aria-describedby={nameLocked ? 'profile-name-locked' : undefined}
               onChange={(event) => setName(event.target.value)}
             />
+            {nameLocked ? (
+              <span id="profile-name-locked" className="field__hint">
+                Names are locked once the game starts. You can still change your photo.
+              </span>
+            ) : null}
           </div>
           {progress !== null ? (
             <div className="progress" role="progressbar" aria-label="Uploading photo" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
@@ -111,7 +122,7 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
               {error}
             </p>
           ) : null}
-          <Button type="submit" variant="primary" block busy={busy} disabled={!name.trim()}>
+          <Button type="submit" variant="primary" block busy={busy} disabled={!nameLocked && !name.trim()}>
             Save
           </Button>
         </form>

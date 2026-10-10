@@ -1,6 +1,6 @@
 import type { Quest } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
-import { dealFrom, readFreshTemplates } from './deal.js';
+import { dealReplacement, readDealing } from './deal.js';
 import { fail, loadSettings, loadState, requirePlayer } from './guards.js';
 import { asId } from './util.js';
 
@@ -21,11 +21,16 @@ export async function rerollQuest(db: Db, ctx: Ctx, data: { questId?: unknown })
     const settings = await loadSettings(db, tx);
     if (player.rerollsUsed >= settings.rerollLimit) fail('resource-exhausted', 'You have used all your rerolls.');
 
-    const pool = await readFreshTemplates(tx, db, uid);
-    if (pool.length === 0) fail('failed-precondition', 'No fresh quests are left to deal.');
+    const dealing = await readDealing(tx, db, uid);
+    if (dealing.pool.length === 0) fail('failed-precondition', 'No fresh quests are left to deal.');
+    // Swapping never takes a hand above its five slots; nothing changes if no replacement can be dealt.
+    if (dealing.open - 1 >= settings.starterQuestCount) {
+      fail('failed-precondition', 'You already hold as many quests as the game allows.');
+    }
 
     tx.update(questRef, { status: 'replaced' });
-    const [newId] = dealFrom(tx, db, ctx.now, rng, uid, pool, 1);
+    dealing.open -= 1;
+    const newId = dealReplacement(tx, db, ctx.now, rng, uid, dealing, settings.starterQuestCount) as string;
     tx.update(db.doc(`players/${uid}`), { rerollsUsed: player.rerollsUsed + 1 });
     return { questId: newId };
   });

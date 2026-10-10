@@ -3,6 +3,7 @@ import { guessQuest, toApiError } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
+import { Icon } from '../../components/Icon';
 import { PhotoThumb } from '../../components/PhotoViewer';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
@@ -57,6 +58,8 @@ function GuessPanel({ target }: { target: RankedPlayer }) {
   const now = useNow(1000);
   const [choice, setChoice] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  // The quest whose description is open (one at a time keeps the list short).
+  const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A rate-limit error from the server wins over our local estimate until it passes.
   const [retryAt, setRetryAt] = useState<number | null>(null);
@@ -71,7 +74,12 @@ function GuessPanel({ target }: { target: RankedPlayer }) {
   const active = state.status === 'active';
   const first = target.displayName;
   const needle = filter.trim().toLowerCase();
-  const shown = needle ? personalTemplates.filter((t) => t.title.toLowerCase().includes(needle)) : personalTemplates;
+  // Every quest still in the deck, so a player can look through them all and read what each one asks for.
+  const catalogue = personalTemplates.filter((t) => t.active);
+  const shown = needle
+    ? catalogue.filter((t) => t.title.toLowerCase().includes(needle) || (t.description ?? '').toLowerCase().includes(needle))
+    : catalogue;
+  const chosen = choice ? catalogue.find((t) => t.id === choice) : undefined;
 
   const make = async () => {
     if (!choice) return;
@@ -101,48 +109,67 @@ function GuessPanel({ target }: { target: RankedPlayer }) {
       <h3 id="ps-guess" className="guess__title">
         Guess {first}&apos;s quest
       </h3>
-      {personalTemplates.length === 0 ? (
+      {catalogue.length === 0 ? (
         <p className="muted">The quest catalogue is empty.</p>
       ) : (
         <>
           <div className="field">
             <label className="visually-hidden" htmlFor="guess-filter">
-              Filter quests
+              Search the quests
             </label>
             <input
               id="guess-filter"
               className="input guess__filter"
               type="search"
-              placeholder={`Search ${personalTemplates.length} quests`}
+              placeholder={`Search all ${catalogue.length} quests`}
               value={filter}
               autoComplete="off"
               onChange={(event) => setFilter(event.target.value)}
             />
+            <span className="field__hint">Tap a quest to read what it asks, then select it to guess.</span>
           </div>
           <div className="guess__scroll">
             {shown.length === 0 ? <p className="muted guess__empty">No quest matches &ldquo;{filter}&rdquo;.</p> : null}
-            <div className="guess__options" role="radiogroup" aria-labelledby="ps-guess">
-              {shown.map((t) => (
-                <label key={t.id} className={`guess__opt${choice === t.id ? ' is-selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="guess"
-                    value={t.id}
-                    className="visually-hidden"
-                    checked={choice === t.id}
-                    disabled={busy}
-                    onChange={() => setChoice(t.id)}
-                  />
-                  <span>{t.title}</span>
-                  {t.active ? null : <span className="guess__retired">Retired</span>}
-                </label>
-              ))}
-            </div>
+            <ul className="guess__list">
+              {shown.map((t) => {
+                const open = openId === t.id;
+                const picked = choice === t.id;
+                return (
+                  <li key={t.id} className={`guess__item${picked ? ' is-selected' : ''}`}>
+                    <button
+                      type="button"
+                      className="guess__head"
+                      aria-expanded={open}
+                      aria-controls={`guess-desc-${t.id}`}
+                      onClick={() => setOpenId(open ? null : t.id)}
+                    >
+                      <span className="guess__name">{t.title}</span>
+                      {picked ? <span className="tag tag--red guess__picked">Selected</span> : null}
+                      <Icon name="chevronDown" size={20} className={`guess__chev${open ? ' is-open' : ''}`} />
+                    </button>
+                    {open ? (
+                      <div className="guess__body" id={`guess-desc-${t.id}`}>
+                        <p className="guess__desc">{t.description || 'No description.'}</p>
+                        <Button
+                          small
+                          variant={picked ? 'primary' : 'secondary'}
+                          disabled={busy}
+                          aria-pressed={picked}
+                          onClick={() => setChoice(picked ? null : t.id)}
+                        >
+                          {picked ? 'Selected' : 'Select this quest'}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </>
       )}
       <Button variant="primary" block busy={busy} disabled={!choice || remaining > 0 || !active} onClick={() => void make()}>
-        {remaining > 0 ? `Wait ${mmss(remaining)}` : 'Make guess'}
+        {remaining > 0 ? `Wait ${mmss(remaining)}` : chosen ? `Guess: ${chosen.title}` : 'Make guess'}
       </Button>
       <p className="guess__rules" aria-live="polite">
         {!active

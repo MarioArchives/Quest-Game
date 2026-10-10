@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { advanceGlobalQuest, fireGlobalQuest, friendlyError, type FireGlobalQuestInput } from '../../api';
+import { advanceGlobalQuest, fireGlobalQuest, friendlyError, reviewSubmission, type FireGlobalQuestInput } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
@@ -11,14 +11,20 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo, formatCountdown } from '../../lib/time';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
-import { clockTime, useRunner } from './common';
+import { NoteSheet, clockTime, useRunner } from './common';
 
-/** Entries for one side quest (approved from the moment they are made; a disqualified one drops out), newest first. */
+/**
+ * Entries for one side quest, newest first: approved ones plus the ones still sealed (hidden from players until
+ * voting opens, but the GM can read them). A disqualified entry drops out.
+ */
 function useEntries(questId: string): Doc<Submission>[] {
-  const { approved } = useGame();
+  const { approved, sealed } = useGame();
   return useMemo(
-    () => approved.filter((s) => s.kind === 'global' && s.questId === questId).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)),
-    [approved, questId],
+    () =>
+      [...approved, ...sealed]
+        .filter((s) => s.kind === 'global' && s.questId === questId)
+        .sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)),
+    [approved, sealed, questId],
   );
 }
 
@@ -147,11 +153,17 @@ export function QuestsSection() {
 }
 
 function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submission>[]; quest: Doc<GlobalQuest>; showVotes?: boolean }) {
-  const { playersById } = useGame();
+  const { playersById, settings, state } = useGame();
+  const toast = useToast();
   const now = useNow(30_000);
   const winners = new Set(quest.winningSubmissionIds ?? []);
+  const [disqualifying, setDisqualifying] = useState<Doc<Submission> | null>(null);
+  // Disqualifying is for entries still in play; a finished vote is overturned from Review > Recent approvals.
+  const canDisqualify = quest.status !== 'closed' && state.status !== 'ended';
+  const dqName = disqualifying ? (playersById.get(disqualifying.uid)?.displayName ?? 'A player') : '';
 
   return (
+    <>
     <ul className="gm-list">
       {entries.map((entry) => {
         const who = playersById.get(entry.uid);
@@ -167,6 +179,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
                 <Avatar name={who?.displayName ?? '?'} src={who?.photoURL} size={22} />
                 <strong>{who?.displayName ?? 'A player'}</strong>
                 {won ? <span className="tag tag--red">Winner</span> : null}
+                {entry.status === 'sealed' ? <span className="tag tag--tint">Hidden until voting</span> : null}
                 {votes !== null ? (
                   <span className="tag tag--ink">
                     {votes} {votes === 1 ? 'vote' : 'votes'}
@@ -176,11 +189,39 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
               {entry.caption ? <p className="gm-entry__caption">&ldquo;{entry.caption}&rdquo;</p> : null}
               {!entry.thumbPath && !entry.caption ? <p className="gm-entry__meta">Entered with no photo or comment</p> : null}
               <p className="gm-entry__meta">{formatAgo(tsMs(entry.createdAt), now)}</p>
+              {canDisqualify ? (
+                <Button small className="gm-entry__pick" onClick={() => setDisqualifying(entry)}>
+                  Disqualify
+                </Button>
+              ) : null}
             </div>
           </li>
         );
       })}
     </ul>
+    {disqualifying ? (
+      <NoteSheet
+        title="Disqualify this entry?"
+        subtitle={`${dqName} · ${quest.title}`}
+        intro={
+          <p>
+            The entry is thrown out and {dqName} gets a <strong>−{settings.fraudPenalty}</strong> fine. It can no longer be voted for. A public
+            fraud post goes in the feed.
+          </p>
+        }
+        noteLabel="What was wrong (everyone will see this)"
+        placeholder="e.g. Not taken at the festival"
+        required
+        confirmLabel={`Disqualify, −${settings.fraudPenalty}`}
+        danger
+        onClose={() => setDisqualifying(null)}
+        onConfirm={async (note) => {
+          await reviewSubmission({ submissionId: disqualifying.id, approve: false, note });
+          toast('Disqualified. The fine has been applied.', 'success');
+        }}
+      />
+    ) : null}
+    </>
   );
 }
 

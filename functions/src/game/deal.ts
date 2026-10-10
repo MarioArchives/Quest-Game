@@ -9,17 +9,33 @@ export interface FreshTemplate {
   template: QuestTemplate;
 }
 
-/** Active personal templates the player has never held. Reads only; call before any write. */
-export async function readFreshTemplates(tx: Transaction, db: Db, uid: string): Promise<FreshTemplate[]> {
+/**
+ * What dealing to a player needs: the active personal templates they have never held, and how many
+ * quests they hold open (active + submitted). Callers adjust `open` as they close or replace quests.
+ */
+export interface Dealing {
+  pool: FreshTemplate[];
+  open: number;
+}
+
+/** Reads the player's dealing state. Reads only; call before any write. */
+export async function readDealing(tx: Transaction, db: Db, uid: string): Promise<Dealing> {
   const templates = await tx.get(
     db.collection('questTemplates').where('scope', '==', 'personal').where('active', '==', true),
   );
-  const held = await tx.get(db.collection(`players/${uid}/quests`).select('templateId'));
+  const held = await tx.get(db.collection(`players/${uid}/quests`).select('templateId', 'status'));
   const heldIds = new Set(held.docs.map((d) => d.get('templateId') as string));
-  return templates.docs
+  const open = held.docs.filter((d) => d.get('status') === 'active' || d.get('status') === 'submitted').length;
+  const pool = templates.docs
     .filter((d) => !heldIds.has(d.id))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((d) => ({ id: d.id, template: d.data() as QuestTemplate }));
+  return { pool, open };
+}
+
+/** Active personal templates the player has never held. Reads only; call before any write. */
+export async function readFreshTemplates(tx: Transaction, db: Db, uid: string): Promise<FreshTemplate[]> {
+  return (await readDealing(tx, db, uid)).pool;
 }
 
 /**
@@ -51,4 +67,25 @@ export function dealFrom(
     ids.push(ref.id);
   }
   return ids;
+}
+
+/**
+ * Deals one replacement quest, but only while the player's open quests are below `max` (the five
+ * slots, settings.starterQuestCount). `dealing.open` must already reflect the quest being replaced.
+ * Returns the new quest id, or null when nothing was dealt (full hand or no fresh template left).
+ */
+export function dealReplacement(
+  tx: Transaction,
+  db: Db,
+  now: Date,
+  rng: () => number,
+  uid: string,
+  dealing: Dealing,
+  max: number,
+): string | null {
+  if (dealing.open >= max) return null;
+  const [id] = dealFrom(tx, db, now, rng, uid, dealing.pool, 1);
+  if (!id) return null;
+  dealing.open += 1;
+  return id;
 }

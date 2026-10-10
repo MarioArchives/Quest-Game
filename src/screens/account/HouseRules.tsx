@@ -15,7 +15,10 @@ export function HouseRules() {
     ['Right guess', `they lose ${s.exposePenalty}, you gain ${s.correctGuessReward}`],
     ['Wrong guess', `you lose ${s.wrongGuessCost}`],
     ['Guess cooldown', `1 per player every ${s.guessCooldownMin} min`],
-    ['New quest after a win', s.refillOnComplete ? 'Yes, you get a fresh one' : 'No'],
+    [
+      'New quests',
+      s.refillOnComplete ? 'A fresh one each time you complete one' : `${s.starterQuestCount} for the whole game; more only after a rejection, an exposure or a reroll`,
+    ],
     ['Quest named in the feed', s.revealOnComplete ? 'Yes' : 'No'],
     ['Points can go below zero', s.pointsFloorZero ? 'No, floor at 0' : 'Yes'],
     ['Side quests drop', `every ${s.globalIntervalMin}–${s.globalIntervalMax} min, open ${s.globalWindowMin} min, then ${s.voteWindowMin} min of voting`],

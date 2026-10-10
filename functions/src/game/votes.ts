@@ -7,10 +7,12 @@ import { asId, millis, toTs } from './util.js';
 import {
   closeWithoutWinner,
   closeWithTally,
+  attachPosts,
   eligibleVoters,
   readEntries,
   readPlayers,
   readVotes,
+  revealedEntries,
   startVoting,
 } from './voting.js';
 
@@ -37,7 +39,7 @@ export async function castVote(
       fail('failed-precondition', 'Voting on this side quest has ended.');
     }
 
-    const entries = await readEntries(tx, db, questId);
+    const entries = revealedEntries(await readEntries(tx, db, questId));
     const target = entries.find((e) => e.id === submissionId);
     if (!target) fail('invalid-argument', 'That is not an entry in this side quest.');
     if (target.data.uid === uid) fail('permission-denied', 'You cannot vote for your own entry.');
@@ -78,7 +80,8 @@ export async function advanceGlobalQuest(
         closeWithoutWinner(tx, q);
         return { status: 'closed' as const };
       }
-      startVoting(tx, db, ctx.now, settings, q);
+      await attachPosts(tx, db, entries);
+      startVoting(tx, db, ctx.now, settings, q, entries);
       return { status: 'voting' as const };
     }
     const votes = await readVotes(tx, db, questId);
@@ -89,9 +92,10 @@ export async function advanceGlobalQuest(
 }
 
 /**
- * Enter a live side quest directly with evidence — no witness, no review: the entry is created
- * 'approved' (votable, pays nothing) and posted to the feed. One entry per player per side quest.
- * When every player has entered, voting opens at once.
+ * Enter a live side quest directly with evidence — no witness, no review. The entry is created 'sealed'
+ * (pays nothing; hidden from other players, the feed only says who entered) and is revealed, with its
+ * evidence, when voting opens. One entry per player per side quest. When every player has entered,
+ * voting opens at once.
  */
 export async function enterSideQuest(
   db: Db,
@@ -121,13 +125,19 @@ export async function enterSideQuest(
     const players = await readPlayers(tx, db);
     const settings = await loadSettings(db, tx);
 
+    // Everyone in (sealed entries count)? Then the vote starts straight away and every entry is revealed.
+    const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
+    const everyoneEntered = [...players.keys()].every((p) => entrants.has(p));
+    if (everyoneEntered) await attachPosts(tx, db, entries);
+
     const entryRef = db.collection('submissions').doc();
     const now = toTs(ctx.now);
-    const post = {
+    const photo = {
       imagePath: evidence.imagePath ?? null,
       thumbPath: evidence.thumbPath ?? null,
       caption: evidence.caption ?? null,
     };
+    // The post only says who entered; the evidence goes onto it when the entry is revealed.
     const feedId = addFeed(tx, db, ctx.now, {
       type: 'approved',
       text: `${player.displayName} entered the side quest "${gq.title}"`,
@@ -136,16 +146,16 @@ export async function enterSideQuest(
       submissionId: entryRef.id,
       questTitle: gq.title,
       photoURL: player.photoURL ?? null,
-      ...post,
+      ...(everyoneEntered ? photo : {}),
     });
     const entry: Submission = {
       uid,
       kind: 'global',
       questId,
       createdAt: now,
-      status: 'approved',
+      status: everyoneEntered ? 'approved' : 'sealed',
       pointsAwarded: 0,
-      ...post,
+      ...photo,
       evidenceAt: now,
       processedAt: now,
       feedId,
@@ -153,10 +163,7 @@ export async function enterSideQuest(
     } as Submission;
     tx.create(entryRef, entry);
 
-    // Everyone in? Then the vote starts straight away.
-    const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
-    const everyoneEntered = [...players.keys()].every((p) => entrants.has(p));
-    if (everyoneEntered) startVoting(tx, db, ctx.now, settings, { id: questId, ref: questRef, gq });
+    if (everyoneEntered) startVoting(tx, db, ctx.now, settings, { id: questId, ref: questRef, gq }, entries);
     return { submissionId: entryRef.id, votingOpened: everyoneEntered };
   });
 }

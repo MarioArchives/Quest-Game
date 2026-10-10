@@ -5,6 +5,7 @@ import { Avatar } from '../components/Avatar';
 import { Icon, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
 import { useGame } from '../data/GameProvider';
+import { useTabBadges } from '../data/useTabBadges';
 import { useSession } from '../session/SessionProvider';
 import './AppFrame.css';
 
@@ -29,8 +30,9 @@ const TITLES: Record<string, string> = {
 
 export function AppFrame() {
   const { player, user, isAdmin } = useSession();
-  const { state, me, witnessRequests } = useGame();
+  const { state, me } = useGame();
   const { pathname } = useLocation();
+  const badges = useTabBadges(pathname);
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
   const closePhoto = useClosePhotoViewer();
@@ -49,21 +51,14 @@ export function AppFrame() {
     mainRef.current?.focus({ preventScroll: true });
   }, [pathname, title, closePhoto]);
 
-  // Friends waiting for this player to witness a claim: a red dot on Account.
-  const waiting = player ? witnessRequests.length : 0;
+  // A red dot says something is waiting there: new posts (Home), something for you (Account), GM work, the wrap.
   const tabs: Tab[] = [
-    { to: '/', label: 'Home', icon: 'home', end: true },
+    { to: '/', label: 'Home', icon: 'home', end: true, dot: badges.home, dotLabel: 'new posts' },
     { to: '/map', label: 'Map', icon: 'map' },
-    {
-      to: '/account',
-      label: 'Account',
-      icon: 'user',
-      dot: waiting > 0,
-      dotLabel: `${waiting} witness ${waiting === 1 ? 'request' : 'requests'} waiting`,
-    },
+    { to: '/account', label: 'Account', icon: 'user', dot: badges.account, dotLabel: 'something needs you' },
   ];
-  if (isAdmin) tabs.push({ to: '/gm', label: 'GM', icon: 'gm' });
-  if (state.status === 'ended') tabs.push({ to: '/wrap', label: 'Wrap', icon: 'wrap' });
+  if (isAdmin) tabs.push({ to: '/gm', label: 'GM', icon: 'gm', dot: badges.gm, dotLabel: 'work waiting' });
+  if (state.status === 'ended') tabs.push({ to: '/wrap', label: 'Wrap', icon: 'wrap', dot: badges.wrap, dotLabel: 'the game is over, see your wrap' });
 
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
   const photo = player?.photoURL ?? user?.photoURL ?? null;
@@ -97,13 +92,18 @@ export function AppFrame() {
 
       <nav className="tabbar" aria-label="Main" data-count={tabs.length}>
         {tabs.map((tab) => (
-          <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tabbar__tab${isActive ? ' is-active' : ''}`}>
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.end}
+            aria-label={tab.dot ? `${tab.label}, ${tab.dotLabel}` : undefined}
+            className={({ isActive }) => `tabbar__tab${isActive ? ' is-active' : ''}`}
+          >
             <span className="tabbar__icon">
               <Icon name={tab.icon} size={22} />
               {tab.dot ? <span className="tabbar__dot" aria-hidden="true" /> : null}
             </span>
             <span>{tab.label}</span>
-            {tab.dot ? <span className="visually-hidden">{`, ${tab.dotLabel}`}</span> : null}
           </NavLink>
         ))}
       </nav>

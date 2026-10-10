@@ -55,6 +55,11 @@
 .hand { display: flex; flex-direction: column; gap: 10px; }
 .qcard { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--card); border: var(--line); }
 .qcard--submitted { background: var(--red-tint); }
+.qcard--done { background: var(--paper); }
+.qcard--done .qcard__num { background: var(--ink); }
+.qcard--done .qcard__title { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.hand__rule { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.hand__rule svg { flex: none; margin-top: 2px; }
 .qcard__top { display: flex; gap: 12px; align-items: flex-start; }
 .qcard__num {
   flex: none;

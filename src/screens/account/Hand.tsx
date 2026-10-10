@@ -19,13 +19,20 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
   const [rerolling, setRerolling] = useState<Doc<Quest> | null>(null);
   const [repicking, setRepicking] = useState<string | null>(null);
 
-  const hand = useMemo(
+  const open = useMemo(
     () =>
       quests
         .filter((q) => q.status === 'active' || q.status === 'submitted')
         .sort((a, b) => tsMs(a.assignedAt) - tsMs(b.assignedAt) || a.title.localeCompare(b.title)),
     [quests],
   );
+  // Completed quests stay in the list (they are not refilled), after the ones still to do.
+  const done = useMemo(
+    () => quests.filter((q) => q.status === 'done').sort((a, b) => tsMs(a.completedAt) - tsMs(b.completedAt)),
+    [quests],
+  );
+  const hand = [...open, ...done];
+  const slots = Math.max(settings.starterQuestCount, hand.length);
   const gameActive = state.status === 'active';
   const repick = repicking ? mySubmissions.find((s) => s.id === repicking && s.status === 'pending') : undefined;
 
@@ -34,9 +41,18 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
       <div className="section-head">
         <h2 id="hand-title">Your quests</h2>
         <span className="section-head__meta">
-          <Icon name="lock" size={12} strokeWidth={2.6} /> Only you can see these
+          {done.length} of {slots} quests done
         </span>
       </div>
+      <p className="hand__rule">
+        <Icon name="lock" size={14} strokeWidth={2.6} />
+        <span>
+          Only you can see these.{' '}
+          {settings.refillOnComplete
+            ? 'A fresh quest arrives each time you complete one.'
+            : `You get ${settings.starterQuestCount} quests for the whole game. A new one only arrives when a claim is rejected, someone guesses one of yours, or you reroll.`}
+        </span>
+      </p>
 
       {!gameActive ? (
         <p className="note" role="status">
@@ -56,12 +72,30 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
           <p>
             {state.status === 'lobby'
               ? 'Your hand is dealt when you are approved. If it is empty, ask the GM.'
-              : 'Nothing active right now. A new quest arrives when one is approved.'}
+              : 'Nothing active right now. A new quest arrives after a rejection, an exposure or a reroll.'}
           </p>
         </div>
       ) : (
         <ol className="hand" aria-label="Your quests">
           {hand.map((quest, index) => {
+            if (quest.status === 'done') {
+              return (
+                <li key={quest.id} className="qcard qcard--done">
+                  <div className="qcard__top">
+                    <span className="qcard__num" aria-hidden="true">
+                      <Icon name="check" size={18} strokeWidth={3} />
+                    </span>
+                    <div className="qcard__text">
+                      <h3 className="qcard__title">{quest.title}</h3>
+                      {quest.description ? <p className="qcard__desc">{quest.description}</p> : null}
+                    </div>
+                  </div>
+                  <div className="qcard__bottom">
+                    <span className="qcard__state">Done</span>
+                  </div>
+                </li>
+              );
+            }
             const submitted = quest.status === 'submitted';
             const pending = submitted ? mySubmissions.find((s) => s.kind === 'personal' && s.questId === quest.id && s.status === 'pending') : undefined;
             const witness = pending ? playersById.get(pending.witnessUid) : undefined;
@@ -130,6 +164,12 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
           })}
         </ol>
       )}
+
+      {!loading && open.length === 0 && done.length > 0 && !settings.refillOnComplete ? (
+        <p className="note" role="status">
+          Every quest is done. A new one only arrives if a claim is rejected or someone guesses one of yours.
+        </p>
+      ) : null}
 
       {claiming ? <ClaimSheet quest={claiming} onClose={() => setClaiming(null)} /> : null}
       {repick ? <ChangeWitnessSheet submission={repick} onClose={() => setRepicking(null)} /> : null}

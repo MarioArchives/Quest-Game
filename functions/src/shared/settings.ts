@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exposePenalty: 50,
   correctGuessReward: 25,
   wrongGuessCost: 10,
-  guessCooldownMin: 30,
+  guessCooldownMin: 10,
   globalIntervalMin: 60,
   globalIntervalMax: 120,
   globalWindowMin: 40,
@@ -18,7 +18,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fraudPenalty: 50,
   rejectPenalty: 25,
   voteWindowMin: 20,
-  refillOnComplete: true,
+  /** Five quest slots per game: completing a quest does not deal a new one (fails, exposures and rerolls do). */
+  refillOnComplete: false,
   revealOnComplete: true,
   pointsFloorZero: false,
 };

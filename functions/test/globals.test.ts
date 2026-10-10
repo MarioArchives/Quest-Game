@@ -143,9 +143,10 @@ describe('runTick', () => {
     await seedGlobalQuest(db(), 'withEntries', { status: 'live', endsAt: addMin(T0, -1) });
     await seedGlobalQuest(db(), 'empty', { status: 'live', endsAt: T0 });
     await seedGlobalQuest(db(), 'running', { status: 'live', endsAt: addMin(T0, 10) });
-    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'withEntries', witnessUid: null, status: 'approved', evidence: true });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'withEntries', witnessUid: null, status: 'sealed', evidence: true });
     const res = await runTick(db(), T0, seededRng());
     expect(res).toEqual({ opened: null, closed: ['empty'], voting: ['withEntries'] });
+    expect((await getData(db(), 'submissions/e1'))?.status).toBe('approved'); // revealed (R5)
     const voting = await getData(db(), 'globalQuests/withEntries');
     expect(voting?.status).toBe('voting');
     expect(toMillis(voting!.votingEndsAt)).toBe(T0.getTime() + 15 * MIN);
@@ -185,7 +186,7 @@ describe('runTick', () => {
     await tickSetup();
     await seedGlobalTemplate(db(), 'g02');
     await seedGlobalQuest(db(), 'stillLive', { status: 'live', endsAt: addMin(T0, 10) });
-    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'stillLive', witnessUid: null, status: 'approved', evidence: true });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'stillLive', witnessUid: null, status: 'sealed', evidence: true });
     await seedGlobalQuest(db(), 'stillEmpty', { status: 'live', endsAt: addMin(T0, 10) });
     const res = await runTick(db(), T0, seededRng());
     expect(res.opened).toEqual(expect.any(String));
@@ -314,7 +315,7 @@ describe('fireGlobalQuest', () => {
     await tickSetup();
     await seedAdmin(db(), 'gm');
     await seedGlobalQuest(db(), 'old', { status: 'live', endsAt: addMin(T0, 20) });
-    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'old', witnessUid: null, status: 'approved', evidence: true });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'old', witnessUid: null, status: 'sealed', evidence: true });
     const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), custom());
     expect((await getData(db(), 'globalQuests/old'))?.status).toBe('voting');
     expect((await liveQuests()).map((q) => q.id)).toEqual([globalQuestId]);

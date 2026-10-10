@@ -200,5 +200,6 @@ export function NoteSheet({
 export function SubStatusTag({ sub }: { sub: Doc<Submission> }) {
   if (sub.status === 'approved') return <span className="tag tag--ink">Approved</span>;
   if (sub.status === 'rejected') return <span className="tag tag--red">Rejected</span>;
+  if (sub.status === 'sealed') return <span className="tag tag--tint">Sealed</span>;
   return <span className="tag tag--tint">Waiting</span>;
 }

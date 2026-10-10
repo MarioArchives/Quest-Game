@@ -3,7 +3,7 @@
 import type { DocumentReference, Transaction } from 'firebase-admin/firestore';
 import type { GlobalQuest, Player, Quest, Settings, Submission } from '../shared/types.js';
 import type { Db } from './context.js';
-import { dealFrom, readFreshTemplates, type FreshTemplate } from './deal.js';
+import { dealReplacement, readDealing, type Dealing } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail } from './guards.js';
 import { applyPoints } from './ledger.js';
@@ -24,15 +24,15 @@ export interface Loaded {
   reviewerName: string | null;
   /** Approval / win posts about this submission, flagged when the GM overrides it. */
   postRefs: DocumentReference[];
-  /** Fresh templates for dealing a replacement quest; empty unless requested. */
-  pool: FreshTemplate[];
+  /** The player's open-quest count and fresh templates for dealing a replacement; empty unless requested. */
+  dealing: Dealing;
 }
 
 export interface LoadOptions {
   /** The reviewing uid; its player doc is read so posts can name them. */
   reviewer?: string;
-  /** Read the pool of undealt templates (whenever a personal quest may need a replacement dealt). */
-  pool?: boolean;
+  /** Read the player's dealing state (whenever a personal quest may need a replacement dealt). */
+  dealing?: boolean;
   /** Read the feed posts about this submission (for a fraud override). */
   posts?: boolean;
 }
@@ -70,7 +70,7 @@ export async function loadReview(
     reviewerName = snap.exists ? ((snap.data() as Player).displayName ?? null) : null;
   }
 
-  const pool = opts.pool && sub.kind === 'personal' ? await readFreshTemplates(tx, db, sub.uid) : [];
+  const dealing = opts.dealing && sub.kind === 'personal' ? await readDealing(tx, db, sub.uid) : { pool: [], open: 0 };
   let postRefs: DocumentReference[] = [];
   if (opts.posts) {
     const posts = await tx.get(db.collection('feed').where('submissionId', '==', id));
@@ -90,7 +90,7 @@ export async function loadReview(
     gq,
     reviewerName,
     postRefs,
-    pool,
+    dealing,
   };
 }
 
@@ -136,7 +136,11 @@ export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Re
   );
   tx.update(questRef, { status: 'done', completedAt: toTs(now), submissionId: L.id });
 
-  const refillQuestId = settings.refillOnComplete ? (dealFrom(tx, db, now, env.rng, sub.uid, L.pool, 1)[0] ?? null) : null;
+  // A finished quest uses up its slot; it is only refilled when the GM turned that on (and never above five).
+  L.dealing.open -= 1;
+  const refillQuestId = settings.refillOnComplete
+    ? dealReplacement(tx, db, now, env.rng, sub.uid, L.dealing, settings.starterQuestCount)
+    : null;
   const reveal = settings.revealOnComplete;
   const feedId = addFeed(tx, db, now, {
     type: 'approved',
@@ -186,7 +190,8 @@ export function rejectClaim(env: ReviewEnv, L: Loaded, note: string | null): Rec
   });
   if (L.questRef && L.quest?.status === 'submitted' && L.quest.submissionId === L.id) {
     tx.update(L.questRef, { status: 'replaced' });
-    dealFrom(tx, db, now, env.rng, sub.uid, L.pool, 1);
+    L.dealing.open -= 1;
+    dealReplacement(tx, db, now, env.rng, sub.uid, L.dealing, settings.starterQuestCount);
   }
   const reveal = settings.revealOnComplete;
   addFeed(tx, db, now, {
@@ -243,7 +248,8 @@ export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null):
     // The quest is gone for good; the refill stays, or a fresh quest is dealt if there was none.
     if (L.questRef && L.quest?.status === 'done') {
       tx.update(L.questRef, { status: 'replaced' });
-      if (!sub.refillQuestId) dealFrom(tx, db, now, env.rng, sub.uid, L.pool, 1);
+      // (A done quest was not open, so the open count is unchanged by replacing it.)
+      if (!sub.refillQuestId) dealReplacement(tx, db, now, env.rng, sub.uid, L.dealing, settings.starterQuestCount);
     }
   } else if (L.gq && L.gqRef && L.gq.winningSubmissionIds?.includes(L.id)) {
     // A disqualified winner loses the bonus (it is part of pointsAwarded) and their place among the winners.

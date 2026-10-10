@@ -109,26 +109,26 @@ describe('guessQuest: wrong guesses', () => {
 });
 
 describe('guessQuest: cooldown', () => {
-  it('blocks a second guess at the same target within 30 minutes and reports when to retry', async () => {
+  it('blocks a second guess at the same target within 10 minutes (the default) and reports when to retry', async () => {
     await setup();
     await guess('alice', 'bob', 'p15', T0);
-    const second = guess('alice', 'bob', 'p06', addMin(T0, 29));
-    await expect(second).rejects.toMatchObject({ code: 'resource-exhausted', details: { retryAt: T0.getTime() + 30 * MIN } });
+    const second = guess('alice', 'bob', 'p06', addMin(T0, 9));
+    await expect(second).rejects.toMatchObject({ code: 'resource-exhausted', details: { retryAt: T0.getTime() + 10 * MIN } });
     expect((await getPlayer(db(), 'alice')).points).toBe(90);
     expect((await getPlayer(db(), 'bob')).points).toBe(200);
     expect(await allDocs(db(), 'guesses')).toHaveLength(1);
   });
 
-  it('allows the next guess at exactly 30 minutes', async () => {
+  it('allows the next guess at exactly 10 minutes', async () => {
     await setup();
     await guess('alice', 'bob', 'p15', T0);
-    expect(await guess('alice', 'bob', 'p06', addMin(T0, 30))).toEqual({ correct: true });
+    expect(await guess('alice', 'bob', 'p06', addMin(T0, 10))).toEqual({ correct: true });
   });
 
   it('starts the cooldown after a correct guess too', async () => {
     await setup();
     await guess('alice', 'bob', 'p06', T0);
-    await expectCode(guess('alice', 'bob', 'p07', addMin(T0, 10)), 'resource-exhausted');
+    await expectCode(guess('alice', 'bob', 'p07', addMin(T0, 5)), 'resource-exhausted');
   });
 
   it('lets the guesser try a different target immediately', async () => {
@@ -144,9 +144,10 @@ describe('guessQuest: cooldown', () => {
   });
 
   it('uses the guessCooldownMin setting', async () => {
-    await setup({ settings: { guessCooldownMin: 5 } });
+    await setup({ settings: { guessCooldownMin: 30 } });
     await guess('alice', 'bob', 'p15', T0);
-    expect(await guess('alice', 'bob', 'p06', addMin(T0, 5))).toEqual({ correct: true });
+    await expectCode(guess('alice', 'bob', 'p06', addMin(T0, 29)), 'resource-exhausted');
+    expect(await guess('alice', 'bob', 'p06', addMin(T0, 30))).toEqual({ correct: true });
   });
 });
 

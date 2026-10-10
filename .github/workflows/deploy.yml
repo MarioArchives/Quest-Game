@@ -1,4 +1,4 @@
-# Builds the Vite app and publishes it to GitHub Pages on every push to main.
+# Builds the Vite app and publishes it to GitHub Pages on every push to master.
 #
 # One-off setup: repository Settings > Pages > Build and deployment > Source = "GitHub Actions".
 # The Firebase web config comes from repository secrets or variables named like .env.example
@@ -13,7 +13,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:

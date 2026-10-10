@@ -72,7 +72,7 @@ const GROUPS: { title: string; fields: NumField[] }[] = [
 ];
 
 const FLAGS: { key: FlagKey; label: string; hint: string }[] = [
-  { key: 'refillOnComplete', label: 'Refill hand on completion', hint: 'A fresh quest replaces each approved one' },
+  { key: 'refillOnComplete', label: 'Refill hand on completion', hint: 'Off: five slots for the whole game (new quests only after a rejection, an exposure or a reroll). On: each completed quest is replaced' },
   { key: 'revealOnComplete', label: 'Reveal quest on approval', hint: 'The feed names the quest once approved' },
   { key: 'pointsFloorZero', label: 'Points can’t go below 0', hint: 'Fines and penalties stop at zero' },
 ];

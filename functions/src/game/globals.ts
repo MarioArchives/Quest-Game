@@ -7,6 +7,7 @@ import { MIN_MS, millis, nextGlobalTime, toTs } from './util.js';
 import {
   closeWithoutWinner,
   closeWithTally,
+  attachPosts,
   readAllEntries,
   readPlayers,
   readVotes,
@@ -118,7 +119,7 @@ const asQuest = (doc: QueryDocumentSnapshot): Quest => ({ id: doc.id, ref: doc.r
 /** A live side quest whose entry window is over (or that the GM wants to move on): vote if anyone entered, else close. */
 function moveOnFromLive(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): 'voting' | 'closed' {
   if (entries.length > 0) {
-    startVoting(tx, db, now, settings, q);
+    startVoting(tx, db, now, settings, q, entries);
     return 'voting';
   }
   closeWithoutWinner(tx, q);
@@ -150,6 +151,7 @@ export async function runTick(
     // Only one quest at a time: whatever is still running makes way for the new one.
     const moveOn = [...expired, ...(template ? running : [])];
     const entries = moveOn.length + votingOver.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
+    await attachPosts(tx, db, moveOn.flatMap((q) => entries.get(q.id) ?? []));
     const votes = new Map<string, Map<string, string>>();
     for (const q of votingOver) votes.set(q.id, await readVotes(tx, db, q.id));
     const players = votingOver.length > 0 ? await readPlayers(tx, db) : new Map();
@@ -229,6 +231,7 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
     // Only one quest at a time: the current live one moves on first (to voting if anyone entered).
     const live = quests.filter((q) => q.get('status') === 'live');
     const entries = live.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
+    await attachPosts(tx, db, live.flatMap((q) => entries.get(q.id) ?? []));
     for (const doc of live) moveOnFromLive(tx, db, ctx.now, settings, asQuest(doc), entries.get(doc.id) ?? []);
     return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, settings, spec) };
   });

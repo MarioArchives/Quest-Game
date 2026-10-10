@@ -1,6 +1,6 @@
 import type { GuessCooldown, QuestTemplate } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
-import { dealFrom, readFreshTemplates } from './deal.js';
+import { dealReplacement, readDealing } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail, loadSettings, loadState, requirePlayer } from './guards.js';
 import { applyPoints } from './ledger.js';
@@ -54,13 +54,15 @@ export async function guessQuest(
     );
     const quest = hit.docs[0];
     const correct = quest !== undefined;
-    const pool = correct ? await readFreshTemplates(tx, db, targetUid) : [];
+    const dealing = correct ? await readDealing(tx, db, targetUid) : { pool: [], open: 0 };
 
     const guessRef = db.collection('guesses').doc();
     const now = toTs(ctx.now);
     if (quest) {
       tx.update(quest.ref, { status: 'exposed', exposedBy: guesserUid, exposedAt: now });
-      dealFrom(tx, db, ctx.now, rng, targetUid, pool, 1);
+      // The exposed quest leaves the hand; its replacement only comes if the hand is below five.
+      dealing.open -= 1;
+      dealReplacement(tx, db, ctx.now, rng, targetUid, dealing, settings.starterQuestCount);
       const penalty = applyPoints(tx, db, ctx.now, settings, {
         uid: targetUid,
         current: target.points,

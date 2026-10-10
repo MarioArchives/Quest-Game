@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-festival-quest"
+    "default": "demo-festival-quest",
+    "prod": "musical-mischief"
   }
 }

@@ -28,6 +28,8 @@ export function SideQuestEntries() {
           if (s.status === 'rejected') {
             status = 'Disqualified';
             tone = 'tag--red';
+          } else if (s.status === 'sealed') {
+            status = 'Hidden until voting';
           } else if (!quest) {
             status = 'Entered';
           } else if (quest.status === 'live') {

@@ -1,26 +1,20 @@
-import { collection, limit, orderBy, query } from 'firebase/firestore';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { AshtonLoader } from '../components/AshtonLoader';
 import { Icon } from '../components/Icon';
 import { useGame } from '../data/GameProvider';
-import { useCollection, useNow } from '../data/hooks';
-import { db } from '../firebase';
+import { useNow } from '../data/hooks';
 import { useSession } from '../session/SessionProvider';
-import type { FeedItem } from '../shared';
 import { FeedPost } from './home/FeedPost';
 import { PlayerSheet } from './home/PlayerSheet';
 import { RanksStrip } from './home/RanksStrip';
 import { SideQuestCards } from './home/SideQuestCard';
 import './home/home.css';
 
-const FEED_LIMIT = 50;
-
 /** Home: the festival as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
 export default function Dashboard() {
   const { player, isAdmin, joinRequest } = useSession();
-  const { state, ready, players } = useGame();
-  const feed = useCollection<FeedItem>('feed:latest', () => query(collection(db, 'feed'), orderBy('createdAt', 'desc'), limit(FEED_LIMIT)));
+  const { state, ready, players, feed: feedPosts, feedLoading, feedError } = useGame();
   const now = useNow(30_000);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -68,18 +62,18 @@ export default function Dashboard() {
           <h2 id="feed-title">Feed</h2>
           <span className="section-head__meta">Newest first</span>
         </div>
-        {feed.error ? (
+        {feedError ? (
           <p className="note note--error" role="alert">
             Couldn&apos;t load the feed.
           </p>
-        ) : feed.loading ? null : feed.data.length === 0 ? (
+        ) : feedLoading ? null : feedPosts.length === 0 ? (
           <div className="empty">
             <h3>Quiet so far</h3>
             <p>Nothing has happened yet. The first claim will show up here.</p>
           </div>
         ) : (
           <ul className="feed">
-            {feed.data.map((item) => (
+            {feedPosts.map((item) => (
               <FeedPost key={item.id} item={item} now={now} />
             ))}
           </ul>

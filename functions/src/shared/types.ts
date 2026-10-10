@@ -140,7 +140,11 @@ export interface Vote {
 }
 
 export type SubmissionKind = 'personal' | 'global';
-export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+/**
+ * 'sealed' = a side-quest entry that is hidden from other players until voting opens, when it becomes
+ * 'approved' (visible and votable).
+ */
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'sealed';
 
 export interface GeoPoint {
   lat: number;

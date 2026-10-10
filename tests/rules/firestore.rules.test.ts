@@ -149,8 +149,16 @@ describe('2. signed in but awaiting approval', () => {
 });
 
 describe('3. player profiles', () => {
-  it('a player can change only their own displayName and photoURL', async () => {
+  it('a player can change their own displayName and photoURL while the game is in the lobby', async () => {
+    await setStatus('lobby');
     await assertSucceeds(updateDoc(doc(as('alice'), 'players/alice'), { displayName: 'Ally', photoURL: 'https://x/y.jpg' }));
+  });
+
+  it.each(['active', 'paused', 'ended'] as const)('R8: names are locked once the game has started (%s); photos can still change', async (status) => {
+    await setStatus(status);
+    await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { displayName: 'Ally' }));
+    await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { displayName: 'Ally', photoURL: 'https://x/y.jpg' }));
+    await assertSucceeds(updateDoc(doc(as('alice'), 'players/alice'), { photoURL: 'https://x/z.jpg' }));
   });
 
   it.each([
@@ -227,6 +235,21 @@ describe('4. creating submissions', () => {
   it('W1: rejects a submission with no witness', async () => {
     const { witnessUid: _omit, ...noWitness } = newSubmission();
     await assertFails(setDoc(doc(as('alice'), 'submissions/new1'), noWitness));
+  });
+});
+
+describe('R4. sealed side-quest entries', () => {
+  it('only the entrant and the GM can read an entry until voting reveals it', async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'submissions/sealedA'), {
+        uid: 'alice', kind: 'global', questId: 'gq1', status: 'sealed', createdAt: T,
+        imagePath: 'submissions/alice/e.jpg', thumbPath: 'submissions/alice/e_thumb.jpg', caption: 'secret',
+      });
+    });
+    await assertSucceeds(getDoc(doc(as('alice'), 'submissions/sealedA')));
+    await assertSucceeds(getDoc(doc(as('gm'), 'submissions/sealedA')));
+    await assertFails(getDoc(doc(as('bob'), 'submissions/sealedA')));
+    await assertFails(getDocs(query(collection(as('bob'), 'submissions'), where('status', '==', 'sealed'))));
   });
 });
 

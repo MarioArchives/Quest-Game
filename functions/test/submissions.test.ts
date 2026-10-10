@@ -126,8 +126,8 @@ describe('claim trigger (V6)', () => {
 });
 
 describe('the witness approves (V7)', () => {
-  it('pays out, completes and refills the quest, and posts an approval with the witness and their comment', async () => {
-    await setup();
+  it('pays out, completes and (with refill on) refills the quest, and posts an approval with the witness and their comment', async () => {
+    await setup({ refillOnComplete: true });
     await claim('s1', 'alice', 'q1');
     expect(await review('s1', true, 'bob', 'Saw it with my own eyes')).toEqual({ status: 'approved' });
 
@@ -188,6 +188,42 @@ describe('the witness approves (V7)', () => {
     await review('s1', true, 'gm');
     expect((await getPlayer(db(), 'alice')).points).toBe(100);
     expect(await feedOf(db(), 'approved')).toHaveLength(1);
+  });
+});
+
+describe('five quest slots per game (Revision 5, R2)', () => {
+  it('by default an approval uses up the slot: no new quest is dealt', async () => {
+    await setup();
+    await claim('s1', 'alice', 'q1');
+    await review('s1', true, 'bob');
+    expect(activeOrSubmitted(await getQuests(db(), 'alice'))).toHaveLength(4);
+    await claim('s2', 'alice', 'q2', undefined, addMin(T0, 6));
+    await review('s2', true, 'bob', undefined, addMin(T0, 7));
+    const quests = await getQuests(db(), 'alice');
+    expect(activeOrSubmitted(quests)).toHaveLength(3);
+    expect(quests).toHaveLength(5); // nothing new was dealt
+    expect((await getData(db(), 'submissions/s1'))?.refillQuestId ?? null).toBeNull();
+  });
+
+  it('a rejection still swaps in a fresh quest, keeping the same number of open quests', async () => {
+    await setup();
+    await claim('s1', 'alice', 'q1');
+    await review('s1', true, 'bob'); // 4 open
+    await claim('s2', 'alice', 'q2', undefined, addMin(T0, 6));
+    await review('s2', false, 'bob', undefined, addMin(T0, 7));
+    const quests = await getQuests(db(), 'alice');
+    expect(quests.find((q) => q.id === 'q2')!.status).toBe('replaced');
+    expect(activeOrSubmitted(quests)).toHaveLength(4);
+  });
+
+  it('never deals above starterQuestCount open quests, even with refill on', async () => {
+    await setup({ refillOnComplete: true, starterQuestCount: 3 }); // alice already holds 5
+    await claim('s1', 'alice', 'q1');
+    await review('s1', true, 'bob');
+    expect(activeOrSubmitted(await getQuests(db(), 'alice'))).toHaveLength(4);
+    await claim('s2', 'alice', 'q2', undefined, addMin(T0, 6));
+    await review('s2', false, 'bob', undefined, addMin(T0, 7));
+    expect(activeOrSubmitted(await getQuests(db(), 'alice'))).toHaveLength(3);
   });
 });
 
@@ -300,7 +336,7 @@ describe('rejection (V8, V9)', () => {
 
 describe('fraud override (V12)', () => {
   it('points back plus the fine, quest replaced, original post flagged and a public fraud post', async () => {
-    await setup();
+    await setup({ refillOnComplete: true });
     await claim('s1', 'alice', 'q1');
     await review('s1', true, 'bob');
     const refillId = (await getData(db(), 'submissions/s1'))?.refillQuestId as string;
@@ -359,6 +395,16 @@ describe('fraud override (V12)', () => {
     await review('e1', false, 'gm');
     expect((await getPlayer(db(), 'alice')).points).toBe(-50);
     expect((await getData(db(), 'submissions/e1'))?.status).toBe('rejected');
+  });
+
+  it('R7: the GM can disqualify a sealed (not yet revealed) entry: rejected, fined and publicly flagged', async () => {
+    await setup();
+    await seedGlobalQuest(db(), 'gq1', { status: 'live', endsAt: addMin(T0, 30) });
+    await seedSubmission(db(), 'e1', { uid: 'alice', kind: 'global', questId: 'gq1', witnessUid: null, status: 'sealed', evidence: true, extra: { pointsAwarded: 0 } });
+    await review('e1', false, 'gm', 'Not taken today');
+    expect((await getData(db(), 'submissions/e1'))?.status).toBe('rejected');
+    expect((await getPlayer(db(), 'alice')).points).toBe(-50);
+    expect((await feedOf(db(), 'fraud'))[0]).toMatchObject({ uid: 'alice', note: 'Not taken today' });
   });
 
   it('only a GM can disqualify a side-quest entry', async () => {

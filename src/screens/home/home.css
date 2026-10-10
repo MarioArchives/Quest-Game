@@ -86,6 +86,11 @@
 .pip { width: 12px; height: 12px; border: 2px solid var(--ink); }
 .pip--on { background: var(--ink); }
 .hero__cta { margin-top: 16px; }
+.hero__who { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.hero__who-item { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; background: var(--card); color: var(--ink); border: var(--line); border-radius: 999px; font-size: 12px; font-weight: 800; }
+.hero__mine { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px; background: var(--card); color: var(--ink); border: var(--line); }
+.hero__mine-text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.hero__mine-text p { font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
 .hero__blocked { margin-top: 10px; font-size: 13px; font-weight: 700; color: #fff; }
 
 .quiet { padding: 16px 18px; background: var(--card); border: var(--line); }
@@ -224,27 +229,19 @@
 .ps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .guess { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
 .guess__title { font-size: 24px; }
-.guess__options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.guess__opt {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 4px;
-  min-height: 52px;
-  padding: 8px 10px;
-  background: var(--card);
-  border: var(--line);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.25;
-  cursor: pointer;
-}
-.guess__opt:hover { background: var(--red-tint); }
-.guess__opt.is-selected { background: var(--red); color: #fff; font-weight: 800; }
-.guess__opt:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
-.guess__retired { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; }
+/* the quest catalogue: title rows that open to their description */
+.guess__list { border-top: var(--line); }
+.guess__item { border-bottom: var(--hairline); background: var(--card); }
+.guess__item.is-selected { background: var(--red-tint); box-shadow: inset 5px 0 0 var(--red); }
+.guess__head { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: transparent; border: 0; border-radius: 0; text-align: left; }
+.guess__head:hover { background: var(--red-tint); }
+.guess__name { flex: 1; min-width: 0; font-size: 15px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.guess__picked { flex: none; }
+.guess__chev { flex: none; transition: transform 0.15s ease; }
+.guess__chev.is-open { transform: rotate(180deg); }
+.guess__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px 12px; }
+.guess__desc { font-size: 14px; line-height: 1.45; }
 .guess__rules { text-align: center; font-size: 13px; line-height: 1.4; color: var(--muted); }
 .guess__filter { min-height: 44px; }
-.guess__scroll { max-height: 34dvh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
+.guess__scroll { max-height: 38dvh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
 .guess__empty { padding: 8px 0; font-size: 14px; }

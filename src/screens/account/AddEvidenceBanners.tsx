@@ -3,17 +3,8 @@ import { Button } from '../../components/Button';
 import { EvidenceSheet, type EvidenceTarget } from '../../components/EvidenceSheet';
 import { Icon } from '../../components/Icon';
 import { useGame } from '../../data/GameProvider';
+import { isEvidenceSkipped, skipEvidence } from '../../lib/evidenceSkip';
 import { useSession } from '../../session/SessionProvider';
-
-const skipKey = (uid: string, id: string) => `fq:skip-evidence:${uid}:${id}`;
-
-function skipped(uid: string, id: string): boolean {
-  try {
-    return localStorage.getItem(skipKey(uid, id)) === '1';
-  } catch {
-    return false;
-  }
-}
 
 /** "Approved! +100. Add a photo or a comment": one banner per approved personal claim that has neither yet. */
 export function AddEvidenceBanners({ titleById }: { titleById: Map<string, string> }) {
@@ -26,18 +17,14 @@ export function AddEvidenceBanners({ titleById }: { titleById: Map<string, strin
   const waiting = useMemo(
     () =>
       mySubmissions.filter(
-        (s) => s.kind === 'personal' && s.status === 'approved' && !s.imagePath && !s.caption && !hidden.has(s.id) && !skipped(uid, s.id),
+        (s) => s.kind === 'personal' && s.status === 'approved' && !s.imagePath && !s.caption && !hidden.has(s.id) && !isEvidenceSkipped(uid, s.id),
       ),
     [mySubmissions, hidden, uid],
   );
   if (state.status === 'ended' || waiting.length === 0) return null;
 
   const skip = (id: string) => {
-    try {
-      localStorage.setItem(skipKey(uid, id), '1');
-    } catch {
-      /* hidden for this visit only */
-    }
+    skipEvidence(uid, id);
     setHidden((prev) => new Set(prev).add(id));
   };
 

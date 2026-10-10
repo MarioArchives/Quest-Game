@@ -65,10 +65,13 @@ service cloud.firestore {
       allow read: if isPlayerOrGM() || (signedIn() && request.auth.uid == uid);
       // No client create/delete. The owner may change only their name and avatar, and the write must
       // actually change one of them (a no-op write is refused, so clients should skip unchanged saves).
+      // The name is locked once the game has started; the avatar can change at any time.
       allow update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL'])
         && request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName', 'photoURL'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
+            || status() == 'lobby')
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 24

@@ -165,7 +165,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
       </p>
 
       {previewSrc || (keepExisting && !existingThumb) ? (
-        <figure className="evidence__preview">
+        <figure className="photo-frame evidence__preview">
           {previewSrc ? <img src={previewSrc} alt="Your photo" /> : <Icon name="image" size={32} />}
           <div className="evidence__preview-actions">
             <Button small disabled={busy || compressing} onClick={openCamera}>

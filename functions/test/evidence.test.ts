@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { addEvidence } from '../src/game/evidence.js';
 import { handleSubmissionCreated, reviewSubmission } from '../src/game/submissions.js';
-import { enterSideQuest } from '../src/game/votes.js';
+import { advanceGlobalQuest, enterSideQuest } from '../src/game/votes.js';
 import {
   addMin,
   ctx,
@@ -111,9 +111,10 @@ describe('addEvidence on a personal claim', () => {
   });
 });
 
-describe('addEvidence on a side-quest entry (X5)', () => {
+describe('addEvidence on a side-quest entry (X5, R6)', () => {
   async function entered() {
     await seedGame(db(), { status: 'active' });
+    await seedAdmin(db(), 'gm');
     await seedPlayer(db(), 'alice');
     await seedPlayer(db(), 'bob');
     await seedGlobalQuest(db(), 'gq1', { status: 'live', endsAt: addMin(T0, 30) });
@@ -121,10 +122,17 @@ describe('addEvidence on a side-quest entry (X5)', () => {
     return submissionId;
   }
 
-  it('can replace the evidence while the side quest is live', async () => {
+  it('can replace the evidence while the side quest is live; the post stays bare until the vote opens', async () => {
     const id = await entered();
     await addEvidence(db(), ctx('alice', addMin(T0, 2)), { submissionId: id, ...photo('alice', 'e-2'), caption: 'Better one' });
-    expect(await getData(db(), `submissions/${id}`)).toMatchObject({ ...photo('alice', 'e-2'), caption: 'Better one' });
+    expect(await getData(db(), `submissions/${id}`)).toMatchObject({ ...photo('alice', 'e-2'), caption: 'Better one', status: 'sealed' });
+    const before = (await feedOf(db(), 'approved')).find((p) => p.submissionId === id)!;
+    expect(before.imagePath ?? null).toBeNull();
+    expect(before.caption ?? null).toBeNull();
+
+    await advanceGlobalQuest(db(), ctx('gm', addMin(T0, 3)), { globalQuestId: 'gq1' });
+    const after = (await feedOf(db(), 'approved')).find((p) => p.submissionId === id)!;
+    expect(after).toMatchObject({ ...photo('alice', 'e-2'), caption: 'Better one' });
   });
 
   it.each(['voting', 'closed'] as const)('cannot change it once the side quest is %s', async (status) => {

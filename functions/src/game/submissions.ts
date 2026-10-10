@@ -116,7 +116,7 @@ export async function reviewSubmission(
     if (data.approve) {
       if (sub.status === 'approved') return { status: 'approved' as const };
       if (sub.kind !== 'personal') fail('failed-precondition', 'Side-quest entries are not approved by a person.');
-      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, pool: settings.refillOnComplete });
+      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: settings.refillOnComplete });
       assertApprovable(loaded);
       // A witness only approves what is waiting on them; undoing a rejection is the GM's call.
       if (!gm && sub.status !== 'pending') fail('permission-denied', 'Only a GM can approve a rejected claim.');
@@ -126,9 +126,10 @@ export async function reviewSubmission(
     }
 
     if (sub.status === 'rejected') return { status: 'rejected' as const };
-    if (sub.status === 'approved') {
+    // An approved claim, or a side-quest entry (sealed or revealed): the GM's fraud override.
+    if (sub.status === 'approved' || sub.status === 'sealed') {
       if (!gm) fail('permission-denied', 'Only a GM can overturn an approval.');
-      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, pool: sub.kind === 'personal', posts: true });
+      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: sub.kind === 'personal', posts: true });
       tx.update(subRef, overrideAsFraud(env, loaded, note));
       return { status: 'rejected' as const };
     }
@@ -136,7 +137,7 @@ export async function reviewSubmission(
       tx.update(subRef, rejectEntry(env, note));
       return { status: 'rejected' as const };
     }
-    const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, pool: true });
+    const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: true });
     tx.update(subRef, rejectClaim(env, loaded, note));
     return { status: 'rejected' as const };
   });

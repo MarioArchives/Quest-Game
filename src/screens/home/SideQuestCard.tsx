@@ -66,13 +66,26 @@ export function SideQuestCards() {
 
 function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
   const { player } = useSession();
-  const { state, players, approved, mySubmissions } = useGame();
+  const { state, players, playersById, approved, mySubmissions, feed } = useGame();
   const [sheet, setSheet] = useState<EvidenceTarget | null>(null);
 
-  const entered = useMemo(() => new Set(approved.filter((s) => s.kind === 'global' && s.questId === quest.id).map((s) => s.uid)), [approved, quest.id]);
   const mine = mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id && s.status !== 'rejected');
-  if (mine) entered.add(mine.uid);
+  // Entries are sealed until voting, and other players can't read sealed submissions, so "who is in" comes from the
+  // feed: each entry puts a bare post (type approved, no points) naming this side quest on it.
+  const entered = useMemo(() => {
+    const started = tsMs(quest.startsAt);
+    const set = new Set<string>();
+    for (const post of feed) {
+      if (post.type === 'approved' && post.uid && post.submissionId && post.points == null && post.questTitle === quest.title && tsMs(post.createdAt) >= started) {
+        set.add(post.uid);
+      }
+    }
+    for (const s of approved) if (s.kind === 'global' && s.questId === quest.id) set.add(s.uid);
+    if (mine) set.add(mine.uid);
+    return set;
+  }, [feed, approved, mine, quest.id, quest.title, quest.startsAt]);
   const active = state.status === 'active';
+  const names = [...entered].map((uid) => playersById.get(uid)).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   return (
     <>
@@ -81,7 +94,7 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
         <p className="hero__eyebrow eyebrow">Side quest &middot; everyone plays</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-        <p className="hero__rule">Enter with a photo or a comment, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
+        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
         <div className="hero__row">
           <Countdown endsAt={tsMs(quest.endsAt)} closedText="Closing" />
           <div className="hero__entries">
@@ -91,6 +104,25 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
             </p>
           </div>
         </div>
+        {names.length > 0 ? (
+          <ul className="hero__who" aria-label="Who has entered">
+            {names.map((p) => (
+              <li key={p.id} className="hero__who-item">
+                <Avatar name={p.displayName} src={p.photoURL} size={26} />
+                <span>{p.id === player?.id ? 'You' : (p.displayName.trim().split(/\s+/)[0] ?? p.displayName)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {mine ? (
+          <div className="hero__mine">
+            {mine.thumbPath ? <PhotoThumb submissionId={mine.id} thumbPath={mine.thumbPath} label="Open your entry" size={52} /> : null}
+            <div className="hero__mine-text">
+              <span className="tag tag--tint">{mine.status === 'sealed' ? 'Hidden until voting' : 'Your entry'}</span>
+              <p>{mine.caption ? mine.caption : mine.thumbPath ? 'Your photo is in.' : 'Your entry is in.'}</p>
+            </div>
+          </div>
+        ) : null}
         {player ? (
           mine ? (
             <Button
