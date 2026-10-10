@@ -21,10 +21,11 @@ const BADGE_ICON: Record<FeedType, IconName> = {
   announcement: 'megaphone',
   status: 'gm',
   adjust: 'edit',
+  left: 'logout',
 };
 
 /** Types shown as a quiet one-liner rather than a card with a border. */
-const QUIET: ReadonlySet<FeedType> = new Set(['join', 'status']);
+const QUIET: ReadonlySet<FeedType> = new Set(['join', 'status', 'left']);
 
 function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
   const open = usePhotoViewer();

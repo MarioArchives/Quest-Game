@@ -29,7 +29,7 @@ export function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose
       title={player.displayName}
       onClose={onClose}
       lead={<Avatar name={player.displayName} src={player.photoURL} size={52} />}
-      subtitle={`${player.points} pts · Rank ${player.rank}${isMe ? ' · you' : ''}`}
+      subtitle={`${player.points} pts · Rank ${player.rank}${isMe ? ' · you' : ''}${player.left ? ' · left the game' : ''}`}
     >
       <section aria-labelledby="ps-photos">
         <h3 id="ps-photos" className="eyebrow ps-h">
@@ -47,7 +47,11 @@ export function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose
           </ul>
         )}
       </section>
-      {isMe || !mePlayer ? null : <GuessPanel target={player} />}
+      {isMe || !mePlayer ? null : player.left ? (
+        <p className="muted ps-none">{player.displayName} has left the game, so their quests can&apos;t be guessed.</p>
+      ) : mePlayer.left ? null : (
+        <GuessPanel target={player} />
+      )}
     </BottomSheet>
   );
 }

@@ -100,7 +100,8 @@ const chunks = <T>(list: T[], size: number): T[][] => {
 async function recipientsOf(db: Db, plan: PushPlan): Promise<string[]> {
   let uids: string[];
   if (plan.to === 'players') {
-    uids = (await db.collection('players').get()).docs.map((d) => d.id);
+    // Players the GM marked as left hear nothing more from the game.
+    uids = (await db.collection('players').get()).docs.filter((d) => !d.get('left')).map((d) => d.id);
   } else if (plan.to === 'gms') {
     uids = (await db.collection('admins').get()).docs.map((d) => d.id);
   } else {

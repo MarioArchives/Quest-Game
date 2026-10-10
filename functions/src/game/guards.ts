@@ -29,14 +29,19 @@ export async function requireGM(db: Db, ctx: Ctx, tx?: Transaction): Promise<str
   return uid;
 }
 
-/** The caller's uid and player doc; `permission-denied` if they have not joined. */
+/** The caller's uid and player doc; `permission-denied` if they have not joined, or the GM marked them as left. */
 export async function requirePlayer(db: Db, ctx: Ctx, tx?: Transaction): Promise<{ uid: string; player: Player }> {
   const uid = requireUid(ctx);
   const ref = db.doc(`players/${uid}`);
   const snap = tx ? await tx.get(ref) : await ref.get();
   if (!snap.exists) fail('permission-denied', 'Only players can do that.');
-  return { uid, player: snap.data() as Player };
+  const player = snap.data() as Player;
+  if (player.left) fail('permission-denied', 'The GM has marked you as having left the game. Ask them to bring you back.');
+  return { uid, player };
 }
+
+/** Still playing: not marked by the GM as having left (frozen or out). */
+export const isPlaying = (player: Pick<Player, 'left'> | null | undefined): boolean => Boolean(player) && !player!.left;
 
 /** game/settings merged over the defaults, so a partial or missing doc still works. */
 export async function loadSettings(db: Db, tx?: Transaction): Promise<Settings> {

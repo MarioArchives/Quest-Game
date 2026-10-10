@@ -1,9 +1,10 @@
 import { collection, query, where } from 'firebase/firestore';
 import { useMemo, useState, type FormEvent } from 'react';
-import { adjustPoints, friendlyError, grantRerolls } from '../../api';
+import { adjustPoints, friendlyError, grantRerolls, setPlayerLeft } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { PointsChip } from '../../components/PointsChip';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
@@ -15,8 +16,12 @@ import { useSession } from '../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft, type LedgerEntry } from '../../shared';
 import { LEDGER_REASONS } from './common';
 
+/** What a player's row says about them having left. */
+const LEFT_LABEL = { frozen: 'left · frozen · ', out: 'out of the game · ' } as const;
+
 export function PlayersSection() {
-  const { players } = useGame();
+  // Everyone, out ones last, so they can be brought back.
+  const { allPlayers: players, activePlayers } = useGame();
   const { user } = useSession();
   const [selected, setSelected] = useState<string | null>(null);
   const chosen = selected ? players.find((p) => p.id === selected) : undefined;
@@ -25,7 +30,9 @@ export function PlayersSection() {
     <>
       <div className="section-head">
         <h2>Players</h2>
-        <span className="section-head__meta">{players.length} in the game</span>
+        <span className="section-head__meta">
+          {activePlayers.length} playing{players.length > activePlayers.length ? ` · ${players.length - activePlayers.length} left` : ''}
+        </span>
       </div>
       {players.length === 0 ? (
         <div className="empty">
@@ -36,14 +43,18 @@ export function PlayersSection() {
         <ol className="gm-list" aria-label="Players by points">
           {players.map((p) => (
             <li key={p.id}>
-              <button type="button" className="gm-player" onClick={() => setSelected(p.id)} aria-label={`${p.displayName}, ${p.points} points. Open ledger and adjust`}>
+              <button type="button" className={`gm-player${p.left ? ' gm-player--left' : ''}`} onClick={() => setSelected(p.id)} aria-label={`${p.displayName}, ${p.points} points. Open ledger and adjust`}>
                 <span className="gm-player__rank" aria-hidden="true">
-                  {p.rank}
+                  {p.left === 'out' ? '–' : p.rank}
                 </span>
                 <Avatar name={p.displayName} src={p.photoURL} size={36} />
                 <span className="gm-player__name" aria-hidden="true">
                   {p.displayName}
-                  <span className="gm-player__sub">{p.id === user?.uid ? 'you · ' : ''}{p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? "quest" : "quests"} done</span>
+                  <span className="gm-player__sub">
+                    {p.id === user?.uid ? 'you · ' : ''}
+                    {p.left ? LEFT_LABEL[p.left] : ''}
+                    {p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? 'quest' : 'quests'} done
+                  </span>
                 </span>
                 <span className="gm-player__points" aria-hidden="true">
                   {p.points}
@@ -60,7 +71,9 @@ export function PlayersSection() {
 
 function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): void }) {
   const toast = useToast();
+  const { user } = useSession();
   const { settings, state } = useGame();
+  const [leaving, setLeaving] = useState<'frozen' | 'out' | 'back' | null>(null);
   const now = useNow(30_000);
   const ledger = useCollection<LedgerEntry>(`gm:ledger:${player.id}`, () => query(collection(db, 'pointsLedger'), where('uid', '==', player.id)));
   const entries = useMemo(() => [...ledger.data].sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)), [ledger.data]);
@@ -127,7 +140,11 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
     <BottomSheet
       title={player.displayName}
       lead={<Avatar name={player.displayName} src={player.photoURL} size={52} />}
-      subtitle={`${player.points} pts · Rank ${player.rank}`}
+      subtitle={
+        player.left === 'out'
+          ? `${player.points} pts · out of the game`
+          : `${player.points} pts · Rank ${player.rank}${player.left ? ' · left, frozen' : ''}`
+      }
       onClose={onClose}
     >
       <div className="gm-form gm-quick">
@@ -193,6 +210,38 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
         </div>
       </section>
 
+      {player.id !== user?.uid ? (
+        <section className="gm-form gm-rerolls" aria-labelledby="gm-left-title">
+          <h3 id="gm-left-title" className="gm-h">
+            Left the game?
+          </h3>
+          <p className="gm-hint">
+            {player.left === 'frozen'
+              ? 'Frozen: still on the leaderboard, but they can’t play, be guessed or be a witness.'
+              : player.left === 'out'
+                ? 'Out: off the leaderboard and the final standings. Their history is kept.'
+                : 'Freeze keeps them on the leaderboard with their score. Kick out takes them off it. Both can be undone.'}
+          </p>
+          <div className="gm-row">
+            {player.left !== 'frozen' ? (
+              <Button className="gm-flex1" disabled={busy || ended} onClick={() => setLeaving('frozen')}>
+                Freeze
+              </Button>
+            ) : null}
+            {player.left !== 'out' ? (
+              <Button variant="danger" className="gm-flex1" disabled={busy || ended} onClick={() => setLeaving('out')}>
+                Kick out
+              </Button>
+            ) : null}
+            {player.left ? (
+              <Button variant="primary" className="gm-flex1" disabled={busy || ended} onClick={() => setLeaving('back')}>
+                Bring back
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <section aria-labelledby="gm-ledger-title">
         <div className="section-head">
           <h3 id="gm-ledger-title" className="gm-h">
@@ -217,6 +266,36 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           </ul>
         )}
       </section>
+      {leaving ? (
+        <ConfirmSheet
+          title={leaving === 'frozen' ? `Freeze ${player.displayName}?` : leaving === 'out' ? `Kick out ${player.displayName}?` : `Bring ${player.displayName} back?`}
+          confirmLabel={leaving === 'frozen' ? 'Freeze' : leaving === 'out' ? 'Kick out' : 'Bring back'}
+          danger={leaving === 'out'}
+          onClose={() => setLeaving(null)}
+          onConfirm={async () => {
+            await setPlayerLeft({ uid: player.id, left: leaving === 'back' ? null : leaving });
+            toast(
+              leaving === 'back' ? `${player.displayName} is back in the game.` : `${player.displayName} is ${leaving === 'out' ? 'out' : 'frozen'}.`,
+              'success',
+            );
+          }}
+        >
+          {leaving === 'back' ? (
+            <p>They can play again: claim, guess, enter side quests, vote and witness. Their quests and points are as they left them.</p>
+          ) : (
+            <>
+              <p>
+                {leaving === 'frozen'
+                  ? 'They stay on the leaderboard with their score, marked as left.'
+                  : 'They come off the leaderboard and won’t be in the final standings. Any side-quest entry of theirs still in play is withdrawn.'}{' '}
+                They can’t play, be guessed or be picked as a witness, they get no more notifications, and their map pin goes. A line in the
+                feed says they’ve left.
+              </p>
+              <p className="muted">Anyone waiting on them as a witness is asked to pick someone else. You can bring them back later.</p>
+            </>
+          )}
+        </ConfirmSheet>
+      ) : null}
     </BottomSheet>
   );
 }

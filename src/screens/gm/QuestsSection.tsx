@@ -303,7 +303,8 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
 }
 
 function LiveQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
-  const { players } = useGame();
+  // Players who have left don't count: entries close once everyone still playing is in.
+  const { activePlayers: players } = useGame();
   const entries = useEntries(quest.id);
   const [starting, setStarting] = useState(false);
 

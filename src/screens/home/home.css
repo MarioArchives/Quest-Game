@@ -56,6 +56,10 @@
 .rk__name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1.2; }
 .rk__points { font-family: var(--display); font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
 .rk--you { background: var(--red); color: #fff; --ring: #fff; }
+/* Left the game (frozen by the GM): greyed, with a small stamp. */
+.rk--left { opacity: 0.55; }
+.rk--left .avatar { filter: grayscale(1); }
+.rk__left { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; }
 .rk--you:hover { background: #c41f16; }
 .rk--you .rk__rank { background: #fff; color: var(--ink); }
 .rk--you .avatar { border-color: var(--ink); }

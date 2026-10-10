@@ -61,7 +61,7 @@ export default function MapScreen() {
       if (loc.id === player?.id) continue; // you are drawn from your live position instead
       const who = playersById.get(loc.id);
       const at = tsMs(loc.updatedAt);
-      if (!who || !at || isStale(at, now)) continue;
+      if (!who || who.left || !at || isStale(at, now)) continue;
       if (!Number.isFinite(loc.lat) || !Number.isFinite(loc.lng)) continue;
       list.push({ uid: loc.id, name: who.displayName, photoURL: who.photoURL, lat: loc.lat, lng: loc.lng, ago: formatAgo(at, now) });
     }

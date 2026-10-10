@@ -37,9 +37,10 @@ export interface WitnessPickerProps {
 
 /** "Who's your witness?": every other player as a chip with their avatar; exactly one can be chosen. */
 export function WitnessPicker({ myUid, value, onChange, disabled = false, excludeUid = null, label = "Who's your witness?" }: WitnessPickerProps) {
-  const { players } = useGame();
+  const { activePlayers } = useGame();
   const groupId = useId();
-  const others = players.filter((p) => p.id !== myUid);
+  // Players the GM marked as having left can't witness anything.
+  const others = activePlayers.filter((p) => p.id !== myUid);
 
   return (
     <fieldset className="witness" disabled={disabled}>

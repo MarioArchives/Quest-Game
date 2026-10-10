@@ -6,7 +6,7 @@ import { tallyVotes } from '../shared/votes.js';
 import type { GlobalQuest, Player, Settings, Submission, Vote } from '../shared/types.js';
 import type { Db } from './context.js';
 import { addFeed } from './feed.js';
-import { loadSettings } from './guards.js';
+import { isPlaying, loadSettings } from './guards.js';
 import { applyPoints } from './ledger.js';
 import { millis, MIN_MS, toTs } from './util.js';
 
@@ -99,9 +99,9 @@ export function uncheckedEntries<E extends { data: Pick<Submission, 'uid' | 'che
   return entries.filter((e) => e.data.checked !== 'accepted' && gmUids.some((gm) => gm !== e.data.uid));
 }
 
-/** Players who have at least one entry by someone else to choose from. */
+/** Players still playing who have at least one entry by someone else to choose from. */
 export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): string[] {
-  return [...players.keys()].filter((uid) => entries.some((e) => e.data.uid !== uid));
+  return [...players].filter(([uid, p]) => isPlaying(p) && entries.some((e) => e.data.uid !== uid)).map(([uid]) => uid);
 }
 
 /**

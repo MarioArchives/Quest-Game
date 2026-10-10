@@ -26,8 +26,16 @@ export interface GameValue {
   settings: Settings;
   /** False until the first game/state snapshot has arrived. */
   ready: boolean;
-  /** Players by points (highest first), with competition ranks (ties share a rank). */
+  /**
+   * The leaderboard: players by points (highest first), with competition ranks (ties share a rank). Players the GM
+   * put out of the game are left off; frozen ones stay (see `left`).
+   */
   players: RankedPlayer[];
+  /** Players still playing (not frozen or out): who can be a witness, be guessed, or hold up a side quest. */
+  activePlayers: RankedPlayer[];
+  /** Everyone with a player doc, out ones last (rank 0). For the GM's player list. */
+  allPlayers: RankedPlayer[];
+  /** Every player doc by uid, out ones included, so old posts still show names. */
   playersById: Map<string, RankedPlayer>;
   /** The signed-in user's own player doc with rank, if they are a player. */
   me: RankedPlayer | null;
@@ -101,8 +109,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const sorted = [...playersQ.data].sort(
       (a, b) => (b.points ?? 0) - (a.points ?? 0) || (a.displayName ?? '').localeCompare(b.displayName ?? ''),
     );
-    const players = competitionRanks(sorted, (p) => p.points ?? 0) as RankedPlayer[];
-    const playersById = new Map(players.map((p) => [p.id, p]));
+    const players = competitionRanks(
+      sorted.filter((p) => p.left !== 'out'),
+      (p) => p.points ?? 0,
+    ) as RankedPlayer[];
+    const allPlayers = [...players, ...sorted.filter((p) => p.left === 'out').map((p) => ({ ...p, rank: 0 }))];
+    const playersById = new Map(allPlayers.map((p) => [p.id, p]));
     const templatesById = new Map(templatesQ.data.map((t) => [t.id, t]));
     const personalTemplates = templatesQ.data
       .filter((t) => t.scope === 'personal')
@@ -112,6 +124,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       settings,
       ready: !stateDoc.loading,
       players,
+      activePlayers: players.filter((p) => !p.left),
+      allPlayers,
       playersById,
       me: uid ? (playersById.get(uid) ?? null) : null,
       personalTemplates,

@@ -1,4 +1,4 @@
-import type { Submission, SubmissionStatus } from '../shared/types.js';
+import type { Player, Submission, SubmissionStatus } from '../shared/types.js';
 import {
   approveClaim,
   assertApprovable,
@@ -18,11 +18,13 @@ import { afterCheck, finishChecking } from './voting.js';
 const NOTE_MAX = 500;
 
 /** Why a fresh claim can't be accepted, or null when it is fine. */
-function invalidReason(sub: Submission, loaded: Loaded, witnessExists: boolean): string | null {
+function invalidReason(sub: Submission, loaded: Loaded, witness: Player | null): string | null {
   if (!loaded.player) return 'You are not a player in this game.';
-  if (!isId(sub.witnessUid) || sub.witnessUid === sub.uid || !witnessExists) {
+  if (loaded.player.left) return 'The GM has marked you as having left the game.';
+  if (!isId(sub.witnessUid) || sub.witnessUid === sub.uid || !witness) {
     return 'Your witness must be another player.';
   }
+  if (witness.left) return 'Your witness has left the game. Pick someone else.';
   if (!loaded.quest) return 'That quest is not in your hand.';
   if (loaded.quest.status !== 'active') return 'That quest has already been handed in or is no longer active.';
   return null;
@@ -62,9 +64,9 @@ export async function handleSubmissionCreated(
 
     const settings = await loadSettings(db, tx);
     const loaded = await loadReview(tx, db, submissionId, sub, settings);
-    const witnessExists = isId(sub.witnessUid) ? (await tx.get(db.doc(`players/${sub.witnessUid}`))).exists : false;
+    const witness = isId(sub.witnessUid) ? ((await tx.get(db.doc(`players/${sub.witnessUid}`))).data() as Player | undefined) ?? null : null;
     const claimantName = (await tx.get(db.doc(`players/${sub.uid}`))).get('displayName') as string | undefined;
-    const reason = invalidReason(sub, loaded, witnessExists);
+    const reason = invalidReason(sub, loaded, witness);
     if (reason) {
       reject(reason);
       return;

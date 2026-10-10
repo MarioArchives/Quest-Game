@@ -18,9 +18,9 @@ export function RanksStrip({ onSelect }: { onSelect(uid: string): void }) {
             <li key={p.id}>
               <button
                 type="button"
-                className={`rk${you ? ' rk--you' : ''}`}
+                className={`rk${you ? ' rk--you' : ''}${p.left ? ' rk--left' : ''}`}
                 onClick={() => onSelect(p.id)}
-                aria-label={`${p.rank}. ${p.displayName}${you ? ' (you)' : ''}, ${p.points} points. Open profile`}
+                aria-label={`${p.rank}. ${p.displayName}${you ? ' (you)' : ''}${p.left ? ', has left' : ''}, ${p.points} points. Open profile`}
               >
                 <span className="rk__rank" aria-hidden="true">
                   {p.rank}
@@ -29,6 +29,11 @@ export function RanksStrip({ onSelect }: { onSelect(uid: string): void }) {
                 <span className="rk__name" aria-hidden="true">
                   {you ? 'You' : first}
                 </span>
+                {p.left ? (
+                  <span className="rk__left" aria-hidden="true">
+                    Left
+                  </span>
+                ) : null}
                 <span className="rk__points" aria-hidden="true">
                   {p.points}
                 </span>

@@ -79,7 +79,7 @@ export function SideQuestCards() {
 
 function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
   const { player } = useSession();
-  const { state, players, playersById, approved, mySubmissions, feed } = useGame();
+  const { state, activePlayers, playersById, approved, mySubmissions, feed } = useGame();
   const [sheet, setSheet] = useState<EvidenceTarget | null>(null);
 
   const mine = mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id && s.status !== 'rejected');
@@ -111,9 +111,9 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
         <div className="hero__row">
           <Countdown endsAt={tsMs(quest.endsAt)} closedText="Closing" />
           <div className="hero__entries">
-            <Pips filled={entered.size} total={players.length} />
+            <Pips filled={entered.size} total={Math.max(activePlayers.length, entered.size)} />
             <p>
-              {entered.size} of {players.length || entered.size} entered
+              {entered.size} of {Math.max(activePlayers.length, entered.size)} entered
             </p>
           </div>
         </div>

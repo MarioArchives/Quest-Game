@@ -152,6 +152,10 @@ export const advanceGlobalQuest = (data: { globalQuestId: string }) =>
 export const checkEntry = (data: { submissionId: string; accept: boolean; note?: string }) =>
   call<typeof data, { checked: 'accepted' | 'rejected'; status: GlobalQuestStatus }>('checkEntry', data);
 
+/** GM: mark a player who has left ('frozen' keeps them on the leaderboard, 'out' hides them), or bring them back (null). */
+export const setPlayerLeft = (data: { uid: string; left: 'frozen' | 'out' | null }) =>
+  call<typeof data, { left: 'frozen' | 'out' | null }>('setPlayerLeft', data);
+
 export const reviewSubmission = (data: { submissionId: string; approve: boolean; note?: string }) =>
   call<typeof data, { status: SubmissionStatus }>('reviewSubmission', data);
 

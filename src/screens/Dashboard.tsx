@@ -14,7 +14,7 @@ import './home/home.css';
 /** Home: the festival as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
 export default function Dashboard() {
   const { player, isAdmin, joinRequest } = useSession();
-  const { state, ready, players, feed: feedPosts, feedLoading, feedError } = useGame();
+  const { state, ready, players, me, feed: feedPosts, feedLoading, feedError } = useGame();
   const now = useNow(30_000);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -54,6 +54,16 @@ export default function Dashboard() {
       ) : null}
 
       {state.status !== 'active' ? <StatusBanner status={state.status} /> : null}
+
+      {me?.left ? (
+        <aside className="banner" aria-label="You have left" role="status">
+          <Icon name="logout" size={22} />
+          <p>
+            <strong>The GM has marked you as having left.</strong>{' '}
+            {me.left === 'frozen' ? 'Your score is frozen. ' : ''}Ask the GM to bring you back if you want to play again.
+          </p>
+        </aside>
+      ) : null}
 
       <SideQuestCards />
 

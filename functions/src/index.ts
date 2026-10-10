@@ -18,6 +18,7 @@ import {
   requestJoin as doRequestJoin,
   reviewJoinRequest as doReviewJoinRequest,
 } from './game/join.js';
+import { setPlayerLeft as doSetPlayerLeft } from './game/left.js';
 import { adjustPoints as doAdjustPoints } from './game/points.js';
 import { grantRerolls as doGrantRerolls } from './game/rerolls.js';
 import { rerollQuest as doRerollQuest } from './game/quests.js';
@@ -91,6 +92,12 @@ export const checkEntry = callable(async (ctx, data: Parameters<typeof doCheckEn
 });
 export const savePushToken = callable((ctx, data: { token?: unknown }) => doSavePushToken(db, ctx, data));
 export const removePushToken = callable((ctx, data: { token?: unknown }) => doRemovePushToken(db, ctx, data));
+// Claimants waiting on the player as witness hear about it once the change is saved.
+export const setPlayerLeft = callable(async (ctx, data: Parameters<typeof doSetPlayerLeft>[2]) => {
+  const { push, ...result } = await doSetPlayerLeft(db, ctx, data);
+  if (push) await sendPush(db, pushSender(), push);
+  return result;
+});
 export const adjustPoints = callable((ctx, data: Parameters<typeof doAdjustPoints>[2]) => doAdjustPoints(db, ctx, data));
 export const grantRerolls = callable((ctx, data: Parameters<typeof doGrantRerolls>[2]) => doGrantRerolls(db, ctx, data));
 export const setGameStatus = callable((ctx, data: Parameters<typeof doSetGameStatus>[2]) =>

@@ -93,8 +93,9 @@ describe('P1. who hears about each feed post', () => {
     expect(plan?.exclude).toBe('alice');
   });
 
-  it('a join post sends nothing', () => {
+  it('a join post, or a player leaving, sends nothing', () => {
     expect(pushFor(post('join', { uid: 'alice' }))).toBeNull();
+    expect(pushFor(post('left', { uid: 'alice', actorUid: 'gm' }))).toBeNull();
   });
 
   it('entries closing for a check goes to the GMs only, naming the side quest, never the GM who closed them', () => {

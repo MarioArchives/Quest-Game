@@ -2,7 +2,7 @@ import type { GlobalQuest, GlobalQuestStatus, Submission } from '../shared/types
 import type { Ctx, Db } from './context.js';
 import { parseEvidence } from './evidence.js';
 import { addFeed } from './feed.js';
-import { fail, loadSettings, loadState, requireGM, requirePlayer } from './guards.js';
+import { fail, isPlaying, loadSettings, loadState, requireGM, requirePlayer } from './guards.js';
 import type { PushPlan } from './push.js';
 import { asId, millis, toTs } from './util.js';
 import {
@@ -136,10 +136,10 @@ export async function enterSideQuest(
     const players = await readPlayers(tx, db);
     const settings = await loadSettings(db, tx);
 
-    // Everyone in (sealed entries count)? Then entries close: the GM checks them, or (with nobody to check them)
-    // the vote starts straight away and every entry is revealed.
+    // Everyone still playing in (sealed entries count)? Then entries close: the GM checks them, or (with nobody to
+    // check them) the vote starts straight away and every entry is revealed.
     const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
-    const everyoneEntered = [...players.keys()].every((p) => entrants.has(p));
+    const everyoneEntered = [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
     const gms = everyoneEntered ? await readGMs(tx, db) : [];
     const checking = everyoneEntered && uncheckedEntries([...entries, { data: { uid } }], gms).length > 0;
     const votingOpened = everyoneEntered && !checking;

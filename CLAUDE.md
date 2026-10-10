@@ -38,14 +38,15 @@ Ignore the log noise from `MetadataLookupWarning`, `url.parse()` and `punycode` 
   - The repo is `MarioArchives/Lancaster-Lunatics-Musical-Mischief`, branch `master`.
   - Every push to `master` runs `.github/workflows/deploy.yml`, which builds with the `VITE_FIREBASE_*` repo secrets and publishes to Pages in about 1-2 minutes. Pages source is GitHub Actions.
 - **The workflow deploys only the frontend.** Rules, indexes and functions go out by hand with `npx firebase deploy`. When a change spans both, deploy the backend first if the new frontend calls a new or changed function.
-- **Functions:** 24 in production (`devTick` is emulator-only). The scheduled `globalQuestTick` runs every 15 minutes, Europe/London time, and opens, checks, votes and closes side quests (new drops only outside quiet hours). Firestore triggers: `onSubmissionCreated`, `onAdminCreated`, `onFeedCreated` (push), `onJoinRequestCreated` (push), `onFeedReactionWritten`.
+- **Functions:** 25 in production (`devTick` is emulator-only). The scheduled `globalQuestTick` runs every 15 minutes, Europe/London time, and opens, checks, votes and closes side quests (new drops only outside quiet hours). Firestore triggers: `onSubmissionCreated`, `onAdminCreated`, `onFeedCreated` (push), `onJoinRequestCreated` (push), `onFeedReactionWritten`.
 - **Push notifications** go through FCM Web Push (`functions/src/game/push.ts`, `public/push-sw.js`). The public VAPID key is in `.github/workflows/deploy.yml`.
 - **Storage uploads** need the Storage service agent to hold `roles/firebaserules.firestoreServiceAgent` (granted 2026-10-10), because `storage.rules` reads Firestore.
 
 ### State as of 2026-10-10 (check with `git status` and `git log origin/master`)
 
 - Everything up to push notifications (`c248cf6`) is pushed and deployed: site, functions, rules and the prod quest catalogue.
-- The side-quest checking stage (`checkEntry` callable, `checkWindowMin` setting) ships with a functions deploy first, then a push.
+- The side-quest checking stage (`fc0adfa`: `checkEntry`, `checkWindowMin`) is pushed and deployed.
+- Freezing or kicking out players who left (`setPlayerLeft` callable, `players.left`) ships with a functions deploy first, then a push.
 
 ## Shipping a fix during the festival
 

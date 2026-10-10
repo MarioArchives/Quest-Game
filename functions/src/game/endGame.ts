@@ -151,7 +151,7 @@ async function docs<T>(db: Db, path: string): Promise<Array<Doc<T>>> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }));
 }
 
-/** GM ends the game: freeze standings, close globals, delete locations, write every wrap. */
+/** GM ends the game: freeze standings, close globals, delete locations, write every wrap (players put out get none). */
 export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {}): Promise<{ players: number }> {
   await requireGM(db, ctx);
   const state = await loadState(db);
@@ -164,7 +164,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
   // Decide every open side quest first (tally the votes, pay the winners) so the standings include it.
   await settleOpenQuests(db, ctx.now);
 
-  const [players, submissions, guesses, ledger, globals, templates, locations, feed] = await Promise.all([
+  const [everyone, submissions, guesses, ledger, globals, templates, locations, feed] = await Promise.all([
     docs<Player>(db, 'players'),
     docs<Submission>(db, 'submissions'),
     docs<Guess>(db, 'guesses'),
@@ -174,6 +174,8 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     db.collection('locations').listDocuments(),
     docs<FeedItem>(db, 'feed'),
   ]);
+  // Players the GM put out of the game get no place in the standings and no wrap; frozen ones keep both.
+  const players = everyone.filter((p) => p.left !== 'out');
   const submissionById = new Map(submissions.map((s) => [s.id, s]));
   const questsByUid = new Map(
     await Promise.all(players.map(async (p) => [p.id, await docs<Quest>(db, `players/${p.id}/quests`)] as const)),

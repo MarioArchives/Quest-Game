@@ -80,7 +80,15 @@ export interface Player {
   /** Rerolls the GM granted on top of settings.rerollLimit. Absent on older docs (= 0). */
   extraRerolls?: number;
   questsCompleted: number;
+  /**
+   * Set by the GM when the player has left: 'frozen' keeps them on the leaderboard, 'out' hides them from it and
+   * from the final standings. Either way they can't play, be guessed or be a witness. Absent/null = playing.
+   */
+  left?: PlayerLeft | null;
+  leftAt?: TS | null;
 }
+
+export type PlayerLeft = 'frozen' | 'out';
 
 export type QuestStatus = 'active' | 'submitted' | 'done' | 'exposed' | 'replaced';
 
@@ -281,7 +289,8 @@ export type FeedType =
   | 'global-won'
   | 'announcement'
   | 'status'
-  | 'adjust';
+  | 'adjust'
+  | 'left';
 
 /** feed/{id} — the Home feed. Everything that happens in the game posts here. */
 export interface FeedItem {

@@ -16,11 +16,11 @@ import { readLastWitness, rememberWitness, WitnessPicker } from './WitnessPicker
  */
 export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): void }) {
   const toast = useToast();
-  const { state, players, settings } = useGame();
+  const { state, activePlayers, settings } = useGame();
   const myUid = auth.currentUser?.uid ?? '';
   // Last time's witness is pre-selected (if they are still a player); the player can change it.
   const [chosen, setChosen] = useState<string | null>(() => readLastWitness(myUid));
-  const witness = players.find((p) => p.id === chosen && p.id !== myUid) ?? null;
+  const witness = activePlayers.find((p) => p.id === chosen && p.id !== myUid) ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // One id per claim, so a retry after a dropped connection can't create a second claim.

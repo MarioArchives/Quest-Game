@@ -25,7 +25,8 @@ export async function guessQuest(
     if (!isId(targetUid) || targetUid === guesserUid) fail('invalid-argument', 'Pick another player to guess about.');
     const targetSnap = await tx.get(db.doc(`players/${targetUid}`));
     if (!targetSnap.exists) fail('not-found', 'No such player.');
-    const target = targetSnap.data() as { displayName: string; photoURL?: string | null; points: number };
+    const target = targetSnap.data() as { displayName: string; photoURL?: string | null; points: number; left?: string | null };
+    if (target.left) fail('failed-precondition', `${target.displayName} has left the game, so their quests can't be guessed.`);
 
     const templateId = data.templateId;
     if (!isId(templateId)) fail('invalid-argument', 'Pick a quest to guess.');
