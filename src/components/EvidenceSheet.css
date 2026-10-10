@@ -1,0 +1,8 @@
+.evidence__intro { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.evidence__pick { display: flex; flex-direction: column; gap: 12px; }
+.evidence__preview { position: relative; border: var(--line); background: var(--ink); display: flex; align-items: center; justify-content: center; min-height: 120px; color: #fff; }
+.evidence__preview img { width: 100%; max-height: 38dvh; object-fit: contain; }
+.evidence__preview-actions { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
+.evidence__progress { display: flex; flex-direction: column; gap: 6px; }
+.evidence__need { text-align: center; }
+.claim__desc { font-size: 16px; line-height: 1.45; }

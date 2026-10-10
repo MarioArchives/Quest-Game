@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Festival Quest storage rules. Only `create` is allowed for writes (no overwrite, no delete) and
+// nothing can be listed; the app stores the exact paths in Firestore and reads objects with `get`.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isPlayer() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/players/$(request.auth.uid));
+    }
+    function isGM() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+    // The Storage emulator lets an overwrite of an existing object pass a bare `create` rule, so make
+    // "no existing object" explicit: uploads can never replace a file.
+    function isNew() {
+      return resource == null;
+    }
+    function isImage(maxBytes) {
+      return request.resource.size < maxBytes && request.resource.contentType.matches('image/.*');
+    }
+
+    // Avatars may be uploaded before joining (so the GM can see who is asking in).
+    match /avatars/{uid}/{file} {
+      allow get: if signedIn() && (request.auth.uid == uid || isPlayer() || isGM());
+      allow create: if isNew() && signedIn() && request.auth.uid == uid && isImage(1024 * 1024);
+    }
+
+    match /submissions/{uid}/{file} {
+      allow get: if isPlayer() || isGM();
+      allow create: if isNew() && isPlayer() && request.auth.uid == uid && isImage(5 * 1024 * 1024);
+    }
+  }
+}

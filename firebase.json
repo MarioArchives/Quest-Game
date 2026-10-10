@@ -1,0 +1,27 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "test", "src", "*.log", "vitest.config.ts"],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    }
+  ],
+  "emulators": {
+    "singleProjectMode": false,
+    "auth": { "host": "127.0.0.1", "port": 9099 },
+    "firestore": { "host": "127.0.0.1", "port": 8080, "websocketPort": 9150 },
+    "storage": { "host": "127.0.0.1", "port": 9199 },
+    "functions": { "host": "127.0.0.1", "port": 5001 },
+    "ui": { "enabled": true, "host": "127.0.0.1", "port": 4000 },
+    "hub": { "host": "127.0.0.1", "port": 4400 },
+    "logging": { "host": "127.0.0.1", "port": 4500 }
+  }
+}

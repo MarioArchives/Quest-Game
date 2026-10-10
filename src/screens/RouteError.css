@@ -1,0 +1,12 @@
+.route-error {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: var(--app-max);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 64px var(--page-x) 32px;
+}
+.route-error h1 { font-size: 44px; color: var(--red); }
+.route-error p { font-size: 16px; }

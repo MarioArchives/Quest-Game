@@ -1,0 +1,188 @@
+rules_version = '2';
+
+// Festival Quest security rules.
+//
+// Principle: clients only ever write the few things below. Everything that moves points, approves
+// things or touches another player's data goes through Cloud Functions (admin SDK bypasses rules).
+// Anything not matched here is denied by default (guessCooldowns, etc.).
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isGM() {
+      return signedIn() && exists(/databases/$(db)/documents/admins/$(request.auth.uid));
+    }
+    function isPlayer() {
+      return signedIn() && exists(/databases/$(db)/documents/players/$(request.auth.uid));
+    }
+    function isPlayerOrGM() {
+      return isPlayer() || isGM();
+    }
+    function status() {
+      return get(/databases/$(db)/documents/game/state).data.status;
+    }
+    function isNum(v) {
+      return v is number;
+    }
+    // A witness is another player: a string uid, not the submitter, with an existing players doc.
+    function validWitness(w, ownerUid) {
+      return w is string
+        && w != ownerUid
+        && exists(/databases/$(db)/documents/players/$(w));
+    }
+    // ---------- game docs ----------
+    // game/state and game/settings: players + GM read, GM writes.
+    // game/final: players + GM read, nobody writes from the client (a function writes it at game end).
+    match /game/state {
+      allow read: if isPlayerOrGM();
+      allow write: if isGM();
+    }
+    match /game/settings {
+      allow read: if isPlayerOrGM();
+      allow write: if isGM();
+    }
+    match /game/final {
+      allow read: if isPlayerOrGM();
+    }
+
+    // ---------- identity ----------
+    // A signed-in user may read their own (possibly missing) admins doc so a GM who does not play can
+    // detect GM status; otherwise the admin list is readable by players.
+    match /admins/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isPlayer());
+    }
+
+    // Written only by the requestJoin / review functions.
+    match /joinRequests/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isGM());
+    }
+
+    match /players/{uid} {
+      // The owner may read their own (possibly missing) doc: that is how a pending user notices approval.
+      allow read: if isPlayerOrGM() || (signedIn() && request.auth.uid == uid);
+      // No client create/delete. The owner may change only their name and avatar, and the write must
+      // actually change one of them (a no-op write is refused, so clients should skip unchanged saves).
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName', 'photoURL'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 24
+        && (request.resource.data.get('photoURL', null) == null
+            || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048));
+
+      // The secret hand: owner + GM read, no client writes.
+      match /quests/{qid} {
+        allow read: if signedIn() && (request.auth.uid == uid || isGM());
+      }
+    }
+
+    // ---------- catalogue ----------
+    match /questTemplates/{id} {
+      allow read: if isPlayerOrGM();
+      allow write: if isGM();
+    }
+    match /globalQuests/{id} {
+      allow read: if isPlayerOrGM();
+      allow write: if isGM();
+      // globalQuests/{id}/votes/*: secret ballots, no client access at all (default deny; this match
+      // does not cascade to subcollections).
+    }
+
+    // ---------- submissions ----------
+    match /submissions/{id} {
+      // Owner, the named witness and the GM can always read; any other player only once approved.
+      // Queries must be filtered accordingly (players: where status == 'approved'; owner: where uid == me;
+      // witness inbox: where witnessUid == me [and status == 'pending']; GM: unfiltered).
+      allow read: if isGM()
+        || (signedIn() && resource.data.uid == request.auth.uid)
+        || (signedIn() && resource.data.witnessUid == request.auth.uid)
+        || (isPlayer() && resource.data.status == 'approved');
+
+      // A claim: exactly these fields, personal quests only. Photo, caption and location are added by
+      // functions after approval; side-quest ('global') entries are created by a callable, never a client.
+      allow create: if isPlayer()
+        && status() == 'active'
+        && request.resource.data.keys().hasOnly(['uid', 'kind', 'questId', 'witnessUid', 'createdAt', 'status'])
+        && request.resource.data.keys().hasAll(['uid', 'kind', 'questId', 'witnessUid', 'createdAt', 'status'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.kind == 'personal'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.questId is string
+        && request.resource.data.questId.size() > 0
+        && validWitness(request.resource.data.witnessUid, request.resource.data.uid);
+
+      // The only client update: the owner re-assigns a still-pending submission to another witness.
+      // Approving/rejecting/scoring/deleting is done by functions, never by a client (not even the GM).
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['witnessUid'])
+        && validWitness(request.resource.data.witnessUid, resource.data.uid);
+      // No comments or reactions under submissions (reactions live on feed posts; there are no comments).
+    }
+
+    // ---------- server-written collections ----------
+    match /guesses/{id} {
+      allow read: if signedIn() && (isGM() || resource.data.guesserUid == request.auth.uid);
+    }
+    // guessCooldowns/*: no client access at all (default deny).
+
+    match /pointsLedger/{id} {
+      allow read: if isPlayerOrGM();
+    }
+
+    // Feed posts: players + GM read, GM creates (functions write the rest). No client update/delete.
+    match /feed/{id} {
+      allow read: if isPlayerOrGM();
+      allow create: if isGM();
+
+      // One emoji reaction per player per post: the doc id is the reactor's uid. No comments on posts.
+      match /reactions/{reactorUid} {
+        allow read: if isPlayerOrGM();
+        allow create, update: if isPlayer()
+          && request.auth.uid == reactorUid
+          && request.resource.data.keys().hasOnly(['emoji', 'createdAt'])
+          && request.resource.data.keys().hasAll(['emoji', 'createdAt'])
+          && request.resource.data.emoji in [
+                 '🔥', '😂', '😍', '👏', '🤘', '😮',
+                 '🎸', '🎤', '🥁', '🎺', '🎷', '🎻',
+                 '🎶', '💃', '🕺', '🙌', '🤩', '🥳',
+                 '😎', '🤯', '😱', '🥲', '😭', '🤔',
+                 '👀', '💯', '❤️', '🍺', '🫶', '👑'
+               ]
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isPlayer() && request.auth.uid == reactorUid;
+      }
+    }
+
+    // Everyone's wrap opens up once the game has ended; before that only the owner and GM see it.
+    match /wraps/{uid} {
+      allow read: if signedIn()
+        && (request.auth.uid == uid || isGM() || (isPlayer() && status() == 'ended'));
+    }
+
+    // ---------- live locations ----------
+    match /locations/{uid} {
+      allow read: if isPlayerOrGM();
+      allow create, update: if isPlayer()
+        && request.auth.uid == uid
+        && status() == 'active'
+        && request.resource.data.keys().hasOnly(['lat', 'lng', 'accuracy', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['lat', 'lng', 'accuracy', 'updatedAt'])
+        && isNum(request.resource.data.lat)
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && isNum(request.resource.data.lng)
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && (request.resource.data.accuracy == null || isNum(request.resource.data.accuracy))
+        && request.resource.data.updatedAt == request.time;
+      // Players can always clear their own position, whatever the game status.
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}

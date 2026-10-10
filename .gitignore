@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dev-dist/
+functions/lib/
+.emulator-data/
+*.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.env.local
+.DS_Store
+*.tsbuildinfo
+.playwright-mcp/
+.firebase.*.json

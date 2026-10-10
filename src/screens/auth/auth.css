@@ -1,0 +1,62 @@
+.auth {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--app-max);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--paper);
+}
+@media (min-width: 481px) {
+  .auth { border-left: var(--line); border-right: var(--line); }
+}
+
+.poster {
+  position: relative;
+  padding: calc(32px + var(--safe-top)) 24px 36px;
+  background: var(--red);
+  color: #fff;
+  border-bottom: var(--line);
+}
+.poster__line { margin-bottom: 12px; font-size: 13px; }
+.poster__title {
+  font-size: clamp(64px, 20vw, 88px);
+  line-height: 0.92;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.poster__sticker { position: absolute; right: 18px; bottom: -20px; font-size: 18px; padding: 6px 12px; }
+.poster--compact { padding: calc(20px + var(--safe-top)) 24px 20px; }
+.poster--compact .poster__line { margin-bottom: 6px; font-size: 12px; letter-spacing: 0.07em; }
+.poster--compact .poster__title { font-size: 44px; }
+
+.auth__main { flex: 1; display: flex; flex-direction: column; gap: 18px; padding: 40px 24px 28px; }
+.auth--bare { min-height: 0; max-width: none; margin: 0; background: transparent; }
+@media (min-width: 481px) { .auth--bare { border: 0; } }
+.auth__main--bare { padding: 0; gap: 16px; }
+.auth__main--centre { align-items: center; justify-content: center; text-align: center; padding-top: 28px; gap: 24px; }
+.auth__lead { font-size: 17px; line-height: 1.5; max-width: 38ch; margin-top: 12px; }
+.auth__actions { display: flex; flex-direction: column; gap: 14px; margin-top: auto; }
+.auth__actions--row { flex-direction: row; flex-wrap: wrap; justify-content: center; margin-top: 0; }
+.auth__fine { font-size: 13px; font-weight: 500; color: var(--muted); text-align: center; }
+.auth__links { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+.auth__signed { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; font-weight: 700; }
+.auth__signed svg { flex: none; margin-top: 1px; }
+.auth__email { font-weight: 400; color: var(--muted); overflow-wrap: anywhere; }
+
+.auth__form { display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.auth__card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  background: var(--card);
+  border: var(--line);
+}
+.auth__card h2 { font-size: 26px; }
+.auth__form > .btn--primary { margin-top: auto; }
+
+.auth__copy { max-width: 34ch; display: flex; flex-direction: column; gap: 10px; }
+.auth__copy h2 { font-size: 34px; }
+.auth__copy p { font-size: 16px; line-height: 1.5; }

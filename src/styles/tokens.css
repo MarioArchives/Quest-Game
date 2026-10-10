@@ -1,0 +1,24 @@
+/* Festival Quest design tokens — see design/DESIGN.md. Paper, ink, one red. */
+:root {
+  --paper: #f4f2ee;
+  --card: #ffffff;
+  --ink: #111111;
+  --red: #e1251b;
+  --red-tint: #fbe4e2;
+  --muted: #5c5c5c;
+
+  --line: 2px solid var(--ink);
+  --hairline: 1px solid var(--ink);
+  --shadow: 4px 4px 0 var(--ink);
+
+  --display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --page-x: 20px;
+  --gap: 16px;
+  --app-max: 480px;
+  --tabbar-h: 66px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

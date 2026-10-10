@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ashton Memorial icon — five directions</title>
+<style>
+@font-face { font-family: 'Anton'; src: url('../node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 400; src: url('../node_modules/@fontsource/archivo/files/archivo-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 800; src: url('../node_modules/@fontsource/archivo/files/archivo-latin-800-normal.woff2') format('woff2'); }
+:root { --paper:#F4F2EE; --ink:#111; --red:#E1251B; --muted:#5C5C5C; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 36px 40px 44px; background: #E7E4DE; font-family: 'Archivo', sans-serif; color: var(--ink); }
+h1 { font: 400 40px/1 'Anton', sans-serif; text-transform: uppercase; margin: 0 0 6px; }
+.lede { margin: 0 0 26px; max-width: 860px; line-height: 1.45; font-size: 15px; }
+.grid { display: grid; grid-template-columns: repeat(5, 252px); gap: 20px; }
+.card { background: var(--paper); border: 2px solid var(--ink); display: flex; flex-direction: column; }
+.hero { height: 236px; display: flex; align-items: center; justify-content: center; border-bottom: 2px solid var(--ink); }
+.sizes { display: flex; align-items: flex-end; justify-content: space-around; padding: 14px 10px 10px; border-bottom: 2px solid var(--ink); }
+.sizes div { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 800 10px/1 'Archivo'; letter-spacing: .1em; color: var(--muted); }
+.swatches { display: flex; }
+.swatches div { flex: 1; height: 92px; display: flex; align-items: center; justify-content: center; }
+.meta { padding: 12px 14px 14px; border-top: 2px solid var(--ink); }
+.meta h2 { margin: 0 0 4px; font: 400 22px/1 'Anton'; text-transform: uppercase; }
+.meta p { margin: 0; font-size: 12.5px; line-height: 1.4; }
+.tag { display: inline-block; font: 800 10px/1 'Archivo'; letter-spacing: .12em; text-transform: uppercase; background: var(--ink); color: #fff; padding: 4px 6px; margin-bottom: 8px; }
+svg { display: block; overflow: visible; }
+.ln path, .ln circle { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ln .dome { fill: var(--dome, var(--red)); }
+</style>
+</head>
+<body>
+<h1>Ashton Memorial — five icon directions</h1>
+<p class="lede">All five share the corrected structure from the aerial photo: a low square podium with one straight central
+staircase, the tall colonnaded block with its arched door, the narrower upper storey flanked by the four corner cupolas,
+the drum, the dome (red, standing in for the green copper) and the lantern. Each card shows the mark large, at app sizes,
+and on paper / red / ink.</p>
+
+<div class="grid">
+  <div class="card"><div class="hero" data-icon="a" data-size="168"></div>
+    <div class="sizes"><div><span data-icon="a" data-size="48"></span>48</div><div><span data-icon="a" data-size="32"></span>32</div><div><span data-icon="a" data-size="24"></span>24</div></div>
+    <div class="swatches"><div style="background:var(--paper)"><span data-icon="a" data-size="64"></span></div><div style="background:var(--red)"><span data-icon="a" data-size="64" data-on="red"></span></div><div style="background:var(--ink)"><span data-icon="a" data-size="64" data-on="ink"></span></div></div>
+    <div class="meta"><span class="tag">A · Line</span><h2>Architect's elevation</h2><p>Monoline ink drawing, red dome. Closest to the current loader, so the draw-itself animation carries over directly.</p></div></div>
+
+  <div class="card"><div class="hero" data-icon="b" data-size="168"></div>
+    <div class="sizes"><div><span data-icon="b" data-size="48"></span>48</div><div><span data-icon="b" data-size="32"></span>32</div><div><span data-icon="b" data-size="24"></span>24</div></div>
+    <div class="swatches"><div style="background:var(--paper)"><span data-icon="b" data-size="64"></span></div><div style="background:var(--red)"><span data-icon="b" data-size="64" data-on="red"></span></div><div style="background:var(--ink)"><span data-icon="b" data-size="64" data-on="ink"></span></div></div>
+    <div class="meta"><span class="tag">B · Silhouette</span><h2>Solid block</h2><p>Filled ink silhouette with the door, windows and steps cut out in paper. Strongest at tiny sizes; loader animates by rising up tier by tier.</p></div></div>
+
+  <div class="card"><div class="hero" data-icon="c" data-size="168"></div>
+    <div class="sizes"><div><span data-icon="c" data-size="48"></span>48</div><div><span data-icon="c" data-size="32"></span>32</div><div><span data-icon="c" data-size="24"></span>24</div></div>
+    <div class="swatches"><div style="background:var(--paper)"><span data-icon="c" data-size="64"></span></div><div style="background:var(--red)"><span data-icon="c" data-size="64" data-on="red"></span></div><div style="background:var(--ink)"><span data-icon="c" data-size="64" data-on="ink"></span></div></div>
+    <div class="meta"><span class="tag">C · Screenprint</span><h2>Two-colour misprint</h2><p>Red block knocked slightly off-register under the ink line, like a cheap two-pass gig poster. Most "poster", least minimal.</p></div></div>
+
+  <div class="card"><div class="hero" data-icon="d" data-size="168"></div>
+    <div class="sizes"><div><span data-icon="d" data-size="48"></span>48</div><div><span data-icon="d" data-size="32"></span>32</div><div><span data-icon="d" data-size="24"></span>24</div></div>
+    <div class="swatches"><div style="background:var(--paper)"><span data-icon="d" data-size="64"></span></div><div style="background:var(--red)"><span data-icon="d" data-size="64" data-on="red"></span></div><div style="background:var(--ink)"><span data-icon="d" data-size="64" data-on="ink"></span></div></div>
+    <div class="meta"><span class="tag">D · Skyline</span><h2>One-line outline</h2><p>Just the outer silhouette as one continuous stroke, plus door and stairs. The most minimal; loader traces the outline in one sweep.</p></div></div>
+
+  <div class="card"><div class="hero" data-icon="e" data-size="176"></div>
+    <div class="sizes"><div><span data-icon="e" data-size="48"></span>48</div><div><span data-icon="e" data-size="32"></span>32</div><div><span data-icon="e" data-size="24"></span>24</div></div>
+    <div class="swatches"><div style="background:var(--paper)"><span data-icon="e" data-size="64"></span></div><div style="background:var(--red)"><span data-icon="e" data-size="64" data-on="red"></span></div><div style="background:var(--ink)"><span data-icon="e" data-size="64" data-on="ink"></span></div></div>
+    <div class="meta"><span class="tag">E · Badge</span><h2>Festival stamp</h2><p>Line mark inside a ring reading "Festival Quest · Lancaster 2026". Good boot screen and app icon; the ring can spin while loading.</p></div></div>
+</div>
+
+<!-- A: monoline elevation -->
+<template id="a"><svg class="ln" viewBox="0 0 64 64">
+  <path class="dome" d="M23 20a9 9.5 0 0 1 18 0z"/>
+  <path d="M32 1.5v3M30 7a2 2 0 0 1 4 0M30 10.5V7h4v3.5"/>
+  <path d="M22 20h20M23.5 25.5V20M40.5 25.5V20M28 25.5V20M32 25.5V20M36 25.5V20"/>
+  <path d="M16.5 37.5V23h4.5v14.5M43 37.5V23h4.5v14.5M16.5 23a2.25 2.25 0 0 1 4.5 0M43 23a2.25 2.25 0 0 1 4.5 0M18.75 20.75V19M45.25 20.75V19"/>
+  <path d="M21 25.5h22M25 37.5V28M29 37.5V28M35 37.5V28M39 37.5V28M30.5 36v-4.5a1.5 1.5 0 0 1 3 0V36"/>
+  <path d="M11.5 37.5h41M13 52V37.5M51 52V37.5M17.5 52V40.5M22 52V40.5M42 52V40.5M46.5 52V40.5M28.5 52v-6a3.5 3.5 0 0 1 7 0v6"/>
+  <path d="M6 52h52M6 61v-9M58 61v-9M27 61v-9M37 61v-9M27 55h10M27 58h10M3 61h58"/>
+</svg></template>
+
+<!-- B: solid silhouette with paper cut-outs -->
+<template id="b"><svg viewBox="0 0 64 64">
+  <g fill="currentColor">
+    <rect x="31.2" y="1" width="1.6" height="4"/>
+    <path d="M29.6 11V7.2a2.4 2.4 0 0 1 4.8 0V11z"/>
+    <rect x="22" y="19.2" width="20" height="2"/>
+    <rect x="23.5" y="21" width="17" height="5"/>
+    <rect x="16" y="23.5" width="5.6" height="15"/>
+    <rect x="42.4" y="23.5" width="5.6" height="15"/>
+    <circle cx="18.8" cy="23.5" r="2.8"/><circle cx="45.2" cy="23.5" r="2.8"/>
+    <rect x="18.2" y="18.6" width="1.2" height="3"/><rect x="44.6" y="18.6" width="1.2" height="3"/>
+    <rect x="21" y="25.5" width="22" height="13"/>
+    <rect x="11" y="37" width="42" height="2.4"/>
+    <rect x="12.5" y="39" width="39" height="13.5"/>
+    <rect x="5.5" y="51.5" width="53" height="10"/>
+  </g>
+  <path d="M23 19.4a9 9.6 0 0 1 18 0z" fill="var(--dome, var(--red))"/>
+  <g fill="var(--cut, var(--paper))">
+    <rect x="27.6" y="21.8" width="1.4" height="3.2" rx=".7"/><rect x="31.3" y="21.8" width="1.4" height="3.2" rx=".7"/><rect x="35" y="21.8" width="1.4" height="3.2" rx=".7"/>
+    <rect x="24.6" y="28.5" width="2" height="7.5"/><rect x="37.4" y="28.5" width="2" height="7.5"/>
+    <path d="M30.4 37v-5a1.6 1.6 0 0 1 3.2 0v5z"/>
+    <rect x="16.4" y="41.5" width="2.4" height="9"/><rect x="21.6" y="41.5" width="2.4" height="9"/>
+    <rect x="40" y="41.5" width="2.4" height="9"/><rect x="45.2" y="41.5" width="2.4" height="9"/>
+    <path d="M28.6 52.5v-6.2a3.4 3.4 0 0 1 6.8 0v6.2z"/>
+    <rect x="27" y="51.5" width="10" height="10"/>
+  </g>
+  <g fill="currentColor"><rect x="27" y="54.2" width="10" height="1.3"/><rect x="27" y="57.2" width="10" height="1.3"/><rect x="27" y="60.2" width="10" height="1.3"/></g>
+</svg></template>
+
+<!-- C: screenprint = offset red silhouette under the line drawing -->
+<template id="c"><svg viewBox="0 0 64 64">
+  <g fill="var(--plate, var(--red))" transform="translate(1.6 1.4)">
+    <path d="M29.6 11V7.2a2.4 2.4 0 0 1 4.8 0V11z"/><path d="M23 20a9 9.5 0 0 1 18 0z"/>
+    <rect x="23.5" y="20" width="17" height="5.5"/><rect x="16.5" y="23" width="4.5" height="14.5"/><rect x="43" y="23" width="4.5" height="14.5"/>
+    <rect x="21" y="25.5" width="22" height="12"/><rect x="13" y="37.5" width="38" height="14.5"/><rect x="6" y="52" width="52" height="9"/>
+  </g>
+  <g class="ln">
+    <path d="M23 20a9 9.5 0 0 1 18 0"/>
+    <path d="M32 1.5v3M30 7a2 2 0 0 1 4 0M30 10.5V7h4v3.5"/>
+    <path d="M22 20h20M23.5 25.5V20M40.5 25.5V20M28 25.5V20M32 25.5V20M36 25.5V20"/>
+    <path d="M16.5 37.5V23h4.5v14.5M43 37.5V23h4.5v14.5M16.5 23a2.25 2.25 0 0 1 4.5 0M43 23a2.25 2.25 0 0 1 4.5 0M18.75 20.75V19M45.25 20.75V19"/>
+    <path d="M21 25.5h22M25 37.5V28M29 37.5V28M35 37.5V28M39 37.5V28M30.5 36v-4.5a1.5 1.5 0 0 1 3 0V36"/>
+    <path d="M11.5 37.5h41M13 52V37.5M51 52V37.5M17.5 52V40.5M22 52V40.5M42 52V40.5M46.5 52V40.5M28.5 52v-6a3.5 3.5 0 0 1 7 0v6"/>
+    <path d="M6 52h52M6 61v-9M58 61v-9M27 61v-9M37 61v-9M27 55h10M27 58h10M3 61h58"/>
+  </g>
+</svg></template>
+
+<!-- D: one-line skyline outline -->
+<template id="d"><svg class="ln" viewBox="0 0 64 64" style="--sw:2.2">
+  <path class="dome" d="M23 20a9 9.5 0 0 1 18 0z"/>
+  <path d="M3 61H6V52H13V37.5H16.5V23a2.25 2.25 0 0 1 4.5 0v2.5h2.5V20h17v5.5H43V23a2.25 2.25 0 0 1 4.5 0v14.5H51V52h7v9h3"/>
+  <path d="M32 1.5v3M30 10.5V7a2 2 0 0 1 4 0v3.5"/>
+  <path d="M28.5 52v-6a3.5 3.5 0 0 1 7 0v6M27 61v-9M37 61v-9M27 56.5h10"/>
+</svg></template>
+
+<!-- E: badge — the line mark inside a ring of type -->
+<template id="e"><svg viewBox="0 0 64 64">
+  <defs><path id="ring-PATHID" d="M32 32m-25.5 0a25.5 25.5 0 1 1 51 0a25.5 25.5 0 1 1 -51 0"/></defs>
+  <circle cx="32" cy="32" r="31" fill="none" stroke="currentColor" stroke-width="2"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="currentColor" stroke-width="1.2"/>
+  <text font-family="Anton, sans-serif" font-size="6.6" letter-spacing=".9" fill="currentColor">
+    <textPath href="#ring-PATHID" startOffset="0">FESTIVAL QUEST ✦ LANCASTER 2026 ✦ FESTIVAL QUEST ✦ LANCASTER 2026 ✦</textPath>
+  </text>
+  <g class="ln" transform="translate(18.4 15.6) scale(.425)" style="stroke-width:4.4">
+    <path class="dome" d="M23 20a9 9.5 0 0 1 18 0z" style="stroke-width:4.4"/>
+    <path style="stroke-width:4.4" d="M32 1.5v3M30 7a2 2 0 0 1 4 0M30 10.5V7h4v3.5M22 20h20M23.5 25.5V20M40.5 25.5V20M32 25.5V20M16.5 37.5V23h4.5v14.5M43 37.5V23h4.5v14.5M16.5 23a2.25 2.25 0 0 1 4.5 0M43 23a2.25 2.25 0 0 1 4.5 0M21 25.5h22M26 37.5V28M38 37.5V28M11.5 37.5h41M13 52V37.5M51 52V37.5M19 52V40.5M45 52V40.5M28.5 52v-6a3.5 3.5 0 0 1 7 0v6M6 52h52M6 61v-9M58 61v-9M27 61v-9M37 61v-9M27 56.5h10M3 61h58"/>
+  </g>
+</svg></template>
+
+<script>
+  let n = 0;
+  document.querySelectorAll('[data-icon]').forEach((el) => {
+    const tpl = document.getElementById(el.dataset.icon);
+    const html = tpl.innerHTML.replaceAll('PATHID', String(++n));
+    const holder = document.createElement('div');
+    holder.innerHTML = html.trim();
+    const svg = holder.firstElementChild;
+    svg.setAttribute('width', el.dataset.size);
+    svg.setAttribute('height', el.dataset.size);
+    const on = el.dataset.on;
+    if (on === 'red') { svg.style.color = '#111'; svg.style.setProperty('--dome', '#F4F2EE'); svg.style.setProperty('--plate', '#F4F2EE'); svg.style.setProperty('--cut', '#E1251B'); }
+    else if (on === 'ink') { svg.style.color = '#F4F2EE'; svg.style.setProperty('--cut', '#111'); }
+    else { svg.style.color = '#111'; }
+    el.appendChild(svg);
+  });
+</script>
+</body>
+</html>

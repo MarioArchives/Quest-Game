@@ -1,0 +1,16 @@
+.avatar-picker { display: flex; align-items: center; gap: 16px; }
+.avatar-picker__options { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.avatar-picker__btn {
+  min-height: 40px;
+  padding: 0 12px;
+  border: var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  border-radius: 0;
+}
+.avatar-picker__btn:hover:not(:disabled) { background: var(--red-tint); }
+.avatar-picker__btn[aria-pressed='true'], .avatar-picker__btn[aria-pressed='true']:hover:not(:disabled) { background: var(--red); color: #fff; font-weight: 800; }
+.avatar-picker__btn:disabled { opacity: 0.5; cursor: progress; }

@@ -1,0 +1,13 @@
+{
+  "60ef5ee7c2674d001e21f55b": { "name": "Atticus", "lat": 54.0475248, "lng": -2.8020514, "source": "nominatim way/1527666390" },
+  "67f522ae38ac6b02e3886adc": { "name": "Toll House Inn", "lat": 54.0450054, "lng": -2.7996496, "source": "nominatim way/566825585" },
+  "6a2811908fbdaba350587dde": { "name": "Ring O Bells", "lat": 54.0468085, "lng": -2.8015927, "source": "nominatim way/567923028" },
+  "67e1cf52035233032afad345": { "name": "Water Witch", "lat": 54.043757, "lng": -2.8006674, "source": "nominatim way/154837262" },
+  "6a837a2b7d89ff5da7f97136": { "name": "Westfield War Memorial Village", "lat": 54.0483791, "lng": -2.8126856, "source": "nominatim way/96173885 (area centroid, approximate)" },
+  "6a92c70e1e3d42f50baa737a": { "name": "Atkinsons Upper Hall", "lat": 54.0492448, "lng": -2.8033735, "source": "nominatim node/2895135039" },
+  "63249163a17ad30022a3976b": { "name": "Dukes Theatre", "lat": 54.0491742, "lng": -2.7967234, "source": "nominatim way/154563081" },
+  "67db43a28b9d0202d44dee1e": { "name": "Forty Five Records", "lat": 54.0473185, "lng": -2.8022192, "source": "nominatim node/12321142048" },
+  "6a9168b0b7d68ef7a471028e": { "name": "Escape2Make", "lat": 54.0498374, "lng": -2.8012177, "source": "nominatim node/5497397188" },
+  "610ea7190a0901001f7d12e3": { "name": "The Old Gun Shop", "lat": 54.0487015, "lng": -2.7978323, "source": "nominatim node/5835265009" },
+  "6a875d30d66c0f8b918894e3": { "name": "St Johns Church", "lat": 54.0511, "lng": -2.7996, "source": "GUESS - unverified, ~150 m uncertainty" }
+}

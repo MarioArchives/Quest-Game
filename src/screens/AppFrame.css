@@ -1,0 +1,88 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--app-max);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--paper);
+}
+@media (min-width: 481px) {
+  .app { border-left: var(--line); border-right: var(--line); }
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px; top: -60px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 800;
+}
+.skip-link:focus { top: 8px; }
+
+.appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(18px + var(--safe-top)) var(--page-x) 12px;
+}
+.appbar__title { font-size: 30px; line-height: 1; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appbar__right { display: flex; align-items: center; gap: 8px; flex: none; }
+.appbar__points { border-width: 0; padding: 6px 10px; font-size: 16px; }
+.appbar__avatar { padding: 0; border: 0; background: none; border-radius: 50%; display: inline-flex; text-decoration: none; }
+.appbar__avatar:hover .avatar { outline: 2px solid var(--red); outline-offset: 1px; }
+
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 8px var(--page-x) 32px;
+}
+.app__main:focus { outline: none; }
+.app__loader { margin: 64px auto; }
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px calc(10px + var(--safe-bottom));
+  background: var(--ink);
+}
+.tabbar__tab {
+  flex: 1;
+  min-width: 0;
+  min-height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  --ring: #fff;
+}
+.tabbar[data-count='5'] .tabbar__tab { letter-spacing: 0.06em; }
+.tabbar__tab:hover { background: #2a2a2a; }
+.tabbar__tab.is-active { background: var(--red); color: #fff; }
+.tabbar__tab span { line-height: 1; }
+
+.tabbar__icon { position: relative; display: inline-flex; }
+.tabbar__dot {
+  position: absolute;
+  top: -4px; right: -7px;
+  width: 12px; height: 12px;
+  background: var(--red);
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+.tabbar__tab.is-active .tabbar__dot { background: #fff; border-color: var(--ink); }

@@ -1,0 +1,480 @@
+{
+  "personal": [
+    {
+      "id": "p-recommend",
+      "title": "Ask a performer for a tip",
+      "description": "Get a performer to recommend another act at the festival (ask politely, and thank them). Proof: the act they named."
+    },
+    {
+      "id": "p-castle-courtyard",
+      "title": "Castle courtyard set",
+      "description": "Catch a set in Lancaster Castle's courtyard. Proof: who played."
+    },
+    {
+      "id": "p-abroad",
+      "title": "Sounds from abroad",
+      "description": "Find an act from outside the UK. Proof: the act's name and its country."
+    },
+    {
+      "id": "p-workshop",
+      "title": "Join in",
+      "description": "Join a workshop or a dance session instead of just watching. Proof: what you did and where (no close-ups of strangers without their OK)."
+    },
+    {
+      "id": "p-setlist",
+      "title": "Snap a setlist",
+      "description": "Get hold of a band's setlist, taped to the stage or handed over after the show. Proof: the paper itself, and the band's name."
+    },
+    {
+      "id": "p-three-genres",
+      "title": "Genre hopper",
+      "description": "Hear three different genres within one hour. Proof: the three genres and roughly when you heard them."
+    },
+    {
+      "id": "p-smallest-venue",
+      "title": "Smallest room in town",
+      "description": "See a gig in the smallest venue you can find. Proof: who played and just how tiny it was."
+    },
+    {
+      "id": "p-mystery-instrument",
+      "title": "What is that thing?",
+      "description": "Find an instrument you can't name. Proof: your best guess at what it is. Bonus if the player tells you what it really is."
+    },
+    {
+      "id": "p-dance-move",
+      "title": "Learn a move",
+      "description": "Get a stranger to teach you a dance move (with their OK). Proof: the move, and who taught you."
+    },
+    {
+      "id": "p-unknown-act",
+      "title": "Total unknowns",
+      "description": "Watch a full song from an act none of the group has heard of. Proof: who they were, and a one-line verdict."
+    },
+    {
+      "id": "p-sing-along",
+      "title": "Sneaky singalong",
+      "description": "Persuade another player to sing along to something without them noticing why. Proof: the song (and a witness who caught it happening)."
+    },
+    {
+      "id": "p-branding",
+      "title": "Brand spotting",
+      "description": "Spot the festival's branding in five different venues. Proof: the five venue names."
+    },
+    {
+      "id": "p-priory-set",
+      "title": "Hymn book, guitar edition",
+      "description": "Hear a set in Lancaster Priory. Proof: who played."
+    },
+    {
+      "id": "p-storey-gig",
+      "title": "An evening at The Storey",
+      "description": "Catch a gig at The Storey. Proof: who played."
+    },
+    {
+      "id": "p-dukes-visit",
+      "title": "Curtain up at the Dukes",
+      "description": "Go inside Dukes Theatre during the festival. Proof: something distinctly theatrical you saw, and what was on."
+    },
+    {
+      "id": "p-market-square",
+      "title": "Market Square moment",
+      "description": "Stop in Market Square for a full song. Proof: who was playing."
+    },
+    {
+      "id": "p-drummer-fill",
+      "title": "Drummer's big moment",
+      "description": "Catch a drummer mid-fill, sticks up and blurred (no flash, please). Proof: the band."
+    },
+    {
+      "id": "p-fiddle",
+      "title": "Fiddle in the wild",
+      "description": "Find a fiddle or violin in a band that isn't classical. Proof: the band's name."
+    },
+    {
+      "id": "p-squeezebox",
+      "title": "Squeezebox sighting",
+      "description": "Spot an accordion, concertina or melodeon being played. Proof: which one you reckon it was."
+    },
+    {
+      "id": "p-bass-face",
+      "title": "The bassist's face",
+      "description": "Find the most committed bass-playing face you can. Proof: the band, and why it wins."
+    },
+    {
+      "id": "p-encore",
+      "title": "One more song",
+      "description": "Be in the room when a crowd earns an encore. Proof: the band, and the song they played last."
+    },
+    {
+      "id": "p-front-barrier",
+      "title": "Front of the front",
+      "description": "Watch a gig from the very front, hands on the barrier or stage edge if there is one. Proof: who played."
+    },
+    {
+      "id": "p-back-corner",
+      "title": "The furthest corner",
+      "description": "Find the furthest corner of a venue where you can still hear the band. Proof: where it was, and what you could still hear."
+    },
+    {
+      "id": "p-first-note",
+      "title": "First note",
+      "description": "Be there for the very first note of a set. Proof: the band, and the time."
+    },
+    {
+      "id": "p-last-song",
+      "title": "Stay to the end",
+      "description": "Stay for the final song of a set, right to the last chord. Proof: the closing song."
+    },
+    {
+      "id": "p-merch-table",
+      "title": "Merch table haul",
+      "description": "Pick up something from an act's merch table, even if it's only a free sticker or flyer. Proof: your haul, and the act's name."
+    },
+    {
+      "id": "p-signature",
+      "title": "Autograph hunter",
+      "description": "Get a performer to sign something: a flyer, a setlist, your wristband. Proof: the signature, and whose it is."
+    },
+    {
+      "id": "p-chalkboard",
+      "title": "Chalk and talk",
+      "description": "Find a handwritten gig sign or chalkboard that tells you who is playing today. Proof: the funniest line on it."
+    },
+    {
+      "id": "p-soundcheck",
+      "title": "Behind the sound",
+      "description": "Catch a soundcheck. Proof: the band or venue."
+    },
+    {
+      "id": "p-sound-engineer",
+      "title": "Meet the desk",
+      "description": "Chat to a sound engineer about their job (ask at a quiet moment). Proof: one thing you learned."
+    },
+    {
+      "id": "p-busker",
+      "title": "Back the busker",
+      "description": "Watch a busker for a full song and leave a tip if you can. Proof: the song."
+    },
+    {
+      "id": "p-favourite-lyric",
+      "title": "Favourite lyric",
+      "description": "Ask a stranger for their favourite lyric ever. Proof: the lyric, with the song and artist."
+    },
+    {
+      "id": "p-veteran",
+      "title": "Festival veteran",
+      "description": "Find someone who has been to more Lancaster Music Festivals than you can count (ask first). Proof: how many."
+    },
+    {
+      "id": "p-dog-music",
+      "title": "Good dog, good gig",
+      "description": "Find a dog having a good time near the music (ask the owner first). Proof: its name."
+    },
+    {
+      "id": "p-best-hat",
+      "title": "Hat check",
+      "description": "Find the best hat in the festival (ask the wearer first). Proof: your rating out of ten."
+    },
+    {
+      "id": "p-band-tee",
+      "title": "Band tee trivia",
+      "description": "Find someone in a band T-shirt and ask for their favourite album by that band. Proof: the album."
+    },
+    {
+      "id": "p-cover-version",
+      "title": "Cover story",
+      "description": "Hear a cover of a song you know. Proof: the song and the original artist."
+    },
+    {
+      "id": "p-hands-up",
+      "title": "Hands in the air",
+      "description": "Be part of a crowd with hands clapping or raised. Proof: the song or band."
+    },
+    {
+      "id": "p-bar-wisdom",
+      "title": "Bar wisdom",
+      "description": "Ask a bartender what has been the best seller this festival. Proof: their answer."
+    },
+    {
+      "id": "p-pub-sign",
+      "title": "Beast on a pub sign",
+      "description": "Find a pub sign with an animal on it. Proof: the pub's name."
+    },
+    {
+      "id": "p-blue-plaque",
+      "title": "Local history",
+      "description": "Find a historic plaque or a blue plaque near one of the venues. Proof: what it says."
+    },
+    {
+      "id": "p-castle-angle",
+      "title": "Castle from a new angle",
+      "description": "See Lancaster Castle from an angle most people wouldn't pick. Proof: where you were standing."
+    },
+    {
+      "id": "p-street-food",
+      "title": "Fuel up",
+      "description": "Eat something from a street-food stall or a nearby takeaway. Proof: a rating out of ten."
+    },
+    {
+      "id": "p-breakfast",
+      "title": "Breakfast of champions",
+      "description": "Have breakfast on a festival morning with something gig-related on the table (wristband, poster, flyer). Proof: the next gig you are heading to."
+    },
+    {
+      "id": "p-stranger-tip",
+      "title": "Take a stranger's advice",
+      "description": "Ask a stranger who the best act they have seen so far is, then go and see them. Proof: who they recommended."
+    },
+    {
+      "id": "p-pedalboard",
+      "title": "Pedalboard peek",
+      "description": "Find a guitarist with a seriously crowded pedalboard (ask before getting close). Proof: your guess of how many pedals."
+    },
+    {
+      "id": "p-odd-kit",
+      "title": "Strangest kit",
+      "description": "Find the strangest drum kit or percussion setup at the festival. Proof: the oddest item in it."
+    },
+    {
+      "id": "p-matching-shirts",
+      "title": "Twinning",
+      "description": "Spot two strangers wearing the same band T-shirt. Proof: the band."
+    },
+    {
+      "id": "p-three-line-review",
+      "title": "Critic's corner",
+      "description": "Write a three-line review of a set you just watched. Proof: the review itself."
+    },
+    {
+      "id": "p-sketch",
+      "title": "Quick sketch",
+      "description": "Sketch a performer in under a minute. Proof: the sketch."
+    },
+    {
+      "id": "p-poster-selfie",
+      "title": "Poster selfie",
+      "description": "Take a selfie with the poster of an act you have just watched. Proof: the act, and your favourite song of theirs."
+    },
+    {
+      "id": "p-two-venues",
+      "title": "Double booked",
+      "description": "Catch songs in two different venues within 30 minutes. Proof: the venues and the times."
+    },
+    {
+      "id": "p-poster-wall",
+      "title": "Best poster in town",
+      "description": "Find the best-looking gig poster in Lancaster. Proof: what makes it good."
+    },
+    {
+      "id": "p-performer-wave",
+      "title": "Catch their eye",
+      "description": "Get a performer to wave or point at you from the stage. Proof: the band's name."
+    },
+    {
+      "id": "p-fancy-dress",
+      "title": "Outfit of the day",
+      "description": "Find the most ridiculous or wonderful outfit at the festival (with the wearer's OK). Proof: a name for the look."
+    },
+    {
+      "id": "p-raise-glass",
+      "title": "Cheers, strangers",
+      "description": "Raise a toast with people you don't know (soft drinks count). Proof: the toast."
+    },
+    {
+      "id": "p-give-directions",
+      "title": "Local guide",
+      "description": "Help someone find a venue. Proof: where they were heading."
+    },
+    {
+      "id": "p-hidden-venue",
+      "title": "Somewhere new",
+      "description": "Go inside a venue none of the group has ever been in before. Proof: its name."
+    },
+    {
+      "id": "p-air-guitar",
+      "title": "Air guitar sighting",
+      "description": "Catch someone in the crowd doing air guitar, air drums or air anything. Proof: the song."
+    },
+    {
+      "id": "p-reflection",
+      "title": "Reflecting on the gig",
+      "description": "Spot a band or the stage reflected in a window, a mirror or a glass. Proof: the venue and the band."
+    },
+    {
+      "id": "p-queue",
+      "title": "Longest queue",
+      "description": "Find the longest queue outside a venue and find out what is playing. Proof: the act."
+    },
+    {
+      "id": "p-solo-singer",
+      "title": "One voice, one guitar",
+      "description": "Watch a solo performer with nothing but an instrument and a voice. Proof: your favourite line from their set."
+    },
+    {
+      "id": "p-big-band",
+      "title": "How many on stage?",
+      "description": "Find the band with the most people on stage. Proof: your headcount."
+    },
+    {
+      "id": "p-sing-with-stranger",
+      "title": "Chorus buddies",
+      "description": "Sing a chorus with a stranger. Proof: the song."
+    },
+    {
+      "id": "p-tune-name",
+      "title": "Name that tune",
+      "description": "Ask someone near you to name the tune the band is playing, and get it right between you. Proof: the song and the band."
+    },
+    {
+      "id": "p-journey",
+      "title": "Tour guide",
+      "description": "Find out where a touring band has come from today. Proof: the longest journey you heard about."
+    }
+  ],
+  "global": [
+    {
+      "id": "g-brass",
+      "title": "Brass on stage",
+      "description": "Show us a brass instrument on stage: trumpet, trombone, tuba, anything shiny. The best find wins the vote.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-crowd-shot",
+      "title": "Best crowd shot",
+      "description": "Show us the best crowd shot you can get. Atmosphere over perfection.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-group-selfie",
+      "title": "Three-player selfie",
+      "description": "Send in a group selfie with at least three players in it. Everyone must be visible. Best framing wins.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-poster-art",
+      "title": "Poster art",
+      "description": "The most creative take on a festival poster. Angles, shadows, reflections, or something in the way: surprise the voters.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-folk-find",
+      "title": "Find the folk",
+      "description": "Find a band playing folk and show us the moment. Say who they are in your comment.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-album-cover",
+      "title": "Album cover pose",
+      "description": "Strike the best 'album cover' pose. Group poses welcome, moody stares encouraged.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-ashton-memorial",
+      "title": "Dome with a view",
+      "description": "Your best take on the Ashton Memorial in Williamson Park. Optional if you are not up for the walk, but the dome is worth it.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-spot-ashton",
+      "title": "Spot the Ashton",
+      "description": "Spot the Ashton Memorial's dome from somewhere in town, not from the park. Say where you were in your comment.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-castle-selfie",
+      "title": "Castle selfie",
+      "description": "The best selfie with Lancaster Castle behind you. The castle must be recognisable.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-priory-view",
+      "title": "Priory perspective",
+      "description": "The best view of Lancaster Priory, inside or out.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-storey-stage",
+      "title": "At The Storey",
+      "description": "The best shot of an act on stage at The Storey.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-dukes-drama",
+      "title": "Dukes drama",
+      "description": "The most dramatic pose in front of Dukes Theatre. Full theatrical commitment.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-market-square",
+      "title": "Market Square moment",
+      "description": "The best moment of festival life in Market Square: a performer, a crowd, a passer-by pulling a face.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-red-guitar",
+      "title": "Seeing red",
+      "description": "Find a red guitar, a red drum kit or anything red on a stage. The boldest red wins.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-best-hat",
+      "title": "Hat contest",
+      "description": "The best hat in a crowd. Ask the wearer first or shoot it from behind.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-drummer-action",
+      "title": "Sticks in the air",
+      "description": "The best action shot of a drummer. Motion blur welcome, flash discouraged.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-pint-view",
+      "title": "Drink with a view",
+      "description": "The best drink of your choice (soft drinks count) with a band in the background.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-odd-instrument",
+      "title": "Not guitar, not drums",
+      "description": "Someone playing an instrument that is not a guitar, drums or keyboard. Name the instrument in your comment; the most surprising wins.",
+      "windowMin": 35
+    },
+    {
+      "id": "g-selfie-performer",
+      "title": "Selfie with a performer",
+      "description": "The best selfie with a performer, asked for politely and taken with their OK.",
+      "windowMin": 45
+    },
+    {
+      "id": "g-handwritten-sign",
+      "title": "Handwritten sign",
+      "description": "The best handwritten sign or chalkboard advertising tonight's gig.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-silhouette",
+      "title": "Silhouette",
+      "description": "The best silhouette of a performer or a crowd against the stage lights.",
+      "windowMin": 40
+    },
+    {
+      "id": "g-dancing",
+      "title": "Dancing like nobody is watching",
+      "description": "Someone dancing their heart out. Shoot from behind or ask first.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-seagull",
+      "title": "Seagull spotting",
+      "description": "A seagull in the city centre. Bonus points for audience participation.",
+      "windowMin": 30
+    },
+    {
+      "id": "g-band-tee-joke",
+      "title": "Wittiest T-shirt",
+      "description": "The funniest band name or slogan on a T-shirt, from a distance. Shoot from behind.",
+      "windowMin": 40
+    }
+  ]
+}
