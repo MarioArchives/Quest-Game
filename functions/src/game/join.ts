@@ -2,6 +2,7 @@ import type { JoinRequest, Settings } from '../shared/types.js';
 import { DISPLAY_NAME_MAX } from '../shared/settings.js';
 import type { Transaction } from 'firebase-admin/firestore';
 import type { Ctx, Db } from './context.js';
+import { GM_CONSOLE, type PushPlan } from './push.js';
 import { dealFrom, readFreshTemplates, type FreshTemplate } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail, isGM, loadSettings, loadState, requireGM, requireUid } from './guards.js';
@@ -187,4 +188,12 @@ export async function handleAdminCreated(
     admitPlayer(tx, db, now, rng, uid, { displayName: req.displayName, photoURL: req.photoURL ?? null }, admission);
     tx.update(reqRef, { status: 'approved', reviewedBy: uid, reviewedAt: toTs(now) });
   });
+}
+
+/** Firestore onCreate for joinRequests/{uid}: a new pending request tells the GMs. Quiet for GMs (approved at once). */
+export async function handleJoinRequestCreated(db: Db, uid: string): Promise<PushPlan | null> {
+  const snap = await db.doc(`joinRequests/${uid}`).get();
+  if (!snap.exists || snap.get('status') !== 'pending') return null;
+  const name = (snap.get('displayName') as string | undefined) ?? 'Someone';
+  return { to: 'gms', message: { title: 'Join request', body: `${name} asked to join`, link: GM_CONSOLE } };
 }

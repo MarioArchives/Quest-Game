@@ -30,6 +30,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
+        // Push notifications: shows what FCM sends and opens the link on tap (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         navigateFallback: 'index.html',
         // Never intercept the Firebase emulator / API hosts; map tiles are cached at runtime.
         runtimeCaching: [

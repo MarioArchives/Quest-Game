@@ -208,6 +208,14 @@ export interface Reaction {
   createdAt: TS;
 }
 
+/** pushTokens/{sha256(token)} — a device that takes notifications. Server only. */
+export interface PushToken {
+  uid: string;
+  token: string;
+  createdAt: TS;
+  updatedAt: TS;
+}
+
 /** guesses/{id} */
 export interface Guess {
   guesserUid: string;

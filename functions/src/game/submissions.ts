@@ -10,6 +10,7 @@ import {
   type ReviewEnv,
 } from './approval.js';
 import type { Ctx, Db } from './context.js';
+import type { PushPlan } from './push.js';
 import { fail, isGM, loadSettings, loadState, requireUid } from './guards.js';
 import { asId, isId, toTs } from './util.js';
 
@@ -36,8 +37,10 @@ export async function handleSubmissionCreated(
   submissionId: string,
   now: Date,
   _rng?: () => number,
-): Promise<void> {
+): Promise<PushPlan | null> {
+  let plan: PushPlan | null = null;
   await db.runTransaction(async (tx) => {
+    plan = null;
     const subRef = db.doc(`submissions/${submissionId}`);
     const snap = await tx.get(subRef);
     if (!snap.exists) return;
@@ -59,6 +62,7 @@ export async function handleSubmissionCreated(
     const settings = await loadSettings(db, tx);
     const loaded = await loadReview(tx, db, submissionId, sub, settings);
     const witnessExists = isId(sub.witnessUid) ? (await tx.get(db.doc(`players/${sub.witnessUid}`))).exists : false;
+    const claimantName = (await tx.get(db.doc(`players/${sub.uid}`))).get('displayName') as string | undefined;
     const reason = invalidReason(sub, loaded, witnessExists);
     if (reason) {
       reject(reason);
@@ -72,7 +76,13 @@ export async function handleSubmissionCreated(
       claimTitle: loaded.quest!.title ?? null,
       claimDescription: loaded.quest!.description ?? null,
     });
+    // Only the witness hears about it, by name: the secret quest itself stays hidden.
+    plan = {
+      to: [sub.witnessUid as string],
+      message: { title: 'Witness needed', body: `${claimantName ?? 'A player'} needs you as a witness`, link: '#/account' },
+    };
   });
+  return plan;
 }
 
 /**

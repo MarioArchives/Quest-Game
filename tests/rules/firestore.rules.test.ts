@@ -497,6 +497,22 @@ describe('10. game docs, templates and global quests', () => {
   });
 });
 
+describe('P10. push tokens are server-only', () => {
+  it('no client reads or writes pushTokens: not the owner, another player, the GM or a signed-out user', async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'pushTokens/t1'), { uid: 'alice', token: 'tok-a', createdAt: T, updatedAt: T });
+    });
+    for (const uid of ['alice', 'bob', 'gm', 'pending']) {
+      await assertFails(getDoc(doc(as(uid), 'pushTokens/t1')));
+      await assertFails(getDocs(collection(as(uid), 'pushTokens')));
+      await assertFails(setDoc(doc(as(uid), 'pushTokens/t2'), { uid, token: 'tok-x', createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+      await assertFails(updateDoc(doc(as(uid), 'pushTokens/t1'), { uid }));
+      await assertFails(deleteDoc(doc(as(uid), 'pushTokens/t1')));
+    }
+    await assertFails(getDoc(doc(anon(), 'pushTokens/t1')));
+  });
+});
+
 describe('11. wraps', () => {
   it("before the end, a wrap is visible to its owner and the GM only", async () => {
     await assertSucceeds(getDoc(doc(as('alice'), 'wraps/alice')));

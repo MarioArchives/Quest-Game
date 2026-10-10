@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
 import { useGame } from '../data/GameProvider';
 import { useTabBadges } from '../data/useTabBadges';
+import { refreshPush } from '../data/usePush';
 import { useSession } from '../session/SessionProvider';
 import './AppFrame.css';
 
@@ -36,6 +37,11 @@ export function AppFrame() {
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
   const closePhoto = useClosePhotoViewer();
+
+  // Tokens rotate: a device that switched notifications on re-registers each time the app starts.
+  useEffect(() => {
+    void refreshPush();
+  }, []);
 
   const title = TITLES[pathname] ?? 'Festival Quest';
 

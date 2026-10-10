@@ -9,6 +9,7 @@ import { ProfileSheet } from '../components/ProfileSheet';
 import { useGame } from '../data/GameProvider';
 import { useCollection } from '../data/hooks';
 import { useLocationSharing } from '../data/LocationProvider';
+import { forgetThisDevice } from '../data/usePush';
 import { db } from '../firebase';
 import { useSession } from '../session/SessionProvider';
 import { rerollAllowance, rerollsLeft as rerollsLeftFor, type LedgerEntry, type Quest } from '../shared';
@@ -17,6 +18,7 @@ import { ClaimHistory } from './account/ClaimHistory';
 import { Hand } from './account/Hand';
 import { HouseRules } from './account/HouseRules';
 import { LocationCard } from './account/LocationCard';
+import { NotificationsCard } from './account/NotificationsCard';
 import { PointsSummary } from './account/PointsSummary';
 import { SideQuestEntries } from './account/SideQuestEntries';
 import { WitnessRequests } from './account/WitnessRequests';
@@ -50,6 +52,7 @@ export default function AccountScreen() {
     setSigningOut(true);
     try {
       await stopAndClear();
+      await forgetThisDevice();
       await signOut();
     } finally {
       setSigningOut(false);
@@ -107,6 +110,7 @@ export default function AccountScreen() {
           <ClaimHistory titleById={titleById} />
           <SideQuestEntries />
           <LocationCard />
+          <NotificationsCard />
           <PointsSummary entries={ledger.data} loading={ledger.loading} />
         </>
       ) : (
@@ -115,6 +119,7 @@ export default function AccountScreen() {
           your quests are dealt at once.
         </p>
       )}
+      {!player && isAdmin ? <NotificationsCard gmOnly /> : null}
 
       <HouseRules />
 

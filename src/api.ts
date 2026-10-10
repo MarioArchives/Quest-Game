@@ -167,6 +167,10 @@ export const fireGlobalQuest = (data: FireGlobalQuestInput) =>
 export const adjustPoints = (data: { uid: string; delta: number; reason: string }) =>
   call<typeof data, { points: number }>('adjustPoints', data);
 
+export const savePushToken = (data: { token: string }) => call<typeof data, { ok: true }>('savePushToken', data);
+
+export const removePushToken = (data: { token: string }) => call<typeof data, { ok: true }>('removePushToken', data);
+
 export const grantRerolls = (data: { uid: string; delta: number }) =>
   call<typeof data, { extraRerolls: number; rerollsLeft: number }>('grantRerolls', data);
 

@@ -199,6 +199,14 @@ Demo players are emulator-only (`--demo` is refused with `--prod`). Re-run `npm 
 gcloud storage buckets update gs://musical-mischief.firebasestorage.app --cors-file=storage.cors.json
 ```
 
+**Push notifications.** Players switch them on from the Account screen (Notifications). They use Firebase Cloud Messaging (Web Push) and need a VAPID key, once:
+
+1. Firebase console › Project settings › Cloud Messaging › Web Push certificates › **Generate key pair**. Copy the public key.
+2. It lives in `.github/workflows/deploy.yml` (a repository variable `VITE_FIREBASE_VAPID_KEY` overrides it) and in `.env.local` for local production builds. It is public, not secret: it ships in the site's JavaScript.
+3. Deploy the backend: `npx firebase deploy --only firestore:rules,functions --project prod`.
+
+Without the key, or against the emulators, the switch is hidden, so nothing breaks. Players on an iPhone must add the app to their Home Screen first (iOS 16.4 or later); the card says so. Who hears about what is in `functions/src/game/push.ts` (`pushFor`). Sending goes through the function `onFeedCreated` (every feed post) plus the witness and join-request triggers; the emulators only log.
+
 **Budget.** Add a budget alert of about £5 in Google Cloud Billing; usage for ten friends is pennies.
 
 Local production preview against the emulators: `VITE_USE_EMULATORS=true npm run build && npm run preview`.

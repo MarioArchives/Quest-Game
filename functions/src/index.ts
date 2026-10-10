@@ -12,11 +12,24 @@ import { endGame as doEndGame } from './game/endGame.js';
 import { addEvidence as doAddEvidence } from './game/evidence.js';
 import { fireGlobalQuest as doFireGlobalQuest, runTick } from './game/globals.js';
 import { guessQuest as doGuessQuest } from './game/guesses.js';
-import { handleAdminCreated, requestJoin as doRequestJoin, reviewJoinRequest as doReviewJoinRequest } from './game/join.js';
+import {
+  handleAdminCreated,
+  handleJoinRequestCreated,
+  requestJoin as doRequestJoin,
+  reviewJoinRequest as doReviewJoinRequest,
+} from './game/join.js';
 import { adjustPoints as doAdjustPoints } from './game/points.js';
 import { grantRerolls as doGrantRerolls } from './game/rerolls.js';
 import { rerollQuest as doRerollQuest } from './game/quests.js';
 import { recountReactions } from './game/reactions.js';
+import {
+  handleFeedCreated,
+  makeSender,
+  removePushToken as doRemovePushToken,
+  savePushToken as doSavePushToken,
+  sendPush,
+  type PushSender,
+} from './game/push.js';
 import { resetGame as doResetGame } from './game/reset.js';
 import { setGameStatus as doSetGameStatus } from './game/status.js';
 import { handleSubmissionCreated, reviewSubmission as doReviewSubmission } from './game/submissions.js';
@@ -69,6 +82,8 @@ export const castVote = callable((ctx, data: Parameters<typeof doCastVote>[2]) =
 export const advanceGlobalQuest = callable((ctx, data: Parameters<typeof doAdvanceGlobalQuest>[2]) =>
   doAdvanceGlobalQuest(db, ctx, data),
 );
+export const savePushToken = callable((ctx, data: { token?: unknown }) => doSavePushToken(db, ctx, data));
+export const removePushToken = callable((ctx, data: { token?: unknown }) => doRemovePushToken(db, ctx, data));
 export const adjustPoints = callable((ctx, data: Parameters<typeof doAdjustPoints>[2]) => doAdjustPoints(db, ctx, data));
 export const grantRerolls = callable((ctx, data: Parameters<typeof doGrantRerolls>[2]) => doGrantRerolls(db, ctx, data));
 export const setGameStatus = callable((ctx, data: Parameters<typeof doSetGameStatus>[2]) =>
@@ -100,13 +115,28 @@ export const resetGame = callable(
   { timeoutSeconds: 300 },
 );
 
+// Push: the emulators log instead of calling FCM, so no test or local run ever reaches a real phone.
+const pushSender = (): PushSender => makeSender({ emulator: process.env.FUNCTIONS_EMULATOR === 'true', log: (line) => logger.info(line) });
+
 export const onSubmissionCreated = onDocumentCreated('submissions/{submissionId}', async (event) => {
-  await handleSubmissionCreated(db, event.params.submissionId, new Date());
+  const plan = await handleSubmissionCreated(db, event.params.submissionId, new Date());
+  if (plan) await sendPush(db, pushSender(), plan);
 });
 
 // GMs never need join approval: whoever is made a GM while their request waits becomes a player.
 export const onAdminCreated = onDocumentCreated('admins/{uid}', async (event) => {
   await handleAdminCreated(db, event.params.uid, new Date());
+});
+
+// Every feed post (almost every game event) may buzz the players it is about; see functions/src/game/push.ts.
+export const onFeedCreated = onDocumentCreated('feed/{feedId}', async (event) => {
+  await handleFeedCreated(db, pushSender(), event.params.feedId);
+});
+
+// A new join request tells the GMs.
+export const onJoinRequestCreated = onDocumentCreated('joinRequests/{uid}', async (event) => {
+  const plan = await handleJoinRequestCreated(db, event.params.uid);
+  if (plan) await sendPush(db, pushSender(), plan);
 });
 
 // Reactions are set, changed and removed by players; keep the post's reactionCount in step.

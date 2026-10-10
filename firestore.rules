@@ -161,6 +161,11 @@ service cloud.firestore {
       }
     }
 
+    // Device tokens for push notifications: written and read by functions only, never by a client.
+    match /pushTokens/{id} {
+      allow read, write: if false;
+    }
+
     // Everyone's wrap opens up once the game has ended; before that only the owner and GM see it.
     match /wraps/{uid} {
       allow read: if signedIn()
