@@ -2,7 +2,7 @@
 // so the app can never offer an emoji the rules would refuse, or vice versa.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { REACTION_EMOJI } from '../../functions/src/shared/types';
+import { REACTION_EMOJI } from '../../functions/src/shared/types.ts';
 
 describe('reaction emoji', () => {
   it('firestore.rules allows exactly the REACTION_EMOJI list', () => {
