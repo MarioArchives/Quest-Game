@@ -1,15 +1,12 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { guessQuest, toApiError } from '../../api';
-import { Avatar } from '../../components/Avatar';
-import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
-import { PhotoThumb } from '../../components/PhotoViewer';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { guessCooldownRemaining } from '../../lib/guess';
-import { useSession } from '../../session/SessionProvider';
+import { firstName } from './format';
 
 function mmss(ms: number): string {
   const total = Math.ceil(ms / 1000);
@@ -18,45 +15,37 @@ function mmss(ms: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): void }) {
-  const { user, player: mePlayer } = useSession();
-  const { approved } = useGame();
-  const isMe = player.id === user?.uid;
-  const photos = approved.filter((s) => s.uid === player.id && s.thumbPath);
+/** The guess, folded away behind one ink button (a ticket with a tear-off line) until the player wants it. */
+export function GuessCard({ target }: { target: RankedPlayer }) {
+  const { settings } = useGame();
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  const first = firstName(target.displayName);
 
   return (
-    <BottomSheet
-      title={player.displayName}
-      onClose={onClose}
-      lead={<Avatar name={player.displayName} src={player.photoURL} size={52} />}
-      subtitle={`${player.points} pts · Rank ${player.rank}${isMe ? ' · you' : ''}${player.left ? ' · left the game' : ''}`}
-    >
-      <section aria-labelledby="ps-photos">
-        <h3 id="ps-photos" className="eyebrow ps-h">
-          Approved photos &middot; {photos.length}
-        </h3>
-        {photos.length === 0 ? (
-          <p className="muted ps-none">No approved photos yet.</p>
+    <section className="pl-guess" aria-label={`Guess ${first}'s quest`}>
+      <button type="button" className="pl-guess__toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
+        <span>Guess {first}&apos;s quest</span>
+        <Icon name="chevronDown" size={22} strokeWidth={2.4} className={`pl-guess__chev${open ? ' is-open' : ''}`} />
+      </button>
+      <div className="pl-perf" aria-hidden="true" />
+      <div id={bodyId} className="pl-guess__body">
+        {open ? (
+          <GuessPanel target={target} headed={false} />
         ) : (
-          <ul className="ps-grid">
-            {photos.map((s) => (
-              <li key={s.id}>
-                <PhotoThumb submissionId={s.id} thumbPath={s.thumbPath} fill label={s.caption ? `Photo: ${s.caption}` : `Open photo by ${player.displayName}`} />
-              </li>
-            ))}
-          </ul>
+          <p className="pl-guess__teaser">
+            Search the whole quest list and pick the one you think {first} holds. Right: {first} loses {settings.exposePenalty}, you gain{' '}
+            {settings.correctGuessReward} &middot; Wrong: you lose {settings.wrongGuessCost} &middot; 1 guess per player every{' '}
+            {settings.guessCooldownMin} min
+          </p>
         )}
-      </section>
-      {isMe || !mePlayer ? null : player.left ? (
-        <p className="muted ps-none">{player.displayName} has left the game, so their quests can&apos;t be guessed.</p>
-      ) : mePlayer.left ? null : (
-        <GuessPanel target={player} />
-      )}
-    </BottomSheet>
+      </div>
+    </section>
   );
 }
 
-function GuessPanel({ target }: { target: RankedPlayer }) {
+/** Pick a quest from the catalogue and guess it's one the target holds. `headed` = false when a toggle already names it. */
+export function GuessPanel({ target, headed = true }: { target: RankedPlayer; headed?: boolean }) {
   const toast = useToast();
   const { personalTemplates, myGuesses, settings, state } = useGame();
   const now = useNow(1000);
@@ -109,10 +98,12 @@ function GuessPanel({ target }: { target: RankedPlayer }) {
   };
 
   return (
-    <section aria-labelledby="ps-guess" className="guess">
-      <h3 id="ps-guess" className="guess__title">
-        Guess {first}&apos;s quest
-      </h3>
+    <section aria-labelledby={headed ? 'ps-guess' : undefined} className="guess">
+      {headed ? (
+        <h3 id="ps-guess" className="guess__title">
+          Guess {first}&apos;s quest
+        </h3>
+      ) : null}
       {catalogue.length === 0 ? (
         <p className="muted">The quest catalogue is empty.</p>
       ) : (

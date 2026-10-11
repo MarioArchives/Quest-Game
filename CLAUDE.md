@@ -47,7 +47,8 @@ Ignore the log noise from `MetadataLookupWarning`, `url.parse()` and `punycode` 
 - Everything up to push notifications (`c248cf6`) is pushed and deployed: site, functions, rules and the prod quest catalogue.
 - The side-quest checking stage (`fc0adfa`: `checkEntry`, `checkWindowMin`) is pushed and deployed.
 - Freezing or kicking out players who left (`setPlayerLeft` callable, `players.left`, `0545c00`) is pushed and deployed.
-- Mandatory checking with late entries (no `checkWindowMin` timer; only the GM starts the vote) ships with a functions deploy first, then a push.
+- Mandatory checking with late entries (`536eadb`: no `checkWindowMin` timer; only the GM starts the vote) is pushed and deployed.
+- The "Ticket Stubs" redesign (podium ranks, `/standings`, the `/player/:uid` player pass with record and points history) is frontend only: it ships with a push.
 
 ## Shipping a fix during the festival
 
@@ -79,7 +80,7 @@ Ignore the log noise from `MetadataLookupWarning`, `url.parse()` and `punycode` 
   - `src/firebase.ts`: initialisation, with emulator fallbacks when the `VITE_*` variables are missing.
   - `src/api.ts`: typed wrappers around the callables.
   - `src/data/GameProvider.tsx`: live subscriptions.
-  - `src/routes.tsx`: Home (feed) `/`, `/account`, `/map`, `/gm` (admins only), `/wrap`, `/join`.
+  - `src/routes.tsx`: Home (feed) `/`, `/standings`, `/player/:uid`, `/account`, `/map`, `/gm` (admins only), `/wrap`, `/join`.
   - `src/screens/<area>/`: screens. `src/lib/`: pure helpers with unit tests.
 - **Static festival data:** `public/data/{events,venues}.json`, refreshed by `npm run import-schedule`.
 

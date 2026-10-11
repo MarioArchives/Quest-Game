@@ -1,0 +1,257 @@
+/* ---------- ranks: ticket stubs (Home and Standings) ----------
+   A podium for the top three (black blocks, the rank in Anton; yours is red), then wristbands for everyone else.
+   A player who left is greyed out with a dashed, cut-off band. */
+.rk-podium, .rk-strip, .rk-bands {
+  /* The greyed "left the game" fill: muted text on it stays above 4.5:1. */
+  --rk-left: color-mix(in srgb, var(--muted) 10%, var(--paper));
+}
+
+/* ---------- podium ---------- */
+.rk-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  column-gap: 6px;
+  border-bottom: var(--line);
+}
+.rk-podium__spot { grid-row: 1; min-width: 0; }
+.rk-podium__spot--left { grid-column: 1; }
+.rk-podium__spot--centre { grid-column: 2; }
+.rk-podium__spot--right { grid-column: 3; }
+
+.rk-pod {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  text-align: center;
+  touch-action: manipulation;
+}
+.rk-pod__label { display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; padding-inline: 2px; }
+.rk-pod__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.rk-pod__left { flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2; }
+.rk-pod__pts { flex: none; font-family: var(--display); font-size: 18px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rk-pod__block {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 46px;
+  padding-top: 4px;
+  background: var(--ink);
+  color: var(--card);
+  border: var(--line);
+  border-bottom: 0; /* the podium's baseline closes it */
+  font-family: var(--display);
+  font-size: 24px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rk-pod__block--2 { height: 36px; font-size: 22px; }
+.rk-pod__block--3 { height: 27px; padding-top: 3px; font-size: 20px; }
+.rk-pod:hover .rk-pod__name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.rk-pod.is-you .rk-pod__block { background: var(--red); }
+.rk-pod.is-left { color: var(--muted); }
+.rk-pod.is-left .rk-pod__block { background: var(--rk-left); color: var(--muted); border: 2px dashed var(--muted); border-bottom: 0; }
+.rk-pod.is-left .avatar { filter: grayscale(1); border-color: var(--muted); }
+
+/* Standings: avatars, bigger type, a taller podium. */
+.rk-podium--full .rk-pod__label { flex-direction: column; align-items: center; gap: 4px; }
+.rk-podium--full .rk-pod__name { max-width: 100%; font-size: 13px; }
+.rk-podium--full .rk-pod__pts { font-size: 22px; }
+.rk-podium--full .rk-pod__block { height: 56px; padding-top: 6px; font-size: 32px; }
+.rk-podium--full .rk-pod__block--2 { height: 42px; font-size: 28px; }
+.rk-podium--full .rk-pod__block--3 { height: 31px; padding-top: 5px; font-size: 24px; }
+
+/* ---------- Home: the wristband (4th onwards) ---------- */
+.rk-strip { display: flex; height: 48px; margin-top: 6px; }
+.rk-strip__band {
+  position: relative; /* cells measure their offset from here */
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  background: var(--card);
+  border: var(--line);
+  border-right: 0;
+}
+.rk-strip__band::-webkit-scrollbar { display: none; }
+/* Cells widen a little when few (the rest of the band stays blank) and scroll sideways, never squash, when many. */
+.rk-strip__band > li { flex: 1 0 72px; max-width: 112px; display: flex; min-width: 0; scroll-snap-align: start; border-right: var(--hairline); }
+
+.rk-wb {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  touch-action: manipulation;
+}
+.rk-wb:focus-visible { outline-offset: -4px; }
+.rk-wb:not(.is-you):not(.is-left):hover { background: var(--red-tint); }
+.rk-wb:hover .rk-wb__name { text-decoration: underline; text-underline-offset: 2px; }
+.rk-wb__who {
+  display: flex;
+  gap: 0.3em;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.rk-wb__who > span { flex: none; }
+.rk-wb__who > .rk-wb__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rk-wb__pts { font-family: var(--display); font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rk-wb.is-you { background: var(--red); color: var(--card); --ring: var(--card); }
+.rk-wb.is-left { background: var(--rk-left); color: var(--muted); }
+
+/* The "All" tab: the wristband's black snap. */
+.rk-strip__all {
+  flex: none;
+  width: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--ink);
+  color: var(--card);
+  border: var(--line);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.rk-strip__all:hover { background: var(--red); }
+.rk-snap { width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; }
+
+/* ---------- Standings ---------- */
+.rk-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -8px; }
+.rk-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-left: -6px;
+  padding-right: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.rk-back:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.rk-back__icon { transform: rotate(180deg); }
+
+.rk-bands { display: flex; flex-direction: column; gap: 6px; container-type: inline-size; }
+.rk-band {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  text-align: left;
+  touch-action: manipulation;
+}
+.rk-band__strap {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  padding-right: 12px;
+  background: var(--card);
+  border: var(--line);
+  border-right: 0;
+}
+.rk-band__rank {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--card);
+  font-family: var(--display);
+  font-size: 20px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rk-band__who { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.rk-band__name { flex: 0 1 auto; min-width: 2.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.rk-band__tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.rk-band__pts { font-family: var(--display); font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rk-band__snap { flex: none; width: 28px; height: 46px; display: flex; align-items: center; justify-content: center; background: var(--ink); border: var(--line); }
+.rk-band__snap::after { content: ''; width: 10px; height: 10px; border: 2px solid var(--card); border-radius: 50%; }
+.rk-band__tail, .rk-band__cut { flex: none; }
+.rk-band__tail path { fill: var(--card); stroke: var(--ink); stroke-width: 2; }
+
+.rk-band:hover .rk-band__name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.rk-band:not(.is-you):not(.is-left):hover .rk-band__strap { background: var(--red-tint); }
+.rk-band:not(.is-you):not(.is-left):hover .rk-band__tail path { fill: var(--red-tint); }
+
+.rk-band.is-you .rk-band__strap { background: var(--red); color: var(--card); }
+.rk-band.is-you .rk-band__tail path { fill: var(--red); }
+
+/* Left the game: grey, dashed, the strap snipped off its tail. */
+.rk-band.is-left { gap: 8px; color: var(--muted); }
+.rk-band.is-left .rk-band__strap { background: var(--rk-left); border: 2px dashed var(--muted); }
+.rk-band.is-left .rk-band__rank { background: transparent; color: var(--muted); border-right: 2px dashed var(--muted); }
+.rk-band__snip { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.rk-band__end { fill: var(--rk-left); stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 3; stroke-linejoin: round; }
+
+/* The tag says as much as fits: "Left · score frozen", then "Left · frozen", then "Left". */
+@container (max-width: 369px) {
+  .rk-band__score { display: none; }
+}
+@container (max-width: 299px) {
+  .rk-band__frozen { display: none; }
+}

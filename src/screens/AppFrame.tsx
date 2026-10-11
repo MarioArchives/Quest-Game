@@ -27,6 +27,7 @@ const TITLES: Record<string, string> = {
   '/gm': 'GM console',
   '/wrap': 'Your wrap',
   '/join': 'Join the game',
+  '/standings': 'Standings',
 };
 
 export function AppFrame() {
@@ -43,7 +44,7 @@ export function AppFrame() {
     void refreshPush();
   }, []);
 
-  const title = TITLES[pathname] ?? 'Festival Quest';
+  const title = TITLES[pathname] ?? (pathname.startsWith('/player/') ? 'Player' : 'Festival Quest');
 
   useEffect(() => {
     document.title = pathname === '/' ? 'Festival Quest' : `${title} · Festival Quest`;

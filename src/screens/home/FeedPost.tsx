@@ -1,31 +1,89 @@
 import { Avatar } from '../../components/Avatar';
 import { Icon, type IconName } from '../../components/Icon';
 import { usePhotoViewer } from '../../components/PhotoViewer';
-import { PointsChip } from '../../components/PointsChip';
+import { formatDelta } from '../../components/PointsChip';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useStorageUrl } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
 import type { Doc, FeedItem, FeedType } from '../../shared';
 import { ReactionsBar } from './ReactionsBar';
+import './feed.css';
 
-const BADGE_ICON: Record<FeedType, IconName> = {
-  join: 'user',
-  approved: 'camera',
-  rejected: 'close',
-  fraud: 'gm',
-  exposed: 'pin',
-  'global-open': 'megaphone',
-  checking: 'check',
-  'voting-open': 'ballot',
-  'global-won': 'trophy',
-  announcement: 'megaphone',
-  status: 'gm',
-  adjust: 'edit',
-  left: 'logout',
+/** Two line icons the shared set doesn't have, drawn the same way (24px box, round 2px strokes). */
+const EXTRA_GLYPHS = {
+  eye: ['M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'],
+  clock: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', 'M12 7v5l3 2'],
+} as const;
+type GlyphName = IconName | keyof typeof EXTRA_GLYPHS;
+
+function Glyph({ name, size }: { name: GlyphName; size: number }) {
+  if (name !== 'eye' && name !== 'clock') return <Icon name={name} size={size} strokeWidth={2.4} />;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {EXTRA_GLYPHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+interface Label {
+  text: string;
+  icon: GlyphName;
+}
+
+/** The small type tag at the top of a ticket. Red ones are the loud news; the rest are ink. */
+const TAG: Record<FeedType, Label & { red?: boolean }> = {
+  join: { text: 'Joined', icon: 'user' },
+  approved: { text: 'Quest done', icon: 'check' },
+  rejected: { text: 'Rejected', icon: 'close' },
+  fraud: { text: 'Fraud', icon: 'gm' },
+  exposed: { text: 'Exposed', icon: 'eye', red: true },
+  'global-open': { text: 'Side quest', icon: 'megaphone', red: true },
+  checking: { text: 'Time’s up', icon: 'clock' },
+  'voting-open': { text: 'Vote now', icon: 'ballot', red: true },
+  'global-won': { text: 'Side quest won', icon: 'trophy' },
+  announcement: { text: 'From the GM', icon: 'megaphone', red: true },
+  status: { text: 'Game', icon: 'gm' },
+  adjust: { text: 'Points', icon: 'edit' },
+  left: { text: 'Left', icon: 'logout' },
 };
 
-/** Types shown as a quiet one-liner rather than a card with a border. */
+/** What the stub shows when there are no points to print on it. */
+const MARK: Record<FeedType, Label> = {
+  join: { text: 'In', icon: 'user' },
+  approved: { text: 'Done', icon: 'check' },
+  rejected: { text: 'Denied', icon: 'close' },
+  fraud: { text: 'Fraud', icon: 'gm' },
+  exposed: { text: 'Caught', icon: 'eye' },
+  'global-open': { text: 'New', icon: 'megaphone' },
+  checking: { text: 'Late OK', icon: 'clock' },
+  'voting-open': { text: 'Vote', icon: 'ballot' },
+  'global-won': { text: 'Won', icon: 'trophy' },
+  announcement: { text: 'GM', icon: 'megaphone' },
+  status: { text: 'Game', icon: 'gm' },
+  adjust: { text: 'GM', icon: 'edit' },
+  left: { text: 'Out', icon: 'logout' },
+};
+
+/** Types shown as a quiet one-liner rather than a ticket. */
 const QUIET: ReadonlySet<FeedType> = new Set(['join', 'status', 'left']);
+
+/** Approval posts end "— witnessed by Alex"; the stub prints the witness, so the headline drops it. */
+const WITNESSED = / — witnessed by (.+)$/;
+
+const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
   const open = usePhotoViewer();
@@ -35,7 +93,7 @@ function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
   return (
     <button
       type="button"
-      className="post__photo"
+      className="tk__photo"
       aria-label={label}
       onClick={() =>
         open({
@@ -53,78 +111,135 @@ function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
   );
 }
 
-/** One post in the Home feed: who and what, the reviewer's note, points, evidence, a FRAUD stamp, reactions. */
+/**
+ * One post in the Home feed, as a ticket: the body says what happened (type tag, time, text, evidence, the
+ * reviewer's note, a FRAUD stamp) with the reactions under it; the perforated stub on the right holds the points
+ * and who witnessed it.
+ * Joins, game status and players leaving stay quiet one-liners.
+ */
 export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
   const { playersById } = useGame();
   const who = item.uid ? playersById.get(item.uid) : undefined;
   const actor = item.actorUid ? playersById.get(item.actorUid) : undefined;
   const hasPhoto = Boolean(item.imagePath || item.thumbPath);
-  const quiet = QUIET.has(item.type) && !hasPhoto;
   const flagged = item.flagged === true;
-  const fraud = item.type === 'fraud';
+  const points = typeof item.points === 'number' && item.points !== 0 ? item.points : null;
+  // A side-quest entry is posted as `approved` with no points and no witness.
+  const entry = item.type === 'approved' && points === null && !item.actorUid;
+
+  // A post written moments ago may not have its server time yet.
+  const at = tsMs(item.createdAt) || now;
+  const time = (
+    <time dateTime={new Date(at).toISOString()} className="tk__ago">
+      {formatAgo(at, now)}
+    </time>
+  );
+
+  const witnessed = item.type === 'approved' && !entry ? WITNESSED.exec(item.text) : null;
+  const body = witnessed ? item.text.slice(0, witnessed.index) : item.text;
+  const witnessName = item.type === 'approved' && !entry ? (actor?.displayName ?? witnessed?.[1] ?? null) : null;
+  const witness = witnessName ? (witnessName === 'the GM' ? 'GM' : firstName(witnessName)) : null;
 
   // Bold the leading name only when the stored text really starts with it as a whole word (names can change later).
-  const lead = [who, actor].find((p) => p && item.text.startsWith(`${p.displayName} `));
+  const lead = [who, actor].find((p) => p && body.startsWith(`${p.displayName} `));
   const text = lead ? (
     <>
       <strong>{lead.displayName}</strong>
-      {item.text.slice(lead.displayName.length)}
+      {body.slice(lead.displayName.length)}
     </>
   ) : (
-    item.text
+    body
   );
+
+  const reactions = <ReactionsBar feedId={item.id} count={item.reactionCount ?? 0} />;
+
+  if (QUIET.has(item.type) && !hasPhoto) {
+    return (
+      <li className={`tk-line tk-line--${item.type}`}>
+        {who || item.photoURL ? (
+          <Avatar name={who?.displayName ?? item.text} src={who?.photoURL ?? item.photoURL} size={28} />
+        ) : (
+          <span className="tk-line__badge" aria-hidden="true">
+            <Glyph name={TAG[item.type].icon} size={15} />
+          </span>
+        )}
+        <p className="tk-line__text">
+          {text} {time}
+        </p>
+        {reactions}
+      </li>
+    );
+  }
+
+  const tag: Label & { red?: boolean } = entry ? { text: 'Entered', icon: 'camera' } : TAG[item.type];
+  const mark: Label = entry ? (hasPhoto ? { text: 'Entry', icon: 'camera' } : { text: 'Hidden', icon: 'lock' }) : MARK[item.type];
+  const headline = item.type === 'approved' && !entry;
   const showQuest = Boolean(item.questTitle) && !item.text.includes(item.questTitle as string);
   // Some server posts (GM adjustments) already say the reason in their text.
   const showNote = Boolean(item.note) && !item.text.includes(item.note as string);
   const noteBy = actor?.displayName ?? (item.type === 'approved' || item.type === 'rejected' ? 'the GM' : null);
+  const pointsText = points !== null ? formatDelta(points) : '';
 
-  const classes = ['post', `post--${item.type}`, hasPhoto ? 'post--photo' : '', quiet ? 'post--quiet' : '', flagged ? 'is-flagged' : '']
+  const classes = ['tk', `tk--${item.type}`, entry ? 'tk--entry' : '', points !== null && points < 0 ? 'tk--neg' : '', flagged ? 'is-flagged' : '']
     .filter(Boolean)
     .join(' ');
 
   return (
     <li className={classes}>
-      <div className="post__row">
-        {who || item.photoURL ? (
-          <Avatar name={who?.displayName ?? item.text} src={who?.photoURL ?? item.photoURL} size={quiet ? 30 : 40} />
-        ) : (
-          <span className={`post__badge${quiet ? ' post__badge--small' : ''}`} aria-hidden="true">
-            <Icon name={BADGE_ICON[item.type] ?? 'megaphone'} size={quiet ? 16 : 20} />
+      <div className="tk__body">
+        <p className="tk__meta">
+          <span className={tag.red ? 'tk__tag tk__tag--red' : 'tk__tag'}>
+            <Glyph name={tag.icon} size={13} />
+            {tag.text}
           </span>
-        )}
-        <div className="post__body">
-          <p className="post__text">
-            {fraud ? <span className="post__flag">Fraud</span> : null}
-            {item.type === 'global-open' ? <span className="post__flag post__flag--ink">Side quest</span> : null}
-            {item.type === 'voting-open' ? <span className="post__flag post__flag--ink">Vote</span> : null}
-            <span className={flagged ? 'post__struck' : undefined}>{text}</span>
-            <span className="post__ago">{formatAgo(tsMs(item.createdAt), now)}</span>
-          </p>
-          {showNote ? (
-            <blockquote className="post__note">
-              <p>&ldquo;{item.note}&rdquo;</p>
-              {noteBy ? <cite>&mdash; {noteBy}</cite> : null}
-            </blockquote>
-          ) : null}
-          {showQuest ? <p className="post__quest">{item.questTitle}</p> : null}
-          {flagged ? (
-            <span className="post__stamp" role="img" aria-label="Overturned as fraud">
-              Fraud
-            </span>
-          ) : null}
-        </div>
-        {typeof item.points === 'number' && item.points !== 0 ? (
-          <span className={flagged ? 'post__points is-struck' : 'post__points'}>
-            <PointsChip points={item.points} />
+          {time}
+        </p>
+        <p className={headline ? 'tk__head' : 'tk__text'}>
+          <span className={flagged ? 'tk__struck' : undefined}>{text}</span>
+        </p>
+        {showQuest ? <p className="tk__quest">{item.questTitle}</p> : null}
+        {flagged ? (
+          <span className="tk__stamp" role="img" aria-label="Overturned as fraud">
+            Fraud
           </span>
+        ) : null}
+        {hasPhoto ? <PostPhoto item={item} label={`Open photo${who ? ` from ${who.displayName}` : ''}`} /> : null}
+        {item.caption ? <p className="tk__caption">{item.caption}</p> : null}
+        {showNote ? (
+          <blockquote className="tk__note">
+            <p>&ldquo;{item.note}&rdquo;</p>
+            {noteBy ? <cite>&mdash; {noteBy}</cite> : null}
+          </blockquote>
         ) : null}
       </div>
 
-      {hasPhoto ? <PostPhoto item={item} label={`Open photo${who ? ` from ${who.displayName}` : ''}`} /> : null}
-      {item.caption ? <p className="post__caption">{item.caption}</p> : null}
+      <div className="tk__stub">
+        {points !== null ? (
+          <span className={['tk__pts', pointsText.length > 4 ? 'tk__pts--long' : '', flagged ? 'is-struck' : ''].filter(Boolean).join(' ')}>
+            {pointsText}
+            <span className="visually-hidden"> points{flagged ? ', taken back' : ''}</span>
+          </span>
+        ) : item.type === 'announcement' ? (
+          <span className="tk__pts" aria-hidden="true">
+            GM
+          </span>
+        ) : (
+          <span className="tk__mark">
+            <Glyph name={mark.icon} size={22} />
+            {mark.text}
+          </span>
+        )}
+        {item.type === 'exposed' && who ? (
+          <span className="tk__who">
+            <span className="visually-hidden">for </span>
+            {firstName(who.displayName)}
+          </span>
+        ) : null}
+        {witness ? <span className="tk__witness">Witness {witness}</span> : null}
+      </div>
 
-      <ReactionsBar feedId={item.id} count={item.reactionCount ?? 0} />
-
+      {/* Under the body, beside the stub (after it in reading order, so the points come first). */}
+      <div className="tk__react">{reactions}</div>
     </li>
   );
 }

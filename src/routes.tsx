@@ -11,6 +11,8 @@ const MapScreen = lazy(() => import('./screens/MapScreen'));
 const GMConsole = lazy(() => import('./screens/gm/GMConsole'));
 const WrapScreen = lazy(() => import('./screens/WrapScreen'));
 const JoinScreen = lazy(() => import('./screens/JoinScreen'));
+const StandingsScreen = lazy(() => import('./screens/StandingsScreen'));
+const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
 
 export const router = createHashRouter([
   {
@@ -21,9 +23,12 @@ export const router = createHashRouter([
       { index: true, element: <Dashboard /> },
       { path: 'account', element: <AccountScreen /> },
       { path: 'map', element: <MapScreen /> },
-      // Old links: the hand and profile live on Account, the leaderboard is the strip at the top of Home.
+      // The full leaderboard, and any player's record (photos, quests done and failed, points history).
+      { path: 'standings', element: <StandingsScreen /> },
+      { path: 'player/:uid', element: <PlayerScreen /> },
+      // Old links: the hand and profile live on Account.
       { path: 'quests', element: <Navigate to="/account" replace /> },
-      { path: 'ranks', element: <Navigate to="/" replace /> },
+      { path: 'ranks', element: <Navigate to="/standings" replace /> },
       {
         path: 'gm',
         element: (

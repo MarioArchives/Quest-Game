@@ -1,0 +1,162 @@
+/* ---------- feed: ticket stubs ----------
+   Each post is a ticket: the body on the left, a perforated stub on the right (dashed edge, two half-circle
+   notches bitten out of the top and bottom in the paper colour) holding the points. Colours come in as custom
+   properties so the variants below only swap them. */
+.feed { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
+.tk {
+  --tk-bg: var(--card);
+  --tk-fg: var(--ink);
+  --tk-soft: var(--muted);
+  --tk-stub-bg: transparent;
+  --tk-stub-fg: var(--tk-fg);
+  --tk-perf: var(--ink);
+  --tk-press: var(--red-tint);
+  --tk-press-line: var(--red);
+  /* body over reactions on the left, the stub down the whole right side */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 66px;
+  grid-template-rows: 1fr auto;
+  background: var(--tk-bg);
+  color: var(--tk-fg);
+  border: var(--line);
+}
+.tk__body { grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; }
+.tk__react { grid-area: 2 / 1; min-width: 0; padding: 6px 12px 4px; }
+
+.tk__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; font-weight: 700; color: var(--tk-soft); }
+.tk__tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 6px;
+  background: var(--ink); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.4; text-transform: uppercase;
+}
+.tk__tag svg { flex: none; }
+.tk__tag--red { background: var(--red); }
+.tk__ago { white-space: nowrap; }
+
+.tk__head { font-family: var(--display); font-size: 22px; line-height: 1.05; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+.tk__head strong { font-weight: inherit; }
+.tk__text { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.tk__text strong { font-weight: 800; }
+.tk__quest { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tk-soft); overflow-wrap: anywhere; }
+
+.tk__photo {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  min-height: 140px; max-height: 60dvh;
+  padding: 0; overflow: hidden;
+  background: var(--ink); color: #fff;
+  border: var(--line); border-radius: 0;
+  cursor: zoom-in;
+}
+.tk__photo img { display: block; width: 100%; max-height: 60dvh; object-fit: contain; }
+.tk__caption { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+
+.tk__note { margin: 0; padding: 4px 0 4px 10px; border-left: 4px solid var(--red); font-size: 14px; line-height: 1.4; }
+.tk__note p { font-style: italic; overflow-wrap: anywhere; }
+.tk__note cite { display: block; margin-top: 2px; font-size: 11px; font-style: normal; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tk-soft); }
+
+/* the stub */
+.tk__stub {
+  grid-area: 1 / 2 / 3 / 3;
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 2px;
+  background: var(--tk-stub-bg);
+  background-clip: padding-box; /* the perforation's gaps show the ticket, so dashes read on a dark stub too */
+  color: var(--tk-stub-fg);
+  border-left: 2px dashed var(--tk-perf);
+  text-align: center;
+}
+.tk__stub::before, .tk__stub::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: var(--line);
+}
+.tk__stub::before { top: -11px; clip-path: inset(50% 0 0 0); }
+.tk__stub::after { bottom: -11px; clip-path: inset(0 0 50% 0); }
+.tk__pts { font-family: var(--display); font-size: 24px; line-height: 1; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tk__pts--long { font-size: 19px; }
+.tk__pts.is-struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.tk__mark { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; line-height: 1.15; text-transform: uppercase; }
+.tk__who {
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.tk__witness {
+  max-height: 136px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tk-soft);
+}
+
+/* a post the GM later overturned as fraud */
+.tk.is-flagged .tk__photo, .tk.is-flagged .tk__caption { opacity: 0.6; }
+.tk__struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.tk__stamp {
+  align-self: flex-start;
+  transform: rotate(-4deg);
+  padding: 0 12px;
+  border: 4px solid var(--red);
+  color: var(--red);
+  background: var(--card);
+  font-family: var(--display); font-size: 34px; letter-spacing: 0.08em; line-height: 1.15; text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* variants: negative points print on a red stub; a win on an ink one */
+.tk--neg { --tk-stub-bg: var(--red); --tk-stub-fg: #fff; }
+.tk--global-won { --tk-stub-bg: var(--ink); --tk-stub-fg: #fff; }
+.tk--global-open, .tk--checking, .tk--voting-open { --tk-bg: var(--red-tint); --tk-press: var(--card); }
+.tk--announcement {
+  --tk-bg: var(--ink); --tk-fg: #fff; --tk-soft: rgba(255, 255, 255, 0.78); --tk-perf: var(--paper);
+  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: #fff; --ring: #fff;
+}
+.tk--announcement .tk__text { font-weight: 600; }
+/* fraud stays loud: a red ticket with an ink stub and the one hard shadow in the feed */
+.tk--fraud {
+  --tk-bg: var(--red); --tk-fg: #fff; --tk-soft: #fff;
+  --tk-stub-bg: var(--ink); --tk-stub-fg: #fff;
+  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: #fff; --ring: #fff;
+  box-shadow: var(--shadow);
+}
+.tk--fraud .tk__text { font-weight: 600; }
+.tk--fraud .tk__tag { background: var(--ink); }
+.tk--fraud .tk__note { border-left-color: #fff; }
+
+/* quiet one-liners (joins, game status, players leaving) */
+.tk-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; padding: 0 2px; }
+.tk-line__badge { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--card); border: var(--line); }
+.tk-line__text { flex: 1 1 150px; min-width: 0; padding: 4px 0; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.tk-line__text strong { font-weight: 800; }
+.tk-line .tk__ago { margin-left: 2px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.tk-line--status .tk-line__text { color: var(--muted); font-weight: 700; }
+.tk-line .reactions { margin: 0 -8px 0 auto; }
+
+/* reactions: plain emoji and counts, no boxes; yours is tinted and underlined */
+.reactions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 0 -8px; }
+.reaction {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+.reaction:hover:not(:disabled) { background: var(--tk-press, var(--red-tint)); }
+.reaction[aria-pressed='true'] { background: var(--tk-press, var(--red-tint)); box-shadow: inset 0 -3px 0 var(--tk-press-line, var(--red)); }
+.reaction:disabled { cursor: default; }
+.reaction__count { font-family: var(--display); font-size: 16px; letter-spacing: 0.03em; color: var(--tk-fg, var(--ink)); font-variant-numeric: tabular-nums; }
+.reaction--add { color: var(--tk-soft, var(--muted)); padding: 0 10px; }
+.reaction--add:hover:not(:disabled) { color: var(--tk-fg, var(--ink)); }

@@ -1,12 +1,10 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { AshtonLoader } from '../components/AshtonLoader';
 import { Icon } from '../components/Icon';
 import { useGame } from '../data/GameProvider';
 import { useNow } from '../data/hooks';
 import { useSession } from '../session/SessionProvider';
 import { FeedPost } from './home/FeedPost';
-import { PlayerSheet } from './home/PlayerSheet';
 import { RanksStrip } from './home/RanksStrip';
 import { SideQuestCards } from './home/SideQuestCard';
 import './home/home.css';
@@ -14,17 +12,15 @@ import './home/home.css';
 /** Home: the festival as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
 export default function Dashboard() {
   const { player, isAdmin, joinRequest } = useSession();
-  const { state, ready, players, me, feed: feedPosts, feedLoading, feedError } = useGame();
+  const { state, ready, me, feed: feedPosts, feedLoading, feedError } = useGame();
   const now = useNow(30_000);
-  const [selected, setSelected] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
 
-  const chosen = selected ? players.find((p) => p.id === selected) : undefined;
-
   return (
     <>
-      <RanksStrip onSelect={setSelected} />
+      <RanksStrip onSelect={(uid) => navigate(`/player/${uid}`)} />
 
       {isAdmin && !player ? (
         <aside className="banner" aria-label="Play as well">
@@ -90,7 +86,6 @@ export default function Dashboard() {
         )}
       </section>
 
-      {chosen ? <PlayerSheet player={chosen} onClose={() => setSelected(null)} /> : null}
     </>
   );
 }

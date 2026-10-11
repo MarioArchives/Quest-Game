@@ -1,0 +1,441 @@
+/* ---------- player pass (/player/:uid): design B, "ticket stubs" ---------- */
+.pl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -8px; }
+.pl-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 10px 0 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.pl-back:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pl-back__icon { transform: rotate(180deg); }
+.pl-top__title { font-family: var(--display); font-size: 22px; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; }
+
+/* the punched notches where a stub tears off (on the dashed line, top and bottom) */
+.pl-ticket__stub::before, .pl-ticket__stub::after, .pl-qt__stub::before, .pl-qt__stub::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: var(--line);
+}
+.pl-ticket__stub::before, .pl-qt__stub::before { top: -11px; clip-path: inset(50% 0 0 0); }
+.pl-ticket__stub::after, .pl-qt__stub::after { bottom: -11px; clip-path: inset(0 0 50% 0); }
+
+/* a tear-off line across a card, notched at both ends */
+.pl-perf {
+  position: relative;
+  height: 2px;
+  padding: 0 14px;
+  background: linear-gradient(90deg, var(--ink) 50%, transparent 0) 0 0 / 8px 2px repeat-x;
+  background-origin: content-box;
+  background-clip: content-box;
+}
+.pl-perf::before, .pl-perf::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: var(--line);
+}
+.pl-perf::before { left: -11px; clip-path: inset(0 0 0 50%); }
+.pl-perf::after { right: -11px; clip-path: inset(0 50% 0 0); }
+.pl-perf--sm { padding: 0 8px; }
+.pl-perf--sm::before, .pl-perf--sm::after { top: -6px; width: 14px; height: 14px; }
+.pl-perf--sm::before { left: -9px; }
+.pl-perf--sm::after { right: -9px; }
+
+/* ---------- the ticket ---------- */
+.pl-ticket { display: flex; background: var(--card); border: var(--line); box-shadow: var(--shadow); }
+.pl-ticket__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.pl-ticket__eyebrow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--red); }
+.pl-ticket__who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+/* --word: the longest word's length, so the name wraps below the avatar rather than splitting a word. */
+.pl-ticket__name {
+  flex: 1 1 calc(var(--word, 6) * 0.5em);
+  min-width: 0;
+  max-width: 100%;
+  font-size: clamp(30px, 10vw, 48px);
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  overflow-wrap: break-word;
+}
+.pl-ticket__name--m { font-size: clamp(28px, 8vw, 40px); }
+.pl-ticket__name--l { font-size: clamp(24px, 6.5vw, 34px); }
+.pl-ticket__you { flex: none; padding: 0 6px; border-width: 1px; letter-spacing: 0.1em; }
+.pl-ticket__score { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 6px; }
+.pl-ticket__pts { font-family: var(--display); font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
+.pl-ticket__unit { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.pl-ticket__gap { font-size: 12px; font-weight: 700; color: var(--muted); }
+.pl-ticket__stub {
+  position: relative;
+  flex: none;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border-left: 2px dashed var(--ink);
+  text-align: center;
+}
+.pl-ticket__label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.pl-ticket__place { font-family: var(--display); font-size: 26px; line-height: 1; text-transform: uppercase; }
+.pl-ticket__of { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.2; text-transform: uppercase; color: var(--muted); }
+.pl-ticket.is-left .avatar { filter: grayscale(1); }
+
+.pl-podium { display: flex; align-items: flex-end; gap: 3px; }
+.pl-podium__step {
+  width: 20px;
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+  background: var(--card);
+  border: var(--line);
+  font-family: var(--display);
+  font-size: 14px;
+  line-height: 1;
+}
+.pl-podium__step--1 { height: 40px; }
+.pl-podium__step--2 { height: 30px; }
+.pl-podium__step--3 { height: 22px; }
+.pl-podium__step.is-on { background: var(--ink); color: var(--card); }
+
+/* ---------- the status wristband ---------- */
+.pl-band { display: flex; align-items: stretch; min-height: 32px; margin-top: -2px; }
+.pl-band__clasp { flex: none; width: 28px; display: flex; align-items: center; justify-content: center; background: var(--ink); border: var(--line); }
+.pl-band__clasp > span { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--paper); }
+.pl-band__strap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--red);
+  color: var(--card);
+  border: var(--line);
+  border-left: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.pl-band__mark { flex: none; letter-spacing: 0.24em; }
+/* Left or out: a grey band, cut through at the end. */
+.pl-band--frozen .pl-band__clasp, .pl-band--out .pl-band__clasp { background: var(--muted); border-color: var(--muted); }
+.pl-band--frozen .pl-band__strap, .pl-band--out .pl-band__strap {
+  padding-right: 22px;
+  background: var(--paper);
+  background: color-mix(in srgb, var(--muted) 12%, var(--paper));
+  color: var(--muted);
+  border: 2px dashed var(--muted);
+  border-left: 0;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 0 100%);
+}
+
+/* ---------- tabs ---------- */
+.pl-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--card); border: var(--line); }
+.pl-tab {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 5px;
+  padding: 4px 2px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+.pl-tab + .pl-tab { border-left: 2px dashed var(--ink); }
+.pl-tab:hover { background: var(--red-tint); }
+.pl-tab[aria-selected='true'] { background: var(--ink); color: var(--card); --ring: var(--card); }
+.pl-tab:focus-visible { outline-offset: -6px; }
+.pl-tab__n { font-family: var(--display); font-size: 15px; font-weight: 400; letter-spacing: 0.02em; }
+
+.pl-panel { display: flex; flex-direction: column; gap: 20px; }
+.pl-panel:focus-visible { outline-offset: 4px; }
+
+/* ---------- sections ---------- */
+.pl-sec { display: flex; flex-direction: column; gap: 8px; }
+.pl-sec__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.pl-sec__title { font-size: 18px; letter-spacing: 0.04em; line-height: 1.1; }
+.pl-sec__meta { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
+.pl-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: -8px -6px -8px 0;
+  padding: 0 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pl-all:hover { text-decoration-thickness: 2px; }
+.pl-empty { font-size: 14px; }
+.pl-note { font-size: 14px; }
+
+/* record: three tear-off stats, then how the failures happened */
+.pl-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pl-stat { min-width: 0; display: flex; flex-direction: column; background: var(--card); border: var(--line); }
+/* The label grows so the tear-off lines line up when one label wraps. */
+.pl-stat__label { flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.2; text-transform: uppercase; }
+.pl-stat__main, .pl-stat__sub {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pl-stat__main { padding: 6px 8px 0; }
+.pl-stat__sub { padding: 2px 8px 8px; color: var(--muted); }
+.pl-stat__sub.is-red { color: var(--red); }
+.pl-stat__num { font-family: var(--display); font-size: 32px; font-weight: 400; line-height: 1; letter-spacing: 0; }
+.pl-stat__num2 { font-family: var(--display); font-size: 20px; font-weight: 400; line-height: 1.1; letter-spacing: 0; }
+.pl-fails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--red-tint); border: var(--line); }
+.pl-fails > li { min-width: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; line-height: 1.3; }
+.pl-fails > li + li { border-left: 2px dashed var(--ink); }
+.pl-fails__n { margin-right: 2px; font-family: var(--display); font-size: 18px; font-weight: 400; color: var(--red); }
+
+/* photos */
+.pl-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+.pl-photos--preview { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pl-photo { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pl-photo__frame { position: relative; }
+.pl-photo__frame > .thumb { display: flex; }
+.pl-photo__count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  background: var(--card);
+  font-family: var(--display);
+  font-size: 14px;
+  line-height: 1.1;
+  pointer-events: none;
+}
+.pl-photo__kind {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.pl-photo__title { font-size: 12px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-photos__more {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  background: var(--paper);
+  border: 2px dashed var(--ink);
+  border-radius: 0;
+}
+.pl-photos__more:hover { background: var(--red-tint); }
+.pl-photos__more-n { font-family: var(--display); font-size: 24px; line-height: 1; }
+.pl-photos__more-label { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* quest tickets: picture | what and who | stub with the points */
+.pl-tickets { display: flex; flex-direction: column; gap: 6px; }
+.pl-qt { display: flex; min-height: 62px; background: var(--card); border: var(--line); }
+.pl-qt__pic { flex: none; width: 58px; display: flex; border-right: var(--line); }
+.pl-qt__pic .thumb { width: 100%; height: 100%; min-height: 58px; aspect-ratio: auto; border: 0; }
+.pl-qt__none { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--red-tint); }
+.pl-qt__body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 7px 10px; }
+.pl-qt__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; font-size: 12px; font-weight: 700; line-height: 1.3; color: var(--muted); }
+.pl-qt__title { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--display); font-size: 20px; line-height: 1.05; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+.pl-qt__lock { flex: none; }
+.pl-qt__caption { font-size: 13px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-qt__stub {
+  position: relative;
+  flex: none;
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  border-left: 2px dashed var(--ink);
+  text-align: center;
+}
+.pl-qt__pts { font-family: var(--display); font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.pl-qt__when { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.2; text-transform: uppercase; color: var(--muted); }
+.pl-qt--win .pl-qt__stub { background: var(--ink); color: var(--card); }
+.pl-qt--win .pl-qt__when { color: var(--card); }
+.pl-qt.is-void .pl-qt__stub { background: var(--card); color: var(--muted); }
+.pl-qt.is-void .pl-qt__when { color: var(--muted); }
+.pl-qt.is-void .pl-qt__pts { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; }
+.pl-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.pl-tag--ink { background: var(--ink); color: var(--card); }
+.pl-tag--red { background: var(--red); border-color: var(--red); color: var(--card); }
+.pl-also { font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--muted); }
+.pl-also__title { font-weight: 800; color: var(--ink); }
+
+/* points: a till receipt with a torn foot */
+.pl-receipt { display: flex; flex-direction: column; }
+.pl-receipt__paper { padding: 10px 12px 2px; background: var(--card); border: var(--line); border-bottom: 0; }
+.pl-receipt__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pl-receipt__order { color: var(--muted); }
+.pl-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.pl-line:last-child { border-bottom: 0; }
+.pl-line strong { font-weight: 800; }
+.pl-line__more { overflow-wrap: anywhere; }
+.pl-line__ago { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+.pl-line__delta { font-family: var(--display); font-size: 16px; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl-line__delta.is-neg { color: var(--red); }
+.pl-receipt__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0 4px;
+  border-top: 1px solid var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pl-receipt__sum { font-family: var(--display); font-size: 20px; font-weight: 400; letter-spacing: 0.02em; }
+.pl-receipt__tear { display: block; width: calc(100% - 2px); height: 10px; margin-left: 1px; overflow: visible; }
+.pl-receipt__tear-fill { fill: var(--card); }
+.pl-receipt__tear-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+
+/* the guess, folded behind an ink button */
+.pl-guess { background: var(--card); border: var(--line); }
+.pl-guess__toggle {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: var(--card);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+  text-align: left;
+  text-transform: uppercase;
+  --ring: var(--card);
+}
+.pl-guess__toggle:focus-visible { outline-offset: -6px; }
+.pl-guess__chev { flex: none; transition: transform 0.15s ease; }
+.pl-guess__chev.is-open { transform: rotate(180deg); }
+.pl-guess__body { padding: 10px 14px 14px; }
+.pl-guess__teaser { font-size: 13px; line-height: 1.4; color: var(--muted); }
+
+/* an unknown player */
+.pl-missing { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 20px 16px; background: var(--card); border: var(--line); }
+.pl-missing__title { font-size: 32px; }
+
+@media (max-width: 379px) {
+  .pl-band__mark { display: none; }
+}
+@media (max-width: 359px) {
+  .pl-tab { letter-spacing: 0.02em; }
+  .pl-ticket__main { padding: 10px; }
+  .pl-ticket__stub { width: 80px; }
+  .pl-ticket__who { gap: 8px; }
+}
+
+/* ---------- the guess panel (quest catalogue: title rows that open to their description) ---------- */
+.guess { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.guess__title { font-size: 24px; }
+.guess__list { border-top: var(--line); }
+.guess__item { border-bottom: var(--hairline); background: var(--card); }
+.guess__item.is-selected { background: var(--red-tint); box-shadow: inset 5px 0 0 var(--red); }
+.guess__head { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: transparent; border: 0; border-radius: 0; text-align: left; }
+.guess__head:hover { background: var(--red-tint); }
+.guess__name { flex: 1; min-width: 0; font-size: 15px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.guess__picked { flex: none; }
+.guess__chev { flex: none; transition: transform 0.15s ease; }
+.guess__chev.is-open { transform: rotate(180deg); }
+.guess__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px 12px; }
+.guess__desc { font-size: 14px; line-height: 1.45; }
+.guess__rules { text-align: center; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.guess__filter { min-height: 44px; }
+.guess__scroll { max-height: 38dvh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
+.guess__empty { padding: 8px 0; font-size: 14px; }
