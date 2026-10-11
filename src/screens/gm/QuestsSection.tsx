@@ -101,7 +101,7 @@ export function QuestsSection() {
           <ul className="gm-list gm-list--cards">
             {checking.map((quest) => (
               <li key={quest.id} className="gm-card">
-                <CheckingQuest quest={quest} now={now} />
+                <CheckingQuest quest={quest} />
               </li>
             ))}
           </ul>
@@ -173,12 +173,6 @@ export function QuestsSection() {
   );
 }
 
-/** What the GM hears after a check, depending on where the side quest went. */
-const CHECKED_TOAST: Record<'checking' | 'voting' | 'closed', (accepted: boolean) => string> = {
-  checking: (accepted) => (accepted ? 'Accepted.' : 'Rejected. Only they are told.'),
-  voting: (accepted) => `${accepted ? 'Accepted' : 'Rejected'}. That was the last one, so voting is open.`,
-  closed: () => 'Rejected. No entries are left, so the side quest closed with no winner.',
-};
 
 function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submission>[]; quest: Doc<GlobalQuest>; showVotes?: boolean }) {
   const { playersById, settings, state } = useGame();
@@ -198,8 +192,8 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
 
   const accept = (entry: Doc<Submission>) =>
     void run(`accept:${entry.id}`, async () => {
-      const { status } = await checkEntry({ submissionId: entry.id, accept: true });
-      toast(CHECKED_TOAST[status === 'voting' || status === 'closed' ? status : 'checking'](true), 'success');
+      await checkEntry({ submissionId: entry.id, accept: true });
+      toast('Accepted.', 'success');
     });
 
   return (
@@ -209,6 +203,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
         const who = playersById.get(entry.uid);
         const votes = showVotes ? (quest.tally?.[entry.id] ?? 0) : null;
         const won = winners.has(entry.id);
+        const late = tsMs(entry.createdAt) >= tsMs(quest.endsAt);
         return (
           <li key={entry.id} className="gm-entry">
             {entry.thumbPath ? (
@@ -219,6 +214,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
                 <Avatar name={who?.displayName ?? '?'} src={who?.photoURL} size={22} />
                 <strong>{who?.displayName ?? 'A player'}</strong>
                 {won ? <span className="tag tag--red">Winner</span> : null}
+                {late ? <span className="tag tag--tint">Late</span> : null}
                 {canCheck && entry.checked === 'accepted' ? <span className="tag tag--ink">Accepted</span> : null}
                 {canCheck && entry.uid === user?.uid ? <span className="tag tag--tint">Yours</span> : null}
                 {!canCheck && entry.status === 'sealed' ? <span className="tag tag--tint">Hidden until voting</span> : null}
@@ -271,8 +267,8 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
         danger
         onClose={() => setRejecting(null)}
         onConfirm={async (note) => {
-          const { status } = await checkEntry({ submissionId: rejecting.id, accept: false, ...(note ? { note } : {}) });
-          toast(CHECKED_TOAST[status === 'voting' || status === 'closed' ? status : 'checking'](false), 'success');
+          await checkEntry({ submissionId: rejecting.id, accept: false, ...(note ? { note } : {}) });
+          toast('Rejected. Only they are told.', 'success');
         }}
       />
     ) : null}
@@ -335,21 +331,20 @@ function LiveQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
           }}
         >
           <p>
-            Entries for <strong>&ldquo;{quest.title}&rdquo;</strong> close now. You accept or reject each one, then everyone votes for their
-            favourite. {entries.length} of {players.length} players have entered.
+            Time&apos;s up for <strong>&ldquo;{quest.title}&rdquo;</strong> now. You accept or reject each entry, and late entries still count
+            until you start the vote. {entries.length} of {players.length} players have entered.
           </p>
-          {entries.length === 0 ? <p className="muted">Nobody has entered, so there is nothing to vote on and it will end with no winner.</p> : null}
         </ConfirmSheet>
       ) : null}
     </>
   );
 }
 
-function CheckingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
+function CheckingQuest({ quest }: { quest: Doc<GlobalQuest> }) {
   const { user } = useSession();
+  const { activePlayers: players } = useGame();
   const entries = useEntries(quest.id);
   const [starting, setStarting] = useState(false);
-  const endsAt = tsMs(quest.checkingEndsAt);
   // Your own entry is not yours to check; it goes to the vote as it is.
   const toCheck = entries.filter((e) => e.uid !== user?.uid);
   const unchecked = toCheck.filter((e) => e.checked !== 'accepted').length;
@@ -360,19 +355,17 @@ function CheckingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number })
       <h3 className="gm-q-title">{quest.title}</h3>
       {quest.description ? <p className="gm-q-desc">{quest.description}</p> : null}
       <p className="gm-q-facts">
-        <span className="gm-q-clock" role="timer">
-          {endsAt ? formatCountdown(endsAt, now) : '--:--'}
-        </span>
         <span>
-          left · {toCheck.length - unchecked} of {toCheck.length} checked
+          {toCheck.length - unchecked} of {toCheck.length} checked · {entries.length} of {players.length} entered
         </span>
       </p>
       <p className="gm-hint">
-        Accept or reject each entry. Voting opens by itself once they are all checked, or when the time runs out (unchecked entries go in).
+        Accept or reject each entry. Late entries can still come in. Voting only starts when you press Start voting (unchecked entries go in as
+        they are).
       </p>
-      {entries.length === 0 ? <p className="gm-hint">No entries are left.</p> : <EntryList entries={entries} quest={quest} />}
+      {entries.length === 0 ? <p className="gm-hint">No entries yet.</p> : <EntryList entries={entries} quest={quest} />}
       <Button variant="primary" block onClick={() => setStarting(true)}>
-        Start voting now
+        Start voting
       </Button>
       {starting ? (
         <ConfirmSheet
@@ -384,7 +377,7 @@ function CheckingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number })
           }}
         >
           <p>
-            Everyone votes on <strong>&ldquo;{quest.title}&rdquo;</strong> now.
+            Everyone votes on <strong>&ldquo;{quest.title}&rdquo;</strong> now, and no more entries come in.
             {unchecked > 0 ? ` The ${unchecked} unchecked ${unchecked === 1 ? 'entry goes' : 'entries go'} in as ${unchecked === 1 ? 'it is' : 'they are'}.` : ''}
           </p>
           {entries.length === 0 ? <p className="muted">No entries are left, so it will end with no winner.</p> : null}

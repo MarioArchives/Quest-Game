@@ -1,9 +1,9 @@
 // Side quests judged by everyone's vote (Revision 3 V13–V15, V19; Revision 3b X1–X3), with the GM's check.
-// Players enter a live side quest directly with evidence (no witness). Entries close when everyone has
-// entered, when the window ends (tick, see globals.test.ts) or when the GM advances it; a GM then accepts or
-// rejects each entry (checkEntry) and voting opens once all are checked, when checking runs out (tick) or when
-// the GM advances it again. Most votes wins, ties all win the full bonus; voting closes when every eligible
-// voter has voted or the GM ends it. setup() seeds a GM ('gm') who does not play.
+// Players enter a live side quest directly with evidence (no witness). Time is up when everyone has entered, when
+// the window ends (tick, see globals.test.ts) or when the GM advances it; it then always goes to 'checking', where
+// a GM accepts or rejects each entry (checkEntry) and late entries still come in. Only the GM opens the vote
+// (advancing it again). Most votes wins, ties all win the full bonus; voting closes when every eligible voter has
+// voted or the GM ends it. setup() seeds a GM ('gm') who does not play.
 import { describe, expect, it } from 'vitest';
 import { reviewSubmission } from '../src/game/submissions.js';
 import { advanceGlobalQuest, castVote, checkEntry, enterSideQuest } from '../src/game/votes.js';
@@ -79,7 +79,7 @@ describe('enterSideQuest (X1, X2)', () => {
   it('R4: creates a sealed, witness-free entry; the feed only says that they entered', async () => {
     await setup();
     const res = await enter('alice');
-    expect(res).toEqual({ submissionId: expect.any(String), votingOpened: false, checking: false });
+    expect(res).toEqual({ submissionId: expect.any(String), checking: false, late: false });
     const s = await getData(db(), `submissions/${res.submissionId}`);
     expect(s).toMatchObject({
       uid: 'alice',
@@ -128,15 +128,50 @@ describe('enterSideQuest (X1, X2)', () => {
     await expectCode(enterSideQuest(db(), ctx('alice'), { globalQuestId: 'nope', caption: 'x' }), 'not-found');
   });
 
-  it.each([
-    ['in voting', 'voting', addMin(T0, 30), T0],
-    ['closed', 'closed', addMin(T0, 30), T0],
-    ['past its window', 'live', addMin(T0, 30), addMin(T0, 31)],
-    ['exactly at the end of its window', 'live', addMin(T0, 30), addMin(T0, 30)],
-  ] as const)('refuses entries when the side quest is %s', async (_label, status, endsAt, now) => {
+  it.each(['voting', 'closed'] as const)('refuses entries once the side quest is %s', async (status) => {
     await setup();
-    await seedGlobalQuest(db(), 'gq1', { status, endsAt });
-    await expectCode(enter('alice', {}, now), 'failed-precondition');
+    await seedGlobalQuest(db(), 'gq1', { status, endsAt: addMin(T0, 30) });
+    await expectCode(enter('alice'), 'failed-precondition');
+  });
+
+  it.each([
+    ['exactly at the end of its window', addMin(T0, 30)],
+    ['past its window, before the timer moves it on', addMin(T0, 44)],
+  ])('takes a late entry %s, still live', async (_label, now) => {
+    await setup();
+    const res = await enter('alice', {}, now);
+    expect(res).toMatchObject({ checking: false, late: true });
+    expect((await getData(db(), `submissions/${res.submissionId}`))?.status).toBe('sealed');
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('live');
+  });
+
+  it('takes late entries while the GM checks, sealed and unchecked, until the GM starts the vote', async () => {
+    await setup();
+    await enter('alice');
+    await advance(); // time's up → checking
+    const res = await enter('bob', {}, addMin(T0, 50));
+    expect(res).toEqual({ submissionId: expect.any(String), checking: false, late: true });
+    const late = await getData(db(), `submissions/${res.submissionId}`);
+    expect(late).toMatchObject({ status: 'sealed', questId: 'gq1' });
+    expect(late?.checked ?? null).toBeNull();
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    expect((await feedOf(db(), 'approved')).filter((p) => p.questTitle === 'Global gq1')).toHaveLength(2);
+    expect(await feedOf(db(), 'checking')).toHaveLength(1); // no second "time's up"
+    await expectCode(enter('bob', photo('bob', 'bob-2'), addMin(T0, 51)), 'already-exists');
+
+    await advance('gm', addMin(T0, 52)); // the GM starts the vote: entries close for good
+    expect((await getData(db(), `submissions/${res.submissionId}`))?.status).toBe('approved');
+    await expectCode(enter('carol', {}, addMin(T0, 53)), 'failed-precondition');
+  });
+
+  it('a player who was not accepted at the check may enter again while checking', async () => {
+    await setup();
+    const a = (await enter('alice')).submissionId;
+    await advance();
+    await checkEntry(db(), ctx('gm', addMin(T0, 6)), { submissionId: a, accept: false, note: 'No hat' });
+    const again = await enter('alice', photo('alice', 'alice-2'), addMin(T0, 7));
+    expect(again.late).toBe(true);
+    expect((await getData(db(), `submissions/${again.submissionId}`))?.status).toBe('sealed');
   });
 
   it('refuses entries while the game is paused', async () => {
@@ -158,31 +193,29 @@ describe('enterSideQuest (X1, X2)', () => {
 });
 
 describe('voting opens (X3, V13)', () => {
-  it('entries close as soon as every player has entered: the GM checks them before the vote', async () => {
+  it("time is up as soon as every player has entered: the GM checks them before the vote", async () => {
     await setup();
-    expect(await enter('alice')).toMatchObject({ votingOpened: false, checking: false });
-    expect(await enter('bob')).toMatchObject({ votingOpened: false, checking: false });
-    expect(await enter('carol', {}, addMin(T0, 3))).toMatchObject({ votingOpened: false, checking: true });
+    expect(await enter('alice')).toMatchObject({ checking: false, late: false });
+    expect(await enter('bob')).toMatchObject({ checking: false, late: false });
+    expect(await enter('carol', {}, addMin(T0, 3))).toMatchObject({ checking: true, late: false });
     const gq = await getData(db(), 'globalQuests/gq1');
     expect(gq?.status).toBe('checking');
-    expect(toMillis(gq!.checkingEndsAt)).toBe(addMin(T0, 3).getTime() + 30 * MIN);
+    expect(gq?.votingEndsAt ?? null).toBeNull();
     const entries = (await allDocs(db(), 'submissions')).filter((x) => x.questId === 'gq1');
     expect(entries.map((e) => e.status)).toEqual(['sealed', 'sealed', 'sealed']);
     expect(await feedOf(db(), 'checking')).toHaveLength(1);
     expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
   });
 
-  it('with no GM to check them, voting opens as soon as every player has entered', async () => {
+  it('checking is never skipped, even with no GM to check: the vote waits for a GM', async () => {
     await setup();
     await db().doc('admins/gm').delete();
     await enter('alice');
     await enter('bob');
-    expect(await enter('carol', {}, addMin(T0, 3))).toMatchObject({ votingOpened: true, checking: false });
-    const gq = await getData(db(), 'globalQuests/gq1');
-    expect(gq?.status).toBe('voting');
-    expect(toMillis(gq!.votingEndsAt)).toBe(addMin(T0, 3).getTime() + 20 * MIN);
-    expect(await feedOf(db(), 'voting-open')).toHaveLength(1);
-    expect(await feedOf(db(), 'checking')).toHaveLength(0);
+    expect(await enter('carol', {}, addMin(T0, 3))).toMatchObject({ checking: true });
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
+    expect(await feedOf(db(), 'checking')).toHaveLength(1);
   });
 
   it('R5: opening the vote reveals every entry (approved) and puts its evidence on its feed post', async () => {
@@ -205,11 +238,10 @@ describe('voting opens (X3, V13)', () => {
     expect((await feedOf(db(), 'approved')).find((p) => p.submissionId === a)).toMatchObject(photo('alice', 'alice-1'));
   });
 
-  it('uses the voteWindowMin and checkWindowMin settings', async () => {
-    await setup(['alice', 'bob'], { voteWindowMin: 7, checkWindowMin: 12 });
+  it('uses the voteWindowMin setting', async () => {
+    await setup(['alice', 'bob'], { voteWindowMin: 7 });
     await enter('alice');
     await enter('bob');
-    expect(toMillis((await getData(db(), 'globalQuests/gq1'))!.checkingEndsAt)).toBe(T0.getTime() + 12 * MIN);
     await advance('gm', addMin(T0, 5));
     expect(toMillis((await getData(db(), 'globalQuests/gq1'))!.votingEndsAt)).toBe(addMin(T0, 5).getTime() + 7 * MIN);
   });
@@ -226,10 +258,12 @@ describe('voting opens (X3, V13)', () => {
     expect(await feedOf(db(), 'voting-open')).toHaveLength(1);
   });
 
-  it('advancing a side quest nobody entered closes it with no winner', async () => {
+  it('a side quest nobody entered still goes to checking; starting the vote with no entries closes it with no winner', async () => {
     await setup();
+    expect(await advance()).toEqual({ status: 'checking' });
     expect(await advance()).toEqual({ status: 'closed' });
     expect(await getData(db(), 'globalQuests/gq1')).toMatchObject({ status: 'closed', winnerUids: [] });
+    expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
   });
 
   it('only a GM can advance, and a closed side quest cannot be advanced', async () => {
@@ -392,17 +426,20 @@ describe('checkEntry: the GM accepts or rejects entries before the vote', () => 
     expect(await feedOf(db(), 'rejected')).toHaveLength(0);
   });
 
-  it('the last check opens the vote with the accepted entries revealed; a rejected one stays out', async () => {
+  it('checking every entry does not open the vote; the GM does, with the accepted entries revealed and a rejected one out', async () => {
     const { a, b, c } = await checking({ voteWindowMin: 10 });
     await check(a, true);
     await check(b, false);
-    expect(await check(c, true, { now: addMin(T0, 8) })).toMatchObject({ checked: 'accepted', status: 'voting' });
+    expect(await check(c, true, { now: addMin(T0, 7) })).toMatchObject({ checked: 'accepted', status: 'checking' });
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    expect((await getData(db(), `submissions/${c}`))?.status).toBe('sealed');
+    expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
 
+    expect(await advance('gm', addMin(T0, 8))).toEqual({ status: 'voting' });
     const gq = await getData(db(), 'globalQuests/gq1');
     expect(gq?.status).toBe('voting');
     expect(toMillis(gq!.votingEndsAt)).toBe(addMin(T0, 8).getTime() + 10 * MIN);
     expect(await getData(db(), `submissions/${a}`)).toMatchObject({ status: 'approved', checked: 'accepted' });
-    // The deciding check and the reveal land together.
     expect(await getData(db(), `submissions/${c}`)).toMatchObject({ status: 'approved', checked: 'accepted', reviewedBy: 'gm' });
     expect((await getData(db(), `submissions/${b}`))?.status).toBe('rejected');
     const posts = await feedOf(db(), 'approved');
@@ -414,11 +451,13 @@ describe('checkEntry: the GM accepts or rejects entries before the vote', () => 
     expect(await vote('alice', c, addMin(T0, 9))).toEqual({ closed: false });
   });
 
-  it('rejecting every entry closes the side quest with no winner', async () => {
+  it('rejecting every entry leaves it checking (late entries may come); starting the vote then closes it with no winner', async () => {
     const { a, b, c } = await checking();
     await check(a, false);
     await check(b, false);
-    expect((await check(c, false)).status).toBe('closed');
+    expect((await check(c, false)).status).toBe('checking');
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    expect(await advance()).toEqual({ status: 'closed' });
     expect(await getData(db(), 'globalQuests/gq1')).toMatchObject({ status: 'closed', winnerUids: [] });
     expect(await feedOf(db(), 'voting-open')).toHaveLength(0);
   });
@@ -431,7 +470,7 @@ describe('checkEntry: the GM accepts or rejects entries before the vote', () => 
     await expectCode(check(a, true), 'failed-precondition'); // thrown out is final
   });
 
-  it('nobody checks their own entry; a lone GM\'s entry goes to the vote unchecked', async () => {
+  it("nobody checks their own entry; a lone GM's entry goes to the vote unchecked when they start it", async () => {
     await setup(['alice', 'bob']);
     await seedPlayer(db(), 'gm');
     const g = (await enter('gm')).submissionId;
@@ -440,29 +479,41 @@ describe('checkEntry: the GM accepts or rejects entries before the vote', () => 
     expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
     await expectCode(check(g, true), 'permission-denied');
     await check(a, true);
-    expect((await check(b, true)).status).toBe('voting');
+    expect((await check(b, true)).status).toBe('checking');
+    expect(await advance()).toEqual({ status: 'voting' });
     expect((await getData(db(), `submissions/${g}`))?.status).toBe('approved');
   });
 
-  it("with two GMs, one GM's entry waits for the other GM's check", async () => {
+  it("with two GMs, each checks the other's entry", async () => {
     await setup(['alice']);
     await seedAdmin(db(), 'gm2');
     await seedPlayer(db(), 'gm2');
     const g2 = (await enter('gm2')).submissionId;
-    const a = (await enter('alice')).submissionId;
-    expect((await check(a, true)).status).toBe('checking'); // gm2's entry is still unchecked
-    expect((await check(g2, true)).status).toBe('voting');
+    await enter('alice');
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    await expectCode(check(g2, true, { by: 'gm2' }), 'permission-denied');
+    expect(await check(g2, true)).toMatchObject({ checked: 'accepted', status: 'checking' });
   });
 
-  it('disqualifying the last unchecked entry (fined, as before) opens the vote too', async () => {
+  it('disqualifying while checking fines as before and leaves the vote to the GM', async () => {
     const { a, b, c } = await checking();
     await check(a, true);
     await check(b, true);
     await reviewSubmission(db(), ctx('gm', addMin(T0, 6)), { submissionId: c, approve: false, note: 'Faked it' });
     expect((await getPlayer(db(), 'carol')).points).toBe(-50);
     expect(await feedOf(db(), 'fraud')).toHaveLength(1);
-    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('voting');
-    expect((await getData(db(), `submissions/${a}`))?.status).toBe('approved');
+    expect((await getData(db(), `submissions/${c}`))?.status).toBe('rejected');
+    expect((await getData(db(), 'globalQuests/gq1'))?.status).toBe('checking');
+    expect((await getData(db(), `submissions/${a}`))?.status).toBe('sealed');
+  });
+
+  it('a late entry can be checked like any other', async () => {
+    await setup();
+    await enter('alice');
+    await advance();
+    const late = (await enter('bob', {}, addMin(T0, 40))).submissionId;
+    expect(await check(late, false, { note: 'No hat', now: addMin(T0, 41) })).toMatchObject({ checked: 'rejected', status: 'checking' });
+    expect((await getData(db(), `submissions/${late}`))?.status).toBe('rejected');
   });
 
   it('starting the vote while checking puts the unchecked entries in', async () => {

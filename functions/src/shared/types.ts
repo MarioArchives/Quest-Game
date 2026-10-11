@@ -34,8 +34,6 @@ export interface Settings {
   rejectPenalty: number;
   /** How long side-quest voting stays open. */
   voteWindowMin: number;
-  /** How long the GM has to check side-quest entries once they close; then voting starts with the unchecked ones in. */
-  checkWindowMin: number;
   refillOnComplete: boolean;
   revealOnComplete: boolean;
   pointsFloorZero: boolean;
@@ -136,8 +134,6 @@ export interface GlobalQuest {
   /** End of the entry window. */
   endsAt: TS;
   status: GlobalQuestStatus;
-  /** Set when checking starts: entries still unchecked then go to the vote anyway. Absent on older docs. */
-  checkingEndsAt?: TS | null;
   /** Set when voting opens. */
   votingEndsAt: TS | null;
   /** Everyone tied on the most votes (empty if nobody won). */

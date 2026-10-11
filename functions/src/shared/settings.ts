@@ -18,7 +18,6 @@ export const DEFAULT_SETTINGS: Settings = {
   fraudPenalty: 50,
   rejectPenalty: 25,
   voteWindowMin: 20,
-  checkWindowMin: 30,
   /** Five quest slots per game: completing a quest does not deal a new one (fails, exposures and rerolls do). */
   refillOnComplete: false,
   revealOnComplete: true,

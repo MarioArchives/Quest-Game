@@ -107,9 +107,9 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
         <p className="hero__eyebrow eyebrow">Side quest &middot; everyone plays</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. The GM checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
+        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. When time is up the GM checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
         <div className="hero__row">
-          <Countdown endsAt={tsMs(quest.endsAt)} closedText="Closing" />
+          <Countdown endsAt={tsMs(quest.endsAt)} closedText="Time's up" />
           <div className="hero__entries">
             <Pips filled={entered.size} total={Math.max(activePlayers.length, entered.size)} />
             <p>
@@ -170,19 +170,28 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
   );
 }
 
-/** Entries have closed and the GM is checking them; voting comes next. */
+/** Time is up and the GM is checking the entries; late entries still count until the GM starts the vote. */
 function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
-  const { mySubmissions } = useGame();
-  const mine = mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id);
+  const { player } = useSession();
+  const { mySubmissions, state } = useGame();
+  const [entering, setEntering] = useState(false);
+  // Your entry still in play, else the latest one that was thrown out.
+  const mine =
+    mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id && s.status !== 'rejected') ??
+    mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id);
   const rejected = mine?.status === 'rejected';
+  // Not accepted at the check: they can try again. Disqualified as fraud: no second go.
+  const canEnter = Boolean(player) && !player?.left && (!mine || (rejected && mine.checked === 'rejected'));
 
   return (
     <section className="hero halftone" aria-label="Side quest entries being checked">
-      <span className="sticker hero__sticker">Entries closed</span>
+      <span className="sticker hero__sticker">Time&apos;s up</span>
       <p className="hero__eyebrow eyebrow">Side quest &middot; checking</p>
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-      <p className="hero__rule">The GM is checking the entries. Voting opens next &middot; +{quest.bonusPoints} to the winner</p>
+      <p className="hero__rule">
+        The GM is checking the entries and starts the vote when ready. Late entries still count until then &middot; +{quest.bonusPoints} to the winner
+      </p>
       {mine ? (
         <div className="hero__mine">
           {mine.thumbPath ? <PhotoThumb submissionId={mine.id} thumbPath={mine.thumbPath} label="Open your entry" size={52} /> : null}
@@ -194,6 +203,20 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
           </div>
         </div>
       ) : null}
+      {canEnter ? (
+        <Button
+          variant="primary"
+          block
+          onRed
+          className="hero__cta"
+          icon={<Icon name="camera" size={22} strokeWidth={2.2} />}
+          disabled={state.status !== 'active'}
+          onClick={() => setEntering(true)}
+        >
+          {rejected ? 'Enter again' : 'Enter late'}
+        </Button>
+      ) : null}
+      {entering ? <EvidenceSheet target={{ mode: 'enter', quest }} onClose={() => setEntering(false)} /> : null}
     </section>
   );
 }

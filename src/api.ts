@@ -138,7 +138,7 @@ export const addEvidence = (data: EvidenceInput & { submissionId: string }) =>
 
 /** Enter a side quest: no witness. The last player in closes entries: the GM checks them (or voting opens). */
 export const enterSideQuest = (data: EvidenceInput & { globalQuestId: string }) =>
-  call<typeof data, { submissionId: string; votingOpened: boolean; checking: boolean }>('enterSideQuest', data);
+  call<typeof data, { submissionId: string; checking: boolean; late: boolean }>('enterSideQuest', data);
 
 /** Vote for an entry (not your own). Re-voting replaces your vote; `closed` is true if that was the last vote. */
 export const castVote = (data: { globalQuestId: string; submissionId: string }) =>

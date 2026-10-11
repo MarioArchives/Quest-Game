@@ -13,7 +13,6 @@ import type { Ctx, Db } from './context.js';
 import type { PushPlan } from './push.js';
 import { fail, isGM, loadSettings, loadState, requireUid } from './guards.js';
 import { asId, isId, toTs } from './util.js';
-import { afterCheck, finishChecking } from './voting.js';
 
 const NOTE_MAX = 500;
 
@@ -143,10 +142,7 @@ export async function reviewSubmission(
     if (sub.status === 'approved' || sub.status === 'sealed') {
       if (!gm) fail('permission-denied', 'Only a GM can overturn an approval.');
       const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: sub.kind === 'personal', posts: true });
-      // Disqualifying the last entry left to check opens the vote, as a check would.
-      const check = loaded.gq?.status === 'checking' && loaded.gqRef ? await afterCheck(tx, db, sub.questId, id, false) : null;
       tx.update(subRef, overrideAsFraud(env, loaded, note));
-      if (check?.done) finishChecking(tx, db, ctx.now, settings, { id: sub.questId, ref: loaded.gqRef!, gq: loaded.gq! }, check.remaining);
       return { status: 'rejected' as const };
     }
     if (sub.kind !== 'personal') {

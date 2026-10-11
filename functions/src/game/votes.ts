@@ -6,20 +6,15 @@ import { fail, isPlaying, loadSettings, loadState, requireGM, requirePlayer } fr
 import type { PushPlan } from './push.js';
 import { asId, millis, toTs } from './util.js';
 import {
-  afterCheck,
-  closeEntries,
   closeWithTally,
   attachPosts,
   eligibleVoters,
   finishChecking,
   readEntries,
-  readGMs,
   readPlayers,
   readVotes,
   revealedEntries,
   startChecking,
-  startVoting,
-  uncheckedEntries,
 } from './voting.js';
 
 const NOTE_MAX = 500;
@@ -65,8 +60,8 @@ export async function castVote(
 }
 
 /**
- * GM moves a side quest on early: live → checking (or straight to voting when nobody is left to check, closed
- * when nobody entered), checking → voting (unchecked entries go in), or voting → closed (with the tally).
+ * GM moves a side quest on: live → checking (late entries still come in), checking → voting (unchecked entries go
+ * in; closed with no winner when there are none), or voting → closed (with the tally). Only a GM opens the vote.
  */
 export async function advanceGlobalQuest(
   db: Db,
@@ -87,9 +82,8 @@ export async function advanceGlobalQuest(
     const q = { id: questId, ref: questRef, gq };
 
     if (gq.status === 'live') {
-      await attachPosts(tx, db, entries);
-      const gms = await readGMs(tx, db);
-      return { status: closeEntries(tx, db, ctx.now, settings, q, entries, gms, by) };
+      startChecking(tx, db, ctx.now, q, by);
+      return { status: 'checking' as const };
     }
     if (gq.status === 'checking') {
       await attachPosts(tx, db, entries);
@@ -103,16 +97,16 @@ export async function advanceGlobalQuest(
 }
 
 /**
- * Enter a live side quest directly with evidence — no witness. The entry is created 'sealed' (pays nothing;
- * hidden from other players, the feed only says who entered) and is revealed, with its evidence, when voting
- * opens. One entry per player per side quest. When every player has entered, entries close at once: the GM
- * checks them, or voting opens straight away when there is no GM to check them.
+ * Enter a side quest directly with evidence — no witness. The entry is created 'sealed' (pays nothing; hidden from
+ * other players, the feed only says who entered) and is revealed, with its evidence, when voting opens. One entry
+ * per player per side quest. Entries are taken while it is live and, late, while the GMs check (until a GM opens the
+ * vote). When every player has entered a live side quest, its time is up at once and the GMs check the entries.
  */
 export async function enterSideQuest(
   db: Db,
   ctx: Ctx,
   data: { globalQuestId?: unknown; imagePath?: unknown; thumbPath?: unknown; caption?: unknown },
-): Promise<{ submissionId: string; votingOpened: boolean; checking: boolean }> {
+): Promise<{ submissionId: string; checking: boolean; late: boolean }> {
   return db.runTransaction(async (tx) => {
     const { uid, player } = await requirePlayer(db, ctx, tx);
     const state = await loadState(db, tx);
@@ -123,9 +117,11 @@ export async function enterSideQuest(
     const questSnap = await tx.get(questRef);
     if (!questSnap.exists) fail('not-found', 'No such side quest.');
     const gq = questSnap.data() as GlobalQuest;
-    if (gq.status !== 'live' || ctx.now.getTime() >= millis(gq.endsAt)) {
-      fail('failed-precondition', 'This side quest is not open for entries.');
+    if (gq.status !== 'live' && gq.status !== 'checking') {
+      fail('failed-precondition', 'Voting has started on this side quest, so entries are closed.');
     }
+    // Past the window (the timer moves it to checking within 15 min) or while the GMs check: a late entry.
+    const late = gq.status === 'checking' || ctx.now.getTime() >= millis(gq.endsAt);
     const evidence = parseEvidence(uid, data);
 
     const entries = await readEntries(tx, db, questId);
@@ -133,17 +129,11 @@ export async function enterSideQuest(
     if (mine.docs.some((d) => d.get('kind') === 'global' && d.get('status') !== 'rejected')) {
       fail('already-exists', 'You have already entered this side quest.');
     }
-    const players = await readPlayers(tx, db);
-    const settings = await loadSettings(db, tx);
+    const players = gq.status === 'live' ? await readPlayers(tx, db) : new Map();
 
-    // Everyone still playing in (sealed entries count)? Then entries close: the GM checks them, or (with nobody to
-    // check them) the vote starts straight away and every entry is revealed.
+    // Everyone still playing in on a live side quest (sealed entries count)? Then time's up: the GMs check them.
     const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
-    const everyoneEntered = [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
-    const gms = everyoneEntered ? await readGMs(tx, db) : [];
-    const checking = everyoneEntered && uncheckedEntries([...entries, { data: { uid } }], gms).length > 0;
-    const votingOpened = everyoneEntered && !checking;
-    if (votingOpened) await attachPosts(tx, db, entries);
+    const checking = gq.status === 'live' && [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
 
     const entryRef = db.collection('submissions').doc();
     const now = toTs(ctx.now);
@@ -161,14 +151,13 @@ export async function enterSideQuest(
       submissionId: entryRef.id,
       questTitle: gq.title,
       photoURL: player.photoURL ?? null,
-      ...(votingOpened ? photo : {}),
     });
     const entry: Submission = {
       uid,
       kind: 'global',
       questId,
       createdAt: now,
-      status: votingOpened ? 'approved' : 'sealed',
+      status: 'sealed',
       pointsAwarded: 0,
       ...photo,
       evidenceAt: now,
@@ -178,18 +167,16 @@ export async function enterSideQuest(
     } as Submission;
     tx.create(entryRef, entry);
 
-    const q = { id: questId, ref: questRef, gq };
-    if (votingOpened) startVoting(tx, db, ctx.now, settings, q, entries);
-    if (checking) startChecking(tx, db, ctx.now, settings, q);
-    return { submissionId: entryRef.id, votingOpened, checking };
+    if (checking) startChecking(tx, db, ctx.now, { id: questId, ref: questRef, gq });
+    return { submissionId: entryRef.id, checking, late };
   });
 }
 
 /**
- * A GM checks a side-quest entry once entries have closed, before the vote: accept it, or reject it (thrown out
- * with no fine; only its owner is told, with the note). Nobody checks their own entry. When none is left to check,
- * voting opens with the accepted ones (or the side quest closes if every entry was rejected). Disqualifying with
- * a fine stays with reviewSubmission. `push` is for the caller to send after the transaction.
+ * A GM checks a side-quest entry once time is up, before the vote: accept it, or reject it (thrown out with no fine;
+ * only its owner is told, with the note). Nobody checks their own entry. The vote waits for a GM to open it
+ * (advanceGlobalQuest), so late entries can still be checked. Disqualifying with a fine stays with
+ * reviewSubmission. `push` is for the caller to send after the transaction.
  */
 export async function checkEntry(
   db: Db,
@@ -222,19 +209,12 @@ export async function checkEntry(
     const questSnap = await tx.get(questRef);
     const gq = questSnap.data() as GlobalQuest | undefined;
     if (!gq || gq.status !== 'checking') {
-      fail('failed-precondition', 'Entries are checked after they close and before voting opens.');
+      fail('failed-precondition', "Entries are checked once time is up and before voting opens.");
     }
     if (sub.status !== 'sealed') fail('failed-precondition', 'That entry has already been thrown out.');
 
-    const settings = await loadSettings(db, tx);
-    const { remaining, done } = await afterCheck(tx, db, sub.questId, id, accept);
-
     const decided = { checked: accept ? 'accepted' : 'rejected', reviewedBy: by, reviewedAt: toTs(ctx.now), reviewNote: note };
-    const kept = remaining.find((e) => e.id === id);
-    if (accept && done && kept) kept.reveal = decided; // revealed in the same write
-    else tx.update(subRef, accept ? decided : { ...decided, status: 'rejected' });
-
-    const status = done ? finishChecking(tx, db, ctx.now, settings, { id: sub.questId, ref: questRef, gq }, remaining) : 'checking';
+    tx.update(subRef, accept ? decided : { ...decided, status: 'rejected' });
     const push: PushPlan | null = accept
       ? null
       : {
@@ -246,6 +226,6 @@ export async function checkEntry(
             link: '#/account',
           },
         };
-    return { checked: accept ? ('accepted' as const) : ('rejected' as const), status, push };
+    return { checked: accept ? ('accepted' as const) : ('rejected' as const), status: 'checking' as const, push };
   });
 }

@@ -21,7 +21,7 @@ export function HouseRules() {
     ],
     ['Quest named in the feed', s.revealOnComplete ? 'Yes' : 'No'],
     ['Points can go below zero', s.pointsFloorZero ? 'No, floor at 0' : 'Yes'],
-    ['Side quests drop', `every ${s.globalIntervalMin}–${s.globalIntervalMax} min, open ${s.globalWindowMin} min, then ${s.voteWindowMin} min of voting`],
+    ['Side quests drop', `every ${s.globalIntervalMin}–${s.globalIntervalMax} min, open ${s.globalWindowMin} min (late entries count until the GM starts the vote), then ${s.voteWindowMin} min of voting`],
     ['Quiet hours (no drops)', quiet],
     ['Who approves a claim', 'A friend you name as witness (never yourself)'],
     ['Overruled as fraud', `GM takes the points back, plus a ${s.fraudPenalty} fine`],

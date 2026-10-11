@@ -46,7 +46,8 @@ Ignore the log noise from `MetadataLookupWarning`, `url.parse()` and `punycode` 
 
 - Everything up to push notifications (`c248cf6`) is pushed and deployed: site, functions, rules and the prod quest catalogue.
 - The side-quest checking stage (`fc0adfa`: `checkEntry`, `checkWindowMin`) is pushed and deployed.
-- Freezing or kicking out players who left (`setPlayerLeft` callable, `players.left`) ships with a functions deploy first, then a push.
+- Freezing or kicking out players who left (`setPlayerLeft` callable, `players.left`, `0545c00`) is pushed and deployed.
+- Mandatory checking with late entries (no `checkWindowMin` timer; only the GM starts the vote) ships with a functions deploy first, then a push.
 
 ## Shipping a fix during the festival
 

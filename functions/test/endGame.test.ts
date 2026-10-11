@@ -173,7 +173,7 @@ async function scenario() {
   await seedGlobalQuest(db(), 'gq1', { status: 'closed', winnerUids: ['alice'], endsAt: addMin(T0, -40) });
   await seedGlobalQuest(db(), 'gq2', { status: 'voting', endsAt: addMin(T0, -5), votingEndsAt: addMin(T0, 15) });
   await seedGlobalQuest(db(), 'gq3', { status: 'live', endsAt: addMin(T0, 10) });
-  await seedGlobalQuest(db(), 'gq4', { status: 'checking', endsAt: addMin(T0, -3), checkingEndsAt: addMin(T0, 20) });
+  await seedGlobalQuest(db(), 'gq4', { status: 'checking', endsAt: addMin(T0, -3) });
   await seedSubmission(db(), 'ec', { uid: 'bob', kind: 'global', questId: 'gq4', witnessUid: null, status: 'sealed', evidence: true, createdAt: addMin(T0, -4) });
   await seedSubmission(db(), 'ea', { uid: 'alice', kind: 'global', questId: 'gq2', witnessUid: null, status: 'approved', evidence: true, createdAt: addMin(T0, -8) });
   await seedSubmission(db(), 'eb', { uid: 'bob', kind: 'global', questId: 'gq2', witnessUid: null, status: 'approved', evidence: true, createdAt: addMin(T0, -7) });

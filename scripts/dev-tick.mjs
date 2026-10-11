@@ -39,10 +39,10 @@ async function tick() {
     const body = await res.json().catch(() => null);
     const result = body?.result ?? body?.data ?? body ?? {};
     const opened = asList(result.opened);
-    const voting = asList(result.voting);
+    const checking = asList(result.checking);
     const closed = asList(result.closed);
     if (opened.length > 0) log(`opened side quest ${opened.join(', ')}`);
-    if (voting.length > 0) log(`voting started on ${voting.join(', ')}`);
+    if (checking.length > 0) log(`time's up (checking) on ${checking.join(', ')}`);
     if (closed.length > 0) log(`closed ${closed.join(', ')}`);
     return true;
   } catch (err) {

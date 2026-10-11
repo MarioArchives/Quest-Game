@@ -22,7 +22,6 @@ type NumKey =
   | 'globalIntervalMin'
   | 'globalIntervalMax'
   | 'globalWindowMin'
-  | 'checkWindowMin'
   | 'voteWindowMin';
 type FlagKey = 'refillOnComplete' | 'revealOnComplete' | 'pointsFloorZero';
 
@@ -66,8 +65,7 @@ const GROUPS: { title: string; fields: NumField[] }[] = [
     fields: [
       { key: 'globalIntervalMin', label: 'Drop every, at least (min)', hint: 'Shortest gap between auto drops', min: 1, max: 1440 },
       { key: 'globalIntervalMax', label: 'Drop every, at most (min)', hint: 'Longest gap', min: 1, max: 1440 },
-      { key: 'globalWindowMin', label: 'Open for (min)', hint: 'How long entries stay open', min: 1, max: 180 },
-      { key: 'checkWindowMin', label: 'Checking time (min)', hint: 'How long you have to accept or reject entries before voting starts anyway', min: 1, max: 180 },
+      { key: 'globalWindowMin', label: 'Open for (min)', hint: 'Then you check the entries; late ones still count until you start the vote', min: 1, max: 180 },
       { key: 'voteWindowMin', label: 'Voting open for (min)', hint: 'How long everyone has to vote', min: 1, max: 180 },
     ],
   },
@@ -140,7 +138,6 @@ function toSettings(form: Form): Settings {
     fraudPenalty: n('fraudPenalty'),
     rejectPenalty: n('rejectPenalty'),
     voteWindowMin: n('voteWindowMin'),
-    checkWindowMin: n('checkWindowMin'),
     refillOnComplete: form.flags.refillOnComplete,
     revealOnComplete: form.flags.revealOnComplete,
     pointsFloorZero: form.flags.pointsFloorZero,

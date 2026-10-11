@@ -1,5 +1,5 @@
-// Side-quest checking and voting: shared by enterSideQuest/checkEntry/castVote/advanceGlobalQuest, the timer,
-// reviewSubmission (disqualifying) and endGame.
+// Side-quest checking and voting: shared by enterSideQuest/castVote/advanceGlobalQuest, the timer, fireGlobalQuest
+// and endGame. Checking has no time limit: late entries come in until a GM opens the vote.
 // The read helpers must run before any write in a transaction; the write helpers only write.
 import type { DocumentReference, Transaction } from 'firebase-admin/firestore';
 import { tallyVotes } from '../shared/votes.js';
@@ -27,8 +27,6 @@ export interface Entry {
   data: Submission;
   /** The entry's feed post, when it has one that exists (set by attachPosts). */
   postRef?: DocumentReference | null;
-  /** Fields decided in the same transaction, written together with the reveal (one write per doc). */
-  reveal?: Record<string, unknown>;
 }
 
 const isLiveEntry = (data: Submission) => data.kind === 'global' && (data.status === 'sealed' || data.status === 'approved');
@@ -65,11 +63,6 @@ export async function readVotes(tx: Transaction, db: Db, questId: string): Promi
   return new Map(snap.docs.map((d) => [d.id, (d.data() as Vote).submissionId]));
 }
 
-/** Every GM's uid. */
-export async function readGMs(tx: Transaction, db: Db): Promise<string[]> {
-  return (await tx.get(db.collection('admins'))).docs.map((d) => d.id);
-}
-
 export async function readPlayers(tx: Transaction, db: Db): Promise<Map<string, Player>> {
   const snap = await tx.get(db.collection('players'));
   return new Map(snap.docs.map((d) => [d.id, d.data() as Player]));
@@ -91,14 +84,6 @@ export async function attachPosts(tx: Transaction, db: Db, entries: Entry[]): Pr
   });
 }
 
-/**
- * Entries a GM still has to check: not accepted yet, and some GM other than the entrant exists (nobody checks
- * their own, so a lone GM's entry goes through as it is).
- */
-export function uncheckedEntries<E extends { data: Pick<Submission, 'uid' | 'checked'> }>(entries: E[], gmUids: string[]): E[] {
-  return entries.filter((e) => e.data.checked !== 'accepted' && gmUids.some((gm) => gm !== e.data.uid));
-}
-
 /** Players still playing who have at least one entry by someone else to choose from. */
 export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): string[] {
   return [...players].filter(([uid, p]) => isPlaying(p) && entries.some((e) => e.data.uid !== uid)).map(([uid]) => uid);
@@ -110,7 +95,7 @@ export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): 
  */
 export function startVoting(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): void {
   for (const entry of entries.filter((e) => e.data.status === 'sealed')) {
-    tx.update(entry.ref, { status: 'approved', ...entry.reveal });
+    tx.update(entry.ref, { status: 'approved' });
     if (entry.postRef) {
       tx.update(entry.postRef, {
         imagePath: entry.data.imagePath ?? null,
@@ -129,12 +114,15 @@ export function startVoting(tx: Transaction, db: Db, now: Date, settings: Settin
   });
 }
 
-/** Entries are closed: the GMs check them before the vote. `by` is the GM who closed them, if one did. */
-export function startChecking(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, by: string | null = null): void {
-  tx.update(q.ref, { status: 'checking', checkingEndsAt: toTs(new Date(now.getTime() + settings.checkWindowMin * MIN_MS)) });
+/**
+ * A live side quest's time is up (window over, everyone in, or a GM moved it on): the GMs check the entries. Late
+ * entries are still taken until a GM opens the vote, which only a GM does. `by` is the GM who closed it, if one did.
+ */
+export function startChecking(tx: Transaction, db: Db, now: Date, q: Quest, by: string | null = null): void {
+  tx.update(q.ref, { status: 'checking' });
   addFeed(tx, db, now, {
     type: 'checking',
-    text: `Entries closed: ${q.gq.title}. The GM is checking them, then voting opens`,
+    text: `Time's up: ${q.gq.title}. Late entries still count until the GM opens voting`,
     uid: null,
     ref: q.id,
     actorUid: by,
@@ -143,35 +131,8 @@ export function startChecking(tx: Transaction, db: Db, now: Date, settings: Sett
 }
 
 /**
- * A live side quest's entries close (window over, everyone in, or a GM moved it on): checked first when a GM can
- * check any of them, else straight to the vote; closed with no winner when nobody entered. Call attachPosts on
- * `entries` first.
- */
-export function closeEntries(
-  tx: Transaction,
-  db: Db,
-  now: Date,
-  settings: Settings,
-  q: Quest,
-  entries: Entry[],
-  gmUids: string[],
-  by: string | null = null,
-): 'checking' | 'voting' | 'closed' {
-  if (entries.length === 0) {
-    closeWithoutWinner(tx, q);
-    return 'closed';
-  }
-  if (uncheckedEntries(entries, gmUids).length > 0) {
-    startChecking(tx, db, now, settings, q, by);
-    return 'checking';
-  }
-  startVoting(tx, db, now, settings, q, entries);
-  return 'voting';
-}
-
-/**
- * Checking is over (every entry decided, a GM moved it on, or time ran out): the entries left go to the vote,
- * unchecked ones included; nothing left means no winner. Call attachPosts on `entries` first.
+ * A GM opens the vote on a checking side quest: the entries left go in, unchecked ones included; nothing left
+ * means no winner. Call attachPosts on `entries` first.
  */
 export function finishChecking(tx: Transaction, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): 'voting' | 'closed' {
   if (entries.length === 0) {
@@ -180,27 +141,6 @@ export function finishChecking(tx: Transaction, db: Db, now: Date, settings: Set
   }
   startVoting(tx, db, now, settings, q, entries);
   return 'voting';
-}
-
-/**
- * A GM just decided one entry of a checking side quest (accepted, or thrown out). Reads only, so call it before
- * any write: the entries left, and whether that was the last one to check (their posts are then attached).
- */
-export async function afterCheck(
-  tx: Transaction,
-  db: Db,
-  questId: string,
-  entryId: string,
-  accepted: boolean,
-): Promise<{ remaining: Entry[]; done: boolean }> {
-  const entries = await readEntries(tx, db, questId);
-  const gms = await readGMs(tx, db);
-  const remaining = accepted
-    ? entries.map((e) => (e.id === entryId ? { ...e, data: { ...e.data, checked: 'accepted' as const } } : e))
-    : entries.filter((e) => e.id !== entryId);
-  const done = uncheckedEntries(remaining, gms).length === 0;
-  if (done) await attachPosts(tx, db, remaining);
-  return { remaining, done };
 }
 
 /** Close a side quest nobody entered (or one ended early): no winners. */
