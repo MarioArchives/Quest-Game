@@ -41,7 +41,7 @@ export function JoinSection() {
           {pendingJoins.map((req) => (
             <li key={req.id} className="gm-row-item">
               <div className="gm-person">
-                <Avatar name={req.displayName} src={req.photoURL} size={44} />
+                <Avatar name={req.displayName} src={req.photoURL} size={44} uid={req.id} />
                 <p className="gm-person__text">
                   <strong>{req.displayName}</strong>
                   <span className="gm-person__sub">{req.email ?? 'No email'}</span>
@@ -76,7 +76,7 @@ export function JoinSection() {
             {rejectedJoins.map((req) => (
               <li key={req.id} className="gm-row-item gm-row-item--inline">
                 <div className="gm-person">
-                  <Avatar name={req.displayName} src={req.photoURL} size={36} />
+                  <Avatar name={req.displayName} src={req.photoURL} size={36} uid={req.id} />
                   <p className="gm-person__text">
                     <strong>{req.displayName}</strong>
                     <span className="gm-person__sub">{req.email ?? 'No email'}</span>

@@ -212,7 +212,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
             ) : null}
             <div className="gm-entry__text">
               <p className="gm-entry__who">
-                <Avatar name={who?.displayName ?? '?'} src={who?.photoURL} size={22} />
+                <Avatar name={who?.displayName ?? '?'} src={who?.photoURL} size={22} uid={who?.id} />
                 <strong>{who?.displayName ?? 'A player'}</strong>
                 {won ? <span className="tag tag--red">Winner</span> : null}
                 {late ? <span className="tag tag--tint">Late</span> : null}

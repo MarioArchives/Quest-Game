@@ -149,7 +149,7 @@ export async function reviewSubmission(
     // An approved claim, or a side-quest entry (sealed or revealed): the GM's fraud override.
     if (sub.status === 'approved' || sub.status === 'sealed') {
       if (!gm) fail('permission-denied', `Only a ${t.gm.one} can overturn an approval.`);
-      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: sub.kind === 'personal', posts: true });
+      const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: sub.kind === 'personal', posts: true, reward: true });
       tx.update(subRef, overrideAsFraud(env, loaded, note));
       return { status: 'rejected' as const };
     }

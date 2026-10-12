@@ -22,6 +22,10 @@ describe('CALLABLES', () => {
     expect(Object.keys(CALLABLES).sort()).toEqual(appCallables());
   });
 
+  it('includes the reward choice and characters (mystery plan)', () => {
+    expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['resolveReward', 'setCharacter']));
+  });
+
   it('every entry has a handler', () => {
     for (const [name, def] of Object.entries(CALLABLES)) expect(typeof def.run, name).toBe('function');
   });

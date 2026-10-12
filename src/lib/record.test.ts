@@ -51,6 +51,10 @@ describe('playerRecord', () => {
     expect(playerRecord('priya', [line('witness'), line('bounty')], [])).toEqual(EMPTY);
   });
 
+  it('being framed, skipping a side quest or clearing your name is neither a failure nor a guess (mystery plan E17)', () => {
+    expect(playerRecord('priya', [line('framed'), line('skipped'), line('cleared')], [])).toEqual(EMPTY);
+  });
+
   it("ignores other players' lines and entries", () => {
     const ledger = [line('exposed', 'sam'), line('global-win', 'sam'), line('guess-correct', 'sam'), line('fraud', 'sam')];
     expect(playerRecord('priya', ledger, [entry('global', 'sam')])).toEqual(EMPTY);

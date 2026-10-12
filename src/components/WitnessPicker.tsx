@@ -65,7 +65,7 @@ export function WitnessPicker({ myUid, value, onChange, disabled = false, exclud
                   disabled={disabled || excluded}
                   onChange={() => onChange(p.id)}
                 />
-                <Avatar name={p.displayName} src={p.photoURL} size={28} />
+                <Avatar name={p.displayName} src={p.photoURL} size={28} uid={p.id} />
                 <span className="witness__name">{p.displayName}</span>
               </label>
             );

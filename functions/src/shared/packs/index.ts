@@ -6,12 +6,13 @@ import { RULESETS } from '../scoring/index.ts';
 import { paramDefaults } from '../scoring/engine.ts';
 import { TERM_KEYS, type CatalogueQuest, type GamePack } from './types.ts';
 import { lancaster } from './lancaster/index.ts';
+import { mystery } from './mystery/index.ts';
 import { starter } from './starter/index.ts';
 
 export const DEFAULT_PACK_ID = 'lancaster';
 
 /** Every pack, by id. */
-export const PACKS: Readonly<Record<string, GamePack>> = { lancaster, starter };
+export const PACKS: Readonly<Record<string, GamePack>> = { lancaster, mystery, starter };
 
 /** The ids of every registered pack, sorted. */
 export function packIds(): string[] {

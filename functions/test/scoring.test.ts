@@ -2,6 +2,7 @@
 // what they return, the zero floor and transfers, fallbacks, and House-rules descriptions. No emulator needed.
 import { describe, expect, it } from 'vitest';
 import { termForms } from '../src/shared/packs/terms.js';
+import type { Features } from '../src/shared/packs/types.js';
 import {
   appliedDelta,
   paramDefaults,
@@ -438,5 +439,58 @@ describe('E22. rule sets describe themselves and their numbers', () => {
     const t = heist.describe(SETTINGS, { witnessReward: 13 }, termForms(DARE_TERMS)).flat().join(' ');
     expect(t).toMatch(/\b13\b/);
     expect(t).toMatch(/judge/i);
+  });
+});
+
+describe('M16. reward choice and the skip penalty, in every rule set', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  const MORE: Settings = { ...SETTINGS, cleanPoints: 37, framePoints: 43, sideQuestSkipPenalty: 21 };
+  const run = (rules: ScoringRules, e: ScoreEvent, settings: Settings = MORE) =>
+    scoreEvent(rules, e, sctx(rules, { settings, startedAt: START, now: at(30) }));
+
+  it.each(ids)('%s scores them like classic: never decayed, never a transfer', (id) => {
+    const rules = RULESETS[id]!;
+    expect(run(rules, { kind: 'rewardClean', uid: 'alice' })).toEqual([pts('alice', 37, 'cleared')]);
+    expect(run(rules, { kind: 'rewardFrame', uid: 'alice', target: 'bob' })).toEqual([pts('bob', -43, 'framed')]);
+    expect(run(rules, { kind: 'sideQuestSkipped', uid: 'carol' })).toEqual([pts('carol', -21, 'skipped')]);
+  });
+
+  it.each(ids)('%s gives no line for amounts set to 0', (id) => {
+    const rules = RULESETS[id]!;
+    const zero = { ...MORE, cleanPoints: 0, framePoints: 0, sideQuestSkipPenalty: 0 };
+    expect(run(rules, { kind: 'rewardClean', uid: 'alice' }, zero)).toEqual([]);
+    expect(run(rules, { kind: 'rewardFrame', uid: 'alice', target: 'bob' }, zero)).toEqual([]);
+    expect(run(rules, { kind: 'sideQuestSkipped', uid: 'carol' }, zero)).toEqual([]);
+  });
+
+  it('the framer is a participant of a frame (but gets no line); the others name one player', () => {
+    expect(participants({ kind: 'rewardFrame', uid: 'alice', target: 'bob' }).sort()).toEqual(['alice', 'bob']);
+    expect(participants({ kind: 'rewardClean', uid: 'alice' })).toEqual(['alice']);
+    expect(participants({ kind: 'sideQuestSkipped', uid: 'carol' })).toEqual(['carol']);
+  });
+
+  const ALL = { guesses: true, sideQuests: true, map: true };
+  const rows = (id: string, features: Features, settings: Settings = MORE) => {
+    const rules = RULESETS[id]!;
+    return rules.describe(settings, resolveParams(rules, undefined), termForms(DARE_TERMS), features).map(([l, v]) => `${l}: ${v}`).join('\n');
+  };
+
+  it.each(ids)('%s lists the reward choice only for packs that have it', (id) => {
+    const off = rows(id, ALL);
+    expect(off).not.toMatch(/\b37\b/);
+    expect(off).not.toMatch(/\b43\b/);
+    const on = rows(id, { ...ALL, rewardChoice: true });
+    expect(on).toMatch(/\b37\b/);
+    expect(on).toMatch(/\b43\b/);
+    expect(on).toMatch(/dare/i);
+    expect(on).not.toMatch(/quest/i);
+  });
+
+  it.each(ids)('%s lists the skip penalty only when it is set and side quests are on', (id) => {
+    const on = rows(id, ALL);
+    expect(on).toMatch(/\b21\b/);
+    expect(on).toMatch(/showdown/i);
+    expect(rows(id, ALL, { ...MORE, sideQuestSkipPenalty: 0 })).not.toMatch(/skip/i);
+    expect(rows(id, { ...ALL, sideQuests: false })).not.toMatch(/\b21\b/);
   });
 });

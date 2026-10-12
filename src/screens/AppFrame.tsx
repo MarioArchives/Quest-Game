@@ -4,8 +4,9 @@ import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
 import { Icon, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
-import { tabsFor, type TabId } from '../lib/nav';
-import { features, pack, t } from '../pack';
+import { RewardSheetProvider } from '../components/RewardSheet';
+import { tabLabels, tabsFor, type TabId } from '../lib/nav';
+import { brand, features, pack, t } from '../pack';
 import { useGame } from '../data/GameProvider';
 import { useTabBadges } from '../data/useTabBadges';
 import { refreshPush } from '../data/usePush';
@@ -22,10 +23,12 @@ interface Tab {
   dotLabel?: string;
 }
 
+const LABELS = tabLabels(brand.tabs, { gm: t.gm.One, wrap: t.wrap.One });
+
 const TITLES: Record<string, string> = {
   '/': pack.name,
-  '/account': 'Account',
-  '/map': 'Map',
+  '/account': LABELS.account,
+  '/map': LABELS.map,
   '/gm': `${t.gm.One} console`,
   '/wrap': `Your ${t.wrap.one.toLowerCase()}`,
   '/join': 'Join the game',
@@ -34,11 +37,11 @@ const TITLES: Record<string, string> = {
 
 /** Every tab the frame can show; tabsFor picks which ones and in what order. */
 const TABS: Record<TabId, Tab> = {
-  home: { to: '/', label: 'Home', icon: 'home', end: true, dotLabel: 'new posts' },
-  map: { to: '/map', label: 'Map', icon: 'map' },
-  account: { to: '/account', label: 'Account', icon: 'user', dotLabel: 'something needs you' },
-  gm: { to: '/gm', label: t.gm.One, icon: 'gm', dotLabel: 'work waiting' },
-  wrap: { to: '/wrap', label: t.wrap.One, icon: 'wrap', dotLabel: 'the game is over, see your wrap' },
+  home: { to: '/', label: LABELS.home, icon: 'home', end: true, dotLabel: 'new posts' },
+  map: { to: '/map', label: LABELS.map, icon: 'map' },
+  account: { to: '/account', label: LABELS.account, icon: 'user', dotLabel: 'something needs you' },
+  gm: { to: '/gm', label: LABELS.gm, icon: 'gm', dotLabel: 'work waiting' },
+  wrap: { to: '/wrap', label: LABELS.wrap, icon: 'wrap', dotLabel: 'the game is over, see your wrap' },
 };
 
 export function AppFrame() {
@@ -83,6 +86,7 @@ export function AppFrame() {
   const photo = player?.photoURL ?? user?.photoURL ?? null;
 
   return (
+    <RewardSheetProvider>
     <div className="app">
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to content
@@ -98,7 +102,7 @@ export function AppFrame() {
             <span className="chip appbar__points">{t.gm.One}</span>
           )}
           <Link to="/account" className="appbar__avatar" aria-label="Your account">
-            <Avatar name={displayName} src={photo} size={38} you />
+            <Avatar name={displayName} src={photo} size={38} you uid={user?.uid} />
           </Link>
         </div>
       </header>
@@ -127,5 +131,6 @@ export function AppFrame() {
         ))}
       </nav>
     </div>
+    </RewardSheetProvider>
   );
 }

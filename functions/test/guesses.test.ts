@@ -212,3 +212,45 @@ describe('points floor', () => {
     expect((await getPlayer(db(), 'bob')).points).toBe(-20);
   });
 });
+
+describe('M13. the guess limit (guessLimit; 0 = no limit)', () => {
+  // Each guess at a different target or after the cooldown, so only the limit can refuse it.
+  const later = (n: number) => addMin(T0, n * 15);
+
+  it('with a limit of 3, the third guess works and the fourth is refused, writing nothing', async () => {
+    await setup({ settings: { guessLimit: 3 } });
+    await guess('alice', 'carol', 'p01', later(0)); // wrong
+    await guess('alice', 'bob', 'p01', later(1)); // wrong
+    expect(await guess('alice', 'bob', 'p06', later(2))).toEqual({ correct: true });
+
+    const points = (await getPlayer(db(), 'alice')).points;
+    const ledger = (await ledgerFor(db(), 'alice')).length;
+    const feed = (await allDocs(db(), 'feed')).length;
+    await expect(guess('alice', 'carol', 'p11', later(3))).rejects.toMatchObject({ code: 'resource-exhausted', details: { limit: 3 } });
+    expect(await allDocs(db(), 'guesses')).toHaveLength(3);
+    expect((await getPlayer(db(), 'alice')).points).toBe(points);
+    expect(await ledgerFor(db(), 'alice')).toHaveLength(ledger);
+    expect(await allDocs(db(), 'feed')).toHaveLength(feed);
+    expect((await getQuests(db(), 'carol')).every((q) => q.status === 'active')).toBe(true);
+  });
+
+  it('counts right and wrong guesses alike, per guesser', async () => {
+    await setup({ settings: { guessLimit: 1 } });
+    expect(await guess('alice', 'bob', 'p06', later(0))).toEqual({ correct: true });
+    await expectCode(guess('alice', 'carol', 'p01', later(1)), 'resource-exhausted');
+    // carol has her own allowance.
+    expect(await guess('carol', 'bob', 'p01', later(1))).toEqual({ correct: false });
+  });
+
+  it('a limit of 0 means no limit', async () => {
+    await setup({ settings: { guessLimit: 0 } });
+    for (let i = 0; i < 6; i++) await guess('alice', i % 2 ? 'bob' : 'carol', 'p01', later(i));
+    expect(await allDocs(db(), 'guesses')).toHaveLength(6);
+  });
+
+  it('the engine default is no limit', async () => {
+    await setup();
+    for (let i = 0; i < 4; i++) await guess('alice', i % 2 ? 'bob' : 'carol', 'p01', later(i));
+    expect(await allDocs(db(), 'guesses')).toHaveLength(4);
+  });
+});

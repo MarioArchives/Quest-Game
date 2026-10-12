@@ -14,13 +14,14 @@ A pack has two halves, because the Cloud Functions can only build code under `fu
 
 | Half | Folder | What is in it |
 |---|---|---|
-| Rules | `functions/src/shared/packs/<id>/` | `index.ts` (a `GamePack`: name, terms, features, time zone, locale, default scoring, settings overrides, award titles, map setup), `quests.json` (the catalogue), `venues.json` (map packs only). Shared by the functions, the app and the scripts. |
-| Look | `src/packs/<id>/` | `brand.ts` (manifest colours), `theme.css` (token overrides and fonts), `index.tsx` (a `PackLook`: loading mark and sign-in copy), `public/` (favicon, icons and data files served at the site root). App only. |
+| Rules | `functions/src/shared/packs/<id>/` | `index.ts` (a `GamePack`: name, terms, features, time zone, locale, default scoring, settings overrides, award titles, map setup, demo characters), `quests.json` (the catalogue), `venues.json` (map packs only). Shared by the functions, the app and the scripts. |
+| Look | `src/packs/<id>/` | `brand.ts` (manifest colours, and optionally its own tab labels and avatar style), `theme.css` (token overrides and fonts), `index.tsx` (a `PackLook`: loading mark and sign-in copy; optionally its own Home and Account screens and the reward pop-up's words), `public/` (favicon, icons and data files served at the site root). App only. |
 
 Built-in packs:
 
 - **`lancaster`**: Festival Quest exactly as it was played: Gig Poster look (paper, ink, red; Anton and Archivo; the Ashton Memorial loader), every feature on including the venue map and festival schedule, Europe/London.
 - **`starter`**: a plain template for new games: "Quest Game", challenges and bonus rounds, a map with no venues (it shows who is where; set its centre to your venue), system fonts and one blue accent, a small kind catalogue.
+- **`mystery`**: Mystery Pub Crawl, a murder mystery on a pub crawl in an "Interrogation Room" look (charcoal and teal; Archivo Black, Space Mono and Archivo). Tampering missions and group missions, every optional rule on (reward choice, skip penalty, a guess limit of 3, characters and motives), its own **Board** (feed and standings as bars from zero) and **My file** (the case file) screens. The map is centred on Lancaster with no venues until the pubs are chosen.
 
 **Choosing the pack.** One pack per deployment, and both sides must agree:
 
@@ -58,7 +59,7 @@ How points move is a **rule set** (`functions/src/shared/scoring/`), chosen per 
 
 A catalogue quest may also carry its own `points`, which replace the quest points for that quest (copied onto the quest when dealt).
 
-A rule set is a pure object: `score(event, ctx)` turns a game event (quest approved, claim rejected, fraud fine, right or wrong guess, side quest won) into points lines or transfers, and `describe()` writes its House rules rows. The engine checks and rounds what it returns, applies the zero floor (a transfer only credits what was actually taken), refuses lines for anyone the event doesn't name, and writes nothing if the result is broken. A fraud override always takes back exactly what was awarded, whatever the rule set. To add one, write a module next to `classic.ts`, list it in `RULESETS` (`scoring/index.ts`), give any params unique keys, and add tests to `functions/test/scoring.test.ts`.
+A rule set is a pure object: `score(event, ctx)` turns a game event (quest approved, claim rejected, fraud fine, right or wrong guess, side quest won or skipped, a reward used to clean or to frame) into points lines or transfers, and `describe()` writes its House rules rows. The engine checks and rounds what it returns, applies the zero floor (a transfer only credits what was actually taken), refuses lines for anyone the event doesn't name, and writes nothing if the result is broken. A fraud override always takes back exactly what was awarded, whatever the rule set. To add one, write a module next to `classic.ts`, list it in `RULESETS` (`scoring/index.ts`), give any params unique keys, and add tests to `functions/test/scoring.test.ts`.
 
 ## Just looking? Mock mode
 
@@ -170,6 +171,15 @@ The GM can end the entry window early, start voting, end voting early, fire a ra
 
 Players can change their entry until the window ends.
 
+### Optional rules
+
+Each is off unless the pack switches it on (features) or the GM sets a number (settings); the `mystery` pack uses all four.
+
+- **Reward choice** (feature `rewardChoice`). When a witness approves a quest, its owner earns one reward, offered in a pop-up over any screen: **clean** (`cleanPoints`, default +50, to yourself) or **frame** (`framePoints`, default 50, off another player you pick). Closing the pop-up keeps the reward for later; Account (or the pack's own screen) shows a prompt. Framing is anonymous: the feed says "Someone framed Hannah", the target's points history says "Framed" with no name, and only the owner and the GM can read `rewards/{id}`. A fraud override voids an unused reward and undoes a used one (clean points taken back; a frame refunded to the target as a GM adjustment that names nobody).
+- **Skip penalty** (setting `sideQuestSkipPenalty`, default 0). When a side quest closes, every player who could have entered and has no entry in the vote loses this much. Players who have left, players who joined after it opened and GMs who don't play are exempt; an entry thrown out at checking counts as skipped, and a side quest closed with no entries charges everyone who qualifies.
+- **Guess limit** (setting `guessLimit`, default 0 = no limit): guesses per player for the whole game, right or wrong. The player page shows how many are left.
+- **Characters** (feature `characters`). The GM gives each player a character (name and role, shown to everyone) and a secret motive (seen only by that player and the GM) in GM › Players.
+
 ### Default scoring
 
 These are the `classic` rule set's defaults (see [Scoring rule sets](#scoring-rule-sets) for the others).
@@ -186,6 +196,9 @@ These are the `classic` rule set's defaults (see [Scoring rule sets](#scoring-ru
 | Rerolls (swap a quest for a new one) | **10** per player, plus any extras the GM grants |
 | Fraud fine (on top of the quest points being taken back) | **-50** |
 | Side-quest voting window | **20 min** |
+| Skipping a side quest | **0** (off; the `mystery` pack starts at -25) |
+| Guess limit | **none** (the `mystery` pack starts at 3) |
+| Reward: clean / frame (packs with the reward choice) | **+50** to you / **-50** to the player you pick |
 | Quiet hours (no side quests open) | **01:00-10:00** |
 
 Be kind: ask before photographing people up close, and never at the cost of a performer's set.

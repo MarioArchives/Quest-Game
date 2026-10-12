@@ -33,6 +33,9 @@ const WIPED = [
   'pointsLedger',
   'feed',
   'globalQuests',
+  // Packs with rewardChoice and characters (mystery plan).
+  'rewards',
+  'motives',
 ];
 
 async function fullGame() {
@@ -52,6 +55,8 @@ async function fullGame() {
   await db().doc('feed/f1').set({ type: 'join', text: 'Alice joined', uid: 'alice', ref: null, createdAt: ts(T0) });
   await db().doc('feed/f1/reactions/alice').set({ emoji: '🔥', createdAt: ts(T0) });
   await seedGlobalQuest(db(), 'gq1', { status: 'closed' });
+  await db().doc('rewards/s1').set({ uid: 'alice', submissionId: 's1', status: 'pending', createdAt: ts(T0) });
+  await db().doc('motives/alice').set({ text: 'Revenge', updatedAt: ts(T0) });
   await db().doc('game/final').set({ standings: [], endedAt: ts(T0) });
 }
 

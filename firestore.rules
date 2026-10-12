@@ -172,6 +172,17 @@ service cloud.firestore {
         && (request.auth.uid == uid || isGM() || (isPlayer() && status() == 'ended'));
     }
 
+    // Rewards (packs with a reward choice): only the owner and the GM read them, so a frame stays anonymous
+    // (the target must not be able to find who used it). Functions write them; no client does.
+    match /rewards/{id} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isGM());
+    }
+
+    // A player's secret motive (packs with characters): that player and the GM read it; only functions write it.
+    match /motives/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isGM());
+    }
+
     // ---------- live locations ----------
     match /locations/{uid} {
       allow read: if isPlayerOrGM();

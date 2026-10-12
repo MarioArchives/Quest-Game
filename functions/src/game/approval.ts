@@ -3,12 +3,13 @@
 import type { DocRef, Txn } from '../shared/store/types.js';
 import type { GamePack } from '../shared/packs/types.js';
 import { termForms } from '../shared/packs/terms.js';
-import type { GlobalQuest, Player, Quest, Settings, Submission } from '../shared/types.js';
+import type { GlobalQuest, Player, Quest, Reward, Settings, Submission } from '../shared/types.js';
 import type { Db } from './context.js';
 import { dealReplacement, readDealing, type Dealing } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail } from './guards.js';
 import { applyPoints, applyScore, type Scoring } from './ledger.js';
+import { createReward } from './rewards.js';
 import { isId, toTs } from './util.js';
 
 export interface Loaded {
@@ -30,6 +31,11 @@ export interface Loaded {
   postRefs: DocRef[];
   /** The player's open-quest count and fresh templates for dealing a replacement; empty unless requested. */
   dealing: Dealing;
+  /** The reward this claim earned (packs with rewardChoice), if any; read for a fraud override. */
+  reward: Reward | null;
+  rewardRef: DocRef;
+  /** The player a used frame landed on, if they still have a player doc. */
+  rewardTarget: Player | null;
 }
 
 export interface LoadOptions {
@@ -39,6 +45,8 @@ export interface LoadOptions {
   dealing?: boolean;
   /** Read the feed posts about this submission (for a fraud override). */
   posts?: boolean;
+  /** Read the reward the claim earned and, if it was a frame, its target (for a fraud override). */
+  reward?: boolean;
 }
 
 /** Reads everything the submission's state transitions may touch. No writes. */
@@ -83,6 +91,17 @@ export async function loadReview(
     postRefs = posts.docs.filter((d) => d.get('type') === 'approved' || d.get('type') === 'global-won').map((d) => d.ref);
   }
 
+  let reward: Reward | null = null;
+  let rewardTarget: Player | null = null;
+  if (opts.reward && sub.kind === 'personal') {
+    const snap = await tx.get(db.doc(`rewards/${id}`));
+    reward = snap.exists ? (snap.data() as Reward) : null;
+    if (reward?.status === 'framed' && isId(reward.targetUid)) {
+      const target = await tx.get(db.doc(`players/${reward.targetUid}`));
+      rewardTarget = target.exists ? (target.data() as Player) : null;
+    }
+  }
+
   return {
     id,
     subRef: db.doc(`submissions/${id}`),
@@ -98,6 +117,9 @@ export async function loadReview(
     reviewerPoints,
     postRefs,
     dealing,
+    reward,
+    rewardRef: db.doc(`rewards/${id}`),
+    rewardTarget,
   };
 }
 
@@ -153,6 +175,7 @@ export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Re
   );
   const applied = appliedBy.get(sub.uid) ?? 0;
   tx.update(questRef, { status: 'done', completedAt: toTs(now), submissionId: L.id });
+  if (env.pack.features.rewardChoice) createReward(tx, db, now, sub.uid, L.id);
 
   // A finished quest uses up its slot; it is only refilled when the GM turned that on (and never above five).
   L.dealing.open -= 1;
@@ -257,13 +280,25 @@ export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null):
     { uid: sub.uid, current: player.points, delta: -(sub.pointsAwarded ?? 0), reason: 'reversal', ref: L.id, by },
     sub.kind === 'personal' ? { questsCompleted: Math.max(0, (player.questsCompleted ?? 0) - 1) } : {},
   );
+  // The reward goes the same way: a pending one is void, a used clean is taken back, a used frame is refunded.
+  let total = reversal.total;
+  const reward = L.reward;
+  if (reward) {
+    if (reward.status === 'cleaned' && reward.applied) {
+      total = applyPoints(tx, db, now, settings, { uid: sub.uid, current: total, delta: -reward.applied, reason: 'reversal', ref: L.id, by }).total;
+    } else if (reward.status === 'framed' && reward.applied && reward.targetUid && L.rewardTarget) {
+      // Never names the framer: no ref.
+      applyPoints(tx, db, now, settings, { uid: reward.targetUid, current: L.rewardTarget.points, delta: -reward.applied, reason: 'adjust', ref: null, by });
+    }
+    if (reward.status !== 'void') tx.update(L.rewardRef, { status: 'void' });
+  }
   const fine = applyScore(
     tx,
     db,
     now,
     env.scoring,
     { kind: 'fraudFine', uid: sub.uid },
-    new Map([[sub.uid, reversal.total]]),
+    new Map([[sub.uid, total]]),
     { ref: L.id, by },
   );
 

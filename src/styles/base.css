@@ -246,6 +246,7 @@ h1, h2, h3 {
   padding: 0;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar__silhouette { color: var(--muted); align-self: flex-end; }
 .avatar--you { background: var(--accent); color: var(--on-accent); }
 button.avatar:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 

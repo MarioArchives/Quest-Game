@@ -14,6 +14,8 @@ const WIPED_COLLECTIONS = [
   'pointsLedger',
   'feed',
   'globalQuests',
+  'rewards',
+  'motives',
 ];
 
 /** GM wipes the game for a new round. Requires { confirm: 'RESET' }. Keeps templates, settings and admins. */

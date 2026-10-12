@@ -13,6 +13,8 @@ export function participants(event: ScoreEvent): string[] {
     case 'guessRight':
     case 'guessWrong':
       return [event.guesser, event.target];
+    case 'rewardFrame':
+      return [event.uid, event.target];
     default:
       return [event.uid];
   }

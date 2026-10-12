@@ -136,9 +136,19 @@ export function startChecking(tx: Txn, db: Db, now: Date, pack: GamePack, q: Que
  * A GM opens the vote on a checking side quest: the entries left go in, unchecked ones included; nothing left
  * means no winner. Call attachPosts on `entries` first.
  */
-export function finishChecking(tx: Txn, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): 'voting' | 'closed' {
+export function finishChecking(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  settings: Settings,
+  scoring: Scoring,
+  q: Quest,
+  entries: Entry[],
+  players: Map<string, Player>,
+): 'voting' | 'closed' {
   if (entries.length === 0) {
     closeWithoutWinner(tx, q);
+    penaliseSkippers(tx, db, now, scoring, q, [], players);
     return 'closed';
   }
   startVoting(tx, db, now, settings, q, entries);
@@ -148,6 +158,22 @@ export function finishChecking(tx: Txn, db: Db, now: Date, settings: Settings, q
 /** Close a side quest nobody entered (or one ended early): no winners. */
 export function closeWithoutWinner(tx: Txn, q: Quest): void {
   tx.update(q.ref, { status: 'closed', winnerUids: [], winningSubmissionIds: [], tally: {} });
+}
+
+/**
+ * Charges the skip penalty (settings.sideQuestSkipPenalty, 0 = off) to every player who could have entered this side
+ * quest and has no entry among `entries` (the revealed ones): they had a player doc, are still playing and joined
+ * by the time it opened. A GM without a player doc never pays. Call once, as the side quest closes.
+ */
+function penaliseSkippers(tx: Txn, db: Db, now: Date, scoring: Scoring, q: Quest, entries: Entry[], players: Map<string, Player>): void {
+  if (scoring.sctx.settings.sideQuestSkipPenalty <= 0) return;
+  const entered = new Set(entries.map((e) => e.data.uid));
+  const opened = millis(q.gq.startsAt);
+  for (const [uid, player] of players) {
+    if (entered.has(uid) || !isPlaying(player)) continue;
+    if (player.joinedAt && millis(player.joinedAt) > opened) continue;
+    applyScore(tx, db, now, scoring, { kind: 'sideQuestSkipped', uid }, new Map([[uid, player.points]]), { ref: q.id, by: 'system' });
+  }
 }
 
 /**
@@ -206,6 +232,7 @@ export function closeWithTally(
   }
 
   tx.update(q.ref, { status: 'closed', winnerUids, winningSubmissionIds, tally: counts });
+  penaliseSkippers(tx, db, now, scoring, q, entries, players);
 }
 
 /**

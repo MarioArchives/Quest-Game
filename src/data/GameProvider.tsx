@@ -7,11 +7,14 @@ import {
   type GameState,
   type GlobalQuest,
   type Guess,
+  type Motive,
   type Player,
   type QuestTemplate,
+  type Reward,
   type Settings,
   type Submission,
 } from '../shared';
+import { features } from '../pack';
 import { useSession } from '../session/SessionProvider';
 import { tsMs, useDocument, useQuery } from './hooks';
 
@@ -59,6 +62,10 @@ export interface GameValue {
   feedError: Error | null;
   /** Claims other players want this player to approve or reject (they are the named witness), oldest first. */
   witnessRequests: Doc<Submission>[];
+  /** The signed-in player's pending rewards, oldest first (packs with rewardChoice; else empty). */
+  myRewards: Doc<Reward>[];
+  /** The signed-in player's secret motive (packs with characters), or null. */
+  myMotive: Doc<Motive> | null;
 }
 
 /** How many of the newest feed posts the app keeps live. */
@@ -91,6 +98,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
   const feedQ = useQuery<FeedItem>({ path: 'feed', orderBy: ['createdAt', 'desc'], limit: FEED_LIMIT });
   const guessesQ = useQuery<Guess>(uid && isPlayer ? { path: 'guesses', where: [['guesserUid', '==', uid]] } : null);
+
+  // Only I can read my rewards and motive (security rules), so the queries are mine alone.
+  const rewardsQ = useQuery<Reward>(
+    features.rewardChoice && uid && isPlayer ? { path: 'rewards', where: [['uid', '==', uid], ['status', '==', 'pending']] } : null,
+  );
+  const motiveDoc = useDocument<Motive>(features.characters && uid && isPlayer ? `motives/${uid}` : null);
 
   const value = useMemo<GameValue>(() => {
     const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsDoc.data ?? {}) };
@@ -127,6 +140,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       feedLoading: feedQ.loading,
       feedError: feedQ.error,
       witnessRequests: [...witnessQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
+      myRewards: [...rewardsQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
+      myMotive: motiveDoc.data,
     };
   }, [
     stateDoc.data,
@@ -140,6 +155,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     mineQ.data,
     guessesQ.data,
     witnessQ.data,
+    rewardsQ.data,
+    motiveDoc.data,
     feedQ.data,
     feedQ.loading,
     feedQ.error,

@@ -2,6 +2,8 @@
 // Look and art come from the pack's look half through the `@pack` alias (see vite.config.ts).
 import { getPack } from '../functions/src/shared/packs/index.ts';
 import { termForms } from '../functions/src/shared/packs/terms.ts';
+import { brands } from './packs/brands.ts';
+import type { PackBrand } from './packs/types.ts';
 import type { Zone } from './lib/time';
 
 export const pack = getPack(import.meta.env.VITE_GAME_PACK);
@@ -9,3 +11,5 @@ export const pack = getPack(import.meta.env.VITE_GAME_PACK);
 export const t = termForms(pack.terms);
 export const features = pack.features;
 export const zone: Zone = { timeZone: pack.timeZone, locale: pack.locale };
+/** The pack's brand data (tab labels, avatar placeholder…); an empty brand for a pack that has none. */
+export const brand: PackBrand = brands[pack.id] ?? { themeColor: '', backgroundColor: '' };

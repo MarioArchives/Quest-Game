@@ -65,6 +65,9 @@ export function GuessPanel({ target, headed = true }: { target: RankedPlayer; he
     settings.guessCooldownMin,
   );
   const remaining = Math.max(local, retryAt ? retryAt - now : 0);
+  // A game-long cap on guesses (0 = no limit): every guess I have made counts.
+  const cap = settings.guessLimit;
+  const usedUp = cap > 0 && myGuesses.length >= cap;
   const active = state.status === 'active';
   const first = target.displayName;
   const needle = filter.trim().toLowerCase();
@@ -164,13 +167,20 @@ export function GuessPanel({ target, headed = true }: { target: RankedPlayer; he
           </div>
         </>
       )}
-      <Button variant="primary" block busy={busy} disabled={!choice || remaining > 0 || !active} onClick={() => void make()}>
-        {remaining > 0 ? `Wait ${mmss(remaining)}` : chosen ? `Guess: ${chosen.title}` : 'Make guess'}
+      <Button variant="primary" block busy={busy} disabled={!choice || remaining > 0 || !active || usedUp} onClick={() => void make()}>
+        {usedUp ? 'No guesses left' : remaining > 0 ? `Wait ${mmss(remaining)}` : chosen ? `Guess: ${chosen.title}` : 'Make guess'}
       </Button>
+      {cap > 0 ? (
+        <p className="guess__rules guess__used" aria-live="polite">
+          {Math.min(myGuesses.length, cap)} of {cap} guesses used
+        </p>
+      ) : null}
       <p className="guess__rules" aria-live="polite">
         {!active
           ? 'Guessing opens while the game is running.'
-          : remaining > 0
+          : usedUp
+            ? 'You have used all your guesses.'
+            : remaining > 0
             ? `You guessed ${first} recently. You can guess them again in ${mmss(remaining)}.`
             : `Right: ${first} loses ${settings.exposePenalty}, you gain ${settings.correctGuessReward} · Wrong: you lose ${settings.wrongGuessCost} · 1 guess per player every ${settings.guessCooldownMin} min`}
       </p>

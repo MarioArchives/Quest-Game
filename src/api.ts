@@ -31,6 +31,10 @@ export const rerollQuest = (data: { questId: string }) => call<typeof data, { qu
 export const guessQuest = (data: { targetUid: string; templateId: string }) =>
   call<typeof data, { correct: boolean }>('guessQuest', data);
 
+/** Packs with rewardChoice: spend a reward on points to yourself ('clean') or points off another player ('frame'). */
+export const resolveReward = (data: { rewardId: string; choice: 'clean' | 'frame'; targetUid?: string }) =>
+  call<typeof data, { status: 'cleaned' | 'framed'; points: number }>('resolveReward', data);
+
 // ---- GM ------------------------------------------------------------------------------------
 
 export const reviewJoinRequest = (data: { uid: string; approve: boolean }) =>
@@ -84,6 +88,10 @@ export const fireGlobalQuest = (data: FireGlobalQuestInput) =>
 
 export const adjustPoints = (data: { uid: string; delta: number; reason: string }) =>
   call<typeof data, { points: number }>('adjustPoints', data);
+
+/** Packs with characters: who a player plays (public) and their motive (private). */
+export const setCharacter = (data: { uid: string; name: string; role: string; motive: string }) =>
+  call<typeof data, { ok: true }>('setCharacter', data);
 
 export const savePushToken = (data: { token: string }) => call<typeof data, { ok: true }>('savePushToken', data);
 

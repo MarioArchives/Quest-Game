@@ -14,7 +14,13 @@ export type ScoreEvent =
   | { kind: 'guessRight'; guesser: string; target: string }
   | { kind: 'guessWrong'; guesser: string; target: string }
   /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints. */
-  | { kind: 'sideQuestWon'; uid: string; bonus: number; votes: number };
+  | { kind: 'sideQuestWon'; uid: string; bonus: number; votes: number }
+  /** A player who could have entered a side quest and didn't, when its vote closes. */
+  | { kind: 'sideQuestSkipped'; uid: string }
+  /** Reward choice: the owner clears their name. */
+  | { kind: 'rewardClean'; uid: string }
+  /** Reward choice: the owner (`uid`) frames `target`. Only the target's points should change. */
+  | { kind: 'rewardFrame'; uid: string; target: string };
 
 export interface ScoreContext {
   settings: Settings;

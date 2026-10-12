@@ -80,3 +80,55 @@ describe('buildDemo', () => {
     for (const q of quests) expect(ids.has(q.data.templateId), q.data.templateId).toBe(true);
   });
 });
+
+describe('M23. demo characters and rewards', () => {
+  const CHARS = [
+    { name: 'Lady Violet Ashcombe', role: 'Niece of the deceased', motive: 'Cut out of the will.' },
+    { name: 'Dr Grey', role: 'Family doctor', motive: 'Hush money.' },
+  ];
+  const at = (d: ReturnType<typeof demo>, path: string) => d.docs.find((x) => x.path === path)?.data;
+
+  it('with characters on, demo players get the pack’s characters in order and a private motive each', () => {
+    const d = demo(testPack({ features: { characters: true }, demoCharacters: CHARS }));
+    expect(at(d, 'players/demo-maya')?.character).toEqual({ name: 'Lady Violet Ashcombe', role: 'Niece of the deceased' });
+    expect(at(d, 'players/demo-sam')?.character).toEqual({ name: 'Dr Grey', role: 'Family doctor' });
+    expect(at(d, 'motives/demo-maya')).toMatchObject({ text: 'Cut out of the will.' });
+    expect(at(d, 'motives/demo-maya')?.updatedAt).toBeInstanceOf(Stamp);
+    expect(at(d, 'motives/demo-sam')).toMatchObject({ text: 'Hush money.' });
+    // More players than characters: the rest have none.
+    expect(at(d, 'players/demo-priya')?.character ?? null).toBeNull();
+    expect(at(d, 'motives/demo-priya')).toBeUndefined();
+    // The motive is never on the public player doc.
+    expect(JSON.stringify(at(d, 'players/demo-maya'))).not.toContain('Cut out of the will');
+  });
+
+  it('with characters off, nobody has one', () => {
+    const d = demo(testPack({ demoCharacters: CHARS }));
+    expect(d.docs.some((x) => x.path.startsWith('motives/'))).toBe(false);
+    expect(at(d, 'players/demo-maya')?.character ?? null).toBeNull();
+  });
+
+  it('with the reward choice on, every approved personal claim has a pending reward for its owner', () => {
+    const d = demo(testPack({ features: { rewardChoice: true } }));
+    const approved = d.docs.filter((x) => /^submissions\/[^/]+$/.test(x.path) && x.data.kind === 'personal' && x.data.status === 'approved');
+    expect(approved.length).toBeGreaterThan(0);
+    const rewards = d.docs.filter((x) => x.path.startsWith('rewards/'));
+    expect(rewards.map((x) => x.path).sort()).toEqual(approved.map((x) => `rewards/${x.path.split('/')[1]}`).sort());
+    for (const r of rewards) {
+      const sub = approved.find((x) => x.path === `submissions/${r.path.split('/')[1]}`)!;
+      expect(r.data).toMatchObject({ uid: sub.data.uid, submissionId: r.path.split('/')[1], status: 'pending' });
+      expect(r.data.createdAt).toBeInstanceOf(Stamp);
+    }
+  });
+
+  it('with it off, no rewards', () => {
+    expect(demo().docs.some((x) => x.path.startsWith('rewards/'))).toBe(false);
+  });
+
+  it('the mystery pack’s demo has both', () => {
+    const d = demo(getPack('mystery'));
+    expect(d.docs.filter((x) => x.path.startsWith('motives/')).length).toBe(4);
+    expect(d.docs.some((x) => x.path.startsWith('rewards/'))).toBe(true);
+  });
+});
+

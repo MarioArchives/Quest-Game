@@ -41,7 +41,7 @@ export function Podium({
               aria-label={playerLabel(p, { you, tied: tied.has(p.rank) })}
             >
               <span className="rk-pod__label">
-                {full ? <Avatar name={p.displayName} src={p.photoURL} size={44} you={you} /> : null}
+                {full ? <Avatar name={p.displayName} src={p.photoURL} size={44} you={you} uid={p.id} /> : null}
                 <span className="rk-pod__name">{you ? 'You' : firstName(p.displayName)}</span>
                 {p.left ? <span className="rk-pod__left">Left</span> : null}
                 <span className="rk-pod__pts">{formatPoints(p.points)}</span>

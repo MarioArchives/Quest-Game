@@ -78,7 +78,7 @@ export function SubmissionBrief({ sub, now, loadClaim = true }: { sub: Doc<Submi
   return (
     <div className="gm-sub">
       <div className="gm-sub__head">
-        <Avatar name={name} src={who?.photoURL} size={36} />
+        <Avatar name={name} src={who?.photoURL} size={36} uid={who?.id} />
         <p className="gm-sub__who">
           <span className="eyebrow">
             {name} {t.claim.many}{sub.kind === 'global' ? ` · ${t.sideQuest.one}` : ''}

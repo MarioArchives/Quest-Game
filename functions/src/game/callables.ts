@@ -4,6 +4,7 @@ import type { Ctx, Db } from './context.js';
 import { endGame } from './endGame.js';
 import { addEvidence } from './evidence.js';
 import { fireGlobalQuest } from './globals.js';
+import { setCharacter } from './characters.js';
 import { guessQuest } from './guesses.js';
 import { requestJoin, reviewJoinRequest } from './join.js';
 import { setPlayerLeft } from './left.js';
@@ -12,6 +13,7 @@ import { removePushToken, savePushToken, type PushPlan } from './push.js';
 import { rerollQuest } from './quests.js';
 import { grantRerolls } from './rerolls.js';
 import { resetGame } from './reset.js';
+import { resolveReward } from './rewards.js';
 import { setGameStatus } from './status.js';
 import { reviewSubmission } from './submissions.js';
 import { advanceGlobalQuest, castVote, checkEntry, enterSideQuest } from './votes.js';
@@ -67,6 +69,8 @@ export const CALLABLES: Readonly<Record<string, CallableDef>> = {
   adjustPoints: { run: plain(adjustPoints) },
   grantRerolls: { run: plain(grantRerolls) },
   setGameStatus: { run: plain(setGameStatus) },
+  resolveReward: { run: plain(resolveReward) },
+  setCharacter: { run: plain(setCharacter) },
   endGame: { run: (db, ctx) => endGame(db, ctx), timeoutSeconds: 120 },
   resetGame: {
     run: async (db, ctx, data, services) => {

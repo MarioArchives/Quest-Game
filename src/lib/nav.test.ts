@@ -1,6 +1,6 @@
 // Engine plan edge cases 9-11 (app side): tabs and GM sections follow the pack's features.
 import { describe, expect, it } from 'vitest';
-import { gmSectionsFor, tabsFor } from './nav';
+import { gmSectionsFor, tabLabels, tabsFor } from './nav';
 
 const ALL_ON = { guesses: true, sideQuests: true, map: true };
 
@@ -42,5 +42,25 @@ describe('gmSectionsFor', () => {
 
   it('the map changes nothing in the console', () => {
     expect(gmSectionsFor({ ...ALL_ON, map: false })).toEqual(gmSectionsFor(ALL_ON));
+  });
+});
+
+describe('tabLabels (mystery plan E22)', () => {
+  it("without overrides: Home, Map, Account, and the pack's GM and wrap words", () => {
+    expect(tabLabels(undefined, { gm: 'Host', wrap: 'Recap' })).toEqual({ home: 'Home', map: 'Map', account: 'Account', gm: 'Host', wrap: 'Recap' });
+  });
+
+  it("a pack's own labels replace only the tabs it names", () => {
+    expect(tabLabels({ home: 'Board', account: 'My file' }, { gm: 'GM', wrap: 'Case file' })).toEqual({
+      home: 'Board',
+      map: 'Map',
+      account: 'My file',
+      gm: 'GM',
+      wrap: 'Case file',
+    });
+  });
+
+  it('ignores blank labels', () => {
+    expect(tabLabels({ home: '  ' }, { gm: 'GM', wrap: 'Wrap' }).home).toBe('Home');
   });
 });

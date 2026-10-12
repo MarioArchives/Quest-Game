@@ -93,6 +93,15 @@ describe('P1. who hears about each feed post', () => {
     expect(plan?.exclude).toBe('alice');
   });
 
+  it('a frame goes only to the player framed, with nobody excluded and no framer named (mystery plan)', () => {
+    const plan = pushFor(post('framed', { uid: 'bob', text: 'Someone framed Bob', points: -50 }));
+    expect(plan?.to).toEqual(['bob']);
+    expect(plan?.exclude ?? null).toBeNull();
+    expect(plan?.message.title).toBe('You were framed');
+    expect(plan?.message.link).toBe('#/account');
+    expect(said(plan)).toContain('Someone framed Bob');
+  });
+
   it('a join post, or a player leaving, sends nothing', () => {
     expect(pushFor(post('join', { uid: 'alice' }))).toBeNull();
     expect(pushFor(post('left', { uid: 'alice', actorUid: 'gm' }))).toBeNull();

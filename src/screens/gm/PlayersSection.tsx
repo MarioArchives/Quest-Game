@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { adjustPoints, friendlyError, grantRerolls, setPlayerLeft } from '../../api';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { adjustPoints, friendlyError, grantRerolls, setCharacter, setPlayerLeft } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
@@ -7,12 +7,13 @@ import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { PointsChip } from '../../components/PointsChip';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
-import { tsMs, useNow, useQuery } from '../../data/hooks';
+import { tsMs, useDocument, useNow, useQuery } from '../../data/hooks';
 import { quickAdjustment } from '../../lib/gmQuick';
 import { formatAgo } from '../../lib/time';
 import { features, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
-import { rerollAllowance, rerollsLeft, type LedgerEntry } from '../../shared';
+import { rerollAllowance, rerollsLeft, type LedgerEntry, type Motive } from '../../shared';
+import { characterLine } from '../player/PlayerTicket';
 import { LEDGER_REASONS } from './common';
 
 /** What a player's row says about them having left. */
@@ -46,10 +47,11 @@ export function PlayersSection() {
                 <span className="gm-player__rank" aria-hidden="true">
                   {p.left === 'out' ? '–' : p.rank}
                 </span>
-                <Avatar name={p.displayName} src={p.photoURL} size={36} />
+                <Avatar name={p.displayName} src={p.photoURL} size={36} uid={p.id} />
                 <span className="gm-player__name" aria-hidden="true">
                   {p.displayName}
                   <span className="gm-player__sub">
+                    {features.characters && p.character ? `${characterLine(p.character)} · ` : ''}
                     {p.id === user?.uid ? 'you · ' : ''}
                     {p.left ? LEFT_LABEL[p.left] : ''}
                     {p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? t.quest.one : t.quest.many} done
@@ -138,7 +140,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
   return (
     <BottomSheet
       title={player.displayName}
-      lead={<Avatar name={player.displayName} src={player.photoURL} size={52} />}
+      lead={<Avatar name={player.displayName} src={player.photoURL} size={52} uid={player.id} />}
       subtitle={
         player.left === 'out'
           ? `${player.points} pts · out of the game`
@@ -190,6 +192,8 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           {valid ? `${sign === 1 ? 'Add' : 'Take away'} ${value}` : 'Adjust points'}
         </Button>
       </form>
+
+      {features.characters ? <CharacterForm player={player} /> : null}
 
       <section className="gm-form gm-rerolls" aria-labelledby="gm-rerolls-title">
         <h3 id="gm-rerolls-title" className="gm-h">
@@ -301,5 +305,80 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
         </ConfirmSheet>
       ) : null}
     </BottomSheet>
+  );
+}
+
+/** The GM sets who a player is: a public character name and role, and the motive only that player sees. */
+function CharacterForm({ player }: { player: RankedPlayer }) {
+  const toast = useToast();
+  const motive = useDocument<Motive>(`motives/${player.id}`);
+  const [name, setName] = useState(player.character?.name ?? '');
+  const [role, setRole] = useState(player.character?.role ?? '');
+  const [text, setText] = useState('');
+  const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Show the saved motive once it loads, unless the GM has started typing.
+  useEffect(() => {
+    if (!touched) setText(motive.data?.text ?? '');
+  }, [motive.data?.text, touched]);
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await setCharacter({ uid: player.id, name: name.trim(), role: role.trim(), motive: text.trim() });
+      toast(`${player.displayName}’s character is saved.`, 'success');
+      setTouched(false);
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="gm-form gm-rerolls" onSubmit={(event) => void save(event)}>
+      <h3 className="gm-h">Character</h3>
+      <div className="field">
+        <label className="field__label" htmlFor="char-name">
+          Name
+        </label>
+        <input id="char-name" className="input" value={name} maxLength={60} disabled={busy} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="field">
+        <label className="field__label" htmlFor="char-role">
+          Role
+        </label>
+        <input id="char-role" className="input" value={role} maxLength={60} disabled={busy} onChange={(e) => setRole(e.target.value)} />
+      </div>
+      <div className="field">
+        <label className="field__label" htmlFor="char-motive">
+          Motive (only {player.displayName} and you can read it)
+        </label>
+        <textarea
+          id="char-motive"
+          className="input"
+          rows={3}
+          value={text}
+          maxLength={500}
+          disabled={busy}
+          onChange={(e) => {
+            setTouched(true);
+            setText(e.target.value);
+          }}
+        />
+      </div>
+      {error ? (
+        <p className="note note--error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <Button type="submit" variant="primary" block busy={busy}>
+        Save character
+      </Button>
+    </form>
   );
 }

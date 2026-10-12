@@ -42,7 +42,7 @@ function RequestCard({ request }: { request: Doc<Submission> }) {
   return (
     <li className="wreq">
       <div className="wreq__who">
-        <Avatar name={ownerName} src={owner?.photoURL} size={36} />
+        <Avatar name={ownerName} src={owner?.photoURL} size={36} uid={owner?.id} />
         <p className="wreq__name">
           <strong>{ownerName}</strong> says they did
           <span className="wreq__ago">{formatAgo(tsMs(request.createdAt), now)}</span>

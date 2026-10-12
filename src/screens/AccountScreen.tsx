@@ -4,6 +4,7 @@ import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
+import { useRewardSheet } from '../components/RewardSheet';
 import { ProfileSheet } from '../components/ProfileSheet';
 import { useGame } from '../data/GameProvider';
 import { useQuery } from '../data/hooks';
@@ -29,6 +30,7 @@ const STATUS_LABEL = { lobby: 'Waiting to start', active: 'Game live', paused: '
 export default function AccountScreen() {
   const { user, player, isAdmin, signOut } = useSession();
   const { me, settings, state, ready } = useGame();
+  const reward = useRewardSheet();
   const { stopAndClear } = useLocationSharing();
   const navigate = useNavigate();
   const uid = user?.uid ?? null;
@@ -59,7 +61,7 @@ export default function AccountScreen() {
   return (
     <>
       <section className="me" aria-label="Your profile">
-        <Avatar name={displayName} src={player?.photoURL ?? user?.photoURL} size={68} you />
+        <Avatar name={displayName} src={player?.photoURL ?? user?.photoURL} size={68} you uid={uid ?? undefined} />
         <div className="me__text">
           <h2 className="me__name">{displayName}</h2>
           <p className="me__tags">
@@ -101,6 +103,14 @@ export default function AccountScreen() {
 
       {player ? (
         <>
+          {reward.pending ? (
+            <section className="note" aria-label="Reward">
+              <p>You have a reward waiting.</p>
+              <Button small variant="primary" onClick={reward.open}>
+                Use your reward
+              </Button>
+            </section>
+          ) : null}
           <WitnessRequests />
           <AddEvidenceBanners titleById={titleById} />
           <Hand quests={quests.data} loading={quests.loading} rerollsLeft={rerollsLeft} />

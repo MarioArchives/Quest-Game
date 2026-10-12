@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { getPack, packIds } from '../../functions/src/shared/packs/index.ts';
 
-describe.each(['lancaster', 'starter'])('the %s catalogue', (id) => {
+describe.each(['lancaster', 'starter', 'mystery'])('the %s catalogue', (id) => {
   const pool = () =>
     getPack(id).catalogue as unknown as {
       personal: Array<Record<string, unknown>>;

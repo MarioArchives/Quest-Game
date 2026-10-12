@@ -78,6 +78,8 @@ export const setPlayerLeft = callable('setPlayerLeft');
 export const adjustPoints = callable('adjustPoints');
 export const grantRerolls = callable('grantRerolls');
 export const setGameStatus = callable('setGameStatus');
+export const resolveReward = callable('resolveReward');
+export const setCharacter = callable('setCharacter');
 export const endGame = callable('endGame');
 export const resetGame = callable('resetGame');
 

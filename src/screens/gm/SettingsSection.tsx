@@ -21,7 +21,11 @@ type NumKey =
   | 'globalIntervalMin'
   | 'globalIntervalMax'
   | 'globalWindowMin'
-  | 'voteWindowMin';
+  | 'voteWindowMin'
+  | 'guessLimit'
+  | 'sideQuestSkipPenalty'
+  | 'cleanPoints'
+  | 'framePoints';
 type FlagKey = 'refillOnComplete' | 'revealOnComplete' | 'pointsFloorZero';
 
 interface NumField {
@@ -33,7 +37,7 @@ interface NumField {
 }
 
 interface Group {
-  id: 'hands' | 'points' | 'guessing' | 'sideQuests';
+  id: 'hands' | 'points' | 'guessing' | 'sideQuests' | 'rewards';
   title: string;
   fields: NumField[];
   /** Hidden when the pack leaves the feature out. */
@@ -70,6 +74,7 @@ const GROUPS: Group[] = [
       { key: 'correctGuessReward', label: 'Right guess', hint: 'Gained by the guesser', min: 0, max: 10000 },
       { key: 'wrongGuessCost', label: 'Wrong guess', hint: 'Lost by the guesser', min: 0, max: 10000 },
       { key: 'guessCooldownMin', label: 'Cooldown (min)', hint: 'Between guesses at the same player', min: 0, max: 1440 },
+      { key: 'guessLimit', label: 'Guesses per player', hint: 'In the whole game; 0 = no limit', min: 0, max: 1000 },
     ],
   },
   {
@@ -81,6 +86,16 @@ const GROUPS: Group[] = [
       { key: 'globalIntervalMax', label: 'Drop every, at most (min)', hint: 'Longest gap', min: 1, max: 1440 },
       { key: 'globalWindowMin', label: 'Open for (min)', hint: 'Then you check the entries; late ones still count until you start the vote', min: 1, max: 180 },
       { key: 'voteWindowMin', label: 'Voting open for (min)', hint: 'How long everyone has to vote', min: 1, max: 180 },
+      { key: 'sideQuestSkipPenalty', label: 'Skip fine', hint: `Lost for not entering a ${t.sideQuest.one}; 0 = none`, min: 0, max: 10000 },
+    ],
+  },
+  {
+    id: 'rewards',
+    on: Boolean(features.rewardChoice),
+    title: 'Rewards',
+    fields: [
+      { key: 'cleanPoints', label: 'Points for you', hint: 'Gained when a player picks the first choice', min: 0, max: 10000 },
+      { key: 'framePoints', label: 'Points off someone', hint: 'Taken from the player they pick', min: 0, max: 10000 },
     ],
   },
 ];
@@ -171,6 +186,10 @@ function toSettings(form: Form): Settings {
     fraudPenalty: n('fraudPenalty'),
     rejectPenalty: n('rejectPenalty'),
     voteWindowMin: n('voteWindowMin'),
+    guessLimit: n('guessLimit'),
+    sideQuestSkipPenalty: n('sideQuestSkipPenalty'),
+    cleanPoints: n('cleanPoints'),
+    framePoints: n('framePoints'),
     refillOnComplete: form.flags.refillOnComplete,
     revealOnComplete: form.flags.revealOnComplete,
     pointsFloorZero: form.flags.pointsFloorZero,

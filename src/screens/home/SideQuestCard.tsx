@@ -122,7 +122,7 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
           <ul className="hero__who" aria-label="Who has entered">
             {names.map((p) => (
               <li key={p.id} className="hero__who-item">
-                <Avatar name={p.displayName} src={p.photoURL} size={26} />
+                <Avatar name={p.displayName} src={p.photoURL} size={26} uid={p.id} />
                 <span>{p.id === player?.id ? 'You' : (p.displayName.trim().split(/\s+/)[0] ?? p.displayName)}</span>
               </li>
             ))}
@@ -301,7 +301,7 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
                   <p className="entry__words">{entry.caption}</p>
                 )}
                 <p className="entry__who">
-                  <Avatar name={name} src={who?.photoURL} size={22} />
+                  <Avatar name={name} src={who?.photoURL} size={22} uid={who?.id} />
                   <span>{own ? 'You' : name}</span>
                 </p>
                 {entry.thumbPath && entry.caption ? <p className="entry__caption">{entry.caption}</p> : null}

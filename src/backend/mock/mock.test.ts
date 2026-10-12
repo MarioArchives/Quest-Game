@@ -296,3 +296,62 @@ describe('E29. the starter pack', () => {
     expect(post.text).toMatch(/^The GM adjusted/);
   });
 });
+
+describe('M23. the mystery pack', () => {
+  it('demo players have characters, with private motives, and the pack’s settings', async () => {
+    const m = mock(getPack('mystery'));
+    expect(await read(m, 'game/state')).toMatchObject({ pack: 'mystery' });
+    const players = await docs(m, 'players');
+    for (const p of players) expect(p.character, p.id).toEqual({ name: expect.any(String), role: expect.any(String) });
+    expect((await docs(m, 'motives')).map((x) => x.id).sort()).toEqual(players.map((p) => p.id).sort());
+    expect(await read(m, 'game/settings')).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 25, cleanPoints: 50, framePoints: 50 });
+  });
+
+  it('a confirmed mission earns a reward; framing through call() posts anonymously and costs the target', async () => {
+    const m = mock(getPack('mystery'));
+    await m.auth.signIn('demo-maya');
+    const quest = (await docs(m, 'players/demo-maya/quests')).find((q) => q.status === 'active')!;
+    const id = m.data.newId('submissions');
+    await m.data.set(`submissions/${id}`, {
+      uid: 'demo-maya',
+      kind: 'personal',
+      questId: quest.id,
+      witnessUid: 'demo-sam',
+      createdAt: SERVER_TIME,
+      status: 'pending',
+    });
+    await m.settle();
+    await m.auth.signIn('demo-sam');
+    await m.call('reviewSubmission', { submissionId: id, approve: true });
+    await m.settle();
+
+    await m.auth.signIn('demo-maya');
+    let pending: Array<{ id: string }> = [];
+    m.data.watchQuery<{ id: string }>(
+      { path: 'rewards', where: [['uid', '==', 'demo-maya'], ['status', '==', 'pending']] },
+      (d) => (pending = d),
+      (e) => { throw e; },
+    );
+    expect(pending.map((r) => r.id)).toContain(id);
+
+    const before = (await read(m, 'players/demo-priya'))!.points as number;
+    expect(await m.call('resolveReward', { rewardId: id, choice: 'frame', targetUid: 'demo-priya' })).toEqual({ status: 'framed', points: -50 });
+    await m.settle();
+    expect((await read(m, 'players/demo-priya'))!.points).toBe(before - 50);
+    expect(pending.map((r) => r.id)).not.toContain(id);
+    const framed = (await docs(m, 'feed')).filter((p) => p.type === 'framed');
+    expect(framed).toHaveLength(1);
+    expect(framed[0]).toMatchObject({ uid: 'demo-priya' });
+    expect(framed[0]!.actorUid ?? null).toBeNull();
+    expect(String(framed[0]!.text)).not.toMatch(/maya/i);
+  });
+
+  it('the GM sets a character through call()', async () => {
+    const m = mock(getPack('mystery'));
+    await m.auth.signIn();
+    expect(await m.call('setCharacter', { uid: 'demo-sam', name: 'Professor Plum', role: 'Old friend', motive: 'Debts.' })).toEqual({ ok: true });
+    expect((await read(m, 'players/demo-sam'))!.character).toEqual({ name: 'Professor Plum', role: 'Old friend' });
+    expect((await read(m, 'motives/demo-sam'))!.text).toBe('Debts.');
+  });
+});
+

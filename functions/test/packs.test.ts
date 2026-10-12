@@ -11,7 +11,7 @@ import { DARE_TERMS, testPack } from './packs.js';
 
 describe('E1. getPack and the registry', () => {
   it('lists every pack, sorted', () => {
-    expect(packIds()).toEqual(expect.arrayContaining(['lancaster', 'starter']));
+    expect(packIds()).toEqual(expect.arrayContaining(['lancaster', 'mystery', 'starter']));
     expect(packIds()).toEqual([...packIds()].sort());
   });
 
@@ -36,7 +36,7 @@ describe('E1. getPack and the registry', () => {
 });
 
 describe('E2. validatePack', () => {
-  it.each(['lancaster', 'starter'])('the %s pack is valid', (id) => {
+  it.each(['lancaster', 'starter', 'mystery'])('the %s pack is valid', (id) => {
     expect(validatePack(getPack(id))).toEqual([]);
   });
 
@@ -118,7 +118,7 @@ describe('E2. validatePack', () => {
   });
 });
 
-describe('the two built-in packs', () => {
+describe('the built-in packs', () => {
   it('lancaster keeps the festival game exactly as it was', () => {
     const p = getPack('lancaster');
     expect(p.name).toBe('Festival Quest');
@@ -149,6 +149,67 @@ describe('the two built-in packs', () => {
     expect(p.terms.wrap.one.toLowerCase()).toBe('recap');
     expect(p.catalogue.personal.length).toBeGreaterThanOrEqual(10);
     expect(p.catalogue.global.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe('M18. the mystery pack', () => {
+  it('is a murder-mystery pub crawl with every extra on', () => {
+    const p = getPack('mystery');
+    expect(p.name).toBe('Mystery Pub Crawl');
+    expect(p.features).toEqual({ guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true });
+    expect(p.timeZone).toBe('Europe/London');
+    expect(p.scoring).toBe('classic');
+  });
+
+  it('speaks of tampering missions, group missions, submissions and case files', () => {
+    const p = getPack('mystery');
+    expect(p.terms).toEqual({
+      quest: { one: 'tampering mission', many: 'tampering missions' },
+      sideQuest: { one: 'group mission', many: 'group missions' },
+      witness: { one: 'witness', many: 'witnesses' },
+      claim: { one: 'submission', many: 'submissions' },
+      gm: { one: 'GM', many: 'GMs' },
+      wrap: { one: 'case file', many: 'case files' },
+    });
+  });
+
+  it('starts with a guess limit of 3, a skip penalty of 25, +50 to clean, −50 to frame, and scores may go below zero', () => {
+    const s = defaultSettingsFor(getPack('mystery'));
+    expect(s).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 25, cleanPoints: 50, framePoints: 50, pointsFloorZero: false });
+  });
+
+  it('has a map with no venues yet, and enough missions to deal from', () => {
+    const p = getPack('mystery');
+    expect(p.map).not.toBeNull();
+    expect(p.venues).toEqual([]);
+    expect(p.catalogue.personal.length).toBeGreaterThanOrEqual(20);
+    expect(p.catalogue.global.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('has a character and a motive for each demo player', () => {
+    const chars = getPack('mystery').demoCharacters ?? [];
+    expect(chars.length).toBeGreaterThanOrEqual(4);
+    for (const c of chars) {
+      expect(c.name.trim().length).toBeGreaterThan(0);
+      expect(c.name.length).toBeLessThanOrEqual(40);
+      expect(c.role.trim().length).toBeGreaterThan(0);
+      expect(c.motive.trim().length).toBeGreaterThan(0);
+    }
+    expect(new Set(chars.map((c) => c.name)).size).toBe(chars.length);
+  });
+
+  it('the other packs keep every extra off', () => {
+    for (const id of ['lancaster', 'starter']) {
+      expect(getPack(id).features.rewardChoice ?? false, id).toBe(false);
+      expect(getPack(id).features.characters ?? false, id).toBe(false);
+    }
+  });
+
+  it('the engine defaults keep the new rules off', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ guessLimit: 0, sideQuestSkipPenalty: 0 });
+    for (const id of ['lancaster', 'starter']) {
+      expect(defaultSettingsFor(getPack(id)), id).toMatchObject({ guessLimit: 0, sideQuestSkipPenalty: 0 });
+    }
   });
 });
 

@@ -75,6 +75,7 @@
 .pl-ticket__name--m { font-size: clamp(28px, 8vw, 40px); }
 .pl-ticket__name--l { font-size: clamp(24px, 6.5vw, 34px); }
 .pl-ticket__you { flex: none; padding: 0 6px; border-width: 1px; letter-spacing: 0.1em; }
+.pl-ticket__character { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--muted); }
 .pl-ticket__score { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 6px; }
 .pl-ticket__pts { font-family: var(--display); font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
 .pl-ticket__unit { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -435,6 +436,7 @@
 .guess__chev.is-open { transform: rotate(180deg); }
 .guess__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px 12px; }
 .guess__desc { font-size: 14px; line-height: 1.45; }
+.guess__used { font-weight: 700; }
 .guess__rules { text-align: center; font-size: 13px; line-height: 1.4; color: var(--muted); }
 .guess__filter { min-height: 44px; }
 .guess__scroll { max-height: 38dvh; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }

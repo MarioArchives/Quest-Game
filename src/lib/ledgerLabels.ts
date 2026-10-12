@@ -20,5 +20,8 @@ export function ledgerLabels(t: TermForms, voice: LedgerVoice): Record<LedgerRea
     rejected: `${t.claim.One} rejected`,
     witness: `${t.witness.One} reward`,
     bounty: 'Bounty from a wrong guess',
+    cleared: { you: 'Cleared your name', them: 'Cleared their name', gm: 'Name cleared' }[voice],
+    framed: { you: 'You were framed', them: 'They were framed', gm: 'Framed' }[voice],
+    skipped: `Skipped a ${t.sideQuest.one}`,
   };
 }

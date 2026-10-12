@@ -21,6 +21,10 @@ export const DEFAULT_SETTINGS: Settings = {
   refillOnComplete: false,
   revealOnComplete: true,
   pointsFloorZero: false,
+  guessLimit: 0,
+  sideQuestSkipPenalty: 0,
+  cleanPoints: 50,
+  framePoints: 50,
   scoring: 'classic',
   scoringParams: {},
 };

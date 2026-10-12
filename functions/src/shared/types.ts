@@ -36,6 +36,14 @@ export interface Settings {
   refillOnComplete: boolean;
   revealOnComplete: boolean;
   pointsFloorZero: boolean;
+  /** Guesses each player may make in the whole game; 0 = no limit. */
+  guessLimit: number;
+  /** Points lost for not entering a side quest before its vote closes (0 = none). */
+  sideQuestSkipPenalty: number;
+  /** Reward choice (packs with rewardChoice): points to yourself for "clean". */
+  cleanPoints: number;
+  /** Reward choice: points taken from the player you frame. */
+  framePoints: number;
   /** Scoring rule-set id (functions/src/shared/scoring); an unknown id falls back to the pack's default. */
   scoring: string;
   /** The rule sets' own numbers by param key (keys are unique across rule sets). */
@@ -89,6 +97,29 @@ export interface Player {
    */
   left?: PlayerLeft | null;
   leftAt?: TS | null;
+  /** Packs with characters: who they play, set by the GM. Public; the motive is private (motives/{uid}). */
+  character?: { name: string; role: string } | null;
+}
+
+/** rewards/{submissionId}: the choice a player earns by completing a personal quest (packs with rewardChoice). */
+export type RewardStatus = 'pending' | 'cleaned' | 'framed' | 'void';
+
+export interface Reward {
+  uid: string;
+  submissionId: string;
+  status: RewardStatus;
+  createdAt: TS;
+  resolvedAt?: TS | null;
+  /** Who was framed. Only the owner and the GM can read rewards, so framing stays anonymous. */
+  targetUid?: string | null;
+  /** The points change actually applied (to the owner for clean, to the target for frame), for reversals. */
+  applied?: number | null;
+}
+
+/** motives/{uid}: a player's secret motive (packs with characters). Readable by that player and the GM. */
+export interface Motive {
+  text: string;
+  updatedAt: TS;
 }
 
 export type PlayerLeft = 'frozen' | 'out';
@@ -274,6 +305,9 @@ export const LEDGER_REASON_LIST = [
   'rejected',
   'witness',
   'bounty',
+  'cleared',
+  'framed',
+  'skipped',
 ] as const;
 
 export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
@@ -304,7 +338,9 @@ export type FeedType =
   | 'announcement'
   | 'status'
   | 'adjust'
-  | 'left';
+  | 'left'
+  /** Someone used a reward to frame this player; never names who (packs with rewardChoice). */
+  | 'framed';
 
 /** feed/{id} — the Home feed. Everything that happens in the game posts here. */
 export interface FeedItem {

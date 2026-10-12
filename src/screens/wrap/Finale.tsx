@@ -41,7 +41,7 @@ export function PodiumCard({ standings, meUid }: { standings: Standing[]; meUid:
               <div className="w-podium__people">
                 {players.map((p) => (
                   <div key={p.uid} className="w-podium__person">
-                    <Avatar name={p.displayName} src={p.photoURL} size={players.length > 2 ? 40 : 52} />
+                    <Avatar name={p.displayName} src={p.photoURL} size={players.length > 2 ? 40 : 52} uid={p.uid} />
                     <p className="w-podium__name">{p.displayName}</p>
                   </div>
                 ))}
@@ -81,7 +81,7 @@ export function HandsCard({ wraps, meUid }: { wraps: Doc<Wrap>[]; meUid: string 
                   <details className="w-player" open={you || undefined}>
                     <summary className="w-player__sum">
                       <span className="w-player__rank">{w.rank}</span>
-                      <Avatar name={w.displayName} src={w.photoURL} size={30} />
+                      <Avatar name={w.displayName} src={w.photoURL} size={30} uid={w.id} />
                       <span className="w-player__name">
                         {w.displayName}
                         {you ? <span className="w-player__you"> (you)</span> : null}

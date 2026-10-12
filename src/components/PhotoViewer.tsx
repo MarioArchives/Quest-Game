@@ -125,7 +125,7 @@ function PhotoViewer({ target, onClose }: { target: ViewerTarget; onClose(): voi
     <div className="viewer-root">
       <div className="viewer" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1}>
         <header className="viewer__bar">
-          {author ? <Avatar name={authorName} src={author.photoURL} size={36} /> : null}
+          {author ? <Avatar name={authorName} src={author.photoURL} size={36} uid={author.id} /> : null}
           <div className="viewer__who">
             <h2 id={titleId} className="viewer__name">
               {photo?.uid ? authorName : 'Photo'}

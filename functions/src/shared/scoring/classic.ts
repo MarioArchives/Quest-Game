@@ -22,6 +22,12 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
       return [{ kind: 'points', uid: event.guesser, delta: -s.wrongGuessCost, reason: 'guess-wrong' }];
     case 'sideQuestWon':
       return [{ kind: 'points', uid: event.uid, delta: event.bonus, reason: 'global-win' }];
+    case 'sideQuestSkipped':
+      return [{ kind: 'points', uid: event.uid, delta: -s.sideQuestSkipPenalty, reason: 'skipped' }];
+    case 'rewardClean':
+      return [{ kind: 'points', uid: event.uid, delta: s.cleanPoints, reason: 'cleared' }];
+    case 'rewardFrame':
+      return [{ kind: 'points', uid: event.target, delta: -s.framePoints, reason: 'framed' }];
   }
 }
 
@@ -33,6 +39,15 @@ export function sharedRows(s: Settings, t: TermForms, features: Features = ALL_O
   return [
     [`${t.claim.One} rejected`, `you lose ${s.rejectPenalty} and get a fresh ${t.quest.one}`],
     ...(features.sideQuests ? [[`${t.sideQuest.One} win`, `+${s.sideQuestPoints} for the most votes (ties all win)`] as [string, string]] : []),
+    ...(features.sideQuests && s.sideQuestSkipPenalty > 0
+      ? [[`${t.sideQuest.One} skipped`, `you lose ${s.sideQuestSkipPenalty} if you don't enter`] as [string, string]]
+      : []),
+    ...(features.rewardChoice
+      ? [
+          ['Clear your name', `+${s.cleanPoints} for you`] as [string, string],
+          ['Frame someone', `they lose ${s.framePoints}, and nobody learns it was you`] as [string, string],
+        ]
+      : []),
     ...(features.guesses
       ? [
           ['Right guess', `they lose ${s.exposePenalty}, you gain ${s.correctGuessReward}`] as [string, string],

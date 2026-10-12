@@ -218,8 +218,9 @@ async function resetDemo() {
   for (const uid of uids) {
     await db.recursiveDelete(db.doc(`players/${uid}`));
     await db.doc(`locations/${uid}`).delete();
+    await db.doc(`motives/${uid}`).delete();
   }
-  for (const col of ['submissions', 'pointsLedger', 'feed']) {
+  for (const col of ['submissions', 'pointsLedger', 'feed', 'rewards']) {
     const snap = await db.collection(col).where('uid', 'in', uids).get();
     for (const doc of snap.docs) await db.recursiveDelete(doc.ref); // feed posts take their reactions with them
   }

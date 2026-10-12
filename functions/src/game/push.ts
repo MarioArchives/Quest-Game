@@ -82,6 +82,10 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, 
     case 'exposed':
       if (!post.uid) return null;
       return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: `Your ${t.quest.one} was exposed`, body: post.text, link: ACCOUNT } };
+    case 'framed':
+      // Anonymous: the post has no actor, so nobody is excluded and nobody is named.
+      if (!post.uid) return null;
+      return { to: [post.uid], message: { title: 'You were framed', body: post.text, link: ACCOUNT } };
     case 'adjust':
       if (!post.uid) return null;
       return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Points changed', body: post.text, link: ACCOUNT } };

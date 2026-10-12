@@ -49,6 +49,15 @@ function retryAtFrom(details: unknown): number | null {
   return null;
 }
 
+/** The cap a refused action ran into ('resource-exhausted' with `details.limit`), if any. */
+function limitFrom(details: unknown): number | null {
+  if (details && typeof details === 'object' && 'limit' in details) {
+    const value = Number((details as { limit: unknown }).limit);
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
 /** Messages for errors thrown by the client SDKs (Firestore / Storage), not by our callables. */
 const CLIENT_FALLBACK: Record<string, string> = {
   'permission-denied': "That isn't allowed right now. Is the game running?",
@@ -77,7 +86,9 @@ export function toApiError(err: unknown, nowMs: number = Date.now()): ApiError {
     let message: string;
     if (SERVER_MESSAGE_CODES.has(code) && looksHuman) message = server;
     else message = FALLBACK[code] ?? 'Something went wrong on our side. Try again in a moment.';
-    if (code === 'resource-exhausted' && retryAt && retryAt > nowMs) {
+    const limit = limitFrom(err.details);
+    if (code === 'resource-exhausted' && limit !== null) message = `You have used all ${limit} of your guesses.`;
+    else if (code === 'resource-exhausted' && retryAt && retryAt > nowMs) {
       const mins = Math.max(1, Math.ceil((retryAt - nowMs) / 60_000));
       message = `Too soon. You can try again in ${mins} min.`;
     }

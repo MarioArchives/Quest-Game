@@ -527,3 +527,60 @@ describe('11. wraps', () => {
     await assertFails(getDoc(doc(as('pending'), 'wraps/alice')));
   });
 });
+
+describe('M8/M15. rewards and motives are private to their owner and the GM', () => {
+  async function seedPrivate() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'rewards/s1'), { uid: 'alice', submissionId: 's1', status: 'framed', targetUid: 'bob', applied: -50, createdAt: T, resolvedAt: T });
+      await setDoc(doc(db, 'motives/alice'), { text: 'Cut out of the will', updatedAt: T });
+    });
+  }
+
+  it("a reward is readable by its owner (also by query on their uid) and the GM, never another player", async () => {
+    await seedPrivate();
+    await assertSucceeds(getDoc(doc(as('alice'), 'rewards/s1')));
+    await assertSucceeds(getDocs(query(collection(as('alice'), 'rewards'), where('uid', '==', 'alice'))));
+    await assertSucceeds(getDoc(doc(as('gm'), 'rewards/s1')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'rewards')));
+    // bob is the one framed: he must not find out who did it.
+    await assertFails(getDoc(doc(as('bob'), 'rewards/s1')));
+    await assertFails(getDocs(collection(as('bob'), 'rewards')));
+    await assertFails(getDocs(query(collection(as('bob'), 'rewards'), where('targetUid', '==', 'bob'))));
+    await assertFails(getDoc(doc(as('pending'), 'rewards/s1')));
+    await assertFails(getDoc(doc(anon(), 'rewards/s1')));
+  });
+
+  it('no client writes a reward, not the owner or the GM', async () => {
+    await seedPrivate();
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(updateDoc(doc(as(uid), 'rewards/s1'), { status: 'pending' }));
+      await assertFails(setDoc(doc(as(uid), 'rewards/s9'), { uid: 'alice', submissionId: 's9', status: 'pending', createdAt: serverTimestamp() }));
+      await assertFails(deleteDoc(doc(as(uid), 'rewards/s1')));
+    }
+  });
+
+  it('a motive is readable by its player and the GM only', async () => {
+    await seedPrivate();
+    await assertSucceeds(getDoc(doc(as('alice'), 'motives/alice')));
+    await assertSucceeds(getDoc(doc(as('gm'), 'motives/alice')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'motives')));
+    await assertFails(getDoc(doc(as('bob'), 'motives/alice')));
+    await assertFails(getDocs(collection(as('bob'), 'motives')));
+    await assertFails(getDoc(doc(anon(), 'motives/alice')));
+  });
+
+  it('no client writes a motive, not its player or the GM (the GM uses setCharacter)', async () => {
+    await seedPrivate();
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(updateDoc(doc(as(uid), 'motives/alice'), { text: 'Innocent' }));
+      await assertFails(setDoc(doc(as(uid), 'motives/bob'), { text: 'x', updatedAt: serverTimestamp() }));
+      await assertFails(deleteDoc(doc(as(uid), 'motives/alice')));
+    }
+  });
+
+  it('a player cannot set their own character on their player doc', async () => {
+    await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { character: { name: 'The Detective', role: 'Innocent' } }));
+    await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { photoURL: 'https://example.com/a.png', character: { name: 'X', role: 'Y' } }));
+  });
+});

@@ -40,6 +40,12 @@ export async function guessQuest(
 
     const settings = await loadSettings(db, tx);
     const scoring = scoringFor(ctx.pack, settings, state, ctx.now);
+    if (settings.guessLimit > 0) {
+      const made = await tx.get(db.collection('guesses').where('guesserUid', '==', guesserUid));
+      if (made.docs.length >= settings.guessLimit) {
+        fail('resource-exhausted', `You have used all ${settings.guessLimit} of your guesses.`, { limit: settings.guessLimit });
+      }
+    }
     const cooldownRef = db.doc(`guessCooldowns/${guesserUid}_${targetUid}`);
     const cooldown = (await tx.get(cooldownRef)).data() as GuessCooldown | undefined;
     if (cooldown) {

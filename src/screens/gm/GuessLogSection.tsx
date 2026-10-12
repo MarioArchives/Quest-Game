@@ -44,11 +44,11 @@ export function GuessLogSection() {
                 </span>
                 <div className="gm-guess__text">
                   <p className="gm-guess__who">
-                    <Avatar name={from?.displayName ?? '?'} src={from?.photoURL} size={22} />
+                    <Avatar name={from?.displayName ?? '?'} src={from?.photoURL} size={22} uid={from?.id} />
                     <strong>{from?.displayName ?? 'A player'}</strong>
                     <span aria-hidden="true">→</span>
                     <span className="visually-hidden">guessed</span>
-                    <Avatar name={to?.displayName ?? '?'} src={to?.photoURL} size={22} />
+                    <Avatar name={to?.displayName ?? '?'} src={to?.photoURL} size={22} uid={to?.id} />
                     <strong>{to?.displayName ?? 'a player'}</strong>
                   </p>
                   <p className="gm-guess__quest">{title}</p>

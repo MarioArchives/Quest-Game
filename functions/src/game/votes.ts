@@ -95,7 +95,8 @@ export async function advanceGlobalQuest(
     }
     if (gq.status === 'checking') {
       await attachPosts(tx, db, entries);
-      return { status: finishChecking(tx, db, ctx.now, settings, q, entries) };
+      const players = await readPlayers(tx, db);
+      return { status: finishChecking(tx, db, ctx.now, settings, scoringFor(ctx.pack, settings, state, ctx.now), q, entries, players) };
     }
     const votes = await readVotes(tx, db, questId);
     const players = await readPlayers(tx, db);

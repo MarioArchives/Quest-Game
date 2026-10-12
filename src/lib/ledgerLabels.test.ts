@@ -47,6 +47,13 @@ describe('ledgerLabels', () => {
     expect(ledgerLabels(t, 'them').bounty).toBe('Bounty from a wrong guess');
   });
 
+  it('names the reward and skip reasons, never naming who framed whom (mystery plan E17)', () => {
+    const t = dare();
+    expect(ledgerLabels(t, 'you')).toMatchObject({ cleared: 'Cleared your name', framed: 'You were framed', skipped: 'Skipped a showdown' });
+    expect(ledgerLabels(t, 'them')).toMatchObject({ cleared: 'Cleared their name', framed: 'They were framed', skipped: 'Skipped a showdown' });
+    expect(ledgerLabels(t, 'gm')).toMatchObject({ cleared: 'Name cleared', framed: 'Framed', skipped: 'Skipped a showdown' });
+  });
+
   it("uses the pack's words", () => {
     const labels = ledgerLabels(dare(), 'you');
     expect(labels.quest).toBe('Dare approved');

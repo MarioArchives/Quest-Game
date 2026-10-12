@@ -16,7 +16,17 @@ export type Terms = Record<TermKey, Noun>;
 /** Optional parts of the game. Witnessed claims, the feed, the GM and the wrap are always on. */
 export const FEATURES = ['guesses', 'sideQuests', 'map'] as const;
 export type Feature = (typeof FEATURES)[number];
-export type Features = Record<Feature, boolean>;
+
+/** Extra parts only some packs use; off unless a pack turns them on. */
+export const EXTRA_FEATURES = ['rewardChoice', 'characters'] as const;
+export type ExtraFeature = (typeof EXTRA_FEATURES)[number];
+
+/**
+ * The core three are always set; the extras are optional and default to off:
+ * - rewardChoice: completing a personal quest earns a choice: points to yourself, or framing another player (anonymous)
+ * - characters: each player has a character (public) and a secret motive, set by the GM
+ */
+export type Features = Record<Feature, boolean> & Partial<Record<ExtraFeature, boolean>>;
 
 export interface AwardCopy {
   title: string;
@@ -75,4 +85,6 @@ export interface GamePack {
   map: MapConfig | null;
   /** Venues for the map, its schedule and the venue award; may be empty (the map then shows just the players). */
   venues: Venue[];
+  /** Packs with characters: characters and motives for the demo players (mock and seed), in demo order. */
+  demoCharacters?: Array<{ name: string; role: string; motive: string }>;
 }

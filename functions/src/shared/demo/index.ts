@@ -93,6 +93,7 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
       exposedAt: null,
       ...extra,
     });
+    const character = pack.features.characters ? pack.demoCharacters?.[botIndex] : undefined;
     const questRef = (id: string) => `players/${bot.uid}/quests/${id}`;
     const pending = bot.submitted ? `${bot.uid}-pending` : null;
     const rejectedId = bot.rejected ? `${bot.uid}-rejected` : null;
@@ -106,8 +107,11 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         points: questPoints * bot.done.length - (bot.rejected ? rejectPenalty : 0),
         rerollsUsed: bot.rerolls,
         questsCompleted: bot.done.length,
+        ...(character ? { character: { name: character.name, role: character.role } } : {}),
       },
     ]);
+    // The motive is private, so it lives apart from the public player doc.
+    if (character) entries.push([`motives/${bot.uid}`, { text: character.motive, updatedAt: at(240) }]);
     pushPost(`join-${bot.uid}`, at(240), { type: 'join', text: `${bot.name} joined the game`, uid: bot.uid, ref: null });
 
     // Live hand: mostly active; the last quest is "submitted" while its claim waits for the witness.
@@ -162,6 +166,9 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         `pointsLedger/ledger-${subId}`,
         { uid: bot.uid, delta: questPoints, reason: 'quest', ref: subId, by: witness.uid, note: d.note, createdAt: at(minutesAgo) },
       ]);
+      if (pack.features.rewardChoice) {
+        entries.push([`rewards/${subId}`, { uid: bot.uid, submissionId: subId, status: 'pending', createdAt: at(minutesAgo) }]);
+      }
       pushPost(postId, at(minutesAgo), {
         type: 'approved',
         text: `${bot.name} completed "${t.title}" — witnessed by ${witness.name}`,

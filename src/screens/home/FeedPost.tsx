@@ -51,6 +51,7 @@ const TAG: Record<FeedType, Label & { red?: boolean }> = {
   rejected: { text: 'Rejected', icon: 'close' },
   fraud: { text: 'Fraud', icon: 'gm' },
   exposed: { text: 'Exposed', icon: 'eye', red: true },
+  framed: { text: 'Framed', icon: 'eye', red: true },
   'global-open': { text: t.sideQuest.One, icon: 'megaphone', red: true },
   checking: { text: 'Time’s up', icon: 'clock' },
   'voting-open': { text: 'Vote now', icon: 'ballot', red: true },
@@ -68,6 +69,7 @@ const MARK: Record<FeedType, Label> = {
   rejected: { text: 'Denied', icon: 'close' },
   fraud: { text: 'Fraud', icon: 'gm' },
   exposed: { text: 'Caught', icon: 'eye' },
+  framed: { text: 'Framed', icon: 'eye' },
   'global-open': { text: 'New', icon: 'megaphone' },
   checking: { text: 'Late OK', icon: 'clock' },
   'voting-open': { text: 'Vote', icon: 'ballot' },
@@ -158,7 +160,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
     return (
       <li className={`tk-line tk-line--${item.type}`}>
         {who || item.photoURL ? (
-          <Avatar name={who?.displayName ?? item.text} src={who?.photoURL ?? item.photoURL} size={28} />
+          <Avatar name={who?.displayName ?? item.text} src={who?.photoURL ?? item.photoURL} size={28} uid={who?.id} />
         ) : (
           <span className="tk-line__badge" aria-hidden="true">
             <Glyph name={TAG[item.type].icon} size={15} />
@@ -230,7 +232,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
             {mark.text}
           </span>
         )}
-        {item.type === 'exposed' && who ? (
+        {(item.type === 'exposed' || item.type === 'framed') && who ? (
           <span className="tk__who">
             <span className="visually-hidden">for </span>
             {firstName(who.displayName)}

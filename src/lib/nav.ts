@@ -19,3 +19,16 @@ export function gmSectionsFor(features: Features): GmSectionId[] {
   const all: GmSectionId[] = ['game', 'joins', 'review', 'quests', 'players', 'guesses', 'templates', 'settings'];
   return all.filter((id) => (id !== 'quests' || features.sideQuests) && (id !== 'guesses' || features.guesses));
 }
+
+/** The tab labels: the pack's own where it gives them, else Home, Map, Account, the GM term and the wrap term. */
+export function tabLabels(
+  overrides: Partial<Record<TabId, string>> | undefined,
+  terms: { gm: string; wrap: string },
+): Record<TabId, string> {
+  const defaults: Record<TabId, string> = { home: 'Home', map: 'Map', account: 'Account', gm: terms.gm, wrap: terms.wrap };
+  for (const id of Object.keys(defaults) as TabId[]) {
+    const own = overrides?.[id]?.trim();
+    if (own) defaults[id] = own;
+  }
+  return defaults;
+}

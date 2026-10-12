@@ -51,6 +51,10 @@ describe('engine code is game-neutral', () => {
     expect(offenders(/\b(lancaster|festival|festivals|ashton|setlists?|gigs?)\b/i)).toEqual([]);
   });
 
+  it('never mentions the murder mystery: its words belong in the mystery pack', () => {
+    expect(offenders(/\b(murder|mystery|mysteries|interrogation|tampering|dossiers?|whodunit|suspects?|suspicion|pub crawl)\b/i)).toEqual([]);
+  });
+
   it('never hard-codes the London time zone', () => {
     expect(offenders(/Europe\/London/)).toEqual([]);
   });

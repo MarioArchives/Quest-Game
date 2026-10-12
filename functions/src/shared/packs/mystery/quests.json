@@ -1,0 +1,206 @@
+{
+  "personal": [
+    {
+      "id": "p-clue-napkin",
+      "title": "Planted clue",
+      "description": "Slip a napkin or beer mat with a scribbled \"clue\" (an arrow, a question mark, anything cryptic) onto someone's table without them noticing. Proof: your witness saw it land and watched them find it."
+    },
+    {
+      "id": "p-alibi-phrase",
+      "title": "The perfect alibi",
+      "description": "Get someone to say \"I was in the library the whole time\" in conversation. Proof: your witness heard them say it."
+    },
+    {
+      "id": "p-ransom-mat",
+      "title": "Ransom note",
+      "description": "Swap someone's drink mat for one with a little \"ransom note\" scribbled on it. Proof: your witness saw the swap and the person's reaction."
+    },
+    {
+      "id": "p-butler-did-it",
+      "title": "The butler did it",
+      "description": "Get the bartender to say \"the butler did it\", even as a joke. Proof: your witness heard them say it."
+    },
+    {
+      "id": "p-fingerprints",
+      "title": "Dusting for prints",
+      "description": "Ask a friend to hold a glass, then solemnly \"dust\" it with a pinch of napkin and declare the prints a match. Proof: your witness watched the whole performance."
+    },
+    {
+      "id": "p-suspicious-whisper",
+      "title": "Suspicious whisper",
+      "description": "Whisper \"they know\" to someone, then walk off without explaining. Proof: your witness saw it, and the confused face afterwards."
+    },
+    {
+      "id": "p-moved-body",
+      "title": "Moving the body",
+      "description": "Quietly relocate a small harmless object on a friend's table (a coaster, a menu, a salt shaker) to somewhere else on the table, and get away with it. Proof: your witness saw you do it and that nobody noticed."
+    },
+    {
+      "id": "p-fake-confession",
+      "title": "Fake confession",
+      "description": "Get someone to say \"I confess\" about something silly, like eating the last chip. Proof: your witness heard the confession."
+    },
+    {
+      "id": "p-red-herring",
+      "title": "Red herring",
+      "description": "Casually mention a made-up suspect, such as \"Sir Reginald\", and get someone else to repeat the name. Proof: your witness heard them say it."
+    },
+    {
+      "id": "p-detective-pose",
+      "title": "Case closed",
+      "description": "Get the friends at your table to gasp dramatically when you announce \"the murderer is in this room\". Proof: your witness saw the gasps."
+    },
+    {
+      "id": "p-secret-signal",
+      "title": "The secret signal",
+      "description": "Agree a hidden gesture, such as tapping your ear, with a friend, then get them to use it three times. Proof: your witness spotted all three taps."
+    },
+    {
+      "id": "p-wrong-name",
+      "title": "The alias",
+      "description": "Introduce yourself to a friend of a friend using a murder-mystery alias and keep a straight face. Proof: your witness heard the alias and saw it go unquestioned."
+    },
+    {
+      "id": "p-stir-the-evidence",
+      "title": "Stirring the evidence",
+      "description": "Dramatically examine a friend's empty crisp packet or peanut shell like a vital clue and place it in a napkin \"evidence bag\". Proof: your witness saw the bagging."
+    },
+    {
+      "id": "p-two-truths-lie",
+      "title": "Witness statement",
+      "description": "Get a friend to give you a formal \"witness statement\" about their evening in under one sentence. Proof: your witness heard the statement."
+    },
+    {
+      "id": "p-torn-page",
+      "title": "The missing page",
+      "description": "Tear a corner from a beer mat, hand it to someone and say \"you didn't get this from me\". Proof: your witness saw you hand it over."
+    },
+    {
+      "id": "p-cryptic-toast",
+      "title": "Cryptic toast",
+      "description": "Propose a toast with a cryptic line like \"to what the walls heard\" and get the whole table to join in. Proof: your witness saw the group toast."
+    },
+    {
+      "id": "p-anonymous-tip",
+      "title": "Anonymous tip",
+      "description": "Write an \"anonymous tip\" on a napkin about another player and have it passed to them by a third person. Proof: your witness saw it handed over."
+    },
+    {
+      "id": "p-sigh-and-stare",
+      "title": "The long stare",
+      "description": "Stare thoughtfully at a friend, say \"interesting\", and say nothing else until they ask what you mean. Proof: your witness heard them ask."
+    },
+    {
+      "id": "p-dropped-glove",
+      "title": "Dropped evidence",
+      "description": "Leave a glove, scarf or other item of your own on a friend's chair and get them to hand it back to you while saying \"this is evidence\". Proof: your witness heard them say it."
+    },
+    {
+      "id": "p-case-notes",
+      "title": "Taking notes",
+      "description": "Interview a friend with a straight face, writing their answers in a notebook or on your phone, until they start giving evasive answers. Proof: your witness saw the interview."
+    },
+    {
+      "id": "p-gasp",
+      "title": "Shocking revelation",
+      "description": "Announce a harmless \"shocking revelation\" about yourself, such as \"I've never seen the last episode\", and get a proper gasp. Proof: your witness heard the gasp."
+    },
+    {
+      "id": "p-silent-treatment",
+      "title": "Rehearsed denial",
+      "description": "Get a friend to reply \"I don't know what you're talking about\" in a dramatic voice to a question you asked. Proof: your witness heard the denial."
+    },
+    {
+      "id": "p-chalk-outline",
+      "title": "Chalk outline",
+      "description": "Arrange spilled crisps, sugar sachets or beer mats into the outline of a body on a table. Proof: your witness saw the finished arrangement."
+    },
+    {
+      "id": "p-pass-the-key",
+      "title": "Mysterious handover",
+      "description": "Pass a friend a small object, such as a coin or a sugar packet, with a nod and \"you know what to do\". Proof: your witness saw the handover."
+    },
+    {
+      "id": "p-cover-story",
+      "title": "Cover story",
+      "description": "Get someone to repeat back to you a cover story you made up, such as \"we were at the opera all evening\". Proof: your witness heard them repeat it."
+    },
+    {
+      "id": "p-weather-report",
+      "title": "Weather of the crime",
+      "description": "Tell someone, deadpan, that it was a \"dark and stormy night\" and get them to agree. Proof: your witness heard the agreement."
+    },
+    {
+      "id": "p-fake-evidence-bag",
+      "title": "Evidence bag",
+      "description": "Persuade a friend to hand you a small personal item, like a sticker or a bottle cap, to be \"logged as evidence\" and give it back at the end. Proof: your witness saw it handed over and returned."
+    },
+    {
+      "id": "p-dramatic-exit",
+      "title": "Dramatic exit",
+      "description": "Leave the table with a long pause, a flourish, and the line \"I have said too much\". Proof: your witness saw the exit and heard the line."
+    }
+  ],
+  "global": [
+    {
+      "id": "g-crime-scene",
+      "title": "Reconstruct the crime scene",
+      "description": "Reconstruct the murder scene using only beer mats, glasses and whatever is on the table. Photo of the finished scene.",
+      "windowMin": 20
+    },
+    {
+      "id": "g-police-lineup",
+      "title": "The usual suspects",
+      "description": "Line up the whole group like a police line-up with numbers, scowls and one bold hat. Photo of the line-up.",
+      "windowMin": 15
+    },
+    {
+      "id": "g-mugshots",
+      "title": "Mugshots",
+      "description": "Everyone takes a mugshot against a wall, holding a name card. Photo of the group's mugshots.",
+      "windowMin": 20
+    },
+    {
+      "id": "g-body-outline",
+      "title": "Body in the library",
+      "description": "Stage a fake body on the floor, or a chair, with a suspicious bystander nearby. Photo of the scene.",
+      "windowMin": 15
+    },
+    {
+      "id": "g-newspaper-headline",
+      "title": "Front page news",
+      "description": "Pose as if for a newspaper front page about the murder, with a dramatic headline written on a napkin. Photo of the pose.",
+      "windowMin": 25
+    },
+    {
+      "id": "g-secret-society",
+      "title": "The secret society",
+      "description": "Form a secret society handshake pose with the whole group. Photo of the pose.",
+      "windowMin": 15
+    },
+    {
+      "id": "g-evidence-table",
+      "title": "Evidence table",
+      "description": "Lay out the strangest five items from your pockets and bags as if they were evidence. Photo of the table.",
+      "windowMin": 20
+    },
+    {
+      "id": "g-whodunnit-tableau",
+      "title": "The reveal",
+      "description": "Stage the final drawing-room reveal, with one person pointing accusingly and the rest in shock. Photo of the tableau.",
+      "windowMin": 15
+    },
+    {
+      "id": "g-portrait-gallery",
+      "title": "Family portrait",
+      "description": "Recreate a stiff, Victorian-style family portrait of the Blackwood household. Photo of the portrait.",
+      "windowMin": 20
+    },
+    {
+      "id": "g-sneaky-selfie",
+      "title": "Suspicious selfie",
+      "description": "Take a group selfie where every person looks guilty of something different. Photo of the selfie.",
+      "windowMin": 10
+    }
+  ]
+}
