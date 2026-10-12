@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { Icon } from '../components/Icon';
 import { useGame } from '../data/GameProvider';
 import { firstName, formatPoints, playerLabel, splitStandings, tiedRanks } from '../lib/standings';
 import { useSession } from '../session/SessionProvider';
 import { Podium } from './home/RanksStrip';
 import './home/ranks.css';
+import { t } from '../pack';
 
 /** The full leaderboard: the podium, then a wristband for everyone else. Tap a player for their record. */
 export default function StandingsScreen() {
@@ -13,7 +14,7 @@ export default function StandingsScreen() {
   const { ready, players } = useGame();
   const navigate = useNavigate();
 
-  if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready) return <Loader className="app__loader" caption="Loading" />;
 
   const uid = user?.uid ?? null;
   const open = (id: string) => navigate(`/player/${id}`);
@@ -37,7 +38,7 @@ export default function StandingsScreen() {
       {players.length === 0 ? (
         <div className="empty">
           <h3>Nobody on the board</h3>
-          <p>Players show up here once the GM lets them in.</p>
+          <p>Players show up here once the {t.gm.One} lets them in.</p>
         </div>
       ) : (
         <>

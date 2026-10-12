@@ -1,0 +1,112 @@
+/*
+ * Loading mark, "Screenprint" (the pack draws the art, see PackLook.LoaderArt), 2.8 s loop:
+ *   0 -> 54 %   the five ink tiers draw bottom-to-top, staggered
+ *   50 -> 64 %  the red plate prints in, sliding from (0,0) onto its off-register spot (+1.6, +1.4)
+ *   64 -> 88 %  hold
+ *   88 -> 96 %  everything clears, then a short blank before the loop restarts
+ */
+.loader {
+  --loader-line: var(--ink);
+  --loader-plate: var(--accent);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  line-height: 1;
+}
+.loader--on-red { --loader-plate: var(--paper); }
+.loader--on-ink { --loader-line: var(--paper); color: var(--paper); }
+.loader--screen {
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+  justify-content: center;
+  background: var(--paper);
+}
+.loader__caption {
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.loader__svg { width: var(--loader-size); height: var(--loader-size); overflow: visible; }
+
+.loader__plate {
+  fill: var(--loader-plate);
+  opacity: 0;
+  transform: translate(1.6px, 1.4px);
+  animation: loader-plate 2.8s ease-out infinite;
+}
+
+.loader__tier {
+  stroke: var(--loader-line);
+  /* dash 1, gap 2 on a path normalised to length 1: with the offset at 1 the whole path sits in the gap,
+     so an undrawn tier leaves no round-cap dots behind. */
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation-duration: 2.8s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+.loader__tier--1 { animation-name: loader-tier-1; }
+.loader__tier--2 { animation-name: loader-tier-2; }
+.loader__tier--3 { animation-name: loader-tier-3; }
+.loader__tier--4 { animation-name: loader-tier-4; }
+.loader__tier--5 { animation-name: loader-tier-5; }
+
+/* Each tier: invisible until its slot starts, draws over 22 %, holds, then clears with the rest. */
+@keyframes loader-tier-1 {
+  0%      { stroke-dashoffset: 1; opacity: 0; }
+  0.01%   { stroke-dashoffset: 1; opacity: 1; }
+  22%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes loader-tier-2 {
+  0%, 7.99% { stroke-dashoffset: 1; opacity: 0; }
+  8%      { stroke-dashoffset: 1; opacity: 1; }
+  30%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes loader-tier-3 {
+  0%, 15.99% { stroke-dashoffset: 1; opacity: 0; }
+  16%     { stroke-dashoffset: 1; opacity: 1; }
+  38%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes loader-tier-4 {
+  0%, 23.99% { stroke-dashoffset: 1; opacity: 0; }
+  24%     { stroke-dashoffset: 1; opacity: 1; }
+  46%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes loader-tier-5 {
+  0%, 31.99% { stroke-dashoffset: 1; opacity: 0; }
+  32%     { stroke-dashoffset: 1; opacity: 1; }
+  54%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes loader-plate {
+  0%, 50% { opacity: 0; transform: translate(0, 0); }
+  64%, 88% { opacity: 1; transform: translate(1.6px, 1.4px); }
+  96%, 100% { opacity: 0; transform: translate(1.6px, 1.4px); }
+}
+
+/* Reduced motion: a still mark (everything printed); the red plate pulses gently so it still reads as "working". */
+@media (prefers-reduced-motion: reduce) {
+  .loader__tier {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .loader__plate {
+    animation: loader-pulse 2.4s ease-in-out infinite;
+    opacity: 1;
+  }
+}
+@keyframes loader-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}

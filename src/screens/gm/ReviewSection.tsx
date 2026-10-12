@@ -7,6 +7,7 @@ import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
+import { t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import type { Doc, Submission } from '../../shared';
 import { useGmData } from './GmData';
@@ -25,11 +26,11 @@ export function ReviewSection() {
   return (
     <>
       <div className="section-head">
-        <h2>Pending claims</h2>
+        <h2>Pending {t.claim.many}</h2>
         <span className={`gm-count${pendingSubs.length > 0 ? ' gm-count--on' : ''}`}>{pendingSubs.length} waiting</span>
       </div>
       <p className="gm-hint">
-        Claims wait for their witness to approve or reject. You can step in on any of them. Nobody reviews their own, you included.
+        {t.claim.Many} wait for their {t.witness.one} to approve or reject. You can step in on any of them. Nobody reviews their own, you included.
       </p>
 
       {error ? (
@@ -39,7 +40,7 @@ export function ReviewSection() {
       ) : loading ? null : pendingSubs.length === 0 ? (
         <div className="empty">
           <h3>All clear</h3>
-          <p>No claims are waiting.</p>
+          <p>No {t.claim.many} are waiting.</p>
         </div>
       ) : (
         <ul className="gm-list gm-list--cards">
@@ -48,7 +49,7 @@ export function ReviewSection() {
             return (
               <li key={sub.id} className="gm-review">
                 <SubmissionBrief sub={sub} now={now} />
-                {mine ? <p className="gm-hint gm-hint--warn">This is your own claim. Only your witness can approve it.</p> : null}
+                {mine ? <p className="gm-hint gm-hint--warn">This is your own {t.claim.one}. Only your {t.witness.one} can approve it.</p> : null}
                 <div className="gm-row">
                   <Button
                     variant="primary"
@@ -79,10 +80,10 @@ export function ReviewSection() {
 
       {rejecting ? (
         <NoteSheet
-          title="Reject this claim?"
-          subtitle={`They lose ${settings.rejectPenalty} points and the quest is swapped for a fresh one.`}
+          title={`Reject this ${t.claim.one}?`}
+          subtitle={`They lose ${settings.rejectPenalty} points and the ${t.quest.one} is swapped for a fresh one.`}
           noteLabel="Why (they will see this)"
-          placeholder="Not what the quest asked for? Tell them."
+          placeholder={`Not what the ${t.quest.one} asked for? Tell them.`}
           confirmLabel={`Reject, −${settings.rejectPenalty}`}
           danger
           onClose={() => setRejecting(null)}
@@ -141,11 +142,11 @@ function RecentApprovals() {
       {fraud && fraud.kind === 'personal' ? (
         <NoteSheet
           title="Mark as fraud?"
-          subtitle={`${fraudName} · ${fraud.claimTitle ?? fraud.questTitle ?? 'Secret quest'}`}
+          subtitle={`${fraudName} · ${fraud.claimTitle ?? fraud.questTitle ?? `Secret ${t.quest.one}`}`}
           intro={
             <p>
-              The claim&apos;s <strong>−{award}</strong> comes back off their score and they get a <strong>−{settings.fraudPenalty}</strong>{' '}
-              fine. The quest is swapped for a fresh one, and a public fraud post goes in the feed.
+              The {t.claim.one}&apos;s <strong>−{award}</strong> comes back off their score and they get a <strong>−{settings.fraudPenalty}</strong>{' '}
+              fine. The {t.quest.one} is swapped for a fresh one, and a public fraud post goes in the feed.
             </p>
           }
           noteLabel="What was wrong (everyone will see this)"
@@ -163,7 +164,7 @@ function RecentApprovals() {
       {fraud && fraud.kind === 'global' ? (
         <NoteSheet
           title="Disqualify this entry?"
-          subtitle={`${fraudName} · ${fraudQuest?.title ?? fraud.questTitle ?? 'Side quest'}`}
+          subtitle={`${fraudName} · ${fraudQuest?.title ?? fraud.questTitle ?? t.sideQuest.One}`}
           intro={
             <p>
               The entry is thrown out and they get a <strong>−{settings.fraudPenalty}</strong> fine. If it won
@@ -172,7 +173,7 @@ function RecentApprovals() {
             </p>
           }
           noteLabel="What was wrong (everyone will see this)"
-          placeholder="e.g. Not taken at the festival"
+          placeholder="e.g. Not taken during the game"
           required
           confirmLabel={`Disqualify, −${settings.fraudPenalty}`}
           danger
@@ -218,13 +219,13 @@ function ApprovalRow({
           {who}
           <span className="gm-approval__quest">
             {' · '}
-            {isEntry ? `Side quest: ${claim.title}` : claim.title}
+            {isEntry ? `${t.sideQuest.One}: ${claim.title}` : claim.title}
           </span>
         </p>
         <p className="gm-approval__meta">
           {isEntry
             ? `Entered ${when}`
-            : `${reviewer ? `Approved by ${reviewer}` : 'Approved by a GM'}${witness && witness !== reviewer ? ` · named ${witness}` : ''} · ${when}`}
+            : `${reviewer ? `Approved by ${reviewer}` : `Approved by a ${t.gm.one}`}${witness && witness !== reviewer ? ` · named ${witness}` : ''} · ${when}`}
         </p>
         {sub.caption ? <p className="gm-approval__caption">&ldquo;{sub.caption}&rdquo;</p> : null}
         {!isEntry && !hasPhoto && !sub.caption ? <p className="gm-approval__meta">No evidence added yet</p> : null}

@@ -6,6 +6,7 @@ import { tsMs } from '../../data/hooks';
 import type { Doc, Submission } from '../../shared';
 import { dayTime } from './format';
 import type { SideEntry, SideWin } from './usePlayerData';
+import { t } from '../../pack';
 
 function When({ ms }: { ms: number }) {
   return ms ? <time dateTime={new Date(ms).toISOString()}>{dayTime(ms)}</time> : null;
@@ -37,17 +38,17 @@ export function AchievedList({ quests }: { quests: Doc<Submission>[] }) {
         const atMs = tsMs(s.reviewedAt) || tsMs(s.createdAt);
         return (
           <li key={s.id} className="pl-qt">
-            <TicketPic sub={s} label={`Open photo for ${title ?? 'a secret quest'}${s.caption ? `, “${s.caption}”` : ''}`} />
+            <TicketPic sub={s} label={`Open photo for ${title ?? `a secret ${t.quest.one}`}${s.caption ? `, “${s.caption}”` : ''}`} />
             <div className="pl-qt__body">
               <p className="pl-qt__meta">
-                {title ? <span className="pl-tag pl-tag--ink">Quest done</span> : <span className="pl-tag">Title hidden</span>}
+                {title ? <span className="pl-tag pl-tag--ink">{t.quest.One} done</span> : <span className="pl-tag">Title hidden</span>}
                 {witness ? <span className="pl-qt__witness">witnessed by {witness}</span> : null}
               </p>
               <p className="pl-qt__title">
                 {title ?? (
                   <>
                     <Icon name="lock" size={16} strokeWidth={2.4} className="pl-qt__lock" />
-                    Secret quest
+                    Secret {t.quest.one}
                   </>
                 )}
               </p>

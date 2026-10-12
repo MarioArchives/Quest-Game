@@ -48,11 +48,11 @@ describe('isQuietHours (Europe/London)', () => {
     ['09:30 BST across midnight', '2026-10-10T08:30:00Z', wrap, false],
     ['13:00 BST across midnight', '2026-10-10T12:00:00Z', wrap, false],
   ])('%s', (_label, iso, quiet, expected) => {
-    expect(isQuietHours(new Date(iso), quiet)).toBe(expected);
+    expect(isQuietHours(new Date(iso), quiet, 'Europe/London')).toBe(expected);
   });
 
   it('is never quiet when quietHours is null', () => {
-    expect(isQuietHours(new Date('2026-10-10T02:00:00Z'), null)).toBe(false);
+    expect(isQuietHours(new Date('2026-10-10T02:00:00Z'), null, 'Europe/London')).toBe(false);
   });
 });
 

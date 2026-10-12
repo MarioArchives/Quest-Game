@@ -13,7 +13,6 @@ export const DEFAULT_SETTINGS: Settings = {
   globalIntervalMin: 60,
   globalIntervalMax: 120,
   globalWindowMin: 40,
-  globalEntryPoints: 0,
   quietHours: { start: '01:00', end: '10:00' },
   fraudPenalty: 50,
   rejectPenalty: 25,
@@ -22,6 +21,8 @@ export const DEFAULT_SETTINGS: Settings = {
   refillOnComplete: false,
   revealOnComplete: true,
   pointsFloorZero: false,
+  scoring: 'classic',
+  scoringParams: {},
 };
 
 /** Max distance (metres) at which a position counts as "at" a venue. */

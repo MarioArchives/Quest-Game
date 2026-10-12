@@ -8,6 +8,7 @@ import { formatAgo } from '../../lib/time';
 import type { Doc, FeedItem, FeedType } from '../../shared';
 import { ReactionsBar } from './ReactionsBar';
 import './feed.css';
+import { t } from '../../pack';
 
 /** Two line icons the shared set doesn't have, drawn the same way (24px box, round 2px strokes). */
 const EXTRA_GLYPHS = {
@@ -46,15 +47,15 @@ interface Label {
 /** The small type tag at the top of a ticket. Red ones are the loud news; the rest are ink. */
 const TAG: Record<FeedType, Label & { red?: boolean }> = {
   join: { text: 'Joined', icon: 'user' },
-  approved: { text: 'Quest done', icon: 'check' },
+  approved: { text: `${t.quest.One} done`, icon: 'check' },
   rejected: { text: 'Rejected', icon: 'close' },
   fraud: { text: 'Fraud', icon: 'gm' },
   exposed: { text: 'Exposed', icon: 'eye', red: true },
-  'global-open': { text: 'Side quest', icon: 'megaphone', red: true },
+  'global-open': { text: t.sideQuest.One, icon: 'megaphone', red: true },
   checking: { text: 'Time’s up', icon: 'clock' },
   'voting-open': { text: 'Vote now', icon: 'ballot', red: true },
-  'global-won': { text: 'Side quest won', icon: 'trophy' },
-  announcement: { text: 'From the GM', icon: 'megaphone', red: true },
+  'global-won': { text: `${t.sideQuest.One} won`, icon: 'trophy' },
+  announcement: { text: `From the ${t.gm.one}`, icon: 'megaphone', red: true },
   status: { text: 'Game', icon: 'gm' },
   adjust: { text: 'Points', icon: 'edit' },
   left: { text: 'Left', icon: 'logout' },
@@ -71,9 +72,9 @@ const MARK: Record<FeedType, Label> = {
   checking: { text: 'Late OK', icon: 'clock' },
   'voting-open': { text: 'Vote', icon: 'ballot' },
   'global-won': { text: 'Won', icon: 'trophy' },
-  announcement: { text: 'GM', icon: 'megaphone' },
+  announcement: { text: t.gm.One, icon: 'megaphone' },
   status: { text: 'Game', icon: 'gm' },
-  adjust: { text: 'GM', icon: 'edit' },
+  adjust: { text: t.gm.One, icon: 'edit' },
   left: { text: 'Out', icon: 'logout' },
 };
 
@@ -138,7 +139,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
   const witnessed = item.type === 'approved' && !entry ? WITNESSED.exec(item.text) : null;
   const body = witnessed ? item.text.slice(0, witnessed.index) : item.text;
   const witnessName = item.type === 'approved' && !entry ? (actor?.displayName ?? witnessed?.[1] ?? null) : null;
-  const witness = witnessName ? (witnessName === 'the GM' ? 'GM' : firstName(witnessName)) : null;
+  const witness = witnessName ? (witnessName === `the ${t.gm.one}` ? t.gm.One : firstName(witnessName)) : null;
 
   // Bold the leading name only when the stored text really starts with it as a whole word (names can change later).
   const lead = [who, actor].find((p) => p && body.startsWith(`${p.displayName} `));
@@ -177,7 +178,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
   const showQuest = Boolean(item.questTitle) && !item.text.includes(item.questTitle as string);
   // Some server posts (GM adjustments) already say the reason in their text.
   const showNote = Boolean(item.note) && !item.text.includes(item.note as string);
-  const noteBy = actor?.displayName ?? (item.type === 'approved' || item.type === 'rejected' ? 'the GM' : null);
+  const noteBy = actor?.displayName ?? (item.type === 'approved' || item.type === 'rejected' ? `the ${t.gm.one}` : null);
   const pointsText = points !== null ? formatDelta(points) : '';
 
   const classes = ['tk', `tk--${item.type}`, entry ? 'tk--entry' : '', points !== null && points < 0 ? 'tk--neg' : '', flagged ? 'is-flagged' : '']
@@ -221,7 +222,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
           </span>
         ) : item.type === 'announcement' ? (
           <span className="tk__pts" aria-hidden="true">
-            GM
+            {t.gm.One}
           </span>
         ) : (
           <span className="tk__mark">
@@ -235,7 +236,7 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
             {firstName(who.displayName)}
           </span>
         ) : null}
-        {witness ? <span className="tk__witness">Witness {witness}</span> : null}
+        {witness ? <span className="tk__witness">{t.witness.One} {witness}</span> : null}
       </div>
 
       {/* Under the body, beside the stub (after it in reading order, so the points come first). */}

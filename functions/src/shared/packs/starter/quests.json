@@ -1,0 +1,23 @@
+{
+  "personal": [
+    { "id": "p-compliment-chain", "title": "Compliment chain", "description": "Give three different people a sincere compliment within ten minutes. Proof: the names of the three people, and a player who saw at least one." },
+    { "id": "p-secret-word", "title": "Word of the night", "description": "Slip the word \"marmalade\" into a conversation so naturally that nobody questions it. Proof: who you said it to and what they replied." },
+    { "id": "p-matching-pose", "title": "Mirror, mirror", "description": "Get a friend to copy your pose in a photo without telling them why. Proof: the photo." },
+    { "id": "p-high-five-trail", "title": "High-five trail", "description": "Get five different people to high-five you, one after another. Proof: a comment naming all five." },
+    { "id": "p-swap-drinks-order", "title": "Surprise order", "description": "Let a friend choose your next drink (within reason) and drink it happily. Proof: a photo of the drink and who picked it." },
+    { "id": "p-accent", "title": "Mystery accent", "description": "Speak in a silly accent for a full conversation until someone asks about it. Proof: who asked, and a player who heard it." },
+    { "id": "p-group-photo", "title": "Photo director", "description": "Organise a group photo where everybody is making the same face. Proof: the photo." },
+    { "id": "p-joke", "title": "Dad joke delivery", "description": "Tell a terrible joke and get a proper groan out of someone. Proof: the joke, and who groaned." },
+    { "id": "p-new-name", "title": "Call me Dave", "description": "Introduce yourself to a friend of a friend by a made-up name and keep it up for ten minutes. Proof: the name you used and who you told." },
+    { "id": "p-toast", "title": "Make a toast", "description": "Get a small group to raise their glasses for a toast you made up on the spot. Proof: a photo, or a player who joined in." },
+    { "id": "p-hat", "title": "Hat trick", "description": "Persuade someone to wear something silly of yours for five minutes. Proof: a photo of them wearing it." },
+    { "id": "p-fake-fact", "title": "Fun fact", "description": "Share a believable made-up fun fact and get someone to say \"really?\". Proof: the fact, and who fell for it." }
+  ],
+  "global": [
+    { "id": "g-best-hat", "title": "Best headwear", "description": "Find or make the best hat from whatever is nearby and wear it. Everyone votes for their favourite.", "windowMin": 30 },
+    { "id": "g-selfie-stack", "title": "Selfie stack", "description": "Take a selfie with as many different players in it as you can fit. The biggest crowd wins the vote.", "windowMin": 20 },
+    { "id": "g-best-toast", "title": "Toast of the night", "description": "Deliver the most heartfelt or ridiculous toast to the room. Everyone votes for the best.", "windowMin": 45 },
+    { "id": "g-dance-move", "title": "Signature move", "description": "Invent a dance move, name it, and teach it to at least two other players. The most catching move wins.", "windowMin": 60 },
+    { "id": "g-odd-object", "title": "Odd object", "description": "Find the strangest object you can borrow without taking it from anyone who minds, and show it off. The oddest wins.", "windowMin": 90 }
+  ]
+}

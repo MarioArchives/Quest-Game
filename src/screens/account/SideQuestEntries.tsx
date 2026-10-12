@@ -4,6 +4,7 @@ import { PhotoThumb } from '../../components/PhotoViewer';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
+import { t } from '../../pack';
 
 /** The side quests you entered, and how each is going. You can change an entry until entries close. */
 export function SideQuestEntries() {
@@ -16,13 +17,13 @@ export function SideQuestEntries() {
   return (
     <section aria-labelledby="entries-title" className="acct-section">
       <div className="section-head">
-        <h2 id="entries-title">Your side-quest entries</h2>
+        <h2 id="entries-title">Your {t.sideQuest.one.replace(/ /g, '-')} entries</h2>
         <span className="section-head__meta">{entries.length}</span>
       </div>
       <ul className="history">
         {entries.map((s) => {
           const quest = globalQuests.find((g) => g.id === s.questId);
-          const title = quest?.title ?? s.questTitle ?? 'Side quest';
+          const title = quest?.title ?? s.questTitle ?? t.sideQuest.One;
           let status: string;
           let tone = 'tag--tint';
           if (s.status === 'rejected') {
@@ -55,7 +56,7 @@ export function SideQuestEntries() {
                   <span className="history__ago">{formatAgo(tsMs(s.createdAt), now)}</span>
                 </p>
                 {s.caption ? <p className="history__note">Your comment: {s.caption}</p> : null}
-                {s.status === 'rejected' && s.reviewNote ? <p className="history__note">GM: {s.reviewNote}</p> : null}
+                {s.status === 'rejected' && s.reviewNote ? <p className="history__note">{t.gm.One}: {s.reviewNote}</p> : null}
                 {editable ? (
                   <button type="button" className="linkbtn" onClick={() => setSheet({ mode: 'evidence', submission: s, title })}>
                     Edit entry (until entries close)

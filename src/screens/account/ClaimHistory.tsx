@@ -6,6 +6,7 @@ import { PointsChip } from '../../components/PointsChip';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
+import { t } from '../../pack';
 
 /** Every claim you have made: who is judging it, how it went, the reviewer's comment, and your evidence. */
 export function ClaimHistory({ titleById }: { titleById: Map<string, string> }) {
@@ -21,15 +22,15 @@ export function ClaimHistory({ titleById }: { titleById: Map<string, string> }) 
   return (
     <section aria-labelledby="history-title" className="acct-section">
       <div className="section-head">
-        <h2 id="history-title">Your claims</h2>
+        <h2 id="history-title">Your {t.claim.many}</h2>
         <span className="section-head__meta">{claims.length} sent</span>
       </div>
       {claims.length === 0 ? (
-        <p className="muted acct-none">Nothing claimed yet. Tap a quest above when you&apos;ve done it.</p>
+        <p className="muted acct-none">Nothing claimed yet. Tap a {t.quest.one} above when you&apos;ve done it.</p>
       ) : (
         <ul className="history">
           {claims.map((s) => {
-            const title = s.questTitle ?? s.claimTitle ?? titleById.get(s.questId) ?? 'Secret quest';
+            const title = s.questTitle ?? s.claimTitle ?? titleById.get(s.questId) ?? `Secret ${t.quest.one}`;
             const witness = playersById.get(s.witnessUid);
             const reviewer = s.reviewedBy ? playersById.get(s.reviewedBy) : undefined;
             const note = s.status === 'rejected' ? (s.reviewNote ?? s.rejectReason) : s.reviewNote;
@@ -41,7 +42,7 @@ export function ClaimHistory({ titleById }: { titleById: Map<string, string> }) 
                   <p className="history__title">{title}</p>
                   <p className="history__meta">
                     <span className={`tag ${s.status === 'approved' ? 'tag--ink' : s.status === 'rejected' ? 'tag--red' : 'tag--tint'}`}>
-                      {s.status === 'pending' ? `Waiting for ${witness?.displayName ?? 'your witness'}` : s.status === 'approved' ? 'Approved' : 'Rejected'}
+                      {s.status === 'pending' ? `Waiting for ${witness?.displayName ?? `your ${t.witness.one}`}` : s.status === 'approved' ? 'Approved' : 'Rejected'}
                     </span>
                     <span className="history__ago">{formatAgo(tsMs(s.createdAt), now)}</span>
                   </p>

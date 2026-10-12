@@ -1,5 +1,5 @@
 {
-  "name": "festival-quest",
+  "name": "quest-game",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,17 +10,19 @@
     "functions"
   ],
   "scripts": {
+    "mock": "VITE_BACKEND=mock vite",
+    "build:mock": "VITE_BACKEND=mock vite build",
     "dev": "concurrently --kill-others-on-fail -n fn,emu,web,tick,seed -c blue,magenta,green,yellow,cyan \"npm run build:watch -w functions\" \"npm run emulators\" \"vite\" \"node scripts/dev-tick.mjs\" \"node scripts/seed.mjs --wait || true\"",
     "players": "concurrently -n p2,p3,p4 -c cyan,red,white \"vite --port 5174 --strictPort\" \"vite --port 5175 --strictPort\" \"vite --port 5176 --strictPort\"",
-    "emulators": "firebase emulators:start --project demo-festival-quest --import ./.emulator-data --export-on-exit ./.emulator-data",
+    "emulators": "firebase emulators:start --project demo-quest-game --import ./.emulator-data --export-on-exit ./.emulator-data",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b && npm run typecheck -w functions",
-    "test": "npm run build -w functions && firebase emulators:exec --only auth,firestore,storage --project demo-festival-quest \"vitest run\"",
-    "test:unit": "vitest run --project unit",
+    "test": "npm run build -w functions && firebase emulators:exec --only auth,firestore,storage --project demo-quest-game \"vitest run\"",
+    "test:unit": "vitest run --project unit --project functions-memory",
     "seed": "node scripts/seed.mjs",
     "make-admin": "node scripts/make-admin.mjs",
-    "import-schedule": "node scripts/import-schedule.mjs"
+    "import-schedule": "node scripts/packs/lancaster/import-schedule.mjs"
   },
   "dependencies": {
     "@fontsource/anton": "^5.3.0",

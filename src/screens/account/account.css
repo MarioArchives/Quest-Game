@@ -22,7 +22,7 @@
 .me__actions:empty { display: none; }
 
 .acct-section { display: flex; flex-direction: column; gap: 12px; }
-.acct-section--alert { padding: 14px; background: var(--red-tint); border: var(--line); }
+.acct-section--alert { padding: 14px; background: var(--accent-tint); border: var(--line); }
 .acct-none { padding: 4px 0; font-size: 14px; }
 
 .linkbtn { align-self: flex-start; margin-top: 4px; min-height: 36px; padding: 0; background: none; border: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px; }
@@ -43,8 +43,8 @@
 
 /* ---------- add-evidence banners ---------- */
 .evbanners { display: flex; flex-direction: column; gap: 10px; }
-.evbanner { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 12px 14px; background: var(--red-tint); border: var(--line); }
-.evbanner > svg { color: var(--red); }
+.evbanner { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 12px 14px; background: var(--accent-tint); border: var(--line); }
+.evbanner > svg { color: var(--accent); }
 .evbanner__title { font-family: var(--display); font-size: 22px; line-height: 1.05; text-transform: uppercase; }
 .evbanner__sub { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
 .evbanner__actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
@@ -54,10 +54,10 @@
 /* ---------- the hand ---------- */
 .hand { display: flex; flex-direction: column; gap: 10px; }
 .qcard { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--card); border: var(--line); }
-.qcard--submitted { background: var(--red-tint); }
+.qcard--submitted { background: var(--accent-tint); }
 .qcard--done { background: var(--paper); }
 .qcard--done .qcard__num { background: var(--ink); }
-.qcard--done .qcard__title { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.qcard--done .qcard__title { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
 .hand__rule { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; color: var(--muted); }
 .hand__rule svg { flex: none; margin-top: 2px; }
 .qcard__top { display: flex; gap: 12px; align-items: flex-start; }
@@ -65,7 +65,7 @@
   flex: none;
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px;
-  background: var(--red); color: #fff;
+  background: var(--accent); color: var(--on-accent);
   border: var(--line);
   font-family: var(--display); font-size: 18px; line-height: 1;
 }

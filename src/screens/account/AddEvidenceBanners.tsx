@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon';
 import { useGame } from '../../data/GameProvider';
 import { isEvidenceSkipped, skipEvidence } from '../../lib/evidenceSkip';
 import { useSession } from '../../session/SessionProvider';
+import { t } from '../../pack';
 
 /** "Approved! +100. Add a photo or a comment": one banner per approved personal claim that has neither yet. */
 export function AddEvidenceBanners({ titleById }: { titleById: Map<string, string> }) {
@@ -33,7 +34,7 @@ export function AddEvidenceBanners({ titleById }: { titleById: Map<string, strin
       <section aria-label="Add to your posts" className="acct-section">
         <ul className="evbanners">
           {waiting.map((s) => {
-            const title = s.questTitle ?? titleById.get(s.questId) ?? 'your quest';
+            const title = s.questTitle ?? titleById.get(s.questId) ?? `your ${t.quest.one}`;
             return (
               <li key={s.id} className="evbanner">
                 <Icon name="camera" size={24} strokeWidth={2.2} />

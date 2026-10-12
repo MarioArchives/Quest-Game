@@ -1,9 +1,8 @@
-import { collection, limit, orderBy, query } from 'firebase/firestore';
 import { Avatar } from '../../components/Avatar';
 import { useGame } from '../../data/GameProvider';
-import { tsMs, useCollection, useNow } from '../../data/hooks';
-import { db } from '../../firebase';
+import { tsMs, useNow, useQuery } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
+import { t } from '../../pack';
 import type { Guess } from '../../shared';
 import { dayAndTime } from './common';
 
@@ -12,7 +11,7 @@ const LIMIT = 200;
 export function GuessLogSection() {
   const { playersById, templatesById } = useGame();
   const now = useNow(30_000);
-  const guesses = useCollection<Guess>('gm:guesses', () => query(collection(db, 'guesses'), orderBy('createdAt', 'desc'), limit(LIMIT)));
+  const guesses = useQuery<Guess>({ path: 'guesses', orderBy: ['createdAt', 'desc'], limit: LIMIT });
   const hits = guesses.data.filter((g) => g.correct).length;
 
   return (
@@ -37,7 +36,7 @@ export function GuessLogSection() {
           {guesses.data.map((g) => {
             const from = playersById.get(g.guesserUid);
             const to = playersById.get(g.targetUid);
-            const title = templatesById.get(g.templateId)?.title ?? 'A quest that no longer exists';
+            const title = templatesById.get(g.templateId)?.title ?? `A ${t.quest.one} that no longer exists`;
             return (
               <li key={g.id} className="gm-guess">
                 <span className={`gm-guess__mark${g.correct ? ' is-hit' : ''}`} role="img" aria-label={g.correct ? 'Correct' : 'Wrong'}>

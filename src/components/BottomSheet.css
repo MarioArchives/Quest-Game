@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   background: var(--paper);
-  border-top: 6px solid var(--red);
+  border-top: 6px solid var(--accent);
   border-left: var(--line);
   border-right: var(--line);
   animation: sheet-up 0.2s ease-out;

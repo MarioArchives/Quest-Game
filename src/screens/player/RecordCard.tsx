@@ -1,6 +1,7 @@
 import type { PlayerRecord } from '../../lib/record';
+import { features, t } from '../../pack';
 
-/** Three tear-off stats (quests, side quests, guesses), then how the failed quests failed. */
+/** Up to three tear-off stats (quests, side quests, guesses), then how the failed quests failed. */
 export function RecordCard({ record, joined, loading }: { record: PlayerRecord; joined: string | null; loading: boolean }) {
   // Everything but "done" comes from the points ledger, so it waits for it.
   const n = (value: number) => (loading ? '–' : value);
@@ -14,17 +15,23 @@ export function RecordCard({ record, joined, loading }: { record: PlayerRecord; 
         {joined ? <span className="pl-sec__meta">Joined {joined}</span> : null}
       </div>
       <ul className="pl-stats">
-        <Stat label="Quests" main={record.completed} mainLabel="done" sub={n(failed.total)} subLabel="failed" subRed={failed.total > 0} />
-        <Stat label="Side quests" main={n(record.sideQuests.won)} mainLabel="won" sub={record.sideQuests.entered} subLabel="entered" />
-        <Stat label="Guesses" main={n(record.guesses.right)} mainLabel="right" sub={n(record.guesses.made)} subLabel="made" />
+        <Stat label={t.quest.Many} main={record.completed} mainLabel="done" sub={n(failed.total)} subLabel="failed" subRed={failed.total > 0} />
+        {features.sideQuests ? (
+          <Stat label={t.sideQuest.Many} main={n(record.sideQuests.won)} mainLabel="won" sub={record.sideQuests.entered} subLabel="entered" />
+        ) : null}
+        {features.guesses ? (
+          <Stat label="Guesses" main={n(record.guesses.right)} mainLabel="right" sub={n(record.guesses.made)} subLabel="made" />
+        ) : null}
       </ul>
       {!loading && failed.total > 0 ? (
         <ul className="pl-fails" aria-label={`How the ${failed.total} failed`}>
+          {features.guesses ? (
+            <li>
+              <span className="pl-fails__n">{failed.exposed}</span> exposed by a guess
+            </li>
+          ) : null}
           <li>
-            <span className="pl-fails__n">{failed.exposed}</span> exposed by a guess
-          </li>
-          <li>
-            <span className="pl-fails__n">{failed.rejected}</span> claim{failed.rejected === 1 ? '' : 's'} rejected
+            <span className="pl-fails__n">{failed.rejected}</span> {failed.rejected === 1 ? t.claim.one : t.claim.many} rejected
           </li>
           <li>
             <span className="pl-fails__n">{failed.fraud}</span> overturned as fraud

@@ -11,6 +11,6 @@
   text-align: left;
   border-radius: 0;
 }
-.avatar-picker__btn:hover:not(:disabled) { background: var(--red-tint); }
-.avatar-picker__btn[aria-pressed='true'], .avatar-picker__btn[aria-pressed='true']:hover:not(:disabled) { background: var(--red); color: #fff; font-weight: 800; }
+.avatar-picker__btn:hover:not(:disabled) { background: var(--accent-tint); }
+.avatar-picker__btn[aria-pressed='true'], .avatar-picker__btn[aria-pressed='true']:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); font-weight: 800; }
 .avatar-picker__btn:disabled { opacity: 0.5; cursor: progress; }

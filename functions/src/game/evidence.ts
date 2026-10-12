@@ -1,4 +1,5 @@
-import type { DocumentReference } from 'firebase-admin/firestore';
+import type { DocRef } from '../shared/store/types.js';
+import { termForms } from '../shared/packs/terms.js';
 import type { GlobalQuest, Submission } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { fail, loadState, requireUid } from './guards.js';
@@ -60,6 +61,7 @@ export async function addEvidence(
   data: { submissionId?: unknown; imagePath?: unknown; thumbPath?: unknown; caption?: unknown },
 ): Promise<{ ok: true }> {
   const uid = requireUid(ctx);
+  const t = termForms(ctx.pack.terms);
   const id = asId(data.submissionId, 'submissionId');
   const evidence = parseEvidence(uid, data);
 
@@ -71,18 +73,18 @@ export async function addEvidence(
     if (sub.uid !== uid) fail('permission-denied', 'Only the owner can add evidence.');
     // A sealed side-quest entry is still the owner's to change; a claim waits for its approval.
     if (sub.status !== 'approved' && sub.status !== 'sealed') {
-      fail('failed-precondition', 'Evidence can be added once the claim is approved.');
+      fail('failed-precondition', `Evidence can be added once the ${t.claim.one} is approved.`);
     }
     const state = await loadState(db, tx);
     if (state.status === 'ended') fail('failed-precondition', 'The game has ended.');
     if (sub.kind === 'global') {
       const gq = (await tx.get(db.doc(`globalQuests/${sub.questId}`))).data() as GlobalQuest | undefined;
-      if (gq?.status !== 'live') fail('failed-precondition', 'Entries can only change while the side quest is live.');
+      if (gq?.status !== 'live') fail('failed-precondition', `Entries can only change while the ${t.sideQuest.one} is live.`);
     }
 
     // The post announcing the approval: by the stored id, or else the approved post about this submission.
     // A sealed entry's post stays bare until the vote opens and reveals the latest evidence.
-    let postRef: DocumentReference | null = null;
+    let postRef: DocRef | null = null;
     if (sub.status !== 'sealed') {
       if (sub.feedId) {
         const ref = db.doc(`feed/${sub.feedId}`);

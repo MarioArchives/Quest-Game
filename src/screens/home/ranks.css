@@ -66,7 +66,7 @@
 .rk-pod__block--2 { height: 36px; font-size: 22px; }
 .rk-pod__block--3 { height: 27px; padding-top: 3px; font-size: 20px; }
 .rk-pod:hover .rk-pod__name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.rk-pod.is-you .rk-pod__block { background: var(--red); }
+.rk-pod.is-you .rk-pod__block { background: var(--accent); }
 .rk-pod.is-left { color: var(--muted); }
 .rk-pod.is-left .rk-pod__block { background: var(--rk-left); color: var(--muted); border: 2px dashed var(--muted); border-bottom: 0; }
 .rk-pod.is-left .avatar { filter: grayscale(1); border-color: var(--muted); }
@@ -114,7 +114,7 @@
   touch-action: manipulation;
 }
 .rk-wb:focus-visible { outline-offset: -4px; }
-.rk-wb:not(.is-you):not(.is-left):hover { background: var(--red-tint); }
+.rk-wb:not(.is-you):not(.is-left):hover { background: var(--accent-tint); }
 .rk-wb:hover .rk-wb__name { text-decoration: underline; text-underline-offset: 2px; }
 .rk-wb__who {
   display: flex;
@@ -131,7 +131,7 @@
 .rk-wb__who > span { flex: none; }
 .rk-wb__who > .rk-wb__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rk-wb__pts { font-family: var(--display); font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
-.rk-wb.is-you { background: var(--red); color: var(--card); --ring: var(--card); }
+.rk-wb.is-you { background: var(--accent); color: var(--card); --ring: var(--card); }
 .rk-wb.is-left { background: var(--rk-left); color: var(--muted); }
 
 /* The "All" tab: the wristband's black snap. */
@@ -153,7 +153,7 @@
   text-transform: uppercase;
   line-height: 1;
 }
-.rk-strip__all:hover { background: var(--red); }
+.rk-strip__all:hover { background: var(--accent); }
 .rk-snap { width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; }
 
 /* ---------- Standings ---------- */
@@ -235,11 +235,11 @@
 .rk-band__tail path { fill: var(--card); stroke: var(--ink); stroke-width: 2; }
 
 .rk-band:hover .rk-band__name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.rk-band:not(.is-you):not(.is-left):hover .rk-band__strap { background: var(--red-tint); }
-.rk-band:not(.is-you):not(.is-left):hover .rk-band__tail path { fill: var(--red-tint); }
+.rk-band:not(.is-you):not(.is-left):hover .rk-band__strap { background: var(--accent-tint); }
+.rk-band:not(.is-you):not(.is-left):hover .rk-band__tail path { fill: var(--accent-tint); }
 
-.rk-band.is-you .rk-band__strap { background: var(--red); color: var(--card); }
-.rk-band.is-you .rk-band__tail path { fill: var(--red); }
+.rk-band.is-you .rk-band__strap { background: var(--accent); color: var(--card); }
+.rk-band.is-you .rk-band__tail path { fill: var(--accent); }
 
 /* Left the game: grey, dashed, the strap snipped off its tail. */
 .rk-band.is-left { gap: 8px; color: var(--muted); }

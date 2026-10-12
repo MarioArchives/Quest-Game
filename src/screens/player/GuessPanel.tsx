@@ -7,6 +7,7 @@ import { useGame, type RankedPlayer } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { guessCooldownRemaining } from '../../lib/guess';
 import { firstName } from './format';
+import { t } from '../../pack';
 
 function mmss(ms: number): string {
   const total = Math.ceil(ms / 1000);
@@ -23,9 +24,9 @@ export function GuessCard({ target }: { target: RankedPlayer }) {
   const first = firstName(target.displayName);
 
   return (
-    <section className="pl-guess" aria-label={`Guess ${first}'s quest`}>
+    <section className="pl-guess" aria-label={`Guess ${first}'s ${t.quest.one}`}>
       <button type="button" className="pl-guess__toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
-        <span>Guess {first}&apos;s quest</span>
+        <span>Guess {first}&apos;s {t.quest.one}</span>
         <Icon name="chevronDown" size={22} strokeWidth={2.4} className={`pl-guess__chev${open ? ' is-open' : ''}`} />
       </button>
       <div className="pl-perf" aria-hidden="true" />
@@ -34,7 +35,7 @@ export function GuessCard({ target }: { target: RankedPlayer }) {
           <GuessPanel target={target} headed={false} />
         ) : (
           <p className="pl-guess__teaser">
-            Search the whole quest list and pick the one you think {first} holds. Right: {first} loses {settings.exposePenalty}, you gain{' '}
+            Search the whole {t.quest.one} list and pick the one you think {first} holds. Right: {first} loses {settings.exposePenalty}, you gain{' '}
             {settings.correctGuessReward} &middot; Wrong: you lose {settings.wrongGuessCost} &middot; 1 guess per player every{' '}
             {settings.guessCooldownMin} min
           </p>
@@ -68,11 +69,11 @@ export function GuessPanel({ target, headed = true }: { target: RankedPlayer; he
   const first = target.displayName;
   const needle = filter.trim().toLowerCase();
   // Every quest still in the deck, so a player can look through them all and read what each one asks for.
-  const catalogue = personalTemplates.filter((t) => t.active);
+  const catalogue = personalTemplates.filter((tpl) => tpl.active);
   const shown = needle
-    ? catalogue.filter((t) => t.title.toLowerCase().includes(needle) || (t.description ?? '').toLowerCase().includes(needle))
+    ? catalogue.filter((tpl) => tpl.title.toLowerCase().includes(needle) || (tpl.description ?? '').toLowerCase().includes(needle))
     : catalogue;
-  const chosen = choice ? catalogue.find((t) => t.id === choice) : undefined;
+  const chosen = choice ? catalogue.find((tpl) => tpl.id === choice) : undefined;
 
   const make = async () => {
     if (!choice) return;
@@ -101,58 +102,58 @@ export function GuessPanel({ target, headed = true }: { target: RankedPlayer; he
     <section aria-labelledby={headed ? 'ps-guess' : undefined} className="guess">
       {headed ? (
         <h3 id="ps-guess" className="guess__title">
-          Guess {first}&apos;s quest
+          Guess {first}&apos;s {t.quest.one}
         </h3>
       ) : null}
       {catalogue.length === 0 ? (
-        <p className="muted">The quest catalogue is empty.</p>
+        <p className="muted">The {t.quest.one} catalogue is empty.</p>
       ) : (
         <>
           <div className="field">
             <label className="visually-hidden" htmlFor="guess-filter">
-              Search the quests
+              Search the {t.quest.many}
             </label>
             <input
               id="guess-filter"
               className="input guess__filter"
               type="search"
-              placeholder={`Search all ${catalogue.length} quests`}
+              placeholder={`Search all ${catalogue.length} ${t.quest.many}`}
               value={filter}
               autoComplete="off"
               onChange={(event) => setFilter(event.target.value)}
             />
-            <span className="field__hint">Tap a quest to read what it asks, then select it to guess.</span>
+            <span className="field__hint">Tap a {t.quest.one} to read what it asks, then select it to guess.</span>
           </div>
           <div className="guess__scroll">
-            {shown.length === 0 ? <p className="muted guess__empty">No quest matches &ldquo;{filter}&rdquo;.</p> : null}
+            {shown.length === 0 ? <p className="muted guess__empty">No {t.quest.one} matches &ldquo;{filter}&rdquo;.</p> : null}
             <ul className="guess__list">
-              {shown.map((t) => {
-                const open = openId === t.id;
-                const picked = choice === t.id;
+              {shown.map((tpl) => {
+                const open = openId === tpl.id;
+                const picked = choice === tpl.id;
                 return (
-                  <li key={t.id} className={`guess__item${picked ? ' is-selected' : ''}`}>
+                  <li key={tpl.id} className={`guess__item${picked ? ' is-selected' : ''}`}>
                     <button
                       type="button"
                       className="guess__head"
                       aria-expanded={open}
-                      aria-controls={`guess-desc-${t.id}`}
-                      onClick={() => setOpenId(open ? null : t.id)}
+                      aria-controls={`guess-desc-${tpl.id}`}
+                      onClick={() => setOpenId(open ? null : tpl.id)}
                     >
-                      <span className="guess__name">{t.title}</span>
+                      <span className="guess__name">{tpl.title}</span>
                       {picked ? <span className="tag tag--red guess__picked">Selected</span> : null}
                       <Icon name="chevronDown" size={20} className={`guess__chev${open ? ' is-open' : ''}`} />
                     </button>
                     {open ? (
-                      <div className="guess__body" id={`guess-desc-${t.id}`}>
-                        <p className="guess__desc">{t.description || 'No description.'}</p>
+                      <div className="guess__body" id={`guess-desc-${tpl.id}`}>
+                        <p className="guess__desc">{tpl.description || 'No description.'}</p>
                         <Button
                           small
                           variant={picked ? 'primary' : 'secondary'}
                           disabled={busy}
                           aria-pressed={picked}
-                          onClick={() => setChoice(picked ? null : t.id)}
+                          onClick={() => setChoice(picked ? null : tpl.id)}
                         >
-                          {picked ? 'Selected' : 'Select this quest'}
+                          {picked ? 'Selected' : `Select this ${t.quest.one}`}
                         </Button>
                       </div>
                     ) : null}

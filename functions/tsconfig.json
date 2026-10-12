@@ -12,6 +12,7 @@
     "noUnusedLocals": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
     "sourceMap": true
   },

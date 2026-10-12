@@ -1,0 +1,26 @@
+/* Lancaster Music Festival look (design/DESIGN.md, "Gig Poster"): paper, black ink and one red; Anton + Archivo. */
+@import '@fontsource/anton/latin-400.css';
+@import '@fontsource/archivo/latin-400.css';
+@import '@fontsource/archivo/latin-600.css';
+@import '@fontsource/archivo/latin-700.css';
+@import '@fontsource/archivo/latin-800.css';
+
+:root {
+  --paper: #f4f2ee;
+  --card: #ffffff;
+  --ink: #111111;
+  --ink-hover: #2a2a2a;
+  --accent: #e1251b;
+  --accent-hover: #c41f16;
+  --accent-press: #c81f16;
+  --accent-tint: #fbe4e2;
+  --muted: #5c5c5c;
+  --muted-soft: #a3a3a3;
+  --black: #000;
+  --on-ink: #fff;
+  --on-accent: #fff;
+
+  --display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  --display-weight: 400;
+  --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

@@ -1,9 +1,13 @@
-import type { QueryDocumentSnapshot, Transaction } from 'firebase-admin/firestore';
+import type { DocSnap, Txn } from '../shared/store/types.js';
+import { getPack } from '../shared/packs/index.js';
+import { termForms } from '../shared/packs/terms.js';
+import type { GamePack } from '../shared/packs/types.js';
 import type { GlobalQuest, GlobalQuestSource, QuietHours, Settings } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { fail, loadSettings, loadState, requireGM } from './guards.js';
 import { MIN_MS, millis, nextGlobalTime, toTs } from './util.js';
+import { scoringFor } from './ledger.js';
 import { closeWithTally, readAllEntries, readPlayers, readVotes, startChecking, type Entry, type Quest } from './voting.js';
 
 function minutesOfDay(hhmm: string): number | null {
@@ -15,7 +19,7 @@ function minutesOfDay(hhmm: string): number | null {
 }
 
 /** True when `now`, in the given time zone, falls inside [start, end) — which may wrap past midnight. */
-export function isQuietHours(now: Date, quiet: QuietHours | null, timeZone = 'Europe/London'): boolean {
+export function isQuietHours(now: Date, quiet: QuietHours | null, timeZone: string): boolean {
   if (!quiet) return false;
   const start = minutesOfDay(quiet.start);
   const end = minutesOfDay(quiet.end);
@@ -35,9 +39,9 @@ interface Picked {
 
 /** An active global template, preferring ones no side quest has used yet. Reads only. */
 async function chooseGlobalTemplate(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
-  existing: QueryDocumentSnapshot[],
+  existing: DocSnap[],
   rng: () => number,
 ): Promise<Picked | null> {
   const snap = await tx.get(db.collection('questTemplates').where('scope', '==', 'global').where('active', '==', true));
@@ -49,8 +53,8 @@ async function chooseGlobalTemplate(
   const doc = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
   return {
     id: doc.id,
-    title: doc.get('title'),
-    description: doc.get('description'),
+    title: doc.get('title') as string,
+    description: doc.get('description') as string,
     windowMin: (doc.get('windowMin') as number | null) ?? null,
   };
 }
@@ -65,7 +69,15 @@ interface OpenSpec {
 }
 
 /** Creates a live side quest, schedules the next timer quest and announces it. Returns the new id. */
-function openGlobalQuest(tx: Transaction, db: Db, now: Date, rng: () => number, settings: Settings, spec: OpenSpec): string {
+function openGlobalQuest(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  rng: () => number,
+  pack: GamePack,
+  settings: Settings,
+  spec: OpenSpec,
+): string {
   const ref = db.collection('globalQuests').doc();
   const quest: GlobalQuest = {
     title: spec.title,
@@ -85,7 +97,7 @@ function openGlobalQuest(tx: Transaction, db: Db, now: Date, rng: () => number, 
   tx.update(db.doc('game/state'), { nextGlobalQuestAt: toTs(nextGlobalTime(now, settings, rng)) });
   addFeed(tx, db, now, {
     type: 'global-open',
-    text: `New side quest: ${spec.title}`,
+    text: `New ${termForms(pack.terms).sideQuest.one}: ${spec.title}`,
     uid: null,
     ref: ref.id,
     questTitle: spec.title,
@@ -104,7 +116,7 @@ function fromTemplate(t: Picked, settings: Settings, source: GlobalQuestSource):
   };
 }
 
-const asQuest = (doc: QueryDocumentSnapshot): Quest => ({ id: doc.id, ref: doc.ref, gq: doc.data() as GlobalQuest });
+const asQuest = (doc: DocSnap): Quest => ({ id: doc.id, ref: doc.ref, gq: doc.data() as GlobalQuest });
 
 /** What one tick did: the side quest it opened, the ones whose time was up (sent to checking), and the votes it closed. */
 export interface TickResult {
@@ -114,7 +126,8 @@ export interface TickResult {
 }
 
 /** The scheduled job (every 15 min) and the dev ticker both call this. */
-export async function runTick(db: Db, now: Date, rng: () => number): Promise<TickResult> {
+export async function runTick(db: Db, now: Date, rng: () => number, pack: GamePack = getPack()): Promise<TickResult> {
+  if (!pack.features.sideQuests) return { opened: null, closed: [], checking: [] };
   return db.runTransaction(async (tx) => {
     const state = await loadState(db, tx);
     if (state.status !== 'active') return { opened: null, closed: [], checking: [] };
@@ -129,7 +142,7 @@ export async function runTick(db: Db, now: Date, rng: () => number): Promise<Tic
     const votingOver = quests.filter((q) => q.get('status') === 'voting' && q.get('votingEndsAt') && millis(q.get('votingEndsAt')) <= nowMs);
 
     const nextAt = state.nextGlobalQuestAt;
-    const due = !isQuietHours(now, settings.quietHours) && (nextAt == null || millis(nextAt) <= nowMs);
+    const due = !isQuietHours(now, settings.quietHours, pack.timeZone) && (nextAt == null || millis(nextAt) <= nowMs);
     const template = due ? await chooseGlobalTemplate(tx, db, quests, rng) : null;
 
     // Only one live quest at a time: whatever is still running makes way for the new one (late entries still count).
@@ -138,17 +151,18 @@ export async function runTick(db: Db, now: Date, rng: () => number): Promise<Tic
     const votes = new Map<string, Map<string, string>>();
     for (const q of votingOver) votes.set(q.id, await readVotes(tx, db, q.id));
     const players = votingOver.length > 0 ? await readPlayers(tx, db) : new Map();
+    const scoring = scoringFor(pack, settings, state, now);
 
     const result: TickResult = { opened: null, closed: [], checking: [] };
     for (const doc of moveOn) {
-      startChecking(tx, db, now, asQuest(doc));
+      startChecking(tx, db, now, pack, asQuest(doc));
       result.checking.push(doc.id);
     }
     for (const doc of votingOver) {
-      closeWithTally(tx, db, now, settings, asQuest(doc), entries.get(doc.id) ?? [], votes.get(doc.id) ?? new Map(), players);
+      closeWithTally(tx, db, now, pack, scoring, asQuest(doc), entries.get(doc.id) ?? [], votes.get(doc.id) ?? new Map(), players);
       result.closed.push(doc.id);
     }
-    if (template) result.opened = openGlobalQuest(tx, db, now, rng, settings, fromTemplate(template, settings, 'timer'));
+    if (template) result.opened = openGlobalQuest(tx, db, now, rng, pack, settings, fromTemplate(template, settings, 'timer'));
     return result;
   });
 }
@@ -185,13 +199,16 @@ function parseCustom(data: Record<string, unknown>): OpenSpec {
   };
 }
 
-/** GM opens a side quest now: random from global templates, or a custom one. */
+/** The GM opens a side quest now: random from global templates, or a custom one. */
 export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): Promise<{ globalQuestId: string }> {
+  const { pack } = ctx;
+  const t = termForms(pack.terms);
+  if (!pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
   const rng = ctx.rng ?? Math.random;
   return db.runTransaction(async (tx) => {
     await requireGM(db, ctx, tx);
     const state = await loadState(db, tx);
-    if (state.status !== 'active') fail('failed-precondition', 'Side quests can only be fired while the game is running.');
+    if (state.status !== 'active') fail('failed-precondition', `${t.sideQuest.Many} can only be fired while the game is running.`);
 
     const input = data as Record<string, unknown>;
     const mode = input.mode ?? 'random';
@@ -205,13 +222,13 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
       spec = custom;
     } else {
       const template = await chooseGlobalTemplate(tx, db, quests, rng);
-      if (!template) fail('failed-precondition', 'There are no active global quest templates.');
+      if (!template) fail('failed-precondition', `There are no active global ${t.quest.one} templates.`);
       spec = fromTemplate(template, settings, 'gm-random');
     }
 
     // Only one live quest at a time: the current one moves on to checking first (late entries still count there).
     const live = quests.filter((q) => q.get('status') === 'live');
-    for (const doc of live) startChecking(tx, db, ctx.now, asQuest(doc), ctx.uid);
-    return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, settings, spec) };
+    for (const doc of live) startChecking(tx, db, ctx.now, pack, asQuest(doc), ctx.uid);
+    return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, pack, settings, spec) };
   });
 }

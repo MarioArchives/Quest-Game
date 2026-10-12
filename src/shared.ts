@@ -5,7 +5,7 @@ export type {
   Award,
   FeedItem,
   FeedType,
-  FestivalEvent,
+  ScheduleEvent,
   FinalStandings,
   GameState,
   GameStatus,
@@ -32,7 +32,9 @@ export type {
   Venue,
   Wrap,
 } from '../functions/src/shared/types';
-export { REACTION_EMOJI } from '../functions/src/shared/types';
+export type { ParamSpec } from '../functions/src/shared/scoring/types';
+export { RULESETS } from '../functions/src/shared/scoring/index';
+export { LEDGER_REASON_LIST, REACTION_EMOJI } from '../functions/src/shared/types';
 export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/settings';
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';

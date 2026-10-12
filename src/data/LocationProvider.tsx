@@ -1,7 +1,8 @@
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { backend } from '../backend';
+import { SERVER_TIME } from '../backend/types';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { db } from '../firebase';
-import { shouldSendLocation } from '../lib/geo';
+import { shouldSendLocation } from '../modules/map/geo';
+import { features } from '../pack';
 import { useSession } from '../session/SessionProvider';
 import { useGame } from './GameProvider';
 
@@ -52,7 +53,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const uid = user?.uid ?? null;
   const isPlayer = Boolean(player);
   const active = state.status === 'active';
-  const supported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
+  // Packs without a map never watch or send a position.
+  const supported = features.map && typeof navigator !== 'undefined' && 'geolocation' in navigator;
 
   const [sharing, setSharingState] = useState(false);
   const [position, setPosition] = useState<Fix | null>(null);
@@ -110,11 +112,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       // The throttle also keeps the quick fix and the first watch fix from writing twice.
       if (!shouldSendLocation(lastSent.current, fix, fix.at)) return;
       lastSent.current = { lat: fix.lat, lng: fix.lng, at: fix.at };
-      setDoc(doc(db, 'locations', uid), {
+      backend().data.set(`locations/${uid}`, {
         lat: fix.lat,
         lng: fix.lng,
         accuracy: fix.accuracy,
-        updatedAt: serverTimestamp(),
+        updatedAt: SERVER_TIME,
       }).then(
         () => setLastSentAt(Date.now()),
         () => {
@@ -173,7 +175,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(async () => {
     if (!uid) return;
     try {
-      await deleteDoc(doc(db, 'locations', uid));
+      await backend().data.remove(`locations/${uid}`);
     } catch {
       /* nothing to delete, or not allowed: either way we are not sharing */
     }
@@ -182,7 +184,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const setSharing = useCallback(
     async (on: boolean) => {
-      if (!uid) return;
+      if (!uid || !supported) return;
       try {
         if (on) localStorage.setItem(storageKey(uid), 'on');
         else localStorage.removeItem(storageKey(uid));
@@ -195,7 +197,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         await clear();
       }
     },
-    [uid, clear],
+    [uid, supported, clear],
   );
 
   const takeFirstFix = useCallback(() => {

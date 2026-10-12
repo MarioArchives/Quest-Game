@@ -1,5 +1,5 @@
 // Edge cases 12–13: Storage security rules. The Storage emulator's firestore.exists()/get() lookups
-// only see the emulator's own project, so this file must use demo-festival-quest.
+// only see the emulator's own project, so this file must use demo-quest-game.
 import {
   assertFails,
   assertSucceeds,
@@ -15,7 +15,7 @@ let env: RulesTestEnvironment;
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-festival-quest',
+    projectId: 'demo-quest-game',
     firestore: { rules: readFileSync('firestore.rules', 'utf8') },
     storage: { rules: readFileSync('storage.rules', 'utf8') },
   });

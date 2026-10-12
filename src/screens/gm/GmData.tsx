@@ -1,7 +1,5 @@
-import { collection, query, where } from 'firebase/firestore';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { tsMs, useCollection } from '../../data/hooks';
-import { db } from '../../firebase';
+import { tsMs, useQuery } from '../../data/hooks';
 import type { Doc, JoinRequest, Submission } from '../../shared';
 
 export interface GmDataValue {
@@ -19,10 +17,8 @@ const GmDataContext = createContext<GmDataValue | null>(null);
 
 /** Listeners that several GM sections (and their count badges) share: join requests and the review queue. */
 export function GmDataProvider({ children }: { children: ReactNode }) {
-  const joinsQ = useCollection<JoinRequest>('gm:joins', () => collection(db, 'joinRequests'));
-  const pendingQ = useCollection<Submission>('gm:pending-subs', () =>
-    query(collection(db, 'submissions'), where('status', '==', 'pending')),
-  );
+  const joinsQ = useQuery<JoinRequest>({ path: 'joinRequests' });
+  const pendingQ = useQuery<Submission>({ path: 'submissions', where: [['status', '==', 'pending']] });
 
   const value = useMemo<GmDataValue>(() => {
     const pendingJoins = joinsQ.data.filter((j) => j.status === 'pending').sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt));

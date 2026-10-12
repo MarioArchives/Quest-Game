@@ -1,29 +1,33 @@
 // The claim state machine behind reviewSubmission: approve, reject and the GM's fraud override.
 // Everything here runs inside the caller's transaction: load first (reads), then apply (writes).
-import type { DocumentReference, Transaction } from 'firebase-admin/firestore';
+import type { DocRef, Txn } from '../shared/store/types.js';
+import type { GamePack } from '../shared/packs/types.js';
+import { termForms } from '../shared/packs/terms.js';
 import type { GlobalQuest, Player, Quest, Settings, Submission } from '../shared/types.js';
 import type { Db } from './context.js';
 import { dealReplacement, readDealing, type Dealing } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail } from './guards.js';
-import { applyPoints } from './ledger.js';
+import { applyPoints, applyScore, type Scoring } from './ledger.js';
 import { isId, toTs } from './util.js';
 
 export interface Loaded {
   id: string;
-  subRef: DocumentReference;
+  subRef: DocRef;
   sub: Submission;
   settings: Settings;
-  playerRef: DocumentReference;
+  playerRef: DocRef;
   player: Player | null;
-  questRef: DocumentReference | null;
+  questRef: DocRef | null;
   quest: Quest | null;
-  gqRef: DocumentReference | null;
+  gqRef: DocRef | null;
   gq: GlobalQuest | null;
   /** Display name of the reviewing player (witness or GM); null when the reviewer has no player doc. */
   reviewerName: string | null;
+  /** The reviewing player's points (for scoring what the reviewer earns); null when they have no player doc. */
+  reviewerPoints: number | null;
   /** Approval / win posts about this submission, flagged when the GM overrides it. */
-  postRefs: DocumentReference[];
+  postRefs: DocRef[];
   /** The player's open-quest count and fresh templates for dealing a replacement; empty unless requested. */
   dealing: Dealing;
 }
@@ -39,7 +43,7 @@ export interface LoadOptions {
 
 /** Reads everything the submission's state transitions may touch. No writes. */
 export async function loadReview(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
   id: string,
   sub: Submission,
@@ -50,9 +54,9 @@ export async function loadReview(
   const playerRef = db.doc(`players/${sub.uid}`);
   const playerSnap = await tx.get(playerRef);
 
-  let questRef: DocumentReference | null = null;
+  let questRef: DocRef | null = null;
   let quest: Quest | null = null;
-  let gqRef: DocumentReference | null = null;
+  let gqRef: DocRef | null = null;
   let gq: GlobalQuest | null = null;
   if (sub.kind === 'personal' && isId(sub.questId)) {
     questRef = db.doc(`players/${sub.uid}/quests/${sub.questId}`);
@@ -65,13 +69,15 @@ export async function loadReview(
   }
 
   let reviewerName: string | null = null;
+  let reviewerPoints: number | null = null;
   if (opts.reviewer && isId(opts.reviewer)) {
     const snap = await tx.get(db.doc(`players/${opts.reviewer}`));
     reviewerName = snap.exists ? ((snap.data() as Player).displayName ?? null) : null;
+    reviewerPoints = snap.exists ? ((snap.data() as Player).points ?? 0) : null;
   }
 
   const dealing = opts.dealing && sub.kind === 'personal' ? await readDealing(tx, db, sub.uid) : { pool: [], open: 0 };
-  let postRefs: DocumentReference[] = [];
+  let postRefs: DocRef[] = [];
   if (opts.posts) {
     const posts = await tx.get(db.collection('feed').where('submissionId', '==', id));
     postRefs = posts.docs.filter((d) => d.get('type') === 'approved' || d.get('type') === 'global-won').map((d) => d.ref);
@@ -89,19 +95,26 @@ export async function loadReview(
     gqRef,
     gq,
     reviewerName,
+    reviewerPoints,
     postRefs,
     dealing,
   };
 }
 
 export interface ReviewEnv {
-  tx: Transaction;
+  tx: Txn;
   db: Db;
   now: Date;
   rng: () => number;
   /** The reviewer's uid. */
   by: string;
+  /** The game's pack (its words) and the rule set in force, resolved once for this transaction. */
+  pack: GamePack;
+  scoring: Scoring;
 }
+
+/** "side quest" → "side-quest", for use as a modifier. */
+export const hyphenated = (noun: string): string => noun.replace(/ /g, '-');
 
 function requirePlayerDoc(L: Loaded): Player {
   if (!L.player) fail('failed-precondition', 'The submitter is not a player.');
@@ -109,31 +122,36 @@ function requirePlayerDoc(L: Loaded): Player {
 }
 
 /** Throws failed-precondition unless a personal claim's quest still allows an approval. */
-export function assertApprovable(L: Loaded): void {
+export function assertApprovable(L: Loaded, pack: GamePack): void {
   requirePlayerDoc(L);
   if (!L.quest || (L.quest.status !== 'active' && L.quest.status !== 'submitted')) {
-    fail('failed-precondition', 'That quest can no longer be completed.');
+    fail('failed-precondition', `That ${termForms(pack.terms).quest.one} can no longer be completed.`);
   }
 }
 
 /** Approve a personal claim: award points, complete the quest, refill the hand and post it. Returns the submission update. */
 export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Record<string, unknown> {
-  assertApprovable(L);
+  assertApprovable(L, env.pack);
   const player = requirePlayerDoc(L);
   const { tx, db, now, by } = env;
+  const t = termForms(env.pack.terms);
   const { sub, settings } = L;
   const quest = L.quest as Quest;
-  const questRef = L.questRef as DocumentReference;
+  const questRef = L.questRef as DocRef;
 
-  const points = settings.questPoints;
-  const { applied } = applyPoints(
+  const balances = new Map([[sub.uid, player.points]]);
+  if (L.reviewerPoints !== null) balances.set(by, L.reviewerPoints);
+  const { applied: appliedBy } = applyScore(
     tx,
     db,
     now,
-    settings,
-    { uid: sub.uid, current: player.points, delta: points, reason: 'quest', ref: L.id, by },
-    { questsCompleted: (player.questsCompleted ?? 0) + 1 },
+    env.scoring,
+    { kind: 'questApproved', uid: sub.uid, approver: by, questPoints: quest.points ?? null },
+    balances,
+    { ref: L.id, by },
+    { [sub.uid]: { questsCompleted: (player.questsCompleted ?? 0) + 1 } },
   );
+  const applied = appliedBy.get(sub.uid) ?? 0;
   tx.update(questRef, { status: 'done', completedAt: toTs(now), submissionId: L.id });
 
   // A finished quest uses up its slot; it is only refilled when the GM turned that on (and never above five).
@@ -145,8 +163,8 @@ export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Re
   const feedId = addFeed(tx, db, now, {
     type: 'approved',
     text:
-      (reveal ? `${player.displayName} completed "${quest.title}"` : `${player.displayName} completed a secret quest`) +
-      ` — witnessed by ${L.reviewerName ?? 'the GM'}`,
+      (reveal ? `${player.displayName} completed "${quest.title}"` : `${player.displayName} completed a secret ${t.quest.one}`) +
+      ` — witnessed by ${L.reviewerName ?? `the ${t.gm.one}`}`,
     uid: sub.uid,
     ref: L.id,
     actorUid: by,
@@ -159,7 +177,7 @@ export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Re
 
   return {
     status: 'approved',
-    pointsAwarded: points,
+    pointsAwarded: applied,
     reviewedBy: by,
     reviewedAt: toTs(now),
     reviewNote: note,
@@ -178,16 +196,19 @@ export function approveClaim(env: ReviewEnv, L: Loaded, note: string | null): Re
 export function rejectClaim(env: ReviewEnv, L: Loaded, note: string | null): Record<string, unknown> {
   const player = requirePlayerDoc(L);
   const { tx, db, now, by } = env;
+  const t = termForms(env.pack.terms);
   const { sub, settings } = L;
 
-  const { applied } = applyPoints(tx, db, now, settings, {
-    uid: sub.uid,
-    current: player.points,
-    delta: -settings.rejectPenalty,
-    reason: 'rejected',
-    ref: L.id,
-    by,
-  });
+  const scored = applyScore(
+    tx,
+    db,
+    now,
+    env.scoring,
+    { kind: 'claimRejected', uid: sub.uid },
+    new Map([[sub.uid, player.points]]),
+    { ref: L.id, by },
+  );
+  const applied = scored.applied.get(sub.uid) ?? 0;
   if (L.questRef && L.quest?.status === 'submitted' && L.quest.submissionId === L.id) {
     tx.update(L.questRef, { status: 'replaced' });
     L.dealing.open -= 1;
@@ -197,7 +218,7 @@ export function rejectClaim(env: ReviewEnv, L: Loaded, note: string | null): Rec
   addFeed(tx, db, now, {
     type: 'rejected',
     text:
-      `${L.reviewerName ?? 'The GM'} rejected ${player.displayName}'s claim` +
+      `${L.reviewerName ?? `The ${t.gm.One}`} rejected ${player.displayName}'s ${t.claim.one}` +
       (reveal && L.quest ? ` for "${L.quest.title}"` : ''),
     uid: sub.uid,
     ref: L.id,
@@ -224,6 +245,7 @@ export function rejectEntry(env: ReviewEnv, note: string | null): Record<string,
 export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null): Record<string, unknown> {
   const player = requirePlayerDoc(L);
   const { tx, db, now, by } = env;
+  const t = termForms(env.pack.terms);
   const { sub, settings } = L;
 
   // Sequential on the running total, so pointsFloorZero clamps the fine rather than the refund.
@@ -235,14 +257,15 @@ export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null):
     { uid: sub.uid, current: player.points, delta: -(sub.pointsAwarded ?? 0), reason: 'reversal', ref: L.id, by },
     sub.kind === 'personal' ? { questsCompleted: Math.max(0, (player.questsCompleted ?? 0) - 1) } : {},
   );
-  const fine = applyPoints(tx, db, now, settings, {
-    uid: sub.uid,
-    current: reversal.total,
-    delta: -settings.fraudPenalty,
-    reason: 'fraud',
-    ref: L.id,
-    by,
-  });
+  const fine = applyScore(
+    tx,
+    db,
+    now,
+    env.scoring,
+    { kind: 'fraudFine', uid: sub.uid },
+    new Map([[sub.uid, reversal.total]]),
+    { ref: L.id, by },
+  );
 
   if (sub.kind === 'personal') {
     // The quest is gone for good; the refill stays, or a fresh quest is dealt if there was none.
@@ -263,14 +286,14 @@ export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null):
   addFeed(tx, db, now, {
     type: 'fraud',
     text:
-      `${L.reviewerName ?? 'The GM'} overturned ${player.displayName}'s ` +
-      (sub.kind === 'personal' ? 'quest' : 'side-quest entry') +
+      `${L.reviewerName ?? `The ${t.gm.One}`} overturned ${player.displayName}'s ` +
+      (sub.kind === 'personal' ? t.quest.one : `${hyphenated(t.sideQuest.one)} entry`) +
       ' as fraud',
     uid: sub.uid,
     ref: L.id,
     actorUid: by,
     note,
-    points: reversal.applied + fine.applied,
+    points: reversal.applied + (fine.applied.get(sub.uid) ?? 0),
     submissionId: L.id,
     questTitle: sub.questTitle ?? null,
     photoURL: player.photoURL ?? null,

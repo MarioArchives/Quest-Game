@@ -47,6 +47,10 @@ describe('playerRecord', () => {
     expect(playerRecord('priya', reasons.map((r) => line(r)), [])).toEqual(EMPTY);
   });
 
+  it('a witness reward or a bounty is neither a failure nor a guess (engine plan E21)', () => {
+    expect(playerRecord('priya', [line('witness'), line('bounty')], [])).toEqual(EMPTY);
+  });
+
   it("ignores other players' lines and entries", () => {
     const ledger = [line('exposed', 'sam'), line('global-win', 'sam'), line('guess-correct', 'sam'), line('fraud', 'sam')];
     expect(playerRecord('priya', ledger, [entry('global', 'sam')])).toEqual(EMPTY);

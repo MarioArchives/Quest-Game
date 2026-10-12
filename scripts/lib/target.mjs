@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 
-export const EMULATOR_PROJECT_ID = 'demo-festival-quest';
+export const EMULATOR_PROJECT_ID = 'demo-quest-game';
 
 /** The project id aliased "prod" in .firebaserc. */
 export function prodProjectId() {

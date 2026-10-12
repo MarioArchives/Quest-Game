@@ -10,6 +10,7 @@ import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo, formatCountdown } from '../../lib/time';
+import { t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
 import { NoteSheet, clockTime, useRunner } from './common';
@@ -44,13 +45,13 @@ export function QuestsSection() {
   const nextAt = tsMs(state.nextGlobalQuestAt);
   const running = live[0] ?? null;
 
-  const fireRandom = () => run('random', () => fireGlobalQuest({ mode: 'random' }), 'Side quest fired.');
+  const fireRandom = () => run('random', () => fireGlobalQuest({ mode: 'random' }), `${t.sideQuest.One} fired.`);
 
   return (
     <>
-      <section className="gm-card gm-hero halftone" aria-label="Fire a side quest">
+      <section className="gm-card gm-hero halftone" aria-label={`Fire a ${t.sideQuest.one}`}>
         <p className="eyebrow">
-          Side quests ·{' '}
+          {t.sideQuest.Many} ·{' '}
           {live.length > 0 ? 'entries open' : checking.length > 0 ? 'checking entries' : voting.length > 0 ? 'voting' : 'none running'}
         </p>
         {running ? (
@@ -63,7 +64,7 @@ export function QuestsSection() {
               ? 'Voting is on.'
               : active
                 ? 'Nothing is open right now.'
-                : 'The game isn’t running, so side quests are on hold.'}
+                : `The game isn’t running, so ${t.sideQuest.many} are on hold.`}
           </p>
         )}
         <div className="gm-row">
@@ -143,7 +144,7 @@ export function QuestsSection() {
       {past.length > 0 ? (
         <details className="gm-fold">
           <summary>
-            <span>Recent side quests · {past.length}</span>
+            <span>Recent {t.sideQuest.many} · {past.length}</span>
           </summary>
           <ul className="gm-list">
             {past.map((quest) => (
@@ -155,7 +156,7 @@ export function QuestsSection() {
 
       {confirmRandom && running ? (
         <ConfirmSheet
-          title="Replace the live side quest?"
+          title={`Replace the live ${t.sideQuest.one}?`}
           confirmLabel="Fire a new one"
           onClose={() => setConfirmRandom(false)}
           onConfirm={async () => {
@@ -163,7 +164,7 @@ export function QuestsSection() {
           }}
         >
           <p>
-            <strong>&ldquo;{running.title}&rdquo;</strong> closes right away and a random side quest opens instead. Only one takes entries at a
+            <strong>&ldquo;{running.title}&rdquo;</strong> closes right away and a random {t.sideQuest.one} opens instead. Only one takes entries at a
             time.
           </p>
         </ConfirmSheet>
@@ -283,7 +284,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
           </p>
         }
         noteLabel="What was wrong (everyone will see this)"
-        placeholder="e.g. Not taken at the festival"
+        placeholder="e.g. Not taken during the game"
         required
         confirmLabel={`Disqualify, −${settings.fraudPenalty}`}
         danger
@@ -486,7 +487,7 @@ function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }
     };
     try {
       await fireGlobalQuest(input);
-      toast('Side quest fired.', 'success');
+      toast(`${t.sideQuest.One} fired.`, 'success');
       onClose();
     } catch (err) {
       setError(friendlyError(err));
@@ -495,7 +496,7 @@ function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }
   };
 
   return (
-    <BottomSheet title="Write a side quest" subtitle={hasLive ? 'Replaces the one taking entries' : 'Opens for everyone right now'} onClose={onClose} locked={busy}>
+    <BottomSheet title={`Write a ${t.sideQuest.one}`} subtitle={hasLive ? 'Replaces the one taking entries' : 'Opens for everyone right now'} onClose={onClose} locked={busy}>
       <form className="gm-form" onSubmit={(event) => void submit(event)} noValidate>
         <div className="field">
           <label className="field__label" htmlFor="sq-title">

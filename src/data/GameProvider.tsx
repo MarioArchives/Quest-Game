@@ -1,6 +1,4 @@
-import { collection, limit, orderBy, query, where } from 'firebase/firestore';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { db } from '../firebase';
 import {
   competitionRanks,
   DEFAULT_SETTINGS,
@@ -15,7 +13,7 @@ import {
   type Submission,
 } from '../shared';
 import { useSession } from '../session/SessionProvider';
-import { tsMs, useCollection, useDocument } from './hooks';
+import { tsMs, useDocument, useQuery } from './hooks';
 
 export type RankedPlayer = Doc<Player> & { rank: number };
 
@@ -80,29 +78,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const stateDoc = useDocument<GameState>('game/state');
   const settingsDoc = useDocument<Partial<Settings>>('game/settings');
-  const playersQ = useCollection<Player>('players', () => collection(db, 'players'));
-  const templatesQ = useCollection<QuestTemplate>('questTemplates', () => collection(db, 'questTemplates'));
-  const globalQ = useCollection<GlobalQuest>('globalQuests', () =>
-    query(collection(db, 'globalQuests'), orderBy('startsAt', 'desc'), limit(12)),
-  );
+  const playersQ = useQuery<Player>({ path: 'players' });
+  const templatesQ = useQuery<QuestTemplate>({ path: 'questTemplates' });
+  const globalQ = useQuery<GlobalQuest>({ path: 'globalQuests', orderBy: ['startsAt', 'desc'], limit: 12 });
   // Players must filter on status == approved (security rules); sort on the client so no composite index is needed.
-  const approvedQ = useCollection<Submission>('submissions:approved', () =>
-    query(collection(db, 'submissions'), where('status', '==', 'approved')),
-  );
-  const sealedQ = useCollection<Submission>(isAdmin ? 'submissions:sealed' : null, () =>
-    query(collection(db, 'submissions'), where('status', '==', 'sealed')),
-  );
-  const mineQ = useCollection<Submission>(uid && isPlayer ? `submissions:uid:${uid}` : null, () =>
-    query(collection(db, 'submissions'), where('uid', '==', uid)),
-  );
+  const approvedQ = useQuery<Submission>({ path: 'submissions', where: [['status', '==', 'approved']] });
+  const sealedQ = useQuery<Submission>(isAdmin ? { path: 'submissions', where: [['status', '==', 'sealed']] } : null);
+  const mineQ = useQuery<Submission>(uid && isPlayer ? { path: 'submissions', where: [['uid', '==', uid]] } : null);
   // The witness inbox: pending claims that name me. Equality filters only, so no composite index is needed.
-  const witnessQ = useCollection<Submission>(uid && isPlayer ? `submissions:witness:${uid}` : null, () =>
-    query(collection(db, 'submissions'), where('witnessUid', '==', uid), where('status', '==', 'pending')),
+  const witnessQ = useQuery<Submission>(
+    uid && isPlayer ? { path: 'submissions', where: [['witnessUid', '==', uid], ['status', '==', 'pending']] } : null,
   );
-  const feedQ = useCollection<FeedItem>('feed:latest', () => query(collection(db, 'feed'), orderBy('createdAt', 'desc'), limit(FEED_LIMIT)));
-  const guessesQ = useCollection<Guess>(uid && isPlayer ? `guesses:${uid}` : null, () =>
-    query(collection(db, 'guesses'), where('guesserUid', '==', uid)),
-  );
+  const feedQ = useQuery<FeedItem>({ path: 'feed', orderBy: ['createdAt', 'desc'], limit: FEED_LIMIT });
+  const guessesQ = useQuery<Guess>(uid && isPlayer ? { path: 'guesses', where: [['guesserUid', '==', uid]] } : null);
 
   const value = useMemo<GameValue>(() => {
     const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsDoc.data ?? {}) };

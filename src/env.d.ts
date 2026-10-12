@@ -1,6 +1,10 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  /** Which game pack this build is for (functions/src/shared/packs); default DEFAULT_PACK_ID there. */
+  readonly VITE_GAME_PACK?: string;
+  /** "mock" runs the game in the browser on an in-memory backend (no Firebase); anything else uses Firebase. */
+  readonly VITE_BACKEND?: string;
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
   readonly VITE_FIREBASE_PROJECT_ID?: string;

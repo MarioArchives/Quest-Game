@@ -1,14 +1,18 @@
-export const FESTIVAL_LINE = 'Lancaster Music Festival · 8–11 Oct 2026';
+import look from '@pack';
 
-/** The gig-poster masthead (halftone, red field, big Anton title) used by the sign-in family of screens. */
+/** The poster masthead (halftone, accent field, big display title) used by the sign-in family of screens. */
 export function PosterHeader({ compact = false, sticker }: { compact?: boolean; sticker?: string }) {
+  const { posterLine, posterTitle } = look.auth;
   return (
     <header className={`poster halftone${compact ? ' poster--compact' : ''}`}>
-      <p className="poster__line eyebrow">{FESTIVAL_LINE}</p>
+      <p className="poster__line eyebrow">{posterLine}</p>
       <h1 className="poster__title">
-        Festival
-        {compact ? ' ' : <br />}
-        Quest
+        {posterTitle.map((line, i) => (
+          <span key={line}>
+            {i > 0 ? compact ? ' ' : <br /> : null}
+            {line}
+          </span>
+        ))}
       </h1>
       {sticker ? <span className="sticker poster__sticker">{sticker}</span> : null}
     </header>

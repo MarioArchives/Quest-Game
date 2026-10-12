@@ -1,7 +1,9 @@
 // Push notifications (Web Push through FCM): who hears about what, the device tokens, and sending.
 // Messages are data-only; the service worker (public/push-sw.js) shows them and opens the link on tap.
-import { createHash } from 'node:crypto';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getPack } from '../shared/packs/index.js';
+import { sha256Hex } from '../shared/store/sha256.js';
+import { termForms } from '../shared/packs/terms.js';
+import type { GamePack } from '../shared/packs/types.js';
 import type { FeedItem, SubmissionKind } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { fail, isGM, requireUid } from './guards.js';
@@ -46,39 +48,40 @@ export const GM_CONSOLE = '#/gm';
 
 /** pushTokens/{id}: a stable, path-safe id for a device token. */
 export function pushTokenId(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  return sha256Hex(token);
 }
 
 /** Who hears about a feed post and what they read; null = no push. `submissionKind`: the post's submission's kind. */
-export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null): PushPlan | null {
+export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, pack: GamePack = getPack()): PushPlan | null {
+  const t = termForms(pack.terms);
   const quest = post.questTitle ?? '';
   switch (post.type) {
     case 'global-open':
-      return { to: 'players', message: { title: 'New side quest', body: `New side quest: ${quest}`, link: HOME } };
+      return { to: 'players', message: { title: `New ${t.sideQuest.one}`, body: `New ${t.sideQuest.one}: ${quest}`, link: HOME } };
     case 'checking':
       // Entries closed: the GMs check them before the vote (players hear when voting opens).
       return { to: 'gms', exclude: post.actorUid ?? null, message: { title: 'Entries to check', body: `Check the entries for ${quest}`, link: GM_CONSOLE } };
     case 'voting-open':
       return { to: 'players', message: { title: 'Voting is open', body: `Vote now: ${quest}`, link: HOME } };
     case 'global-won':
-      return { to: 'players', message: { title: 'Side quest won', body: post.text, link: HOME } };
+      return { to: 'players', message: { title: `${t.sideQuest.One} won`, body: post.text, link: HOME } };
     case 'announcement':
       return { to: 'players', message: { title: 'Announcement', body: post.text, link: HOME } };
     case 'status':
-      return { to: 'players', message: { title: 'Festival Quest', body: post.text, link: HOME } };
+      return { to: 'players', message: { title: pack.name, body: post.text, link: HOME } };
     case 'approved':
       // A side-quest entry is hidden until voting, so its "entered" post stays quiet.
       if (submissionKind === 'global' || !post.uid) return null;
-      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Claim approved', body: post.text, link: ACCOUNT } };
+      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: `${t.claim.One} approved`, body: post.text, link: ACCOUNT } };
     case 'rejected':
       if (!post.uid) return null;
-      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Claim rejected', body: post.text, link: ACCOUNT } };
+      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: `${t.claim.One} rejected`, body: post.text, link: ACCOUNT } };
     case 'fraud':
       if (!post.uid) return null;
       return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Fraud override', body: post.text, link: ACCOUNT } };
     case 'exposed':
       if (!post.uid) return null;
-      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Your quest was exposed', body: post.text, link: ACCOUNT } };
+      return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: `Your ${t.quest.one} was exposed`, body: post.text, link: ACCOUNT } };
     case 'adjust':
       if (!post.uid) return null;
       return { to: [post.uid], exclude: post.actorUid ?? null, message: { title: 'Points changed', body: post.text, link: ACCOUNT } };
@@ -144,17 +147,27 @@ export async function sendPush(db: Db, sender: PushSender, plan: PushPlan): Prom
   return { sent, pruned };
 }
 
-/** Firestore onCreate for feed/{id}: work out who hears about the post, then send it. */
-export async function handleFeedCreated(db: Db, sender: PushSender, feedId: string): Promise<{ sent: number; pruned: number }> {
+/** Who hears about feed/{id} and what they read; null = no push (or the post is gone). */
+export async function planForFeed(db: Db, feedId: string, pack: GamePack = getPack()): Promise<PushPlan | null> {
   const snap = await db.doc(`feed/${feedId}`).get();
-  if (!snap.exists) return { sent: 0, pruned: 0 };
+  if (!snap.exists) return null;
   const post = snap.data() as FeedItem;
   let submissionKind: SubmissionKind | null = null;
   if (post.submissionId) {
     const sub = await db.doc(`submissions/${post.submissionId}`).get();
     submissionKind = (sub.get('kind') as SubmissionKind | undefined) ?? null;
   }
-  const plan = pushFor(post, submissionKind);
+  return pushFor(post, submissionKind, pack);
+}
+
+/** Feed onCreate: work out who hears about the post, then send it. */
+export async function handleFeedCreated(
+  db: Db,
+  sender: PushSender,
+  feedId: string,
+  pack: GamePack = getPack(),
+): Promise<{ sent: number; pruned: number }> {
+  const plan = await planForFeed(db, feedId, pack);
   return plan ? sendPush(db, sender, plan) : { sent: 0, pruned: 0 };
 }
 
@@ -187,9 +200,9 @@ export async function removePushToken(db: Db, ctx: Ctx, data: { token?: unknown 
   return { ok: true };
 }
 
-/** The real FCM sender, or in the emulators one that only logs. */
-export function makeSender(opts: { emulator: boolean; log(line: string): void }): PushSender {
-  if (opts.emulator) {
+/** The sender for this environment: one that only logs in the emulators, otherwise the injected FCM sender. */
+export function makeSender(opts: { emulator: boolean; log(line: string): void; fcm?: PushSender }): PushSender {
+  if (opts.emulator || !opts.fcm) {
     return {
       async send(batch) {
         for (const { token, message } of batch) opts.log(`push to ${token.slice(0, 12)}…: ${message.title} — ${message.body} (${message.link})`);
@@ -197,23 +210,5 @@ export function makeSender(opts: { emulator: boolean; log(line: string): void })
       },
     };
   }
-  return {
-    async send(batch) {
-      const messaging = getMessaging();
-      return Promise.all(
-        batch.map(async ({ token, message }) => {
-          try {
-            await messaging.send({
-              token,
-              data: { ...message },
-              webpush: { headers: { TTL: '86400', Urgency: 'high' } },
-            });
-            return { ok: true };
-          } catch (err) {
-            return { ok: false, code: (err as { code?: string }).code ?? 'unknown' };
-          }
-        }),
-      );
-    },
-  };
+  return opts.fcm;
 }

@@ -1,4 +1,4 @@
-// Festival Quest push notifications: shows what FCM sends and opens the game when it is tapped.
+// Push notifications: shows what FCM sends and opens the game when it is tapped.
 // Loaded into the generated service worker through vite.config.ts (workbox.importScripts).
 
 self.addEventListener('push', (event) => {
@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
       // the game is on screen it arrives without sound or vibration: the feed is already updating in front of them.
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const watching = windows.some((client) => client.visibilityState === 'visible');
-      await self.registration.showNotification(payload.title || 'Festival Quest', {
+      await self.registration.showNotification(payload.title || 'Notification', {
         body: payload.body || '',
         icon: new URL('icons/icon-192.png', self.registration.scope).href,
         silent: watching,

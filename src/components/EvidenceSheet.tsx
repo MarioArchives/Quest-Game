@@ -1,9 +1,7 @@
-import { collection, doc } from 'firebase/firestore';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { addEvidence, enterSideQuest, friendlyError, type EvidenceInput } from '../api';
 import { useGame } from '../data/GameProvider';
 import { useStorageUrl } from '../data/hooks';
-import { auth, db } from '../firebase';
 import { compressPhoto, uploadJpeg, type CompressedPhoto } from '../lib/upload';
 import { CAPTION_MAX, type Doc, type GlobalQuest, type Submission } from '../shared';
 import { BottomSheet } from './BottomSheet';
@@ -12,6 +10,8 @@ import { CameraSheet, prefersInAppCamera } from './CameraSheet';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
 import './EvidenceSheet.css';
+import { t } from '../pack';
+import { backend } from '../backend';
 
 export type EvidenceTarget =
   /** Add (or replace) the photo and comment on an approved claim, or on a side-quest entry while it is still live. */
@@ -96,7 +96,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
   };
 
   const save = async () => {
-    const uid = auth.currentUser?.uid;
+    const uid = backend().auth.current()?.uid;
     if (!uid || !canSave) return;
     setError(null);
     setPhase('uploading');
@@ -106,7 +106,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
 
       if (photo) {
         upload.current ??= {
-          id: existing?.id ?? doc(collection(db, 'submissions')).id,
+          id: existing?.id ?? backend().data.newId('submissions'),
           stamp: Date.now(),
           image: false,
           thumb: false,
@@ -134,10 +134,10 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
         const { checking, late } = await enterSideQuest({ globalQuestId: target.quest.id, ...evidence });
         toast(
           checking
-            ? "You're in, and that was the last entry. The GM checks the entries, then starts the vote."
+            ? `You're in, and that was the last entry. The ${t.gm.One} checks the entries, then starts the vote.`
             : late
-              ? "You're in, late but in time: the GM hasn't started the vote yet."
-              : "You're in the side quest.",
+              ? `You're in, late but in time: the ${t.gm.One} hasn't started the vote yet.`
+              : `You're in the ${t.sideQuest.one}.`,
           'success',
         );
       } else {
@@ -152,10 +152,10 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
   };
 
   const entering = target.mode === 'enter';
-  const title = entering ? 'Enter side quest' : existing?.imagePath || existing?.caption ? 'Edit your post' : 'Add to your post';
+  const title = entering ? `Enter ${t.sideQuest.one}` : existing?.imagePath || existing?.caption ? 'Edit your post' : 'Add to your post';
   const subtitle = entering ? target.quest.title : target.title;
   const failed = error !== null;
-  const saveLabel = failed ? 'Retry' : entering ? 'Enter the side quest' : 'Save';
+  const saveLabel = failed ? 'Retry' : entering ? `Enter the ${t.sideQuest.one}` : 'Save';
   const previewSrc = photo?.preview ?? (keepExisting ? existingThumb : null);
 
   return (
@@ -167,7 +167,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
       ) : null}
       <p className="evidence__intro">
         {entering
-          ? 'Show everyone your take: a photo, a comment, or both. When time is up the GM checks the entries (late ones still count), then the group votes.'
+          ? `Show everyone your take: a photo, a comment, or both. When time is up the ${t.gm.One} checks the entries (late ones still count), then the group votes.`
           : 'Add a photo, a comment, or both. It shows on your post in the feed.'}
       </p>
 
@@ -206,7 +206,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
       <input ref={libraryRef} type="file" accept="image/*" className="visually-hidden" tabIndex={-1} aria-hidden aria-label="Choose a photo from your library" onChange={onPick} />
       {camera ? (
         <CameraSheet
-          title={entering ? 'Side quest photo' : 'Your photo'}
+          title={entering ? `${t.sideQuest.One} photo` : 'Your photo'}
           facing="environment"
           onClose={() => setCamera(false)}
           onCapture={(shot) => {

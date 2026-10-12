@@ -16,8 +16,8 @@
   user-select: none;
   touch-action: manipulation;
 }
-.witness__chip:hover { background: var(--red-tint); }
-.witness__chip.is-selected { background: var(--red); color: #fff; font-weight: 800; }
+.witness__chip:hover { background: var(--accent-tint); }
+.witness__chip.is-selected { background: var(--accent); color: var(--on-accent); font-weight: 800; }
 .witness__chip.is-selected .avatar { border-color: var(--ink); }
 .witness__chip.is-excluded { opacity: 0.45; cursor: not-allowed; }
 .witness__chip:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }

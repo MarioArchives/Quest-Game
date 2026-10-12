@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useGame } from '../data/GameProvider';
 import { Avatar } from './Avatar';
 import './WitnessPicker.css';
+import { t } from '../pack';
 
 const storageKey = (uid: string) => `fq:last-witness:${uid}`;
 
@@ -36,7 +37,7 @@ export interface WitnessPickerProps {
 }
 
 /** "Who's your witness?": every other player as a chip with their avatar; exactly one can be chosen. */
-export function WitnessPicker({ myUid, value, onChange, disabled = false, excludeUid = null, label = "Who's your witness?" }: WitnessPickerProps) {
+export function WitnessPicker({ myUid, value, onChange, disabled = false, excludeUid = null, label = `Who's your ${t.witness.one}?` }: WitnessPickerProps) {
   const { activePlayers } = useGame();
   const groupId = useId();
   // Players the GM marked as having left can't witness anything.
@@ -48,7 +49,7 @@ export function WitnessPicker({ myUid, value, onChange, disabled = false, exclud
         {label}
       </legend>
       {others.length === 0 ? (
-        <p className="note">There is nobody else in the game yet. Your witness has to be another player.</p>
+        <p className="note">There is nobody else in the game yet. Your {t.witness.one} has to be another player.</p>
       ) : (
         <div className="witness__chips" role="radiogroup" aria-labelledby={`${groupId}-legend`}>
           {others.map((p) => {

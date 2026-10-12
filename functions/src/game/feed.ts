@@ -1,4 +1,4 @@
-import type { Transaction } from 'firebase-admin/firestore';
+import type { Txn } from '../shared/store/types.js';
 import type { FeedItem } from '../shared/types.js';
 import type { Db } from './context.js';
 import { toTs } from './util.js';
@@ -18,7 +18,7 @@ function postId(now: Date): string {
 }
 
 /** Adds a post to the Home feed (reactions start at 0). Returns the new post id. */
-export function addFeed(tx: Transaction, db: Db, now: Date, item: FeedInput): string {
+export function addFeed(tx: Txn, db: Db, now: Date, item: FeedInput): string {
   const ref = db.collection('feed').doc(postId(now));
   const post: Record<string, unknown> = {};
   // Firestore rejects undefined values, so only copy what was given.

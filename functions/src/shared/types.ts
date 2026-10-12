@@ -8,9 +8,9 @@ export type TS = any;
 export type GameStatus = 'lobby' | 'active' | 'paused' | 'ended';
 
 export interface QuietHours {
-  /** Local Europe/London time, "HH:MM". */
+  /** Local time in the pack's time zone, "HH:MM". */
   start: string;
-  /** Local Europe/London time, "HH:MM". May be earlier than start (wraps past midnight). */
+  /** Local time in the pack's time zone, "HH:MM". May be earlier than start (wraps past midnight). */
   end: string;
 }
 
@@ -26,7 +26,6 @@ export interface Settings {
   globalIntervalMin: number;
   globalIntervalMax: number;
   globalWindowMin: number;
-  globalEntryPoints: number;
   quietHours: QuietHours | null;
   /** Fine charged when the GM overrides an approved submission as fraud. */
   fraudPenalty: number;
@@ -37,6 +36,10 @@ export interface Settings {
   refillOnComplete: boolean;
   revealOnComplete: boolean;
   pointsFloorZero: boolean;
+  /** Scoring rule-set id (functions/src/shared/scoring); an unknown id falls back to the pack's default. */
+  scoring: string;
+  /** The rule sets' own numbers by param key (keys are unique across rule sets). */
+  scoringParams: Record<string, number>;
 }
 
 /** game/state */
@@ -46,6 +49,8 @@ export interface GameState {
   endedAt: TS | null;
   nextGlobalQuestAt: TS | null;
   announcement: string | null;
+  /** The game pack this game was seeded for; missing on games seeded before packs existed. */
+  pack?: string | null;
 }
 
 /** admins/{uid} */
@@ -101,6 +106,8 @@ export interface Quest {
   completedAt?: TS | null;
   exposedBy?: string | null;
   exposedAt?: TS | null;
+  /** Points this quest pays, copied from its template when dealt; null or missing → settings.questPoints. */
+  points?: number | null;
 }
 
 export type TemplateScope = 'personal' | 'global';
@@ -112,6 +119,8 @@ export interface QuestTemplate {
   scope: TemplateScope;
   /** Only for global templates; falls back to settings.globalWindowMin. */
   windowMin?: number | null;
+  /** Points for completing it (personal only); null or missing → settings.questPoints. */
+  points?: number | null;
   /** Retired templates are never drawn but stay in the catalogue. */
   active: boolean;
 }
@@ -248,17 +257,26 @@ export interface PlayerLocation {
   updatedAt: TS;
 }
 
-export type LedgerReason =
-  | 'quest'
-  | 'global-win'
-  | 'global-entry'
-  | 'exposed'
-  | 'guess-correct'
-  | 'guess-wrong'
-  | 'adjust'
-  | 'reversal'
-  | 'fraud'
-  | 'rejected';
+/**
+ * Every ledger reason. 'global-entry' is legacy (never written). 'witness' pays whoever approved a claim and
+ * 'bounty' pays the target of a wrong guess (both only under rule sets that use them, e.g. heist).
+ */
+export const LEDGER_REASON_LIST = [
+  'quest',
+  'global-win',
+  'global-entry',
+  'exposed',
+  'guess-correct',
+  'guess-wrong',
+  'adjust',
+  'reversal',
+  'fraud',
+  'rejected',
+  'witness',
+  'bounty',
+] as const;
+
+export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
 
 /** pointsLedger/{id} */
 export interface LedgerEntry {
@@ -371,7 +389,7 @@ export interface Wrap {
   award: Award;
 }
 
-/** Static festival data (public/data/*.json and functions/src/data/venues.json). */
+/** Static schedule data from a pack (venues and events). */
 export interface Venue {
   id: string;
   name: string;
@@ -380,14 +398,14 @@ export interface Venue {
   address: string | null;
 }
 
-export interface FestivalEvent {
+export interface ScheduleEvent {
   id: string;
   act: string;
   venueId: string;
   stage: string | null;
-  /** Festival day derived from start in Europe/London, e.g. "Saturday". */
+  /** Day name derived from start in the pack's time zone, e.g. "Saturday". */
   day: string;
-  /** ISO 8601 with the Europe/London offset, e.g. "2026-10-10T19:00:00+01:00". */
+  /** ISO 8601 with the pack's UTC offset, e.g. "2026-10-10T19:00:00+01:00". */
   start: string;
   end: string | null;
   genre: string | null;

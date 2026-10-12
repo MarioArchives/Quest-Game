@@ -1,8 +1,10 @@
+import { termForms } from '../shared/packs/terms.js';
 import type { GlobalQuest, GlobalQuestStatus, Submission } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { parseEvidence } from './evidence.js';
 import { addFeed } from './feed.js';
 import { fail, isPlaying, loadSettings, loadState, requireGM, requirePlayer } from './guards.js';
+import { scoringFor } from './ledger.js';
 import type { PushPlan } from './push.js';
 import { asId, millis, toTs } from './util.js';
 import {
@@ -28,6 +30,8 @@ export async function castVote(
   ctx: Ctx,
   data: { globalQuestId?: unknown; submissionId?: unknown },
 ): Promise<{ closed: boolean }> {
+  const t = termForms(ctx.pack.terms);
+  if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
   return db.runTransaction(async (tx) => {
     const { uid } = await requirePlayer(db, ctx, tx);
     const questId = asId(data.globalQuestId, 'globalQuestId');
@@ -35,26 +39,27 @@ export async function castVote(
 
     const questRef = db.doc(`globalQuests/${questId}`);
     const questSnap = await tx.get(questRef);
-    if (!questSnap.exists) fail('not-found', 'No such side quest.');
+    if (!questSnap.exists) fail('not-found', `No such ${t.sideQuest.one}.`);
     const gq = questSnap.data() as GlobalQuest;
-    if (gq.status !== 'voting') fail('failed-precondition', 'This side quest is not open for voting.');
+    if (gq.status !== 'voting') fail('failed-precondition', `This ${t.sideQuest.one} is not open for voting.`);
     if (gq.votingEndsAt && ctx.now.getTime() >= millis(gq.votingEndsAt)) {
-      fail('failed-precondition', 'Voting on this side quest has ended.');
+      fail('failed-precondition', `Voting on this ${t.sideQuest.one} has ended.`);
     }
 
     const entries = revealedEntries(await readEntries(tx, db, questId));
     const target = entries.find((e) => e.id === submissionId);
-    if (!target) fail('invalid-argument', 'That is not an entry in this side quest.');
+    if (!target) fail('invalid-argument', `That is not an entry in this ${t.sideQuest.one}.`);
     if (target.data.uid === uid) fail('permission-denied', 'You cannot vote for your own entry.');
 
     const votes = await readVotes(tx, db, questId);
     const players = await readPlayers(tx, db);
     const settings = await loadSettings(db, tx);
+    const state = await loadState(db, tx);
     votes.set(uid, submissionId);
 
     tx.set(db.doc(`globalQuests/${questId}/votes/${uid}`), { submissionId, createdAt: toTs(ctx.now) });
     const allVoted = eligibleVoters(players, entries).every((voter) => votes.has(voter));
-    if (allVoted) closeWithTally(tx, db, ctx.now, settings, { id: questId, ref: questRef, gq }, entries, votes, players);
+    if (allVoted) closeWithTally(tx, db, ctx.now, ctx.pack, scoringFor(ctx.pack, settings, state, ctx.now), { id: questId, ref: questRef, gq }, entries, votes, players);
     return { closed: allVoted };
   });
 }
@@ -68,21 +73,24 @@ export async function advanceGlobalQuest(
   ctx: Ctx,
   data: { globalQuestId?: unknown },
 ): Promise<{ status: GlobalQuestStatus }> {
+  const t = termForms(ctx.pack.terms);
+  if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
   return db.runTransaction(async (tx) => {
     const by = await requireGM(db, ctx, tx);
     const questId = asId(data.globalQuestId, 'globalQuestId');
     const questRef = db.doc(`globalQuests/${questId}`);
     const questSnap = await tx.get(questRef);
-    if (!questSnap.exists) fail('not-found', 'No such side quest.');
+    if (!questSnap.exists) fail('not-found', `No such ${t.sideQuest.one}.`);
     const gq = questSnap.data() as GlobalQuest;
-    if (gq.status === 'closed') fail('failed-precondition', 'This side quest is already closed.');
+    if (gq.status === 'closed') fail('failed-precondition', `This ${t.sideQuest.one} is already closed.`);
 
     const settings = await loadSettings(db, tx);
+    const state = await loadState(db, tx);
     const entries = await readEntries(tx, db, questId);
     const q = { id: questId, ref: questRef, gq };
 
     if (gq.status === 'live') {
-      startChecking(tx, db, ctx.now, q, by);
+      startChecking(tx, db, ctx.now, ctx.pack, q, by);
       return { status: 'checking' as const };
     }
     if (gq.status === 'checking') {
@@ -91,7 +99,7 @@ export async function advanceGlobalQuest(
     }
     const votes = await readVotes(tx, db, questId);
     const players = await readPlayers(tx, db);
-    closeWithTally(tx, db, ctx.now, settings, q, entries, votes, players);
+    closeWithTally(tx, db, ctx.now, ctx.pack, scoringFor(ctx.pack, settings, state, ctx.now), q, entries, votes, players);
     return { status: 'closed' as const };
   });
 }
@@ -107,18 +115,20 @@ export async function enterSideQuest(
   ctx: Ctx,
   data: { globalQuestId?: unknown; imagePath?: unknown; thumbPath?: unknown; caption?: unknown },
 ): Promise<{ submissionId: string; checking: boolean; late: boolean }> {
+  const t = termForms(ctx.pack.terms);
+  if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
   return db.runTransaction(async (tx) => {
     const { uid, player } = await requirePlayer(db, ctx, tx);
     const state = await loadState(db, tx);
-    if (state.status !== 'active') fail('failed-precondition', 'Side quests can only be entered while the game is running.');
+    if (state.status !== 'active') fail('failed-precondition', `${t.sideQuest.Many} can only be entered while the game is running.`);
 
     const questId = asId(data.globalQuestId, 'globalQuestId');
     const questRef = db.doc(`globalQuests/${questId}`);
     const questSnap = await tx.get(questRef);
-    if (!questSnap.exists) fail('not-found', 'No such side quest.');
+    if (!questSnap.exists) fail('not-found', `No such ${t.sideQuest.one}.`);
     const gq = questSnap.data() as GlobalQuest;
     if (gq.status !== 'live' && gq.status !== 'checking') {
-      fail('failed-precondition', 'Voting has started on this side quest, so entries are closed.');
+      fail('failed-precondition', `Voting has started on this ${t.sideQuest.one}, so entries are closed.`);
     }
     // Past the window (the timer moves it to checking within 15 min) or while the GMs check: a late entry.
     const late = gq.status === 'checking' || ctx.now.getTime() >= millis(gq.endsAt);
@@ -127,7 +137,7 @@ export async function enterSideQuest(
     const entries = await readEntries(tx, db, questId);
     const mine = await tx.get(db.collection('submissions').where('questId', '==', questId).where('uid', '==', uid));
     if (mine.docs.some((d) => d.get('kind') === 'global' && d.get('status') !== 'rejected')) {
-      fail('already-exists', 'You have already entered this side quest.');
+      fail('already-exists', `You have already entered this ${t.sideQuest.one}.`);
     }
     const players = gq.status === 'live' ? await readPlayers(tx, db) : new Map();
 
@@ -145,7 +155,7 @@ export async function enterSideQuest(
     // The post only says who entered; the evidence goes onto it when the entry is revealed.
     const feedId = addFeed(tx, db, ctx.now, {
       type: 'approved',
-      text: `${player.displayName} entered the side quest "${gq.title}"`,
+      text: `${player.displayName} entered the ${t.sideQuest.one} "${gq.title}"`,
       uid,
       ref: entryRef.id,
       submissionId: entryRef.id,
@@ -167,7 +177,7 @@ export async function enterSideQuest(
     } as Submission;
     tx.create(entryRef, entry);
 
-    if (checking) startChecking(tx, db, ctx.now, { id: questId, ref: questRef, gq });
+    if (checking) startChecking(tx, db, ctx.now, ctx.pack, { id: questId, ref: questRef, gq });
     return { submissionId: entryRef.id, checking, late };
   });
 }
@@ -183,6 +193,8 @@ export async function checkEntry(
   ctx: Ctx,
   data: { submissionId?: unknown; accept?: unknown; note?: unknown },
 ): Promise<{ checked: 'accepted' | 'rejected'; status: GlobalQuestStatus; push: PushPlan | null }> {
+  const t = termForms(ctx.pack.terms);
+  if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
   return db.runTransaction(async (tx) => {
     const by = await requireGM(db, ctx, tx);
     const id = asId(data.submissionId, 'submissionId');
@@ -200,7 +212,7 @@ export async function checkEntry(
     const subSnap = await tx.get(subRef);
     if (!subSnap.exists) fail('not-found', 'No such entry.');
     const sub = subSnap.data() as Submission;
-    if (sub.kind !== 'global') fail('invalid-argument', 'That is not a side-quest entry.');
+    if (sub.kind !== 'global') fail('invalid-argument', `That is not a ${t.sideQuest.one} entry.`);
     if (sub.uid === by) fail('permission-denied', 'You cannot check your own entry.');
     const state = await loadState(db, tx);
     if (state.status === 'ended') fail('failed-precondition', 'The game has ended.');

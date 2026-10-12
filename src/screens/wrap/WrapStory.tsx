@@ -7,9 +7,10 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { ProgressBars } from './ProgressBars';
 import { saveCardImage } from './saveImage';
+import { pack, t } from '../../pack';
 
 export interface StoryCard {
-  /** Used for the saved file name (festival-quest-<id>.png). */
+  /** Used for the saved file name (<pack id>-<slug>.png). */
   id: string;
   /** Screen-reader name of the card. */
   label: string;
@@ -119,7 +120,7 @@ export function WrapStory({ cards }: { cards: StoryCard[] }) {
   if (!card) return null;
 
   return (
-    <section className="wrap" aria-label="Your Festival Quest wrap">
+    <section className="wrap" aria-label={`Your ${pack.name} ${t.wrap.one.toLowerCase()}`}>
       <div
         className="wrap__stage"
         onPointerDown={onPointerDown}
@@ -135,13 +136,13 @@ export function WrapStory({ cards }: { cards: StoryCard[] }) {
           aria-label={`${current + 1} of ${count}: ${card.label}`}
         >
           <header className="wcard__top">
-            <p className="w-kicker">Festival Quest &middot; Game over</p>
-            <Link to="/" className="wcard__close" aria-label="Close the wrap" data-no-capture>
+            <p className="w-kicker">{pack.name} &middot; Game over</p>
+            <Link to="/" className="wcard__close" aria-label={`Close the ${t.wrap.one.toLowerCase()}`} data-no-capture>
               <Icon name="close" size={20} strokeWidth={2.4} />
             </Link>
           </header>
           <div className="wcard__body">{card.body}</div>
-          <footer className="wcard__foot">Festival Quest &middot; Lancaster Music Festival 2026</footer>
+          <footer className="wcard__foot">{pack.name}</footer>
         </div>
 
         <ProgressBars count={count} index={current} />

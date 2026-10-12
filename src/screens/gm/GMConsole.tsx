@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AshtonLoader } from '../../components/AshtonLoader';
+import { Loader } from '../../components/Loader';
 import { Icon } from '../../components/Icon';
 import { useModal } from '../../components/useModal';
 import { useGame } from '../../data/GameProvider';
+import { gmSectionsFor, type GmSectionId } from '../../lib/nav';
+import { features, t } from '../../pack';
 import { GameSection } from './GameSection';
 import { GmDataProvider, useGmData } from './GmData';
 import { GuessLogSection } from './GuessLogSection';
@@ -15,18 +17,21 @@ import { SettingsSection } from './SettingsSection';
 import { TemplatesSection } from './TemplatesSection';
 import './gm.css';
 
-export type GmSection = 'game' | 'joins' | 'review' | 'quests' | 'players' | 'guesses' | 'templates' | 'settings';
+export type GmSection = GmSectionId;
 
-const SECTIONS: { id: GmSection; label: string }[] = [
-  { id: 'game', label: 'Game' },
-  { id: 'joins', label: 'Joins' },
-  { id: 'review', label: 'Review' },
-  { id: 'quests', label: 'Side quests' },
-  { id: 'players', label: 'Players' },
-  { id: 'guesses', label: 'Guesses' },
-  { id: 'templates', label: 'Quests' },
-  { id: 'settings', label: 'Settings' },
-];
+const LABELS: Record<GmSection, string> = {
+  game: 'Game',
+  joins: 'Joins',
+  review: 'Review',
+  quests: t.sideQuest.Many,
+  players: 'Players',
+  guesses: 'Guesses',
+  templates: t.quest.Many,
+  settings: 'Settings',
+};
+
+/** The sections this pack's features leave in the console. */
+const SECTIONS: { id: GmSection; label: string }[] = gmSectionsFor(features).map((id) => ({ id, label: LABELS[id] }));
 
 const STORAGE_KEY = 'fq:gm-section';
 const DRAWER_ID = 'gm-drawer';
@@ -38,12 +43,12 @@ function loadSection(): GmSection {
   } catch {
     /* private mode */
   }
-  return 'game';
+  return SECTIONS[0]!.id;
 }
 
 export default function GMConsole() {
   const { ready } = useGame();
-  if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready) return <Loader className="app__loader" caption="Loading" />;
   return (
     <GmDataProvider>
       <Console />
@@ -102,7 +107,7 @@ function Console() {
           {needsAttention > 0 ? <span className="gm-burger__dot" aria-hidden="true" /> : null}
         </button>
         <div className="gm-bar__titles">
-          <p className="eyebrow gm-bar__eyebrow">GM console</p>
+          <p className="eyebrow gm-bar__eyebrow">{t.gm.One} console</p>
           <h2 id="gm-section-title" className="gm-bar__title">
             {current.label}
           </h2>
@@ -162,13 +167,13 @@ function GmDrawer({
       <aside className="gm-drawer" id={DRAWER_ID} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1}>
         <div className="gm-drawer__head">
           <h2 id={titleId} className="gm-drawer__title">
-            GM console
+            {t.gm.One} console
           </h2>
           <button type="button" className="btn-icon" aria-label="Close menu" onClick={onClose}>
             <Icon name="close" size={22} />
           </button>
         </div>
-        <nav aria-label="GM console sections">
+        <nav aria-label={`${t.gm.One} console sections`}>
           <ul className="gm-drawer__list">
             {SECTIONS.map((item) => {
               const count = counts[item.id] ?? 0;

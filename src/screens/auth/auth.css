@@ -14,8 +14,8 @@
 .poster {
   position: relative;
   padding: calc(32px + var(--safe-top)) 24px 36px;
-  background: var(--red);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   border-bottom: var(--line);
 }
 .poster__line { margin-bottom: 12px; font-size: 13px; }

@@ -15,7 +15,7 @@
   width: 100%;
   padding: 12px 14px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   border: var(--line);
   font-size: 14px;
   font-weight: 700;
@@ -23,6 +23,6 @@
   animation: toast-in 0.18s ease-out;
 }
 .toast--success { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
-.toast--error { background: var(--red); color: #fff; }
+.toast--error { background: var(--accent); color: var(--on-accent); }
 @keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }

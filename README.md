@@ -1,10 +1,74 @@
-# Festival Quest
+# Quest Game
 
-A secret side-quest party game for a group of friends at the **Lancaster Music Festival 2026** (8-11 October, Lancaster UK).
+An engine for secret-quest party games among friends. It grew out of **Festival Quest**, played at the Lancaster Music Festival in October 2026; that game is now the `lancaster` **game pack**, and a new game is a new pack.
 
-Everyone gets a hand of five secret personal quests ("snap a setlist", "hear three genres in one hour", ...). To complete one you **claim** it and name a friend as your **witness**; they approve (or reject) it, and you can then add a photo or a comment to your post as evidence. Everything that happens lands in a social **feed** where everyone reacts with emoji. Along the way you can try to guess a rival's secret quest by watching what they get up to (right guess: they are exposed and you score; wrong guess: it costs you). Every hour or two a **side quest** opens for everyone at once ("show us a brass instrument on stage"): you enter with a photo or a comment and then everyone **votes**. The game master (GM) keeps things fair, can reject a claim, and can undo an approval as fraud. Best score when the GM ends the game wins, and every player gets a shareable "Wrap" of their festival.
+Every game plays the same way. Everyone gets a hand of secret personal quests. To complete one you **claim** it and name a friend as your **witness**; they approve (or reject) it, and you can then add a photo or a comment to your post as evidence. Everything lands in a social **feed** where everyone reacts with emoji. You can try to guess a rival's secret quest by watching what they get up to. Every hour or two a **side quest** opens for everyone at once: you enter with a photo or a comment and everyone **votes**. The game master (GM) keeps things fair, can reject a claim, and can undo an approval as fraud. Best score when the GM ends the game wins, and every player gets a shareable "Wrap".
 
-It is a mobile-first PWA (Vite + React + TypeScript) on Firebase (Auth, Firestore, Storage, Cloud Functions). Local development runs on the Firebase Emulator Suite under the demo project `demo-festival-quest`, with no Google account or billing needed; the live game runs on `musical-mischief` (see [Production](#production)).
+What a pack changes: the words (a pack can call quests "challenges" and side quests "bonus rounds"), the look (colours, fonts, loading mark, icons, sign-in copy), which optional parts are on (guesses, side quests, the venue map), the quest catalogue, the time zone, default settings, award titles, and the default **scoring rule set**.
+
+It is a mobile-first PWA (Vite + React + TypeScript) on Firebase (Auth, Firestore, Storage, Cloud Functions). Local development runs on the Firebase Emulator Suite under the demo project `demo-quest-game`, with no Google account or billing needed. Each real game runs on its own Firebase project (see [Production](#production)).
+
+## Game packs
+
+A pack has two halves, because the Cloud Functions can only build code under `functions/`:
+
+| Half | Folder | What is in it |
+|---|---|---|
+| Rules | `functions/src/shared/packs/<id>/` | `index.ts` (a `GamePack`: name, terms, features, time zone, locale, default scoring, settings overrides, award titles, map setup), `quests.json` (the catalogue), `venues.json` (map packs only). Shared by the functions, the app and the scripts. |
+| Look | `src/packs/<id>/` | `brand.ts` (manifest colours), `theme.css` (token overrides and fonts), `index.tsx` (a `PackLook`: loading mark and sign-in copy), `public/` (favicon, icons and data files served at the site root). App only. |
+
+Built-in packs:
+
+- **`lancaster`**: Festival Quest exactly as it was played: Gig Poster look (paper, ink, red; Anton and Archivo; the Ashton Memorial loader), every feature on including the venue map and festival schedule, Europe/London.
+- **`starter`**: a plain template for new games: "Quest Game", challenges and bonus rounds, a map with no venues (it shows who is where; set its centre to your venue), system fonts and one blue accent, a small kind catalogue.
+
+**Choosing the pack.** One pack per deployment, and both sides must agree:
+
+- the app: `VITE_GAME_PACK` (environment, `.env.local` or the deploy workflow's repository variable). An unknown id stops the build.
+- the functions: `GAME_PACK` in `functions/.env` (committed, `lancaster`), overridden by `functions/.env.<project id>` for a deployment or `functions/.env.local` in the emulator. An invalid pack stops the functions from loading.
+- the scripts: `npm run seed -- --pack <id>` (or `GAME_PACK`). The seed writes the pack into `game/state.pack`; it refuses to seed a game for another pack unless you add `--switch-pack`, and the app shows a "Wrong game" screen if its build doesn't match.
+
+Everything defaults to `lancaster`. To try the starter pack locally:
+
+```sh
+echo GAME_PACK=starter > functions/.env.local
+GAME_PACK=starter VITE_GAME_PACK=starter npm run dev
+```
+
+(Delete `.emulator-data/` first if it holds a game for another pack.)
+
+**Making a new game.**
+
+1. Copy `functions/src/shared/packs/starter/` and `src/packs/starter/` to a new id, and register it: one line in `functions/src/shared/packs/index.ts` (`PACKS`) and one in `src/packs/brands.ts`.
+2. Rules half: name, terms (singular and plural of quest, side quest, witness, claim, GM, wrap), features, time zone, scoring, settings, and the catalogue in `quests.json`. `validatePack` (run by the tests, the functions and the build) explains anything wrong: missing terms, the map on without a map setup, side quests on with none in the catalogue, ids without the `p-`/`g-` prefix, a personal quest without its `Proof:` line, bad points.
+3. Look half: colours and fonts in `theme.css` (every colour is a token from `src/styles/tokens.css`), the loading mark and sign-in copy in `index.tsx`, icons in `public/`. Show the people playing a couple of visual options before settling on one.
+4. Run `npm run typecheck && npm test`, then play it locally with the commands above.
+
+Engine code never names a game: `tests/engine/guard.test.ts` fails if a festival word, `Europe/London` or a raw colour turns up outside a `packs/` folder.
+
+## Scoring rule sets
+
+How points move is a **rule set** (`functions/src/shared/scoring/`), chosen per game in **GM console › Settings › Scoring** (`settings.scoring`; it falls back to the pack's default). The amounts themselves (quest points, fines, guess rewards) are still the GM's settings; a rule set may add its own numbers (`settings.scoringParams`), which appear in the same screen.
+
+| Rule set | What changes |
+|---|---|
+| `classic` | The original maths (see [Default scoring](#default-scoring)). |
+| `countdown` | A quest pays less the longer the game has run: minus `decayPctPerHour`% (default 5) per hour since the start, never below `floorPct`% (default 25). |
+| `heist` | Points move instead of appearing: a right guess steals the exposure fine from the target, a wrong guess pays the target a bounty, and whoever approves a claim earns `witnessReward` (default 10). |
+
+A catalogue quest may also carry its own `points`, which replace the quest points for that quest (copied onto the quest when dealt).
+
+A rule set is a pure object: `score(event, ctx)` turns a game event (quest approved, claim rejected, fraud fine, right or wrong guess, side quest won) into points lines or transfers, and `describe()` writes its House rules rows. The engine checks and rounds what it returns, applies the zero floor (a transfer only credits what was actually taken), refuses lines for anyone the event doesn't name, and writes nothing if the result is broken. A fraud override always takes back exactly what was awarded, whatever the rule set. To add one, write a module next to `classic.ts`, list it in `RULESETS` (`scoring/index.ts`), give any params unique keys, and add tests to `functions/test/scoring.test.ts`.
+
+## Just looking? Mock mode
+
+```sh
+npm install
+npm run mock                          # http://localhost:5173, the lancaster pack
+VITE_GAME_PACK=starter npm run mock   # another pack
+```
+
+The whole game runs in your browser on in-memory demo data, with the real game rules: no Firebase, Java or emulators. Sign in as "You (GM)" or as any demo player to see the game through their eyes; to switch person, sign out and pick another (each browser tab is its own separate game). Side quests tick every 20 s. Data resets when you reload. See [Backends and mock mode](#backends-and-mock-mode).
 
 ## Prerequisites
 
@@ -20,7 +84,7 @@ npm install
 npm run dev                     # functions watcher + emulators + Vite + dev ticker + automatic seeding
 ```
 
-`npm run dev` seeds for you: it runs `node scripts/seed.mjs --wait`, which waits for the emulators and loads the game state, default settings and the quest catalogue (safe to repeat, never overwrites GM edits). Optionally add four demo players with a live side quest, once the emulators are up:
+`npm run dev` seeds for you: it runs `node scripts/seed.mjs --wait`, which waits for the emulators and loads the game state, default settings and the pack's quest catalogue (safe to repeat, never overwrites GM edits). The examples below use the default `lancaster` pack; see [Game packs](#game-packs) for others. Optionally add four demo players with a live side quest, once the emulators are up:
 
 ```sh
 npm run seed -- --demo
@@ -62,13 +126,13 @@ Phones on your Wi‑Fi can't join this setup yet: the app connects to the emulat
 
 | Command | What it does |
 |---|---|
-| `npm run seed` | Idempotent (and run for you by `npm run dev`). Creates `game/state` if missing, fills in any missing default settings without touching GM edits, upserts the quest catalogue from `scripts/data/quests.json` (retired templates stay retired; built-in quests no longer in the file are retired). `--wait` first polls until the emulators answer (up to 2 minutes). |
-| `npm run seed -- --demo` | Also adds demo players Maya, Sam, Priya and Jonah (uids `demo-*`): dealt hands, quests approved by another bot as witness (most with photo or comment evidence), one claim waiting for its witness, one rejected claim (-25), feed posts with emoji reactions, a live side quest with two entries, ledger and map locations. Safe to repeat; nothing is duplicated. |
+| `npm run seed` | Idempotent (and run for you by `npm run dev`). Creates `game/state` if missing (naming the pack), fills in any missing default settings and rule-set params without touching GM edits, upserts the pack's quest catalogue (retired templates stay retired; built-in quests no longer in the catalogue are retired). `--pack <id>` picks the pack (else `GAME_PACK`, else `lancaster`); `--switch-pack` lets it re-point a game seeded for another pack. `--wait` first polls until the emulators answer (up to 2 minutes). |
+| `npm run seed -- --demo` | Also adds demo players Maya, Sam, Priya and Jonah (side quest and map pins only when the pack has them) (uids `demo-*`): dealt hands, quests approved by another bot as witness (most with photo or comment evidence), one claim waiting for its witness, one rejected claim (-25), feed posts with emoji reactions, a live side quest with two entries, ledger and map locations. Safe to repeat; nothing is duplicated. |
 | `npm run seed -- --reset-demo` | Deletes the demo players and everything they own, then seeds them again (use it after the data shapes change). |
 | `npm run seed -- --reset-settings` | Overwrite `game/settings` with the defaults. |
 | `npm run players` | Three more copies of the app on ports 5174–5176, one player each (run alongside `npm run dev`). |
 | `npm run make-admin -- <email>` | Adds the signed-in user to `admins/`. `--uid <uid>` skips the Auth lookup. |
-| `npm run import-schedule` | Refreshes the festival schedule (see below). |
+| `npm run import-schedule` | Refreshes the Lancaster pack's festival schedule (see below). |
 
 Scripts talk to the emulators (they honour `FIRESTORE_EMULATOR_HOST` and friends, and otherwise use the ports in `firebase.json`); `seed` and `make-admin` also take `--prod` (see [Production](#production)).
 
@@ -77,6 +141,8 @@ Scripts talk to the emulators (they honour `FIRESTORE_EMULATOR_HOST` and friends
 Anyone can sign in with Google and ask to join with a display name. Nothing happens until the GM approves the request in the GM console; approval creates the player and deals their five starter quests.
 
 ## How to play
+
+Described here in the Lancaster pack's words; other packs rename the nouns, and leave out guesses, side quests or the map when those features are off.
 
 - **Home** is the feed, in a "ticket stub" style. The ranks sit at the top: a podium for the top three, a wristband strip for everyone else (players who left are greyed) and **All** for the full **Standings** screen. Then the pinned announcement and the current side quest, then every post newest first as a ticket: joins, approvals, rejections, side-quest news, exposures, fraud overrides and point adjustments, with the points and the witness on the stub. Each post has emoji reactions (one per player per post, no comments): pick from the quick set or type any emoji with the phone's keyboard.
 - **Player** (tap anyone on the podium, the wristbands or Standings) is their player pass: rank, points and status (playing, or left with the score frozen), then tabs. **Overview** has their record: quests completed and failed (exposed by a guess, claim rejected, overturned as fraud), side quests entered and won, guesses made and right, and the **Guess their quest** panel. **Photos**, **Quests** (quests achieved, with "Secret quest" when titles are hidden, and side quests won) and **Points** (their whole points history) follow. Their current secret quests are never shown. Failures are counted from the points history, so one with a fine set to 0 isn't counted.
@@ -106,6 +172,8 @@ Players can change their entry until the window ends.
 
 ### Default scoring
 
+These are the `classic` rule set's defaults (see [Scoring rule sets](#scoring-rule-sets) for the others).
+
 | Event | Default |
 |---|---|
 | Complete a quest (your witness approves it) | **+100** |
@@ -124,56 +192,88 @@ Be kind: ask before photographing people up close, and never at the cost of a pe
 
 All numbers (and refill, reveal-on-complete, point floor, side-quest timing) are editable by the GM at any time in **GM console > Settings**. Defaults live in `functions/src/shared/settings.ts`.
 
+## Backends and mock mode
+
+Nothing above the data layer knows about Firebase:
+
+- **The game rules** (`functions/src/game/`) run on a neutral document store, `Store` (`functions/src/shared/store/types.ts`): documents by path, `==`/`in` queries, transactions, batches, and its own `Stamp` timestamps and `GameError`s. Two stores implement it: `firestoreStore` (`functions/src/firebase/store.ts`, used by the Cloud Functions) and `memoryStore` (`functions/src/shared/store/memory.ts`, pure TypeScript, Node and browsers). Every game action and trigger is listed once in `functions/src/game/callables.ts` and `triggers.ts`; `functions/src/index.ts` only maps them onto Firebase.
+- **The app** (`src/`) talks to a `Backend` (`src/backend/types.ts`: auth, live documents and queries, writes, game actions, files, push) through `backend()` from `src/backend/index.ts`. Only `src/backend/firebase/` imports the Firebase SDK (the engine guard test enforces it).
+
+`VITE_BACKEND` picks the app's backend at build time:
+
+| Backend | How | What it is |
+|---|---|---|
+| `firebase` (default) | `npm run dev`, the deploy workflow | The real thing: Firestore, Cloud Functions, Storage, Auth, push. |
+| `mock` | `npm run mock`, `npm run build:mock` | `src/backend/mock/`: a `memoryStore` filled with the demo game (`functions/src/shared/demo/`, the same demo `npm run seed -- --demo` writes), the real `CALLABLES` and `TRIGGERS` run in the browser, a 20 s side-quest tick, files kept in memory, a "sign in as…" picker. No security rules and no push; reload starts a fresh demo. A mock build ships no Firebase code, so `dist/` can be hosted anywhere as a demo. |
+
+**Adding another backend** (Supabase, your own server, …): implement `Backend` for the app and `Store` for wherever the rules run, then add a branch to `src/backend/index.ts`. `functions/test/store/conformance.ts` is the checklist for a `Store`: run it against yours the way `store-firestore.test.ts` does. The `functions-memory` test project shows how the whole game-rule suite runs on a different store.
+
 ## Testing
 
 ```sh
 npm test            # builds functions, then runs every suite inside `firebase emulators:exec`
-npm run test:unit   # just the pure unit tests (no emulators, no Java)
+npm run test:unit   # no emulators, no Java: unit tests plus every game-rule test on the in-memory store
 npm run typecheck   # app + functions
 ```
 
-`npm test` runs three suites: the Firestore and Storage **rules** (`tests/rules`), the **functions** game logic (`functions/test`) and the client/script **unit** tests (`src/**`, `scripts/**`). It starts its own emulators on the default ports, so stop `npm run dev` first.
+`npm test` runs four suites: the Firestore and Storage **rules** (`tests/rules`), the **functions** game logic against the Firestore emulator (`functions/test`), the same game-logic tests against the in-memory store (**functions-memory**, which keeps the mock honest), and the client/script **unit** tests (`src/**`, `scripts/**`, `tests/engine`). The store conformance suite (`functions/test/store/conformance.ts`) runs against both stores. `npm test` starts its own emulators on the default ports, so stop `npm run dev` first.
 
 ## Project layout
 
 ```
 src/                  React app (screens, components, session, styles)
-  lib/                Pure helpers (geo, guessing, images, time, schedule) with unit tests
+  backend/            The Backend interface, the Firebase backend and the in-browser mock backend
+  pack.ts             The active pack for the app: pack, t (its words), features, zone
+  packs/<id>/         Each pack's look half (brand, theme, loader art, sign-in copy, public files)
+  modules/map/        The venue map and schedule (only for packs with the map feature)
+  lib/                Pure helpers (nav, ledger labels, guessing, images, time) with unit tests
   screens/gm/         GM console
 functions/            Cloud Functions (2nd gen, TypeScript, europe-west2)
-  src/game/           Game logic: join, quests, claims and approvals, evidence, reactions, side-quest voting, guesses, end game
+  .env                GAME_PACK for the functions (default lancaster)
+  src/index.ts        The Firebase entry point: maps the callables and triggers onto Cloud Functions
+  src/firebase/       Firebase adapters: firestoreStore, errors, push sender, storage
+  src/game/           Game logic on the neutral Store: join, quests, claims and approvals, evidence, reactions, side-quest voting, guesses, end game; callables.ts and triggers.ts list them all
   src/shared/         types.ts + settings.ts shared with the app
-  test/               Game logic tests (against the Firestore emulator)
+    store/            The Store interface, Stamp, errors and the in-memory store
+    demo/             The demo game as plain data (seed and mock)
+    packs/<id>/       Each pack's rules half (terms, features, catalogue, venues)
+    scoring/          Scoring rule sets and the engine that applies them
+  test/               Game logic tests (against the Firestore emulator) and the pure pack and scoring tests
 tests/rules/          Security rules tests
-scripts/              seed, make-admin, dev-tick, import-schedule
-  data/quests.json    The quest pool (68 personal, 20 side quests)
-public/data/          Festival schedule and venues (events.json, venues.json)
-design/               Visual design notes and mockups
+tests/engine/         The guard that keeps engine code game-neutral
+scripts/              seed, make-admin, dev-tick
+  packs/lancaster/    import-schedule (the Lancaster festival schedule)
+design/               The Lancaster pack's design brief and mockups
 firestore.rules, storage.rules, firestore.indexes.json, firebase.json
-.github/workflows/    GitHub Pages deploy
+.github/workflows/    GitHub Pages deploy (manual)
 ```
 
 `npm run dev` also runs `scripts/dev-tick.mjs`, because the Functions emulator never runs scheduled functions: once a minute it calls the `devTick` function (the same job the 15-minute schedule runs in production) so side quests open, move to checking, and close their votes. It logs only when something happens; override with `DEV_TICK_SECONDS` or `DEV_TICK_URL`.
 
 ### Editing the quests
 
-Add, reword or remove quests in `scripts/data/quests.json` (`personal` and `global` lists, stable `id`s), then `npm run seed`. A quest removed from the file is retired (never dealt again) if its id starts with `p-` (personal) or `g-` (side), so give new quests those prefixes; quests written in the GM console are left alone. Players already holding a removed quest can still complete it, but rivals can't guess it (the guess list only shows live quests), so swap the catalogue before a round starts, or use **GM console › Game › Reset** (everyone re-joins and is dealt from the new list). Personal quests end with a `Proof:` line saying what the witness should be told or shown (a photo, a comment, or a player who saw it: the app has no video); global (side) quests also take `windowMin` (minutes open). Quests never depend on a location or a win rule: witnesses judge personal ones and the vote judges side quests. The tone is mischief among friends: dares, wind-ups and getting someone to do something without them twigging. Keep them kind and safe (nothing rude, strangers only with their OK), and keep personal quests ambiguous enough that rivals have to watch to guess them.
+Add, reword or remove quests in the pack's `functions/src/shared/packs/<id>/quests.json` (`personal` and `global` lists, stable `id`s, optional `points`), then `npm run seed`. A quest removed from the file is retired (never dealt again) if its id starts with `p-` (personal) or `g-` (side), so give new quests those prefixes; quests written in the GM console are left alone. Players already holding a removed quest can still complete it, but rivals can't guess it (the guess list only shows live quests), so swap the catalogue before a round starts, or use **GM console › Game › Reset** (everyone re-joins and is dealt from the new list). Personal quests end with a `Proof:` line saying what the witness should be told or shown (a photo, a comment, or a player who saw it: the app has no video); global (side) quests also take `windowMin` (minutes open). Quests never depend on a location or a win rule: witnesses judge personal ones and the vote judges side quests. The tone is mischief among friends: dares, wind-ups and getting someone to do something without them twigging. Keep them kind and safe (nothing rude, strangers only with their OK), and keep personal quests ambiguous enough that rivals have to watch to guess them.
 
-## Refreshing the festival schedule
+## Refreshing the Lancaster festival schedule
 
 ```sh
 npm run import-schedule
 ```
 
-Pulls the line-up and venues from the Lancaster Music Festival's public listings and rewrites `public/data/events.json` and `public/data/venues.json` (plus `functions/src/data/venues.json`). All schedule data belongs to and is credited to [Lancaster Music Festival](https://lancastermusicfestival.com/); this project is an unofficial fan side-game and is not affiliated with the festival. Re-run it close to the weekend in case the programme changes.
+Pulls the line-up and venues from the Lancaster Music Festival's public listings and rewrites the Lancaster pack's `src/packs/lancaster/public/data/events.json` and `venues.json` (plus `functions/src/shared/packs/lancaster/venues.json`), keeping only events from the festival weekend. All schedule data belongs to and is credited to [Lancaster Music Festival](https://lancastermusicfestival.com/); this project is an unofficial fan side-game and is not affiliated with the festival. Re-run it close to the weekend in case the programme changes.
 
 ## Production
 
-The live game runs on the Firebase project **`musical-mischief`** (alias `prod` in `.firebaserc`, Blaze plan) and is served by GitHub Pages at <https://marioarchives.github.io/Lancaster-Lunatics-Musical-Mischief/>. Local play still needs none of this.
+Each game runs on its own Firebase project (Blaze plan for Cloud Functions), with this repository built for that game's pack. Festival Quest ran on `musical-mischief`; this engine repository has no production project wired in (`.firebaserc` has no `prod` alias, so `--prod` scripts refuse to run until you add one with `npx firebase use --add`).
 
-Already set up: Firestore and Functions in **europe-west2**, the default Storage bucket `musical-mischief.firebasestorage.app`, the Google sign-in provider with `marioarchives.github.io` as an authorised domain, the web app config in the repository secrets named as in `.env.example`, and Pages publishing from **GitHub Actions** (Settings > Pages > Source).
+Setting up a game:
 
-**Frontend.** Every push to `master` runs `.github/workflows/deploy.yml`, which builds the app and publishes it to Pages.
+1. Create the Firebase project: Firestore and Functions in one region (the functions use europe-west2; change `setGlobalOptions` in `functions/src/index.ts` for another), the default Storage bucket, the Google sign-in provider with your site's domain authorised, and a web app. Add the project as the `prod` alias.
+2. Put the web config in the repository secrets named as in `.env.example`, and set the repository variable `VITE_GAME_PACK` (and `VITE_FIREBASE_VAPID_KEY` for push).
+3. Create `functions/.env.<project id>` with `GAME_PACK=<id>` so the functions run the same pack.
+4. Deploy the backend, seed, and make yourself GM (below), then run the Pages workflow.
+
+**Frontend.** `.github/workflows/deploy.yml` builds the app for `VITE_GAME_PACK` and publishes it to Pages. It only runs by hand (Actions › Deploy to GitHub Pages › Run workflow).
 
 **Backend.** The workflow does **not** deploy rules, indexes or functions. Do that by hand whenever they change:
 
@@ -185,28 +285,28 @@ npx firebase deploy --only firestore,storage,functions --project prod
 
 ```sh
 gcloud auth application-default login
-gcloud auth application-default set-quota-project musical-mischief
+gcloud auth application-default set-quota-project <project-id>
 ```
 
 Then:
 
 ```sh
-npm run seed -- --prod                  # game/state, game/settings, quest catalogue (idempotent, keeps GM edits)
+npm run seed -- --prod --pack <id>      # game/state, game/settings, quest catalogue (idempotent, keeps GM edits)
 npm run make-admin -- you@gmail.com --prod   # after signing in once on the live site
 ```
 
-Demo players are emulator-only (`--demo` is refused with `--prod`). Re-run `npm run seed -- --prod` after editing `scripts/data/quests.json`.
+Demo players are emulator-only (`--demo` is refused with `--prod`). Re-run the seed after editing the pack's `quests.json`.
 
 **Storage CORS.** The Wrap's "Save image" re-fetches photos from the bucket, which needs CORS for the site's origin (`storage.cors.json`):
 
 ```sh
-gcloud storage buckets update gs://musical-mischief.firebasestorage.app --cors-file=storage.cors.json
+gcloud storage buckets update gs://<project-id>.firebasestorage.app --cors-file=storage.cors.json
 ```
 
 **Push notifications.** Players switch them on from the Account screen (Notifications). They use Firebase Cloud Messaging (Web Push) and need a VAPID key, once:
 
 1. Firebase console › Project settings › Cloud Messaging › Web Push certificates › **Generate key pair**. Copy the public key.
-2. It lives in `.github/workflows/deploy.yml` (a repository variable `VITE_FIREBASE_VAPID_KEY` overrides it) and in `.env.local` for local production builds. It is public, not secret: it ships in the site's JavaScript.
+2. Set it as the repository variable `VITE_FIREBASE_VAPID_KEY` (the deploy workflow reads it) and in `.env.local` for local production builds. It is public, not secret: it ships in the site's JavaScript.
 3. Deploy the backend: `npx firebase deploy --only firestore:rules,functions --project prod`.
 
 Without the key, or against the emulators, the switch is hidden, so nothing breaks. Players on an iPhone must add the app to their Home Screen first (iOS 16.4 or later); the card says so. Who hears about what is in `functions/src/game/push.ts` (`pushFor`). Sending goes through the function `onFeedCreated` (every feed post) plus the witness and join-request triggers; the emulators only log.

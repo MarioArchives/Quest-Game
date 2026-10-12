@@ -2,13 +2,13 @@
 // `devTick` HTTP function (the same job the 15-minute schedule runs in production) every minute.
 //
 //   DEV_TICK_URL      override the endpoint
-//                     (default http://127.0.0.1:5001/demo-festival-quest/europe-west2/devTick)
+//                     (default http://127.0.0.1:5001/demo-quest-game/europe-west2/devTick)
 //   DEV_TICK_SECONDS  interval between ticks (default 60)
 //
 // Quiet unless something happens: logs when a side quest opens, starts voting or closes, and once when the
 // emulator becomes reachable or drops away. Retries every few seconds until it is up.
 
-const URL_ = process.env.DEV_TICK_URL ?? 'http://127.0.0.1:5001/demo-festival-quest/europe-west2/devTick';
+const URL_ = process.env.DEV_TICK_URL ?? 'http://127.0.0.1:5001/demo-quest-game/europe-west2/devTick';
 const parsed = Number(process.env.DEV_TICK_SECONDS);
 const INTERVAL_MS = (Number.isFinite(parsed) && parsed > 0 ? parsed : 60) * 1000;
 const RETRY_MS = Math.min(5000, INTERVAL_MS);

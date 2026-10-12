@@ -1,6 +1,7 @@
 // The group finale: the podium (top three places, ties share one) and everyone's final hand.
 import { Avatar } from '../../components/Avatar';
 import type { Doc, Standing, Wrap } from '../../shared';
+import { t } from '../../pack';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -90,7 +91,7 @@ export function HandsCard({ wraps, meUid }: { wraps: Doc<Wrap>[]; meUid: string 
                       </span>
                     </summary>
                     <ul className="w-player__hand">
-                      {w.hand.length === 0 ? <li className="w-player__q">No quests</li> : null}
+                      {w.hand.length === 0 ? <li className="w-player__q">No {t.quest.many}</li> : null}
                       {w.hand.map((q, i) => (
                         <li key={`${q.templateId}-${i}`} className="w-player__q">
                           <span className="w-player__qt">{q.title}</span>

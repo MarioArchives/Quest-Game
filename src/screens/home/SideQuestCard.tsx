@@ -11,6 +11,7 @@ import { tsMs, useNow } from '../../data/hooks';
 import { formatCountdown } from '../../lib/time';
 import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
+import { t } from '../../pack';
 
 function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string }) {
   const now = useNow(1000);
@@ -52,12 +53,12 @@ export function SideQuestCards() {
     // Nothing to promise while the game is not running (lobby, paused or over).
     if (state.status !== 'active') return null;
     return (
-      <section className="quiet" aria-label="Side quest">
-        <p className="eyebrow">Side quest</p>
+      <section className="quiet" aria-label={t.sideQuest.One}>
+        <p className="eyebrow">{t.sideQuest.One}</p>
         <p className="quiet__title">None open right now</p>
         <p className="quiet__note">
           They drop at random, roughly every {Math.round((settings.globalIntervalMin / 60) * 10) / 10}&ndash;
-          {Math.round((settings.globalIntervalMax / 60) * 10) / 10} hours. Everyone enters, the GM checks the entries, then everyone votes.
+          {Math.round((settings.globalIntervalMax / 60) * 10) / 10} hours. Everyone enters, the {t.gm.One} checks the entries, then everyone votes.
         </p>
       </section>
     );
@@ -102,12 +103,12 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
 
   return (
     <>
-      <section className="hero halftone" aria-label="Live side quest">
+      <section className="hero halftone" aria-label={`Live ${t.sideQuest.one}`}>
         <span className="sticker hero__sticker">Live now</span>
-        <p className="hero__eyebrow eyebrow">Side quest &middot; everyone plays</p>
+        <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; everyone plays</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. When time is up the GM checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
+        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. When time is up the {t.gm.One} checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
         <div className="hero__row">
           <Countdown endsAt={tsMs(quest.endsAt)} closedText="Time's up" />
           <div className="hero__entries">
@@ -184,13 +185,13 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
   const canEnter = Boolean(player) && !player?.left && (!mine || (rejected && mine.checked === 'rejected'));
 
   return (
-    <section className="hero halftone" aria-label="Side quest entries being checked">
+    <section className="hero halftone" aria-label={`${t.sideQuest.One} entries being checked`}>
       <span className="sticker hero__sticker">Time&apos;s up</span>
-      <p className="hero__eyebrow eyebrow">Side quest &middot; checking</p>
+      <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; checking</p>
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
       <p className="hero__rule">
-        The GM is checking the entries and starts the vote when ready. Late entries still count until then &middot; +{quest.bonusPoints} to the winner
+        The {t.gm.One} is checking the entries and starts the vote when ready. Late entries still count until then &middot; +{quest.bonusPoints} to the winner
       </p>
       {mine ? (
         <div className="hero__mine">
@@ -199,7 +200,7 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
             <span className={`tag ${rejected ? 'tag--red' : 'tag--tint'}`}>
               {rejected ? (mine.checked === 'rejected' ? 'Not accepted' : 'Disqualified') : 'Hidden until voting'}
             </span>
-            <p>{rejected ? (mine.reviewNote ? `GM: ${mine.reviewNote}` : 'It won’t go to the vote.') : 'Your entry is in.'}</p>
+            <p>{rejected ? (mine.reviewNote ? `${t.gm.One}: ${mine.reviewNote}` : 'It won’t go to the vote.') : 'Your entry is in.'}</p>
           </div>
         </div>
       ) : null}
@@ -270,9 +271,9 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
   };
 
   return (
-    <section className="hero halftone" aria-label="Side quest voting">
+    <section className="hero halftone" aria-label={`${t.sideQuest.One} voting`}>
       <span className="sticker hero__sticker">Vote now</span>
-      <p className="hero__eyebrow eyebrow">Side quest &middot; secret ballot</p>
+      <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; secret ballot</p>
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
       <div className="hero__row">

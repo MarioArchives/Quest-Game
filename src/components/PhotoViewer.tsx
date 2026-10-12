@@ -8,6 +8,7 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useModal } from './useModal';
 import './PhotoViewer.css';
+import { t } from '../pack';
 
 /** Everything the full-size viewer shows. Feed posts pass this directly; a submission id is looked up. */
 export interface ViewerPhoto {
@@ -161,7 +162,7 @@ function PhotoViewer({ target, onClose }: { target: ViewerTarget; onClose(): voi
                 <div className="viewer__meta">
                   {photo.title || photo.kind ? (
                     <p className="viewer__quest">
-                      {photo.kind ? <span className="tag tag--ink">{photo.kind === 'global' ? 'Side quest' : 'Quest'}</span> : null}{' '}
+                      {photo.kind ? <span className="tag tag--ink">{photo.kind === 'global' ? t.sideQuest.One : t.quest.One}</span> : null}{' '}
                       {photo.title ? (
                         <span className="viewer__quest-title">{photo.title}</span>
                       ) : (

@@ -1,12 +1,8 @@
 // This device's notifications: get a token from FCM, hand it to the server, and take it back.
-import { getApp } from 'firebase/app';
-import { getMessaging, getToken } from 'firebase/messaging';
 import { removePushToken, savePushToken } from '../api';
-import { useEmulators } from '../firebase';
+import { backend } from '../backend';
 import { detectIOS, pushSupport, type PushEnv, type PushSupport } from '../lib/push';
 
-// No push against the emulators (there is no FCM there), so the Notifications card stays hidden in local dev.
-const VAPID_KEY = useEmulators ? undefined : import.meta.env.VITE_FIREBASE_VAPID_KEY;
 /** Per-device convenience only: whether this browser asked for notifications. The server holds the real token. */
 const ON_KEY = 'fq-push-on';
 
@@ -14,7 +10,8 @@ export function currentPushEnv(): PushEnv {
   const hasNotification = typeof Notification !== 'undefined';
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
   return {
-    vapidKey: VAPID_KEY,
+    // Any value will do: pushSupport only asks whether the backend can do push (not in the emulators or the mock).
+    vapidKey: backend().push ? 'on' : undefined,
     hasNotification,
     hasPushManager: typeof window !== 'undefined' && 'PushManager' in window,
     hasServiceWorker: Boolean(nav && 'serviceWorker' in nav),
@@ -49,8 +46,7 @@ function setPushOn(on: boolean) {
 
 /** This device's FCM token, or null if it can't get one right now. */
 async function deviceToken(): Promise<string | null> {
-  const registration = await navigator.serviceWorker.ready;
-  return getToken(getMessaging(getApp()), { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+  return backend().push?.token() ?? null;
 }
 
 /** Asks for permission (call from a tap), then registers this device. Returns false if the user said no. */

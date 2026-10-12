@@ -7,6 +7,7 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
 import { NOTE_MAX, type Doc, type Submission } from '../../shared';
+import { t } from '../../pack';
 
 /** One friend's claim: what they say they did, a comment box, Approve or Reject. */
 function RequestCard({ request }: { request: Doc<Submission> }) {
@@ -28,7 +29,7 @@ function RequestCard({ request }: { request: Doc<Submission> }) {
       toast(
         approve
           ? `Approved. ${ownerName} banks +${settings.questPoints}.`
-          : `Rejected. ${ownerName} loses ${settings.rejectPenalty} and gets a fresh quest.`,
+          : `Rejected. ${ownerName} loses ${settings.rejectPenalty} and gets a fresh ${t.quest.one}.`,
         approve ? 'success' : 'info',
       );
       // The card disappears with the snapshot; nothing more to reset.
@@ -50,7 +51,7 @@ function RequestCard({ request }: { request: Doc<Submission> }) {
       <div className="wreq__claim">
         {claimReady ? (
           <>
-            <p className="wreq__title">{request.claimTitle || 'A secret quest'}</p>
+            <p className="wreq__title">{request.claimTitle || `A secret ${t.quest.one}`}</p>
             {request.claimDescription ? <p className="wreq__desc">{request.claimDescription}</p> : null}
           </>
         ) : (
@@ -93,11 +94,11 @@ export function WitnessRequests() {
   return (
     <section aria-labelledby="witness-title" className="acct-section acct-section--alert">
       <div className="section-head">
-        <h2 id="witness-title">Witness requests</h2>
+        <h2 id="witness-title">{t.witness.One} requests</h2>
         <span className="gm-count gm-count--on">{witnessRequests.length} waiting</span>
       </div>
       <p className="note witness-note">
-        Only approve what you really saw. Rejecting costs them {settings.rejectPenalty} points and swaps their quest; the GM fines fraud.
+        Only approve what you really saw. Rejecting costs them {settings.rejectPenalty} points and swaps their {t.quest.one}; the {t.gm.One} fines fraud.
       </p>
       <ul className="wreqs">
         {witnessRequests.map((request) => (

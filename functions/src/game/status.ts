@@ -20,7 +20,7 @@ export async function setGameStatus(db: Db, ctx: Ctx, data: { status?: unknown }
     const next: GameState = { ...state, status: target };
     let text = target === 'paused' ? 'The game is paused' : 'The game has resumed';
     if (state.status === 'lobby') {
-      // First start: the festival begins and the first side quest is scheduled.
+      // First start: the game begins and the first side quest is scheduled.
       const settings = await loadSettings(db, tx);
       next.startedAt = toTs(ctx.now);
       next.nextGlobalQuestAt = toTs(nextGlobalTime(ctx.now, settings, rng));

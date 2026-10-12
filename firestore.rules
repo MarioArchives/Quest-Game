@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Festival Quest security rules.
+// Quest Game security rules.
 //
 // Principle: clients only ever write the few things below. Everything that moves points, approves
 // things or touches another player's data goes through Cloud Functions (admin SDK bypasses rules).

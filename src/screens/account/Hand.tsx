@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { rerollQuest } from '../../api';
-import { AshtonLoader } from '../../components/AshtonLoader';
+import { Loader } from '../../components/Loader';
 import { Button } from '../../components/Button';
 import { ChangeWitnessSheet } from '../../components/ChangeWitnessSheet';
 import { ClaimSheet } from '../../components/ClaimSheet';
@@ -10,6 +10,7 @@ import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs } from '../../data/hooks';
 import type { Doc, Quest } from '../../shared';
+import { t } from '../../pack';
 
 /** The secret hand: tap a quest to claim it with a witness; pending ones wait for the witness. */
 export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; loading: boolean; rerollsLeft: number }) {
@@ -39,9 +40,9 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
   return (
     <section aria-labelledby="hand-title" className="acct-section">
       <div className="section-head">
-        <h2 id="hand-title">Your quests</h2>
+        <h2 id="hand-title">Your {t.quest.many}</h2>
         <span className="section-head__meta">
-          {done.length} of {slots} quests done
+          {done.length} of {slots} {t.quest.many} done
         </span>
       </div>
       <p className="hand__rule">
@@ -49,34 +50,34 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
         <span>
           Only you can see these.{' '}
           {settings.refillOnComplete
-            ? 'A fresh quest arrives each time you complete one.'
-            : `You get ${settings.starterQuestCount} quests for the whole game. A new one only arrives when a claim is rejected, someone guesses one of yours, or you reroll.`}
+            ? `A fresh ${t.quest.one} arrives each time you complete one.`
+            : `You get ${settings.starterQuestCount} ${t.quest.many} for the whole game. A new one only arrives when a ${t.claim.one} is rejected, someone guesses one of yours, or you reroll.`}
         </span>
       </p>
 
       {!gameActive ? (
         <p className="note" role="status">
           {state.status === 'lobby'
-            ? "The game hasn't started yet. You can look at your hand, but claims open when the GM starts."
+            ? `The game hasn't started yet. You can look at your hand, but ${t.claim.many} open when the ${t.gm.One} starts.`
             : state.status === 'paused'
-              ? 'The game is paused. Claims open again when the GM resumes.'
-              : 'The game has ended. No more claims.'}
+              ? `The game is paused. ${t.claim.Many} open again when the ${t.gm.One} resumes.`
+              : `The game has ended. No more ${t.claim.many}.`}
         </p>
       ) : null}
 
       {loading ? (
-        <AshtonLoader className="app__loader" caption="Dealing" />
+        <Loader className="app__loader" caption="Dealing" />
       ) : hand.length === 0 ? (
         <div className="empty">
-          <h3>No quests in hand</h3>
+          <h3>No {t.quest.many} in hand</h3>
           <p>
             {state.status === 'lobby'
-              ? 'Your hand is dealt when you are approved. If it is empty, ask the GM.'
-              : 'Nothing active right now. A new quest arrives after a rejection, an exposure or a reroll.'}
+              ? `Your hand is dealt when you are approved. If it is empty, ask the ${t.gm.One}.`
+              : `Nothing active right now. A new ${t.quest.one} arrives after a rejection, an exposure or a reroll.`}
           </p>
         </div>
       ) : (
-        <ol className="hand" aria-label="Your quests">
+        <ol className="hand" aria-label={`Your ${t.quest.many}`}>
           {hand.map((quest, index) => {
             if (quest.status === 'done') {
               return (
@@ -115,7 +116,7 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
                       type="button"
                       className="qcard__main"
                       disabled={!gameActive}
-                      aria-label={`Claim: ${quest.title}`}
+                      aria-label={`${t.claim.One}: ${quest.title}`}
                       onClick={() => setClaiming(quest)}
                     >
                       <span className="qcard__title">{quest.title}</span>
@@ -126,7 +127,7 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
                 <div className="qcard__bottom">
                   {submitted ? (
                     <>
-                      <span className="qcard__state">Waiting for {witness?.displayName ?? 'your witness'}</span>
+                      <span className="qcard__state">Waiting for {witness?.displayName ?? `your ${t.witness.one}`}</span>
                       {pending ? (
                         <button type="button" className="linkbtn" onClick={() => setRepicking(pending.id)}>
                           Ask someone else
@@ -139,9 +140,9 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
                       <button
                         type="button"
                         className="btn-icon"
-                        aria-label={`Reroll quest ${index + 1}: ${quest.title}`}
+                        aria-label={`Reroll ${t.quest.one} ${index + 1}: ${quest.title}`}
                         disabled={rerollsLeft <= 0 || state.status === 'ended'}
-                        title={rerollsLeft <= 0 ? 'No rerolls left' : 'Reroll this quest'}
+                        title={rerollsLeft <= 0 ? 'No rerolls left' : `Reroll this ${t.quest.one}`}
                         onClick={() => setRerolling(quest)}
                       >
                         <Icon name="refresh" size={20} strokeWidth={2.4} />
@@ -154,7 +155,7 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
                         disabled={!gameActive}
                         onClick={() => setClaiming(quest)}
                       >
-                        Claim
+                        {t.claim.One}
                       </Button>
                     </>
                   )}
@@ -167,7 +168,7 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
 
       {!loading && open.length === 0 && done.length > 0 && !settings.refillOnComplete ? (
         <p className="note" role="status">
-          Every quest is done. A new one only arrives if a claim is rejected or someone guesses one of yours.
+          Every {t.quest.one} is done. A new one only arrives if a {t.claim.one} is rejected or someone guesses one of yours.
         </p>
       ) : null}
 
@@ -175,12 +176,12 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
       {repick ? <ChangeWitnessSheet submission={repick} onClose={() => setRepicking(null)} /> : null}
       {rerolling ? (
         <ConfirmSheet
-          title="Swap this quest?"
+          title={`Swap this ${t.quest.one}?`}
           confirmLabel="Reroll it"
           onClose={() => setRerolling(null)}
           onConfirm={async () => {
             await rerollQuest({ questId: rerolling.id });
-            toast('Fresh quest dealt.', 'success');
+            toast(`Fresh ${t.quest.one} dealt.`, 'success');
           }}
         >
           <p>

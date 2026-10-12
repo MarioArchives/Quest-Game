@@ -6,6 +6,7 @@
 // transparent placeholder (the tile's own background shows) instead of failing the whole export, and if the
 // render still throws we retry without images and finally without web fonts.
 import { toPng } from 'html-to-image';
+import { pack } from '../../pack';
 
 /** 1x1 transparent GIF: a failed photo becomes an empty tile rather than an error. */
 const BLANK =
@@ -66,7 +67,7 @@ export async function renderCardPng(node: HTMLElement): Promise<string> {
   const padBottom = parseFloat(computed.paddingBottom) || 0;
   const width = Math.round(rect.width);
   const height = Math.max(240, Math.round(rect.height - (padTop - EXPORT_PAD_TOP) - (padBottom - EXPORT_PAD_BOTTOM)));
-  const background = getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#E1251B';
+  const background = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#E1251B';
 
   let lastError: unknown = null;
   for (const attempt of ATTEMPTS) {
@@ -124,7 +125,7 @@ export type SaveResult = 'downloaded' | 'shared';
  * (that is how a PNG reaches the camera roll); everywhere else, or if sharing is refused, it downloads.
  */
 export async function saveCardImage(node: HTMLElement, slug: string): Promise<SaveResult> {
-  const filename = `festival-quest-${slug}.png`;
+  const filename = `${pack.id}-${slug}.png`;
   const dataUrl = await renderCardPng(node);
 
   const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
@@ -132,7 +133,7 @@ export async function saveCardImage(node: HTMLElement, slug: string): Promise<Sa
     try {
       const file = await dataUrlToFile(dataUrl, filename);
       if (nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: 'Festival Quest' });
+        await nav.share({ files: [file], title: pack.name });
         return 'shared';
       }
     } catch (err) {

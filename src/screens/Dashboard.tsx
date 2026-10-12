@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { Icon } from '../components/Icon';
 import { useGame } from '../data/GameProvider';
 import { useNow } from '../data/hooks';
@@ -8,15 +8,16 @@ import { FeedPost } from './home/FeedPost';
 import { RanksStrip } from './home/RanksStrip';
 import { SideQuestCards } from './home/SideQuestCard';
 import './home/home.css';
+import { features, t } from '../pack';
 
-/** Home: the festival as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
+/** Home: the game as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
 export default function Dashboard() {
   const { player, isAdmin, joinRequest } = useSession();
   const { state, ready, me, feed: feedPosts, feedLoading, feedError } = useGame();
   const now = useNow(30_000);
   const navigate = useNavigate();
 
-  if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready) return <Loader className="app__loader" caption="Loading" />;
 
   return (
     <>
@@ -28,11 +29,11 @@ export default function Dashboard() {
           <p>
             {joinRequest?.status === 'pending' ? (
               <>
-                <strong>Joining the game…</strong> Your quests are being dealt.
+                <strong>Joining the game…</strong> Your {t.quest.many} are being dealt.
               </>
             ) : (
               <>
-                <strong>Playing too?</strong> GMs need no approval: join as a player and your quests are dealt at once. <Link to="/join">Join the game</Link>
+                <strong>Playing too?</strong> {t.gm.Many} need no approval: join as a player and your {t.quest.many} are dealt at once. <Link to="/join">Join the game</Link>
               </>
             )}
           </p>
@@ -40,10 +41,10 @@ export default function Dashboard() {
       ) : null}
 
       {state.announcement ? (
-        <aside className="announce" aria-label="GM announcement">
+        <aside className="announce" aria-label={`${t.gm.One} announcement`}>
           <Icon name="megaphone" size={22} />
           <p>
-            <span className="announce__label">Pinned from the GM</span>
+            <span className="announce__label">Pinned from the {t.gm.One}</span>
             {state.announcement}
           </p>
         </aside>
@@ -55,13 +56,13 @@ export default function Dashboard() {
         <aside className="banner" aria-label="You have left" role="status">
           <Icon name="logout" size={22} />
           <p>
-            <strong>The GM has marked you as having left.</strong>{' '}
-            {me.left === 'frozen' ? 'Your score is frozen. ' : ''}Ask the GM to bring you back if you want to play again.
+            <strong>The {t.gm.One} has marked you as having left.</strong>{' '}
+            {me.left === 'frozen' ? 'Your score is frozen. ' : ''}Ask the {t.gm.One} to bring you back if you want to play again.
           </p>
         </aside>
       ) : null}
 
-      <SideQuestCards />
+      {features.sideQuests ? <SideQuestCards /> : null}
 
       <section aria-labelledby="feed-title">
         <div className="section-head">
@@ -75,7 +76,7 @@ export default function Dashboard() {
         ) : feedLoading ? null : feedPosts.length === 0 ? (
           <div className="empty">
             <h3>Quiet so far</h3>
-            <p>Nothing has happened yet. The first claim will show up here.</p>
+            <p>Nothing has happened yet. The first {t.claim.one} will show up here.</p>
           </div>
         ) : (
           <ul className="feed">
@@ -96,7 +97,7 @@ function StatusBanner({ status }: { status: 'lobby' | 'paused' | 'ended' | 'acti
       <aside className="banner banner--ended" aria-label="Game status">
         <Icon name="wrap" size={22} />
         <p>
-          <strong>The game has ended.</strong> <Link to="/wrap">See your wrap</Link>
+          <strong>The game has ended.</strong> <Link to="/wrap">See your {t.wrap.one.toLowerCase()}</Link>
         </p>
       </aside>
     );
@@ -106,7 +107,7 @@ function StatusBanner({ status }: { status: 'lobby' | 'paused' | 'ended' | 'acti
       <aside className="banner" aria-label="Game status" role="status">
         <Icon name="gm" size={22} />
         <p>
-          <strong>Game paused.</strong> Claims and guesses are on hold until the GM resumes.
+          <strong>Game paused.</strong> {features.guesses ? `${t.claim.Many} and guesses` : t.claim.Many} are on hold until the {t.gm.One} resumes.
         </p>
       </aside>
     );
@@ -115,7 +116,7 @@ function StatusBanner({ status }: { status: 'lobby' | 'paused' | 'ended' | 'acti
     <aside className="banner" aria-label="Game status" role="status">
       <Icon name="gm" size={22} />
       <p>
-        <strong>Waiting for the GM to start.</strong> Your secret quests unlock the moment the game begins.
+        <strong>Waiting for the {t.gm.One} to start.</strong> Your secret {t.quest.many} unlock the moment the game begins.
       </p>
     </aside>
   );

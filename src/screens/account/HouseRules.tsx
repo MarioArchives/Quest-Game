@@ -1,30 +1,44 @@
+import { resolveParams, resolveRules } from '../../../functions/src/shared/scoring/engine';
 import { Icon } from '../../components/Icon';
 import { useGame } from '../../data/GameProvider';
+import { features, pack, t, zone } from '../../pack';
+
+/** A zone id like "Europe/Paris" → "Paris time". */
+const zoneName = `${(zone.timeZone.split('/').pop() ?? zone.timeZone).replace(/_/g, ' ')} time`;
+const FRAUD = 'Overruled as fraud';
 
 /** Collapsible, read-only view of the game settings the GM has chosen. */
 export function HouseRules() {
   const { settings: s } = useGame();
-  const quiet = s.quietHours ? `${s.quietHours.start}–${s.quietHours.end} (UK time)` : 'None';
+  const quiet = s.quietHours ? `${s.quietHours.start}–${s.quietHours.end} (${zoneName})` : 'None';
+  const rules = resolveRules(s, pack);
+  // The rule set words the points rows; the fraud row stays last, where it always was.
+  const points = rules.describe(s, resolveParams(rules, s.scoringParams), t, features);
   const rows: [string, string][] = [
-    ['Secret quests dealt', String(s.starterQuestCount)],
+    [`Secret ${t.quest.many} dealt`, String(s.starterQuestCount)],
     ['Rerolls per player', String(s.rerollLimit)],
-    ['Quest points', `+${s.questPoints}`],
-    ['Claim rejected', `you lose ${s.rejectPenalty} and get a fresh quest`],
-    ['Side quest win', `+${s.sideQuestPoints} for the most votes (ties all win)`],
-    ['Side quest entry', s.globalEntryPoints ? `+${s.globalEntryPoints}` : 'No points'],
-    ['Right guess', `they lose ${s.exposePenalty}, you gain ${s.correctGuessReward}`],
-    ['Wrong guess', `you lose ${s.wrongGuessCost}`],
-    ['Guess cooldown', `1 per player every ${s.guessCooldownMin} min`],
+    ['Scoring', rules.name],
+    ...points.filter(([label]) => label !== FRAUD),
+    ...(features.guesses ? ([['Guess cooldown', `1 per player every ${s.guessCooldownMin} min`]] as [string, string][]) : []),
     [
-      'New quests',
-      s.refillOnComplete ? 'A fresh one each time you complete one' : `${s.starterQuestCount} for the whole game; more only after a rejection, an exposure or a reroll`,
+      `New ${t.quest.many}`,
+      s.refillOnComplete
+        ? 'A fresh one each time you complete one'
+        : `${s.starterQuestCount} for the whole game; more only after ${features.guesses ? 'a rejection, an exposure or a reroll' : 'a rejection or a reroll'}`,
     ],
-    ['Quest named in the feed', s.revealOnComplete ? 'Yes' : 'No'],
+    [`${t.quest.One} named in the feed`, s.revealOnComplete ? 'Yes' : 'No'],
     ['Points can go below zero', s.pointsFloorZero ? 'No, floor at 0' : 'Yes'],
-    ['Side quests drop', `every ${s.globalIntervalMin}–${s.globalIntervalMax} min, open ${s.globalWindowMin} min (late entries count until the GM starts the vote), then ${s.voteWindowMin} min of voting`],
-    ['Quiet hours (no drops)', quiet],
-    ['Who approves a claim', 'A friend you name as witness (never yourself)'],
-    ['Overruled as fraud', `GM takes the points back, plus a ${s.fraudPenalty} fine`],
+    ...(features.sideQuests
+      ? ([
+          [
+            `${t.sideQuest.Many} drop`,
+            `every ${s.globalIntervalMin}–${s.globalIntervalMax} min, open ${s.globalWindowMin} min (late entries count until the ${t.gm.One} starts the vote), then ${s.voteWindowMin} min of voting`,
+          ],
+          ['Quiet hours (no drops)', quiet],
+        ] as [string, string][])
+      : []),
+    [`Who approves a ${t.claim.one}`, `A friend you name as ${t.witness.one} (never yourself)`],
+    ...points.filter(([label]) => label === FRAUD),
   ];
   return (
     <details className="rules">

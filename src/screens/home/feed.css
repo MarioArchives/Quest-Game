@@ -11,8 +11,8 @@
   --tk-stub-bg: transparent;
   --tk-stub-fg: var(--tk-fg);
   --tk-perf: var(--ink);
-  --tk-press: var(--red-tint);
-  --tk-press-line: var(--red);
+  --tk-press: var(--accent-tint);
+  --tk-press-line: var(--accent);
   /* body over reactions on the left, the stub down the whole right side */
   display: grid;
   grid-template-columns: minmax(0, 1fr) 66px;
@@ -28,11 +28,11 @@
 .tk__tag {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 1px 6px;
-  background: var(--ink); color: #fff;
+  background: var(--ink); color: var(--on-ink);
   font-size: 11px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.4; text-transform: uppercase;
 }
 .tk__tag svg { flex: none; }
-.tk__tag--red { background: var(--red); }
+.tk__tag--accent { background: var(--accent); }
 .tk__ago { white-space: nowrap; }
 
 .tk__head { font-family: var(--display); font-size: 22px; line-height: 1.05; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
@@ -46,14 +46,14 @@
   width: 100%;
   min-height: 140px; max-height: 60dvh;
   padding: 0; overflow: hidden;
-  background: var(--ink); color: #fff;
+  background: var(--ink); color: var(--on-ink);
   border: var(--line); border-radius: 0;
   cursor: zoom-in;
 }
 .tk__photo img { display: block; width: 100%; max-height: 60dvh; object-fit: contain; }
 .tk__caption { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
 
-.tk__note { margin: 0; padding: 4px 0 4px 10px; border-left: 4px solid var(--red); font-size: 14px; line-height: 1.4; }
+.tk__note { margin: 0; padding: 4px 0 4px 10px; border-left: 4px solid var(--accent); font-size: 14px; line-height: 1.4; }
 .tk__note p { font-style: italic; overflow-wrap: anywhere; }
 .tk__note cite { display: block; margin-top: 2px; font-size: 11px; font-style: normal; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tk-soft); }
 
@@ -82,7 +82,7 @@
 .tk__stub::after { bottom: -11px; clip-path: inset(0 0 50% 0); }
 .tk__pts { font-family: var(--display); font-size: 24px; line-height: 1; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tk__pts--long { font-size: 19px; }
-.tk__pts.is-struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.tk__pts.is-struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
 .tk__mark { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; line-height: 1.15; text-transform: uppercase; }
 .tk__who {
   max-width: 100%;
@@ -100,37 +100,37 @@
 
 /* a post the GM later overturned as fraud */
 .tk.is-flagged .tk__photo, .tk.is-flagged .tk__caption { opacity: 0.6; }
-.tk__struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--red); }
+.tk__struck { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
 .tk__stamp {
   align-self: flex-start;
   transform: rotate(-4deg);
   padding: 0 12px;
-  border: 4px solid var(--red);
-  color: var(--red);
+  border: 4px solid var(--accent);
+  color: var(--accent);
   background: var(--card);
   font-family: var(--display); font-size: 34px; letter-spacing: 0.08em; line-height: 1.15; text-transform: uppercase;
   pointer-events: none;
 }
 
 /* variants: negative points print on a red stub; a win on an ink one */
-.tk--neg { --tk-stub-bg: var(--red); --tk-stub-fg: #fff; }
-.tk--global-won { --tk-stub-bg: var(--ink); --tk-stub-fg: #fff; }
-.tk--global-open, .tk--checking, .tk--voting-open { --tk-bg: var(--red-tint); --tk-press: var(--card); }
+.tk--neg { --tk-stub-bg: var(--accent); --tk-stub-fg: var(--on-accent); }
+.tk--global-won { --tk-stub-bg: var(--ink); --tk-stub-fg: var(--on-ink); }
+.tk--global-open, .tk--checking, .tk--voting-open { --tk-bg: var(--accent-tint); --tk-press: var(--card); }
 .tk--announcement {
-  --tk-bg: var(--ink); --tk-fg: #fff; --tk-soft: rgba(255, 255, 255, 0.78); --tk-perf: var(--paper);
-  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: #fff; --ring: #fff;
+  --tk-bg: var(--ink); --tk-fg: var(--on-ink); --tk-soft: rgba(255, 255, 255, 0.78); --tk-perf: var(--paper);
+  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: var(--on-ink); --ring: var(--on-ink);
 }
 .tk--announcement .tk__text { font-weight: 600; }
 /* fraud stays loud: a red ticket with an ink stub and the one hard shadow in the feed */
 .tk--fraud {
-  --tk-bg: var(--red); --tk-fg: #fff; --tk-soft: #fff;
-  --tk-stub-bg: var(--ink); --tk-stub-fg: #fff;
-  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: #fff; --ring: #fff;
+  --tk-bg: var(--accent); --tk-fg: var(--on-accent); --tk-soft: var(--on-accent);
+  --tk-stub-bg: var(--ink); --tk-stub-fg: var(--on-accent);
+  --tk-press: rgba(255, 255, 255, 0.18); --tk-press-line: var(--on-accent); --ring: var(--on-accent);
   box-shadow: var(--shadow);
 }
 .tk--fraud .tk__text { font-weight: 600; }
 .tk--fraud .tk__tag { background: var(--ink); }
-.tk--fraud .tk__note { border-left-color: #fff; }
+.tk--fraud .tk__note { border-left-color: var(--on-ink); }
 
 /* quiet one-liners (joins, game status, players leaving) */
 .tk-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; padding: 0 2px; }
@@ -154,8 +154,8 @@
   font-size: 20px;
   line-height: 1;
 }
-.reaction:hover:not(:disabled) { background: var(--tk-press, var(--red-tint)); }
-.reaction[aria-pressed='true'] { background: var(--tk-press, var(--red-tint)); box-shadow: inset 0 -3px 0 var(--tk-press-line, var(--red)); }
+.reaction:hover:not(:disabled) { background: var(--tk-press, var(--accent-tint)); }
+.reaction[aria-pressed='true'] { background: var(--tk-press, var(--accent-tint)); box-shadow: inset 0 -3px 0 var(--tk-press-line, var(--accent)); }
 .reaction:disabled { cursor: default; }
 .reaction__count { font-family: var(--display); font-size: 16px; letter-spacing: 0.03em; color: var(--tk-fg, var(--ink)); font-variant-numeric: tabular-nums; }
 .reaction--add { color: var(--tk-soft, var(--muted)); padding: 0 10px; }

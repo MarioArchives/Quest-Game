@@ -8,7 +8,9 @@ import { useToast } from '../../components/Toast';
 import { Avatar } from '../../components/Avatar';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useDocument, useStorageUrl } from '../../data/hooks';
-import { formatAgo } from '../../lib/time';
+import { ledgerLabels } from '../../lib/ledgerLabels';
+import { clockTime as zoneClockTime, dayAndTime as zoneDayAndTime, formatAgo } from '../../lib/time';
+import { t, zone } from '../../pack';
 import { NOTE_MAX, type Doc, type LedgerReason, type Quest, type Submission } from '../../shared';
 
 /** Runs one action at a time per key: busy flag, error toast, optional success toast. */
@@ -34,28 +36,11 @@ export function useRunner() {
   return { busyKey, run, anyBusy: busyKey !== null };
 }
 
-const LONDON = 'Europe/London';
+export const clockTime = (ms: number): string => zoneClockTime(ms, zone);
 
-export function clockTime(ms: number): string {
-  return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: LONDON });
-}
+export const dayAndTime = (ms: number): string => zoneDayAndTime(ms, zone);
 
-export function dayAndTime(ms: number): string {
-  return new Date(ms).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: LONDON });
-}
-
-export const LEDGER_REASONS: Record<LedgerReason, string> = {
-  quest: 'Quest approved',
-  'global-win': 'Won a side quest',
-  'global-entry': 'Entered a side quest',
-  exposed: 'Quest exposed',
-  'guess-correct': 'Guessed right',
-  'guess-wrong': 'Guessed wrong',
-  adjust: 'GM adjustment',
-  reversal: 'Approval reversed',
-  fraud: 'Overruled as fraud',
-  rejected: 'Claim rejected',
-};
+export const LEDGER_REASONS: Record<LedgerReason, string> = ledgerLabels(t, 'gm');
 
 /** What a submission claims: the quest's title/description (server-copied onto the claim, else looked up). */
 export function useClaim(sub: Doc<Submission>, fetchQuest: boolean) {
@@ -65,7 +50,7 @@ export function useClaim(sub: Doc<Submission>, fetchQuest: boolean) {
   ).data;
   const gq = sub.kind === 'global' ? globalQuests.find((g) => g.id === sub.questId) : undefined;
   return {
-    title: sub.claimTitle ?? quest?.title ?? gq?.title ?? sub.questTitle ?? (sub.kind === 'global' ? 'Side quest' : 'Secret quest'),
+    title: sub.claimTitle ?? quest?.title ?? gq?.title ?? sub.questTitle ?? (sub.kind === 'global' ? t.sideQuest.One : `Secret ${t.quest.one}`),
     description: sub.claimDescription ?? quest?.description ?? gq?.description ?? '',
   };
 }
@@ -96,7 +81,7 @@ export function SubmissionBrief({ sub, now, loadClaim = true }: { sub: Doc<Submi
         <Avatar name={name} src={who?.photoURL} size={36} />
         <p className="gm-sub__who">
           <span className="eyebrow">
-            {name} claims{sub.kind === 'global' ? ' · side quest' : ''}
+            {name} {t.claim.many}{sub.kind === 'global' ? ` · ${t.sideQuest.one}` : ''}
           </span>
           <span className="gm-sub__title">{claim.title}</span>
         </p>
@@ -108,7 +93,7 @@ export function SubmissionBrief({ sub, now, loadClaim = true }: { sub: Doc<Submi
         <p className="gm-line gm-line--witness">
           <Icon name="check" size={16} strokeWidth={2.2} />
           <span>
-            Witness: <strong>{witness?.displayName ?? (sub.witnessUid ? 'a player who left' : 'none named')}</strong> · sent{' '}
+            {t.witness.One}: <strong>{witness?.displayName ?? (sub.witnessUid ? 'a player who left' : 'none named')}</strong> · sent{' '}
             {formatAgo(tsMs(sub.createdAt), now)}
           </span>
         </p>

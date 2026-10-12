@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { Icon } from '../components/Icon';
 import { useGame, type RankedPlayer } from '../data/GameProvider';
 import { tsMs } from '../data/hooks';
@@ -15,10 +15,11 @@ import { AchievedList, SideQuestWins } from './player/QuestTickets';
 import { RecordCard } from './player/RecordCard';
 import { usePlayerData, type PlayerData } from './player/usePlayerData';
 import './player/player.css';
+import { features, t } from '../pack';
 
 const TABS = ['overview', 'photos', 'quests', 'points'] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { overview: 'Overview', photos: 'Photos', quests: 'Quests', points: 'Points' };
+const TAB_LABEL: Record<Tab, string> = { overview: 'Overview', photos: 'Photos', quests: t.quest.Many, points: 'Points' };
 
 /** One player's pass: status, photos, quests done and failed, side quests won, points history, and the guess. */
 export default function PlayerScreen() {
@@ -32,7 +33,7 @@ export default function PlayerScreen() {
     return () => window.clearTimeout(id);
   }, []);
 
-  if (!ready || (!player && allPlayers.length === 0 && !waited)) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready || (!player && allPlayers.length === 0 && !waited)) return <Loader className="app__loader" caption="Loading" />;
 
   if (!player) {
     return (
@@ -120,8 +121,8 @@ function PlayerPass({ player }: { player: RankedPlayer }) {
   };
 
   // Same rules as the server: not yourself, only while you play, and never someone who has left.
-  const guess = isMe || !mePlayer ? null : player.left ? (
-    <p className="note pl-note">{name} has left the game, so their quests can&apos;t be guessed.</p>
+  const guess = !features.guesses || isMe || !mePlayer ? null : player.left ? (
+    <p className="note pl-note">{name} has left the game, so their {t.quest.many} can&apos;t be guessed.</p>
   ) : mePlayer.left ? null : (
     <GuessCard target={player} />
   );
@@ -133,48 +134,50 @@ function PlayerPass({ player }: { player: RankedPlayer }) {
       <Wristband player={player} />
 
       <div className="pl-tabs" role="tablist" aria-label={`${name}'s pass`}>
-        {TABS.map((t) => (
+        {TABS.map((id) => (
           <button
-            key={t}
+            key={id}
             ref={(el) => {
-              tabRefs.current[t] = el;
+              tabRefs.current[id] = el;
             }}
             type="button"
             role="tab"
-            id={`pl-tab-${t}`}
+            id={`pl-tab-${id}`}
             className="pl-tab"
-            aria-selected={tab === t}
+            aria-selected={tab === id}
             aria-controls="pl-panel"
-            tabIndex={tab === t ? 0 : -1}
-            onClick={() => select(t)}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => select(id)}
             onKeyDown={onTabKey}
           >
-            {TAB_LABEL[t]}
-            {counts[t] !== null ? <span className="pl-tab__n">{counts[t]}</span> : null}
+            {TAB_LABEL[id]}
+            {counts[id] !== null ? <span className="pl-tab__n">{counts[id]}</span> : null}
           </button>
         ))}
       </div>
 
       <div className="pl-panel" role="tabpanel" id="pl-panel" aria-labelledby={`pl-tab-${tab}`} tabIndex={0}>
         {tab === 'overview' ? (
-          <Overview player={player} data={data} joined={joinedMs ? dayDate(joinedMs) : null} guess={guess} onTab={(t) => select(t, true)} />
+          <Overview player={player} data={data} joined={joinedMs ? dayDate(joinedMs) : null} guess={guess} onTab={(to) => select(to, true)} />
         ) : tab === 'photos' ? (
           <Section id="pl-photos" title="Photos" meta={`${data.photos.length} approved`}>
             {data.photos.length === 0 ? (
-              <Empty>No approved photos yet. Photos added to approved quests and side-quest entries land here.</Empty>
+              <Empty>No approved photos yet. Photos added to approved {t.quest.many}{features.sideQuests ? ` and ${t.sideQuest.one.replace(/ /g, '-')} entries` : ''} land here.</Empty>
             ) : (
               <PhotoGrid photos={data.photos} owner={name} reactions={data.reactions} />
             )}
           </Section>
         ) : tab === 'quests' ? (
           <>
-            <Section id="pl-done" title="Quests achieved" meta={`${data.achieved.length} done`}>
-              {data.achieved.length === 0 ? <Empty>No quests achieved yet.</Empty> : <AchievedList quests={data.achieved} />}
+            <Section id="pl-done" title={`${t.quest.Many} achieved`} meta={`${data.achieved.length} done`}>
+              {data.achieved.length === 0 ? <Empty>No {t.quest.many} achieved yet.</Empty> : <AchievedList quests={data.achieved} />}
             </Section>
-            <Section id="pl-won" title="Side quests won" meta={`${data.wins.length} of ${data.record.sideQuests.entered} entered`}>
-              {data.wins.length === 0 && data.alsoEntered.length === 0 ? <Empty>No side quests won yet.</Empty> : null}
-              <SideQuestWins wins={data.wins} entered={data.alsoEntered} />
-            </Section>
+            {features.sideQuests ? (
+              <Section id="pl-won" title={`${t.sideQuest.Many} won`} meta={`${data.wins.length} of ${data.record.sideQuests.entered} entered`}>
+                {data.wins.length === 0 && data.alsoEntered.length === 0 ? <Empty>No {t.sideQuest.many} won yet.</Empty> : null}
+                <SideQuestWins wins={data.wins} entered={data.alsoEntered} />
+              </Section>
+            ) : null}
           </>
         ) : (
           <Section id="pl-points" title="Points" meta={`${player.points ?? 0} pts`}>
@@ -214,12 +217,12 @@ function Overview({
         )}
       </Section>
 
-      <Section id="pl-ov-quests" title="Quests achieved" action={quests > 0 ? <AllLink count={quests} what="quests" onClick={() => onTab('quests')} /> : null}>
-        {quests === 0 ? <Empty>No quests achieved yet.</Empty> : <AchievedList quests={data.achieved.slice(0, 3)} />}
+      <Section id="pl-ov-quests" title={`${t.quest.Many} achieved`} action={quests > 0 ? <AllLink count={quests} what={t.quest.many} onClick={() => onTab('quests')} /> : null}>
+        {quests === 0 ? <Empty>No {t.quest.many} achieved yet.</Empty> : <AchievedList quests={data.achieved.slice(0, 3)} />}
       </Section>
 
-      {data.wins.length > 0 ? (
-        <Section id="pl-ov-won" title="Side quests won" meta={`${data.wins.length} of ${data.record.sideQuests.entered} entered`}>
+      {features.sideQuests && data.wins.length > 0 ? (
+        <Section id="pl-ov-won" title={`${t.sideQuest.Many} won`} meta={`${data.wins.length} of ${data.record.sideQuests.entered} entered`}>
           <SideQuestWins wins={data.wins.slice(0, 2)} />
         </Section>
       ) : null}

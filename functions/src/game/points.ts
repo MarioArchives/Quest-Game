@@ -1,3 +1,4 @@
+import { termForms } from '../shared/packs/terms.js';
 import type { Player } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
@@ -36,7 +37,7 @@ export async function adjustPoints(
     });
     addFeed(tx, db, ctx.now, {
       type: 'adjust',
-      text: `The GM adjusted ${player.displayName}'s points (${applied >= 0 ? '+' : ''}${applied}): ${reason}`,
+      text: `The ${termForms(ctx.pack.terms).gm.one} adjusted ${player.displayName}'s points (${applied >= 0 ? '+' : ''}${applied}): ${reason}`,
       uid,
       ref: null,
       actorUid: by,

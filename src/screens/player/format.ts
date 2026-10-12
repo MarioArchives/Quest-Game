@@ -1,33 +1,22 @@
 // Small display helpers for the player view.
-import type { LedgerReason } from '../../shared';
-
-const LONDON = 'Europe/London';
+import { ledgerLabels } from '../../lib/ledgerLabels';
+import { dayAndTime, dayDate as formatDayDate } from '../../lib/time';
+import { t, zone } from '../../pack';
 
 /** "Priya" from "Priya Shah". */
 export function firstName(displayName: string): string {
   return displayName.trim().split(/\s+/)[0] || displayName;
 }
 
-/** "Sat 21:47", festival time. */
+/** "Sat 21:47", in the game's time zone. */
 export function dayTime(ms: number): string {
-  return new Date(ms).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: LONDON });
+  return dayAndTime(ms, zone);
 }
 
-/** "Thu 8 Oct", festival time. */
+/** "Thu 8 Oct", in the game's time zone. */
 export function dayDate(ms: number): string {
-  return new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: LONDON });
+  return formatDayDate(ms, zone);
 }
 
 /** Points history lines, about someone else (Account says "Your quest was exposed"). */
-export const LEDGER_LABELS: Record<LedgerReason, string> = {
-  quest: 'Quest approved',
-  'global-win': 'Won a side quest',
-  'global-entry': 'Entered a side quest',
-  exposed: 'Their quest was exposed',
-  'guess-correct': 'Guessed right',
-  'guess-wrong': 'Guessed wrong',
-  adjust: 'GM adjustment',
-  reversal: 'Approval reversed',
-  fraud: 'Overruled as fraud',
-  rejected: 'Claim rejected',
-};
+export const LEDGER_LABELS = ledgerLabels(t, 'them');

@@ -1,6 +1,6 @@
 // Edge case 41: "last seen" labels, staleness and countdowns.
 import { describe, expect, it } from 'vitest';
-import { formatAgo, formatCountdown, isStale } from './time';
+import { clockTime, dayAndTime, dayDate, dayName, formatAgo, formatCountdown, isStale } from './time';
 
 const now = Date.parse('2026-10-10T14:00:00Z');
 const MIN = 60_000;
@@ -49,5 +49,36 @@ describe('formatCountdown', () => {
   it('says closed at or after the end', () => {
     expect(formatCountdown(now, now)).toBe('closed');
     expect(formatCountdown(now - 1, now)).toBe('closed');
+  });
+});
+
+describe("times in the pack's zone and locale (engine plan E8)", () => {
+  // 02:30 UTC on Sat 10 Oct 2026: 03:30 Saturday in London (BST), 22:30 Friday in New York (EDT).
+  const MS = Date.parse('2026-10-10T02:30:00Z');
+  const LONDON = { timeZone: 'Europe/London', locale: 'en-GB' };
+  const NEW_YORK = { timeZone: 'America/New_York', locale: 'en-GB' };
+
+  it('clockTime', () => {
+    expect(clockTime(MS, LONDON)).toBe('03:30');
+    expect(clockTime(MS, NEW_YORK)).toBe('22:30');
+  });
+
+  it('dayAndTime', () => {
+    expect(dayAndTime(MS, LONDON)).toBe('Sat 03:30');
+    expect(dayAndTime(MS, NEW_YORK)).toBe('Fri 22:30');
+  });
+
+  it('dayDate', () => {
+    expect(dayDate(MS, LONDON)).toBe('Sat 10 Oct');
+    expect(dayDate(MS, NEW_YORK)).toBe('Fri 9 Oct');
+  });
+
+  it('dayName', () => {
+    expect(dayName(MS, LONDON)).toBe('Saturday');
+    expect(dayName(MS, NEW_YORK)).toBe('Friday');
+  });
+
+  it('follows the locale', () => {
+    expect(dayName(MS, { timeZone: 'Europe/Paris', locale: 'fr-FR' })).toBe('samedi');
   });
 });

@@ -28,3 +28,32 @@ export function formatCountdown(endsAtMs: number, nowMs: number): string {
   const ss = String(seconds).padStart(2, '0');
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
+
+/** Where and how times are shown: the pack's IANA time zone and locale. */
+export interface Zone {
+  timeZone: string;
+  locale: string;
+}
+
+const fmt = (zone: Zone, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat(zone.locale, { ...opts, timeZone: zone.timeZone });
+
+/** "20:30", 24-hour, in the zone. */
+export function clockTime(ms: number, zone: Zone): string {
+  return fmt(zone, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(ms);
+}
+
+/** "Sat 20:30" in the zone. */
+export function dayAndTime(ms: number, zone: Zone): string {
+  return `${fmt(zone, { weekday: 'short' }).format(ms)} ${clockTime(ms, zone)}`;
+}
+
+/** "Thu 8 Oct" in the zone. */
+export function dayDate(ms: number, zone: Zone): string {
+  return fmt(zone, { weekday: 'short', day: 'numeric', month: 'short' }).format(ms);
+}
+
+/** "Saturday" in the zone. */
+export function dayName(ms: number, zone: Zone): string {
+  return fmt(zone, { weekday: 'long' }).format(ms);
+}

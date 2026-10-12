@@ -1,10 +1,11 @@
 import { PhotoThumb } from '../../components/PhotoViewer';
 import type { Doc, Submission } from '../../shared';
+import { t } from '../../pack';
 
 /** What a photo was for, without giving away a quest whose title was kept secret. */
 export function photoTitle(s: Submission): string {
-  if (s.kind === 'global') return s.questTitle ? `Side quest: ${s.questTitle}` : 'Side quest';
-  return s.questTitle ?? 'Secret quest';
+  if (s.kind === 'global') return s.questTitle ? `${t.sideQuest.One}: ${s.questTitle}` : t.sideQuest.One;
+  return s.questTitle ?? `Secret ${t.quest.one}`;
 }
 
 /**
@@ -48,7 +49,7 @@ export function PhotoGrid({
                 </span>
               ) : null}
             </div>
-            {limit === undefined ? <p className="pl-photo__title">{s.questTitle ?? (s.kind === 'global' ? 'Side quest' : 'Secret quest')}</p> : null}
+            {limit === undefined ? <p className="pl-photo__title">{s.questTitle ?? (s.kind === 'global' ? t.sideQuest.One : `Secret ${t.quest.one}`)}</p> : null}
           </li>
         );
       })}

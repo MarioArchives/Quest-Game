@@ -1,11 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { AshtonLoader } from './AshtonLoader';
+import { Loader } from './Loader';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   small?: boolean;
   block?: boolean;
-  /** A callable is in flight: shows the 24px Ashton loader and blocks clicks. */
+  /** A callable is in flight: shows the 24px loader and blocks clicks. */
   busy?: boolean;
   /** Use on a red surface (no hard shadow). */
   onRed?: boolean;
@@ -38,7 +38,7 @@ export function Button({
     .join(' ');
   return (
     <button {...rest} type={type} className={classes} disabled={disabled || busy} aria-busy={busy || undefined}>
-      {busy ? <AshtonLoader size={24} label="Working" on={variant === 'primary' ? 'ink' : variant === 'danger' ? 'red' : 'paper'} /> : icon}
+      {busy ? <Loader size={24} label="Working" on={variant === 'primary' ? 'ink' : variant === 'danger' ? 'red' : 'paper'} /> : icon}
       <span className="btn__label">{children}</span>
     </button>
   );

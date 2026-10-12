@@ -1,4 +1,6 @@
 // "Your points across the night": an SVG line from Wrap.pointsSeries (cumulative points over time).
+import { dayAndTime } from '../../lib/time';
+import { zone } from '../../pack';
 
 interface SeriesPoint {
   t: number;
@@ -14,13 +16,7 @@ const PAD_B = 38;
 /** Dots on every change up to this many points; beyond it only the last and the peak get one. */
 const MAX_DOTS = 36;
 
-const clock = (ms: number) =>
-  new Date(ms).toLocaleString('en-GB', {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/London',
-  });
+const clock = (ms: number) => dayAndTime(ms, zone);
 
 export function PointsLine({ series }: { series: SeriesPoint[] }) {
   const pts = series

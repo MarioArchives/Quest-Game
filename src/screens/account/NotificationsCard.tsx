@@ -4,10 +4,11 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { currentPushSupport, enablePush, forgetThisDevice, isPushOn } from '../../data/usePush';
 import type { PushSupport } from '../../lib/push';
+import { pack, t } from '../../pack';
 
 /**
  * Per-device switch for push notifications. The phone must allow it, and iPhones need the app on the Home Screen.
- * `gmOnly`: a GM who isn't playing only hears about join requests.
+ * `gmOnly`: a ${t.gm.One} who isn't playing only hears about join requests.
  */
 export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
   const toast = useToast();
@@ -40,13 +41,13 @@ export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
     support === 'unsupported'
       ? "This phone or browser can't get notifications."
       : support === 'ios-install'
-        ? 'On iPhone, first tap Share › Add to Home Screen, open Festival Quest from there, then come back here.'
+        ? `On iPhone, first tap Share › Add to Home Screen, open ${pack.name} from there, then come back here.`
         : support === 'blocked'
           ? "Notifications are blocked for this app. Allow them in your phone's settings."
           : on
             ? gmOnly
               ? 'On. We will buzz this phone when someone asks to join.'
-              : 'On. We will buzz this phone for side quests, votes, witness requests and announcements.'
+              : `On. We will buzz this phone for ${t.sideQuest.many}, votes, ${t.witness.one} requests and announcements.`
             : 'Off. Nothing is sent to this phone.';
 
   return (
@@ -58,7 +59,7 @@ export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
             Notifications
           </h2>
           <p id="notify-desc" className="locate__desc">
-            {gmOnly ? 'Join requests' : 'Side quests, votes and requests'}
+            {gmOnly ? 'Join requests' : `${t.sideQuest.Many}, votes and requests`}
           </p>
         </div>
         <button

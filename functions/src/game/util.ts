@@ -1,15 +1,15 @@
 // Small helpers shared by the game logic modules.
-import { Timestamp } from 'firebase-admin/firestore';
+import { Stamp } from '../shared/store/stamp.js';
 import type { Settings, TS } from '../shared/types.js';
 import { fail } from './guards.js';
 
 export const MIN_MS = 60_000;
 
-export const toTs = (d: Date): Timestamp => Timestamp.fromDate(d);
+export const toTs = (d: Date): Stamp => Stamp.fromDate(d);
 
-/** Epoch ms of a Firestore Timestamp (or Date); NaN for anything else. */
+/** Epoch ms of a Stamp (or Date); NaN for anything else. */
 export function millis(value: TS): number {
-  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof Stamp) return value.toMillis();
   if (value instanceof Date) return value.getTime();
   return Number.NaN;
 }

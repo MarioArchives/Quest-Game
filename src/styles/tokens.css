@@ -1,18 +1,28 @@
-/* Festival Quest design tokens — see design/DESIGN.md. Paper, ink, one red. */
+/* Engine design tokens: neutral defaults. A game pack's theme.css (src/packs/<id>/) overrides them.
+   Paper, ink and one accent colour. */
 :root {
-  --paper: #f4f2ee;
+  --paper: #f5f5f2;
   --card: #ffffff;
-  --ink: #111111;
-  --red: #e1251b;
-  --red-tint: #fbe4e2;
+  --ink: #161616;
+  --ink-hover: #333333;
+  --accent: #2740c4;
+  --accent-hover: #1f339c;
+  --accent-press: #1f339c;
+  --accent-tint: #e1e6fa;
   --muted: #5c5c5c;
+  --muted-soft: #a3a3a3;
+  --black: #000000;
+  /* Text and fills that sit on an ink or an accent surface. */
+  --on-ink: #ffffff;
+  --on-accent: #ffffff;
 
   --line: 2px solid var(--ink);
   --hairline: 1px solid var(--ink);
   --shadow: 4px 4px 0 var(--ink);
 
-  --display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
-  --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display-weight: 800;
+  --body: system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --page-x: 20px;
   --gap: 16px;

@@ -1,4 +1,5 @@
-import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { backend } from '../../backend';
+import { SERVER_TIME } from '../../backend/types';
 import { useState } from 'react';
 import { endGame, friendlyError, resetGame, setGameStatus } from '../../api';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -8,8 +9,8 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
-import { db } from '../../firebase';
 import { formatCountdown } from '../../lib/time';
+import { features, t } from '../../pack';
 import { useGmData } from './GmData';
 import { dayAndTime, useRunner } from './common';
 import type { GmSection } from './GMConsole';
@@ -65,7 +66,7 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
                 block
                 busy={busyKey === 'status:paused'}
                 icon={<PauseGlyph />}
-                onClick={() => setStatus('paused', 'Paused. Claims and guesses are on hold.')}
+                onClick={() => setStatus('paused', `Paused. ${t.claim.Many}${features.guesses ? ' and guesses' : ''} are on hold.`)}
               >
                 Pause
               </Button>
@@ -85,7 +86,9 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           <p className="gm-hint">Approve at least one join request first, then start the game.</p>
         ) : null}
         {status === 'lobby' && players.length > 0 ? (
-          <p className="gm-hint">Starting opens quest claims and schedules the first side quest.</p>
+          <p className="gm-hint">Starting opens {t.quest.one} {t.claim.many}
+            {features.sideQuests ? ` and schedules the first ${t.sideQuest.one}` : ''}.
+          </p>
         ) : null}
       </section>
 
@@ -100,30 +103,32 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
         </button>
         <button type="button" className="gm-link" onClick={() => go('review')}>
           <span className="gm-link__text">
-            <strong>Claims to review</strong>
-            <span>{pendingSubs.length === 0 ? 'Queue is empty' : `${pendingSubs.length} waiting on a witness or you`}</span>
+            <strong>{t.claim.Many} to review</strong>
+            <span>{pendingSubs.length === 0 ? 'Queue is empty' : `${pendingSubs.length} waiting on a ${t.witness.one} or you`}</span>
           </span>
           {pendingSubs.length > 0 ? <span className="gm-badge">{pendingSubs.length}</span> : null}
           <Icon name="chevron" size={20} />
         </button>
-        <button type="button" className="gm-link" onClick={() => go('quests')}>
-          <span className="gm-link__text">
-            <strong>Side quests</strong>
-            <span>
-              {checking.length > 0
-                ? `Entries to check: ${checking.map((g) => g.title).join(', ')}`
-                : live
-                  ? `Entries open: ${live.title} · ${formatCountdown(tsMs(live.endsAt), now)} left`
-                  : voting.length > 0
-                    ? `Voting: ${voting.map((g) => g.title).join(', ')}`
-                    : 'None running right now'}
+        {features.sideQuests ? (
+          <button type="button" className="gm-link" onClick={() => go('quests')}>
+            <span className="gm-link__text">
+              <strong>{t.sideQuest.Many}</strong>
+              <span>
+                {checking.length > 0
+                  ? `Entries to check: ${checking.map((g) => g.title).join(', ')}`
+                  : live
+                    ? `Entries open: ${live.title} · ${formatCountdown(tsMs(live.endsAt), now)} left`
+                    : voting.length > 0
+                      ? `Voting: ${voting.map((g) => g.title).join(', ')}`
+                      : 'None running right now'}
+              </span>
             </span>
-          </span>
-          {live || checking.length + voting.length > 0 ? (
-            <span className="gm-badge">{(live ? 1 : 0) + checking.length + voting.length}</span>
+            {live || checking.length + voting.length > 0 ? (
+              <span className="gm-badge">{(live ? 1 : 0) + checking.length + voting.length}</span>
           ) : null}
           <Icon name="chevron" size={20} />
         </button>
+        ) : null}
       </section>
 
       <Announcement />
@@ -133,8 +138,8 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           Reset the game
         </h2>
         <p className="gm-hint">
-          Wipes every player, hand, claim, photo, guess, side quest and the feed, and goes back to the lobby. Quest templates, settings and GMs
-          stay.
+          Wipes every player, hand, {t.claim.one}, photo, guess, {t.sideQuest.one} and the feed, and goes back to the lobby. {t.quest.One} templates, settings and{' '}
+          {t.gm.many} stay.
         </p>
         <Button variant="danger" block onClick={() => setResetting(true)}>
           Reset…
@@ -155,7 +160,7 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           {pendingSubs.length > 0 ? (
             <p className="note note--error">
               <strong>
-                {pendingSubs.length} {pendingSubs.length === 1 ? 'claim is' : 'claims are'} still waiting.
+                {pendingSubs.length} {pendingSubs.length === 1 ? `${t.claim.one} is` : `${t.claim.many} are`} still waiting.
               </strong>{' '}
               Approve or reject {pendingSubs.length === 1 ? 'it' : 'them'} first, or {pendingSubs.length === 1 ? 'it' : 'they'} will never score.
             </p>
@@ -163,7 +168,7 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           {voting.length > 0 ? (
             <p className="note">
               <strong>
-                {voting.length} side {voting.length === 1 ? 'quest is' : 'quests are'} still being voted on:
+                {voting.length} {voting.length === 1 ? `${t.sideQuest.one} is` : `${t.sideQuest.many} are`} still being voted on:
               </strong>{' '}
               {voting.map((g) => g.title).join(', ')}. The votes cast so far are counted and the winners paid now.
             </p>
@@ -171,7 +176,7 @@ export function GameSection({ go }: { go(section: GmSection): void }) {
           {checking.length > 0 ? (
             <p className="note">
               <strong>
-                {checking.length === 1 ? `“${checking[0]!.title}” has` : `${checking.length} side quests have`} entries waiting to be
+                {checking.length === 1 ? `“${checking[0]!.title}” has` : `${checking.length} ${t.sideQuest.many} have`} entries waiting to be
                 checked.
               </strong>{' '}
               Nobody voted yet, so {checking.length === 1 ? 'it closes' : 'they close'} without a winner.
@@ -218,16 +223,14 @@ function Announcement() {
     if (!trimmed) return;
     setBusy('post');
     try {
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'game', 'state'), { announcement: trimmed });
-      batch.set(doc(collection(db, 'feed')), {
-        type: 'announcement',
-        text: trimmed,
-        uid: null,
-        ref: null,
-        createdAt: serverTimestamp(),
-      });
-      await batch.commit();
+      await backend().data.batch([
+        { op: 'update', path: 'game/state', data: { announcement: trimmed } },
+        {
+          op: 'set',
+          path: `feed/${backend().data.newId('feed')}`,
+          data: { type: 'announcement', text: trimmed, uid: null, ref: null, createdAt: SERVER_TIME },
+        },
+      ]);
       setText('');
       toast('Announcement posted.', 'success');
     } catch (err) {
@@ -240,9 +243,7 @@ function Announcement() {
   const clear = async () => {
     setBusy('clear');
     try {
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'game', 'state'), { announcement: null });
-      await batch.commit();
+      await backend().data.update('game/state', { announcement: null });
       toast('Announcement cleared.', 'success');
     } catch (err) {
       toast(friendlyError(err), 'error');
@@ -276,7 +277,7 @@ function Announcement() {
           className="textarea"
           value={text}
           maxLength={ANNOUNCEMENT_MAX}
-          placeholder="Meet at Dalton Square at 9?"
+          placeholder="Meet at the bar at 9?"
           disabled={busy !== null}
           onChange={(event) => setText(event.target.value)}
         />
@@ -311,7 +312,7 @@ function ResetSheet({ onClose }: { onClose(): void }) {
   return (
     <BottomSheet title="Reset everything?" onClose={onClose} locked={busy}>
       <p>
-        This deletes all players, claims, photos, guesses, points and side quests. Everyone has to ask to join again. It can&apos;t be undone.
+        This deletes all players, {t.claim.many}, photos, guesses, points and {t.sideQuest.many}. Everyone has to ask to join again. It can&apos;t be undone.
       </p>
       <div className="field">
         <label className="field__label" htmlFor="gm-reset">

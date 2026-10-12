@@ -1,9 +1,16 @@
-// Test helpers for the server game logic. Every test file calls useEmulatorDb() with its own
-// demo project id so files can run in parallel against one Firestore emulator.
+// Test helpers for the server game logic. Every test file calls useEmulatorDb() with its own demo project id so
+// files can run in parallel against one Firestore emulator. With STORE=memory (the functions-memory test project)
+// each test gets a fresh in-memory store instead, so the same tests prove the mock behaves like the real game.
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest';
+import { firestoreStore } from '../src/firebase/store.js';
 import type { Ctx } from '../src/game/context.js';
+import { memoryStore } from '../src/shared/store/memory.js';
+import { Stamp } from '../src/shared/store/stamp.js';
+import type { Store } from '../src/shared/store/types.js';
+import { getPack } from '../src/shared/packs/index.js';
+import type { GamePack } from '../src/shared/packs/types.js';
 import { DEFAULT_SETTINGS } from '../src/shared/settings.js';
 import type { GameState, GlobalQuestStatus, QuestStatus, Settings, SubmissionKind, SubmissionStatus } from '../src/shared/types.js';
 
@@ -12,16 +19,26 @@ export const T0 = new Date('2026-10-10T14:00:00Z');
 
 export const MIN = 60_000;
 export const addMin = (d: Date, m: number) => new Date(d.getTime() + m * MIN);
-export const ts = (d: Date) => Timestamp.fromDate(d);
+export const ts = (d: Date) => Stamp.fromDate(d);
 
-export function useEmulatorDb(projectId: string): () => Firestore {
+/** True when this run uses the in-memory store (STORE=memory) rather than the emulator. */
+export const IN_MEMORY = process.env.STORE === 'memory';
+
+/** The store for this test file: Firestore on the emulator through firestoreStore, or a fresh memoryStore per test. */
+export function useEmulatorDb(projectId: string): () => Store {
+  let db: Store;
+  if (IN_MEMORY) {
+    beforeEach(() => {
+      db = memoryStore();
+    });
+    return () => db;
+  }
   const host = process.env.FIRESTORE_EMULATOR_HOST;
   let app: App;
-  let db: Firestore;
   beforeAll(() => {
     if (!host) throw new Error('FIRESTORE_EMULATOR_HOST is not set; run tests via `npm test` (firebase emulators:exec).');
     app = initializeApp({ projectId }, projectId);
-    db = getFirestore(app);
+    db = firestoreStore(getFirestore(app));
   });
   beforeEach(async () => {
     const res = await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {
@@ -35,8 +52,14 @@ export function useEmulatorDb(projectId: string): () => Firestore {
   return () => db;
 }
 
-export function ctx(uid: string | null, now: Date = T0, rng?: () => number, email?: string): Ctx {
-  return { uid, now, rng, email: email ?? (uid ? `${uid}@example.com` : null) };
+/**
+ * A call context. `pack` defaults to the Lancaster pack, read lazily so tests that never reach pack-aware code
+ * don't load the pack registry.
+ */
+export function ctx(uid: string | null, now: Date = T0, rng?: () => number, email?: string, pack?: GamePack): Ctx {
+  const c = { uid, now, rng, email: email ?? (uid ? `${uid}@example.com` : null) } as Ctx;
+  Object.defineProperty(c, 'pack', { get: () => pack ?? getPack('lancaster'), enumerable: true });
+  return c;
 }
 
 /** Deterministic PRNG (mulberry32). */
@@ -60,7 +83,7 @@ export async function expectCode(p: Promise<unknown>, code: string): Promise<voi
 // ---------- seeding ----------
 
 export async function seedGame(
-  db: Firestore,
+  db: Store,
   opts: { status?: GameState['status']; settings?: Partial<Settings>; state?: Partial<GameState> } = {},
 ): Promise<void> {
   const state: GameState = {
@@ -75,13 +98,13 @@ export async function seedGame(
   await db.doc('game/settings').set({ ...DEFAULT_SETTINGS, ...opts.settings });
 }
 
-export async function seedAdmin(db: Firestore, uid: string): Promise<void> {
+export async function seedAdmin(db: Store, uid: string): Promise<void> {
   await db.doc(`admins/${uid}`).set({ email: `${uid}@example.com` });
 }
 
 /** Personal templates p01..pNN (active unless listed in `retired`). Returns their ids. */
 export async function seedPersonalTemplates(
-  db: Firestore,
+  db: Store,
   count: number,
   opts: { retired?: string[]; prefix?: string } = {},
 ): Promise<string[]> {
@@ -104,7 +127,7 @@ export async function seedPersonalTemplates(
 }
 
 export async function seedGlobalTemplate(
-  db: Firestore,
+  db: Store,
   id: string,
   opts: { windowMin?: number | null; active?: boolean } = {},
 ): Promise<void> {
@@ -125,7 +148,7 @@ export interface SeedQuest {
 }
 
 export async function seedPlayer(
-  db: Firestore,
+  db: Store,
   uid: string,
   opts: {
     displayName?: string;
@@ -170,7 +193,7 @@ export function hand(templateIds: string[], status: QuestStatus = 'active'): See
  * `evidence: true` adds a photo + caption as addEvidence would; `extra` merges any server fields.
  */
 export async function seedSubmission(
-  db: Firestore,
+  db: Store,
   id: string,
   data: {
     uid: string;
@@ -205,7 +228,7 @@ export async function seedSubmission(
 }
 
 export async function seedGlobalQuest(
-  db: Firestore,
+  db: Store,
   id: string,
   opts: {
     status?: GlobalQuestStatus;
@@ -234,7 +257,7 @@ export async function seedGlobalQuest(
 }
 
 /** Feed posts of one type, newest last. */
-export async function feedOf(db: Firestore, type: string): Promise<Array<Record<string, any> & { id: string }>> {
+export async function feedOf(db: Store, type: string): Promise<Array<Record<string, any> & { id: string }>> {
   const snap = await db.collection('feed').where('type', '==', type).get();
   const posts: Array<Record<string, any> & { id: string }> = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return posts.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
@@ -242,29 +265,29 @@ export async function feedOf(db: Firestore, type: string): Promise<Array<Record<
 
 // ---------- reading ----------
 
-export async function getData(db: Firestore, path: string): Promise<Record<string, any> | undefined> {
+export async function getData(db: Store, path: string): Promise<Record<string, any> | undefined> {
   return (await db.doc(path).get()).data();
 }
 
-export async function getPlayer(db: Firestore, uid: string): Promise<Record<string, any>> {
+export async function getPlayer(db: Store, uid: string): Promise<Record<string, any>> {
   const d = await getData(db, `players/${uid}`);
   if (!d) throw new Error(`player ${uid} missing`);
   return d;
 }
 
-export async function getQuests(db: Firestore, uid: string): Promise<Array<Record<string, any> & { id: string }>> {
+export async function getQuests(db: Store, uid: string): Promise<Array<Record<string, any> & { id: string }>> {
   const snap = await db.collection(`players/${uid}/quests`).get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function ledgerFor(db: Firestore, uid: string): Promise<Array<Record<string, any>>> {
+export async function ledgerFor(db: Store, uid: string): Promise<Array<Record<string, any>>> {
   const snap = await db.collection('pointsLedger').where('uid', '==', uid).get();
   return snap.docs.map((d) => d.data());
 }
 
-export async function allDocs(db: Firestore, collection: string): Promise<Array<Record<string, any> & { id: string }>> {
+export async function allDocs(db: Store, collection: string): Promise<Array<Record<string, any> & { id: string }>> {
   const snap = await db.collection(collection).get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export const toMillis = (v: any): number => (v instanceof Timestamp ? v.toMillis() : (v as Date).getTime());
+export const toMillis = (v: any): number => (v instanceof Stamp ? v.toMillis() : (v as Date).getTime());

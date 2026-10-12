@@ -1,16 +1,14 @@
-import { collection, query, where } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ProfileSheet } from '../components/ProfileSheet';
 import { useGame } from '../data/GameProvider';
-import { useCollection } from '../data/hooks';
+import { useQuery } from '../data/hooks';
 import { useLocationSharing } from '../data/LocationProvider';
 import { forgetThisDevice } from '../data/usePush';
-import { db } from '../firebase';
 import { useSession } from '../session/SessionProvider';
 import { rerollAllowance, rerollsLeft as rerollsLeftFor, type LedgerEntry, type Quest } from '../shared';
 import { AddEvidenceBanners } from './account/AddEvidenceBanners';
@@ -23,6 +21,7 @@ import { PointsSummary } from './account/PointsSummary';
 import { SideQuestEntries } from './account/SideQuestEntries';
 import { WitnessRequests } from './account/WitnessRequests';
 import './account/account.css';
+import { features, t } from '../pack';
 
 const STATUS_LABEL = { lobby: 'Waiting to start', active: 'Game live', paused: 'Game paused', ended: 'Game over' } as const;
 
@@ -36,13 +35,11 @@ export default function AccountScreen() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const quests = useCollection<Quest>(player && uid ? `quests:${uid}` : null, () => collection(db, 'players', uid!, 'quests'));
-  const ledger = useCollection<LedgerEntry>(player && uid ? `ledger:${uid}` : null, () =>
-    query(collection(db, 'pointsLedger'), where('uid', '==', uid)),
-  );
+  const quests = useQuery<Quest>(player && uid ? { path: `players/${uid}/quests` } : null);
+  const ledger = useQuery<LedgerEntry>(player && uid ? { path: 'pointsLedger', where: [['uid', '==', uid]] } : null);
   const titleById = useMemo(() => new Map(quests.data.map((q) => [q.id, q.title])), [quests.data]);
 
-  if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready) return <Loader className="app__loader" caption="Loading" />;
 
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
   const rerollsLeft = player ? rerollsLeftFor(settings.rerollLimit, player) : 0;
@@ -66,7 +63,7 @@ export default function AccountScreen() {
         <div className="me__text">
           <h2 className="me__name">{displayName}</h2>
           <p className="me__tags">
-            <span className="tag tag--ink">{player ? (isAdmin ? 'Player + GM' : 'Player') : 'GM'}</span>
+            <span className="tag tag--ink">{player ? (isAdmin ? `Player + ${t.gm.One}` : 'Player') : t.gm.One}</span>
             <span className="tag">{STATUS_LABEL[state.status]}</span>
           </p>
           {user?.email ? <p className="me__email">{user.email}</p> : null}
@@ -108,15 +105,15 @@ export default function AccountScreen() {
           <AddEvidenceBanners titleById={titleById} />
           <Hand quests={quests.data} loading={quests.loading} rerollsLeft={rerollsLeft} />
           <ClaimHistory titleById={titleById} />
-          <SideQuestEntries />
-          <LocationCard />
+          {features.sideQuests ? <SideQuestEntries /> : null}
+          {features.map ? <LocationCard /> : null}
           <NotificationsCard />
           <PointsSummary entries={ledger.data} loading={ledger.loading} />
         </>
       ) : (
         <p className="note">
-          You&apos;re signed in as a GM, so you can run the game from the GM tab. To play as well, join as a player: GMs need no approval and
-          your quests are dealt at once.
+          You&apos;re signed in as a {t.gm.One}, so you can run the game from the {t.gm.One} tab. To play as well, join as a player: {t.gm.Many} need no approval and
+          your {t.quest.many} are dealt at once.
         </p>
       )}
       {!player && isAdmin ? <NotificationsCard gmOnly /> : null}

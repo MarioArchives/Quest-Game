@@ -1,9 +1,11 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
 import { Icon, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
+import { tabsFor, type TabId } from '../lib/nav';
+import { features, pack, t } from '../pack';
 import { useGame } from '../data/GameProvider';
 import { useTabBadges } from '../data/useTabBadges';
 import { refreshPush } from '../data/usePush';
@@ -21,13 +23,22 @@ interface Tab {
 }
 
 const TITLES: Record<string, string> = {
-  '/': 'Festival Quest',
+  '/': pack.name,
   '/account': 'Account',
   '/map': 'Map',
-  '/gm': 'GM console',
-  '/wrap': 'Your wrap',
+  '/gm': `${t.gm.One} console`,
+  '/wrap': `Your ${t.wrap.one.toLowerCase()}`,
   '/join': 'Join the game',
   '/standings': 'Standings',
+};
+
+/** Every tab the frame can show; tabsFor picks which ones and in what order. */
+const TABS: Record<TabId, Tab> = {
+  home: { to: '/', label: 'Home', icon: 'home', end: true, dotLabel: 'new posts' },
+  map: { to: '/map', label: 'Map', icon: 'map' },
+  account: { to: '/account', label: 'Account', icon: 'user', dotLabel: 'something needs you' },
+  gm: { to: '/gm', label: t.gm.One, icon: 'gm', dotLabel: 'work waiting' },
+  wrap: { to: '/wrap', label: t.wrap.One, icon: 'wrap', dotLabel: 'the game is over, see your wrap' },
 };
 
 export function AppFrame() {
@@ -44,10 +55,10 @@ export function AppFrame() {
     void refreshPush();
   }, []);
 
-  const title = TITLES[pathname] ?? (pathname.startsWith('/player/') ? 'Player' : 'Festival Quest');
+  const title = TITLES[pathname] ?? (pathname.startsWith('/player/') ? 'Player' : pack.name);
 
   useEffect(() => {
-    document.title = pathname === '/' ? 'Festival Quest' : `${title} · Festival Quest`;
+    document.title = pathname === '/' ? pack.name : `${title} · ${pack.name}`;
     if (firstRender.current) {
       firstRender.current = false;
       return;
@@ -59,13 +70,14 @@ export function AppFrame() {
   }, [pathname, title, closePhoto]);
 
   // A red dot says something is waiting there: new posts (Home), something for you (Account), GM work, the wrap.
-  const tabs: Tab[] = [
-    { to: '/', label: 'Home', icon: 'home', end: true, dot: badges.home, dotLabel: 'new posts' },
-    { to: '/map', label: 'Map', icon: 'map' },
-    { to: '/account', label: 'Account', icon: 'user', dot: badges.account, dotLabel: 'something needs you' },
-  ];
-  if (isAdmin) tabs.push({ to: '/gm', label: 'GM', icon: 'gm', dot: badges.gm, dotLabel: 'work waiting' });
-  if (state.status === 'ended') tabs.push({ to: '/wrap', label: 'Wrap', icon: 'wrap', dot: badges.wrap, dotLabel: 'the game is over, see your wrap' });
+  const dots: Record<TabId, boolean> = {
+    home: badges.home,
+    map: false,
+    account: badges.account,
+    gm: badges.gm,
+    wrap: badges.wrap,
+  };
+  const tabs = tabsFor({ features, isAdmin, ended: state.status === 'ended' }).map((id) => ({ ...TABS[id], dot: dots[id] }));
 
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
   const photo = player?.photoURL ?? user?.photoURL ?? null;
@@ -83,7 +95,7 @@ export function AppFrame() {
               {player.points} pts{me ? ` · #${me.rank}` : ''}
             </span>
           ) : (
-            <span className="chip appbar__points">GM</span>
+            <span className="chip appbar__points">{t.gm.One}</span>
           )}
           <Link to="/account" className="appbar__avatar" aria-label="Your account">
             <Avatar name={displayName} src={photo} size={38} you />
@@ -92,7 +104,7 @@ export function AppFrame() {
       </header>
 
       <main id="main" className="app__main" ref={mainRef} tabIndex={-1}>
-        <Suspense fallback={<AshtonLoader className="app__loader" caption="Loading" />}>
+        <Suspense fallback={<Loader className="app__loader" caption="Loading" />}>
           <Outlet />
         </Suspense>
       </main>

@@ -1,10 +1,8 @@
-import { collection } from 'firebase/firestore';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
-import { AshtonLoader } from '../components/AshtonLoader';
+import { Loader } from '../components/Loader';
 import { useGame } from '../data/GameProvider';
-import { useCollection, useDocument } from '../data/hooks';
-import { db } from '../firebase';
+import { useDocument, useQuery } from '../data/hooks';
 import { useSession } from '../session/SessionProvider';
 import type { Doc, FinalStandings, Standing, Wrap } from '../shared';
 import {
@@ -24,6 +22,7 @@ import {
 import { HandsCard, PodiumCard } from './wrap/Finale';
 import { WrapStory, type StoryCard } from './wrap/WrapStory';
 import './wrap/wrap.css';
+import { features, pack, t } from '../pack';
 
 /** Standings from the finished wraps, for when game/final cannot be read. */
 function standingsFromWraps(wraps: Doc<Wrap>[]): Standing[] {
@@ -34,8 +33,8 @@ function standingsFromWraps(wraps: Doc<Wrap>[]): Standing[] {
 
 function Notice({ title, children }: { title: string; children: string }) {
   return (
-    <section className="wrap-notice halftone" aria-label="Wrap">
-      <p className="eyebrow">Festival Quest &middot; Wrap</p>
+    <section className="wrap-notice halftone" aria-label={t.wrap.One}>
+      <p className="eyebrow">{pack.name} &middot; {t.wrap.One}</p>
       <h2 className="wrap-notice__title">{title}</h2>
       <p className="wrap-notice__note">{children}</p>
       <Link to="/" className="btn btn--primary btn--on-red">
@@ -54,7 +53,7 @@ export default function WrapScreen() {
 
   const mine = useDocument<Wrap>(ended && isPlayer && uid ? `wraps/${uid}` : null);
   const final = useDocument<FinalStandings>(ended ? 'game/final' : null);
-  const all = useCollection<Wrap>(ended ? 'wraps:all' : null, () => collection(db, 'wraps'));
+  const all = useQuery<Wrap>(ended ? { path: 'wraps' } : null);
 
   const cards = useMemo<StoryCard[]>(() => {
     const out: StoryCard[] = [];
@@ -67,11 +66,15 @@ export default function WrapScreen() {
       out.push(
         { id: 'rank', label: 'Rank and points', body: <RankCard wrap={wrap} tiedWith={tiedWith} /> },
         { id: 'points-over-time', label: 'Your points across the night', body: <SeriesCard wrap={wrap} /> },
-        { id: 'quests', label: 'Quests completed', body: <CompletedCard wrap={wrap} /> },
-        { id: 'side-quests', label: 'Side quests won', body: <SideQuestsCard wrap={wrap} /> },
+        { id: 'quests', label: `${t.quest.Many} completed`, body: <CompletedCard wrap={wrap} /> },
+        ...(features.sideQuests ? [{ id: 'side-quests', label: `${t.sideQuest.Many} won`, body: <SideQuestsCard wrap={wrap} /> }] : []),
         { id: 'hand', label: 'Your secret hand, revealed', body: <HandCard wrap={wrap} /> },
-        { id: 'detective', label: 'Detective stats', body: <DetectiveCard wrap={wrap} /> },
-        { id: 'exposed', label: 'Exposed by', body: <ExposedCard wrap={wrap} /> },
+        ...(features.guesses
+          ? [
+              { id: 'detective', label: 'Detective stats', body: <DetectiveCard wrap={wrap} /> },
+              { id: 'exposed', label: 'Exposed by', body: <ExposedCard wrap={wrap} /> },
+            ]
+          : []),
         { id: 'top-photo', label: 'Your most-reacted photo', body: <TopPhotoCard wrap={wrap} /> },
       );
       // Quests no longer depend on a place, so this card only appears if the wrap has venues to list.
@@ -83,7 +86,7 @@ export default function WrapScreen() {
         { id: 'award', label: 'Your award', body: <AwardCard wrap={wrap} /> },
       );
     } else if (isPlayer) {
-      out.push({ id: 'not-ready', label: 'Your wrap is not ready', body: <MissingWrapCard /> });
+      out.push({ id: 'not-ready', label: `Your ${t.wrap.one.toLowerCase()} is not ready`, body: <MissingWrapCard /> });
     }
 
     if (standings.length > 0) {
@@ -96,26 +99,26 @@ export default function WrapScreen() {
     return out;
   }, [mine.data, all.data, final.data, isPlayer, uid, settings.rerollLimit]);
 
-  if (!ready) return <AshtonLoader className="app__loader" caption="Loading" />;
+  if (!ready) return <Loader className="app__loader" caption="Loading" />;
 
   if (!ended) {
     return (
       <Notice title="Not yet">
-        Your wrap opens the moment the GM ends the game. Keep snapping, keep guessing, and see where you finish.
+        {`Your ${t.wrap.one.toLowerCase()} opens the moment the ${t.gm.One} ends the game. Keep snapping, ${features.guesses ? 'keep guessing, ' : ''}and see where you finish.`}
       </Notice>
     );
   }
 
   const loading = mine.loading || final.loading || all.loading;
-  if (loading) return <AshtonLoader className="app__loader" caption="Printing your wrap" />;
+  if (loading) return <Loader className="app__loader" caption={`Printing your ${t.wrap.one.toLowerCase()}`} />;
 
   if (cards.length === 0) {
     const failed = mine.error || final.error || all.error;
     return (
       <Notice title={failed ? "Can't load it" : 'Nothing here'}>
         {failed
-          ? "The wrap couldn't be loaded. Check your signal and reload the page."
-          : "There's no wrap to show for this game yet."}
+          ? `The ${t.wrap.one.toLowerCase()} couldn't be loaded. Check your signal and reload the page.`
+          : `There's no ${t.wrap.one.toLowerCase()} to show for this game yet.`}
       </Notice>
     );
   }

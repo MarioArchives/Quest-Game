@@ -1,4 +1,6 @@
 import { Button } from '../../components/Button';
+import look from '@pack';
+import { t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import { PosterHeader } from './PosterHeader';
 import './auth.css';
@@ -12,8 +14,7 @@ export function RejectedScreen() {
         <div className="auth__copy">
           <h2>Not this time</h2>
           <p>
-            The GM couldn&apos;t fit you into this game. No hard feelings, and there is plenty of music to enjoy either way. If
-            you think this is a mix-up, have a word with them in person.
+            The {t.gm.One} couldn&apos;t fit you into this game. {look.auth.rejectedText}
           </p>
         </div>
         <div className="auth__actions auth__actions--row">

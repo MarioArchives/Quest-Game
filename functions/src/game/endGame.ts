@@ -1,10 +1,13 @@
-import { Timestamp, type WriteBatch } from 'firebase-admin/firestore';
-import venuesData from '../data/venues.json' with { type: 'json' };
+import { Stamp } from '../shared/store/stamp.js';
+import type { Batch } from '../shared/store/types.js';
+import type { Feature, Features, AwardCopy } from '../shared/packs/types.js';
+import { termForms } from '../shared/packs/terms.js';
 import { competitionRanks } from '../shared/ranking.js';
 import { rerollAllowance } from '../shared/rerolls.js';
 import { VENUE_RADIUS_M } from '../shared/settings.js';
 import type {
   Award,
+  AwardKey,
   FeedItem,
   FinalStandings,
   GlobalQuest,
@@ -42,16 +45,20 @@ interface AwardRule {
   award: Award;
   /** Players who can win this award; the best `metric` among them takes it. */
   metric: (s: PlayerStats) => number | null;
+  /** The optional part of the game this award is about; skipped when the pack switches it off. */
+  requires?: Feature;
 }
 
 // Priority order: earlier awards pick first.
 const AWARD_RULES: AwardRule[] = [
   {
     award: { key: 'sharpshooter', title: 'Sharpshooter', description: 'Most secret quests exposed' },
+    requires: 'guesses',
     metric: (s) => (s.hits > 0 ? s.hits : null),
   },
   {
     award: { key: 'untouchable', title: 'Untouchable', description: 'Nobody cracked your hand' },
+    requires: 'guesses',
     metric: (s) => (s.exposedCount === 0 ? 0 : null),
   },
   {
@@ -64,14 +71,17 @@ const AWARD_RULES: AwardRule[] = [
   },
   {
     award: { key: 'side-hustler', title: 'Side Hustler', description: 'Side-quest winner' },
+    requires: 'sideQuests',
     metric: (s) => (s.sideQuestsWon > 0 ? s.sideQuestsWon : null),
   },
   {
     award: { key: 'globetrotter', title: 'Globetrotter', description: 'Posted from the most venues' },
+    requires: 'map',
     metric: (s) => (s.venuesCount > 0 ? s.venuesCount : null),
   },
   {
     award: { key: 'detective', title: 'Detective', description: 'Most guesses made' },
+    requires: 'guesses',
     metric: (s) => (s.guessesMade > 0 ? s.guessesMade : null),
   },
   {
@@ -88,9 +98,15 @@ const byUid = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * One award per player, assigned in priority order (sharpshooter, untouchable, paparazzo,
  * night-owl, then extras); ties go to higher points, then lower uid; leftovers get good-sport.
  */
-export function computeAwards(stats: PlayerStats[]): Record<string, Award> {
+export function computeAwards(
+  stats: PlayerStats[],
+  opts: { features?: Features; copy?: Partial<Record<AwardKey, AwardCopy>> } = {},
+): Record<string, Award> {
+  const { features, copy = {} } = opts;
+  const worded = (award: Award): Award => ({ ...award, ...copy[award.key] });
   const awards = new Map<string, Award>();
-  for (const { award, metric } of AWARD_RULES) {
+  for (const { award, metric, requires } of AWARD_RULES) {
+    if (requires && features && !features[requires]) continue;
     const candidates = stats
       .filter((s) => !awards.has(s.uid))
       .flatMap((s) => {
@@ -98,18 +114,16 @@ export function computeAwards(stats: PlayerStats[]): Record<string, Award> {
         return m === null ? [] : [{ s, m }];
       })
       .sort((a, b) => b.m - a.m || b.s.points - a.s.points || byUid(a.s.uid, b.s.uid));
-    if (candidates.length > 0) awards.set(candidates[0].s.uid, award);
+    if (candidates.length > 0) awards.set(candidates[0].s.uid, worded(award));
   }
-  return Object.fromEntries(stats.map((s) => [s.uid, awards.get(s.uid) ?? GOOD_SPORT]));
+  return Object.fromEntries(stats.map((s) => [s.uid, awards.get(s.uid) ?? worded(GOOD_SPORT)]));
 }
-
-const BUNDLED_VENUES = venuesData as unknown as Venue[];
 
 type Doc<T> = T & { id: string };
 
-/** Epoch ms of a Firestore Timestamp (or Date); 0 when missing. */
+/** Epoch ms of a Stamp (or Date); 0 when missing. */
 function ms(v: unknown): number {
-  if (v instanceof Timestamp) return v.toMillis();
+  if (v instanceof Stamp) return v.toMillis();
   if (v instanceof Date) return v.getTime();
   return 0;
 }
@@ -138,7 +152,7 @@ function nearestVenue(venues: Venue[], lat: number, lng: number): Venue | null {
 
 const BATCH_LIMIT = 500;
 
-async function commitInBatches(db: Db, ops: Array<(batch: WriteBatch) => void>): Promise<void> {
+async function commitInBatches(db: Db, ops: Array<(batch: Batch) => void>): Promise<void> {
   for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
     const batch = db.batch();
     for (const op of ops.slice(i, i + BATCH_LIMIT)) op(batch);
@@ -157,12 +171,13 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
   const state = await loadState(db);
   if (state.status === 'ended') fail('failed-precondition', 'The game has already ended.');
 
-  const venues = opts.venues ?? BUNDLED_VENUES;
+  // Without the map there are no venues to visit, count or award.
+  const venues = ctx.pack.features.map ? (opts.venues ?? ctx.pack.venues) : [];
   const settings = await loadSettings(db);
-  const endedAt = Timestamp.fromDate(ctx.now);
+  const endedAt = Stamp.fromDate(ctx.now);
 
   // Decide every open side quest first (tally the votes, pay the winners) so the standings include it.
-  await settleOpenQuests(db, ctx.now);
+  await settleOpenQuests(db, ctx.now, ctx.pack);
 
   const [everyone, submissions, guesses, ledger, globals, templates, locations, feed] = await Promise.all([
     docs<Player>(db, 'players'),
@@ -300,10 +315,10 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     });
   }
 
-  const awards = computeAwards(stats);
+  const awards = computeAwards(stats, { features: ctx.pack.features, copy: ctx.pack.awards });
 
   const final: FinalStandings = { standings, endedAt };
-  const ops: Array<(batch: WriteBatch) => void> = [];
+  const ops: Array<(batch: Batch) => void> = [];
   for (const [uid, wrap] of wraps) {
     const doc: Wrap = { ...wrap, award: awards[uid] };
     ops.push((b) => b.set(db.doc(`wraps/${uid}`), doc));
@@ -318,7 +333,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     (b) =>
       b.set(db.collection('feed').doc(), {
         type: 'status',
-        text: 'Game over! Wraps are ready.',
+        text: `Game over! ${termForms(ctx.pack.terms).wrap.Many} are ready.`,
         uid: null,
         ref: null,
         reactionCount: 0,

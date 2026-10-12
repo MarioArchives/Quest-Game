@@ -1,12 +1,12 @@
-import { collection, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { backend } from '../../backend';
+import { SERVER_TIME } from '../../backend/types';
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { friendlyError } from '../../api';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
-import { useCollection } from '../../data/hooks';
-import { db } from '../../firebase';
+import { useQuery } from '../../data/hooks';
 import { orderReactions, singleEmoji } from '../../lib/emoji';
 import { useSession } from '../../session/SessionProvider';
 import { REACTION_EMOJI, type Reaction } from '../../shared';
@@ -27,9 +27,7 @@ export function ReactionsBar({ feedId, count }: { feedId: string; count: number 
   const uid = user?.uid ?? null;
   const [touched, setTouched] = useState(false);
   const [picking, setPicking] = useState(false);
-  const reactions = useCollection<Reaction>(count > 0 || touched ? `reactions:${feedId}` : null, () =>
-    collection(db, 'feed', feedId, 'reactions'),
-  );
+  const reactions = useQuery<Reaction>(count > 0 || touched ? { path: `feed/${feedId}/reactions` } : null);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -44,9 +42,9 @@ export function ReactionsBar({ feedId, count }: { feedId: string; count: number 
     if (!uid || !player) return;
     setTouched(true);
     try {
-      const ref = doc(db, 'feed', feedId, 'reactions', uid);
-      if (mine === emoji) await deleteDoc(ref);
-      else await setDoc(ref, { emoji, createdAt: serverTimestamp() });
+      const path = `feed/${feedId}/reactions/${uid}`;
+      if (mine === emoji) await backend().data.remove(path);
+      else await backend().data.set(path, { emoji, createdAt: SERVER_TIME });
     } catch (err) {
       toast(friendlyError(err), 'error');
     }

@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { backend } from '../../backend';
 import { useMemo, useState, type FormEvent } from 'react';
 import { friendlyError } from '../../api';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -6,7 +6,7 @@ import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
-import { db } from '../../firebase';
+import { features, t as terms } from '../../pack';
 import type { Doc, QuestTemplate } from '../../shared';
 import { useRunner } from './common';
 
@@ -16,6 +16,8 @@ export function TemplatesSection() {
   const { templatesById, settings } = useGame();
   const { busyKey, run } = useRunner();
   const [scope, setScope] = useState<TemplateScope>('personal');
+  // Packs without side quests only have the personal deck.
+  const shownScope: TemplateScope = features.sideQuests ? scope : 'personal';
   const [search, setSearch] = useState('');
   const [showRetired, setShowRetired] = useState(true);
   const [editing, setEditing] = useState<Doc<QuestTemplate> | 'new' | null>(null);
@@ -33,42 +35,45 @@ export function TemplatesSection() {
   const shown = useMemo(
     () =>
       all
-        .filter((t) => t.scope === scope)
+        .filter((t) => t.scope === shownScope)
         .filter((t) => showRetired || t.active)
         .filter((t) => !needle || t.title.toLowerCase().includes(needle) || (t.description ?? '').toLowerCase().includes(needle))
         .sort((a, b) => a.title.localeCompare(b.title, 'en', { sensitivity: 'base' })),
-    [all, scope, showRetired, needle],
+    [all, shownScope, showRetired, needle],
   );
 
   const setActive = (template: Doc<QuestTemplate>, active: boolean) =>
     void run(
       `active:${template.id}`,
-      () => updateDoc(doc(db, 'questTemplates', template.id), { active }),
+      () => backend().data.update(`questTemplates/${template.id}`, { active }),
       active ? `“${template.title}” is back in the deck.` : `“${template.title}” retired.`,
     );
 
   return (
     <>
       <div className="section-head">
-        <h2>Quest templates</h2>
+        <h2>{terms.quest.One} templates</h2>
         <span className="section-head__meta">
-          {counts.personal} personal · {counts.global} side · {counts.retired} retired
+          {counts.personal} personal
+          {features.sideQuests ? ` · ${counts.global} side` : ''} · {counts.retired} retired
         </span>
       </div>
 
-      <div className="gm-seg" role="group" aria-label="Which quests">
-        <button type="button" className="gm-seg__btn" aria-pressed={scope === 'personal'} onClick={() => setScope('personal')}>
-          Personal ({counts.personal})
-        </button>
-        <button type="button" className="gm-seg__btn" aria-pressed={scope === 'global'} onClick={() => setScope('global')}>
-          Side quests ({counts.global})
-        </button>
-      </div>
+      {features.sideQuests ? (
+        <div className="gm-seg" role="group" aria-label={`Which ${terms.quest.many}`}>
+          <button type="button" className="gm-seg__btn" aria-pressed={scope === 'personal'} onClick={() => setScope('personal')}>
+            Personal ({counts.personal})
+          </button>
+          <button type="button" className="gm-seg__btn" aria-pressed={scope === 'global'} onClick={() => setScope('global')}>
+            {terms.sideQuest.Many} ({counts.global})
+          </button>
+        </div>
+      ) : null}
 
       <div className="gm-toolbar">
         <div className="field gm-toolbar__search">
           <label className="visually-hidden" htmlFor="tpl-search">
-            Search quests
+            Search {terms.quest.many}
           </label>
           <input id="tpl-search" className="input" type="search" placeholder="Search" value={search} autoComplete="off" onChange={(e) => setSearch(e.target.value)} />
         </div>
@@ -84,7 +89,7 @@ export function TemplatesSection() {
       {shown.length === 0 ? (
         <div className="empty">
           <h3>{needle ? 'No match' : 'Nothing here'}</h3>
-          <p>{needle ? `No quest matches “${search.trim()}”.` : 'Add one with New.'}</p>
+          <p>{needle ? `No ${terms.quest.one} matches “${search.trim()}”.` : 'Add one with New.'}</p>
         </div>
       ) : (
         <ul className="gm-list">
@@ -113,7 +118,7 @@ export function TemplatesSection() {
         </ul>
       )}
 
-      {editing ? <TemplateSheet template={editing === 'new' ? null : editing} defaultScope={scope} onClose={() => setEditing(null)} /> : null}
+      {editing ? <TemplateSheet template={editing === 'new' ? null : editing} defaultScope={shownScope} onClose={() => setEditing(null)} /> : null}
     </>
   );
 }
@@ -124,7 +129,7 @@ function TemplateSheet({ template, defaultScope, onClose }: { template: Doc<Ques
 
   const [title, setTitle] = useState(template?.title ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
-  const [scope, setScope] = useState<TemplateScope>(template?.scope ?? defaultScope);
+  const [scope, setScope] = useState<TemplateScope>(features.sideQuests ? (template?.scope ?? defaultScope) : 'personal');
   const [windowMin, setWindowMin] = useState(template?.windowMin != null ? String(template.windowMin) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,8 +160,8 @@ function TemplateSheet({ template, defaultScope, onClose }: { template: Doc<Ques
       windowMin: isGlobal && windowMin.trim() ? Number(windowMin) : null,
     };
     try {
-      if (template) await updateDoc(doc(db, 'questTemplates', template.id), data);
-      else await addDoc(collection(db, 'questTemplates'), { ...data, active: true });
+      if (template) await backend().data.update(`questTemplates/${template.id}`, data);
+      else await backend().data.add('questTemplates', { ...data, active: true });
       toast(template ? 'Saved.' : 'Added to the deck.', 'success');
       onClose();
     } catch (err) {
@@ -166,19 +171,21 @@ function TemplateSheet({ template, defaultScope, onClose }: { template: Doc<Ques
   };
 
   return (
-    <BottomSheet title={template ? 'Edit quest' : 'New quest'} subtitle={template ? undefined : 'Goes straight into the deck'} onClose={onClose} locked={busy}>
+    <BottomSheet title={template ? `Edit ${terms.quest.one}` : `New ${terms.quest.one}`} subtitle={template ? undefined : 'Goes straight into the deck'} onClose={onClose} locked={busy}>
       <form className="gm-form" onSubmit={(event) => void save(event)} noValidate>
-        <fieldset className="gm-choice gm-choice--row" disabled={busy || template !== null}>
-          <legend className="field__label">Kind{template ? ' (fixed)' : ''}</legend>
-          <label className={`gm-choice__opt${scope === 'personal' ? ' is-selected' : ''}`}>
-            <input type="radio" name="scope" value="personal" className="visually-hidden" checked={scope === 'personal'} onChange={() => setScope('personal')} />
-            <strong>Personal</strong>
-          </label>
-          <label className={`gm-choice__opt${scope === 'global' ? ' is-selected' : ''}`}>
-            <input type="radio" name="scope" value="global" className="visually-hidden" checked={scope === 'global'} onChange={() => setScope('global')} />
-            <strong>Side quest</strong>
-          </label>
-        </fieldset>
+        {features.sideQuests ? (
+          <fieldset className="gm-choice gm-choice--row" disabled={busy || template !== null}>
+            <legend className="field__label">Kind{template ? ' (fixed)' : ''}</legend>
+            <label className={`gm-choice__opt${scope === 'personal' ? ' is-selected' : ''}`}>
+              <input type="radio" name="scope" value="personal" className="visually-hidden" checked={scope === 'personal'} onChange={() => setScope('personal')} />
+              <strong>Personal</strong>
+            </label>
+            <label className={`gm-choice__opt${scope === 'global' ? ' is-selected' : ''}`}>
+              <input type="radio" name="scope" value="global" className="visually-hidden" checked={scope === 'global'} onChange={() => setScope('global')} />
+              <strong>{terms.sideQuest.One}</strong>
+            </label>
+          </fieldset>
+        ) : null}
         <div className="field">
           <label className="field__label" htmlFor="tpl-title">
             Title
@@ -208,7 +215,7 @@ function TemplateSheet({ template, defaultScope, onClose }: { template: Doc<Ques
           </p>
         ) : null}
         <Button type="submit" variant="primary" block busy={busy}>
-          {template ? 'Save changes' : 'Add quest'}
+          {template ? 'Save changes' : `Add ${terms.quest.one}`}
         </Button>
         <Button block variant="ghost" disabled={busy} onClick={onClose}>
           Cancel

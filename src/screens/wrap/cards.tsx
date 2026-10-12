@@ -5,6 +5,7 @@ import { Avatar } from '../../components/Avatar';
 import { useStorageUrl } from '../../data/hooks';
 import type { QuestStatus, Wrap } from '../../shared';
 import { PointsLine } from './PointsLine';
+import { features, pack, t } from '../../pack';
 
 // ---- small pieces -------------------------------------------------------------------------
 
@@ -73,10 +74,10 @@ export function RankCard({ wrap, tiedWith }: { wrap: Wrap; tiedWith: string[] })
         <p className="w-sub">
           <strong>{wrap.displayName}</strong>
           <br />
-          Lancaster Music Festival 2026
+          {pack.name}
         </p>
       </div>
-      <h2 className="w-title">Your quest night</h2>
+      <h2 className="w-title">Your {t.quest.one} night</h2>
       <div className="w-tiles">
         <Tile big value={`#${wrap.rank}`} label={`of ${plural(wrap.playerCount, 'player')}`} />
         <Tile big value={wrap.points} label="points" />
@@ -87,10 +88,16 @@ export function RankCard({ wrap, tiedWith }: { wrap: Wrap; tiedWith: string[] })
         </p>
       ) : null}
       <div className="w-tiles w-tiles--small">
-        <Tile value={wrap.completed.length} label="quests done" />
-        <Tile value={wrap.sideQuestsWon.length} label={wrap.sideQuestsWon.length === 1 ? 'side quest won' : 'side quests won'} />
-        <Tile value={`${wrap.guessStats.hits} of ${wrap.guessStats.made}`} label="guesses hit" />
-        <Tile value={`${exposed}×`} label={exposed === 0 ? 'times exposed' : 'exposed'} />
+        <Tile value={wrap.completed.length} label={`${t.quest.many} done`} />
+        {features.sideQuests ? (
+          <Tile value={wrap.sideQuestsWon.length} label={`${wrap.sideQuestsWon.length === 1 ? t.sideQuest.one : t.sideQuest.many} won`} />
+        ) : null}
+        {features.guesses ? (
+          <>
+            <Tile value={`${wrap.guessStats.hits} of ${wrap.guessStats.made}`} label="guesses hit" />
+            <Tile value={`${exposed}×`} label={exposed === 0 ? 'times exposed' : 'exposed'} />
+          </>
+        ) : null}
       </div>
     </>
   );
@@ -118,10 +125,10 @@ export function CompletedCard({ wrap }: { wrap: Wrap }) {
   const withPhoto = done.filter((c) => c.thumbPath || c.imagePath);
   return (
     <>
-      <p className="w-kicker">Quests completed</p>
+      <p className="w-kicker">{t.quest.Many} completed</p>
       <p className="w-mega">{done.length}</p>
       {done.length === 0 ? (
-        <p className="w-sub">No approved quests this time. The hand was dealt, the night got in the way.</p>
+        <p className="w-sub">No approved {t.quest.many} this time. The hand was dealt, the night got in the way.</p>
       ) : (
         <>
           {withPhoto.length > 0 ? (
@@ -135,7 +142,7 @@ export function CompletedCard({ wrap }: { wrap: Wrap }) {
           ) : null}
           <ul className="w-list">
             {done.slice(0, 5).map((c) => (
-              <li key={c.submissionId}>{c.title || 'Secret quest'}</li>
+              <li key={c.submissionId}>{c.title || `Secret ${t.quest.one}`}</li>
             ))}
             {done.length > 5 ? <li className="w-list__more">+{done.length - 5} more</li> : null}
           </ul>
@@ -151,10 +158,10 @@ export function SideQuestsCard({ wrap }: { wrap: Wrap }) {
   const won = wrap.sideQuestsWon;
   return (
     <>
-      <p className="w-kicker">Side quests won</p>
+      <p className="w-kicker">{t.sideQuest.Many} won</p>
       <p className="w-mega">{won.length}</p>
       {won.length === 0 ? (
-        <p className="w-sub">None this time. Somebody else was faster, or the GM liked their photo more.</p>
+        <p className="w-sub">None this time. Somebody else was faster, or the {t.gm.One} liked their photo more.</p>
       ) : (
         <ul className="w-rows">
           {won.map((g) => (
@@ -182,7 +189,7 @@ export function HandCard({ wrap }: { wrap: Wrap }) {
         {finished} of {hand.length} finished
       </h2>
       {hand.length === 0 ? (
-        <p className="w-sub">No quests were dealt to you.</p>
+        <p className="w-sub">No {t.quest.many} were dealt to you.</p>
       ) : (
         <ul className="w-hand">
           {hand.map((q, i) => {
@@ -279,7 +286,7 @@ export function TopPhotoCard({ wrap }: { wrap: Wrap }) {
       ) : (
         <>
           <p className="w-mega">0</p>
-          <p className="w-sub">No approved quests, so nothing for the crowd to cheer.</p>
+          <p className="w-sub">No approved {t.quest.many}, so nothing for the crowd to cheer.</p>
         </>
       )}
     </>
@@ -324,10 +331,10 @@ export function RerollsCard({ wrap, limit }: { wrap: Wrap; limit: number }) {
       </p>
       <p className="w-sub">
         {used === 0
-          ? 'Not once. Every quest played exactly as dealt.'
+          ? `Not once. Every ${t.quest.one} played exactly as dealt.`
           : used >= allowance
             ? 'Every reroll spent. You wanted a better hand and you went and got one.'
-            : `${plural(used, 'quest')} swapped for something you fancied more.`}
+            : `${plural(used, t.quest.one, t.quest.many)} swapped for something you fancied more.`}
       </p>
     </>
   );
@@ -340,7 +347,7 @@ export function AwardCard({ wrap }: { wrap: Wrap }) {
     <>
       <p className="w-kicker">Your award</p>
       <div className="w-award">
-        <p className="w-award__label">The festival gives you</p>
+        <p className="w-award__label">{pack.name} gives you</p>
         <h2 className="w-award__title">{wrap.award.title}</h2>
         <p className="w-award__desc">{wrap.award.description}</p>
       </div>
@@ -355,9 +362,9 @@ export function AwardCard({ wrap }: { wrap: Wrap }) {
 export function MissingWrapCard() {
   return (
     <>
-      <p className="w-kicker">Your wrap</p>
+      <p className="w-kicker">Your {t.wrap.one.toLowerCase()}</p>
       <h2 className="w-title">Not ready</h2>
-      <p className="w-sub">Your own story isn&apos;t here yet. Ask the GM to check the game was ended properly. The group finale is next.</p>
+      <p className="w-sub">Your own story isn&apos;t here yet. Ask the {t.gm.One} to check the game was ended properly. The group finale is next.</p>
     </>
   );
 }

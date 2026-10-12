@@ -1,10 +1,9 @@
-import { collection, query, where } from 'firebase/firestore';
 import { useMemo } from 'react';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
-import { tsMs, useCollection } from '../../data/hooks';
-import { db } from '../../firebase';
+import { tsMs, useQuery } from '../../data/hooks';
 import { playerRecord, type PlayerRecord } from '../../lib/record';
 import type { Doc, LedgerEntry, Submission } from '../../shared';
+import { t } from '../../pack';
 
 /** A side quest the player won (one 'global-win' ledger line). */
 export interface SideWin {
@@ -48,7 +47,7 @@ export interface PlayerData {
 export function usePlayerData(player: RankedPlayer): PlayerData {
   const { approved, globalQuests, feed } = useGame();
   const uid = player.id;
-  const ledgerQ = useCollection<LedgerEntry>(`ledger:${uid}`, () => query(collection(db, 'pointsLedger'), where('uid', '==', uid)));
+  const ledgerQ = useQuery<LedgerEntry>({ path: 'pointsLedger', where: [['uid', '==', uid]] });
 
   const ledger = useMemo(() => [...ledgerQ.data].sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)), [ledgerQ.data]);
   const theirs = useMemo(() => approved.filter((s) => s.uid === uid), [approved, uid]);
@@ -71,7 +70,7 @@ export function usePlayerData(player: RankedPlayer): PlayerData {
         return {
           id: e.id,
           submission: sub,
-          title: sub?.questTitle ?? quest?.title ?? 'Side quest',
+          title: sub?.questTitle ?? quest?.title ?? t.sideQuest.One,
           bonus: e.delta,
           votes: votesFor(sub),
           atMs: tsMs(e.createdAt),
@@ -81,7 +80,7 @@ export function usePlayerData(player: RankedPlayer): PlayerData {
     const wonIds = new Set(wins.map((w) => w.submission?.id).filter(Boolean));
     const alsoEntered: SideEntry[] = theirs
       .filter((s) => s.kind === 'global' && !wonIds.has(s.id))
-      .map((s) => ({ id: s.id, title: s.questTitle ?? questById.get(s.questId)?.title ?? 'Side quest', votes: votesFor(s) }));
+      .map((s) => ({ id: s.id, title: s.questTitle ?? questById.get(s.questId)?.title ?? t.sideQuest.One, votes: votesFor(s) }));
 
     const postReactions = new Map(feed.map((p) => [p.id, p.reactionCount ?? 0]));
     const reactions = new Map<string, number>();

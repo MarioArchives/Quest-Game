@@ -1,10 +1,10 @@
-import { doc, onSnapshot, type DocumentData, type Query } from 'firebase/firestore';
-import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { useEffect, useRef, useState } from 'react';
-import { db, storage } from '../firebase';
+import { backend } from '../backend';
+import { querySpecKey } from '../backend/query';
+import type { QuerySpec } from '../backend/types';
 import type { Doc } from '../shared';
 
-/** Epoch ms from a Firestore Timestamp (or anything with toMillis); 0 when missing. */
+/** Epoch ms from a Stamp (or anything with toMillis); 0 when missing. */
 export function tsMs(value: unknown): number {
   if (value && typeof value === 'object' && 'toMillis' in value && typeof value.toMillis === 'function') {
     return (value as { toMillis(): number }).toMillis();
@@ -19,7 +19,7 @@ export interface DocState<T> {
 }
 
 /** Live document by path ("game/state"). Pass null to stay idle. */
-export function useDocument<T = DocumentData>(path: string | null): DocState<T> {
+export function useDocument<T = Record<string, unknown>>(path: string | null): DocState<T> {
   const [state, setState] = useState<DocState<T>>({ data: null, loading: path !== null, error: null });
 
   useEffect(() => {
@@ -28,16 +28,9 @@ export function useDocument<T = DocumentData>(path: string | null): DocState<T> 
       return;
     }
     setState((prev) => (prev.loading ? prev : { data: null, loading: true, error: null }));
-    return onSnapshot(
-      doc(db, path),
-      { includeMetadataChanges: false },
-      (snap) => {
-        setState({
-          data: snap.exists() ? ({ id: snap.id, ...snap.data({ serverTimestamps: 'estimate' }) } as Doc<T>) : null,
-          loading: false,
-          error: null,
-        });
-      },
+    return backend().data.watchDoc<T>(
+      path,
+      (data) => setState({ data, loading: false, error: null }),
       (error) => setState({ data: null, loading: false, error }),
     );
   }, [path]);
@@ -52,29 +45,24 @@ export interface ListState<T> {
 }
 
 /**
- * Live query. `key` identifies the query (re-subscribes when it changes); `build` creates it.
- * Pass key = null to stay idle (for example until the uid is known).
+ * Live query. Re-subscribes only when the query really changes (compared by its key).
+ * Pass null to stay idle (for example until the uid is known).
  */
-export function useCollection<T = DocumentData>(key: string | null, build: () => Query): ListState<T> {
+export function useQuery<T = Record<string, unknown>>(spec: QuerySpec | null): ListState<T> {
+  const key = spec ? querySpecKey(spec) : null;
   const [state, setState] = useState<ListState<T>>({ data: [], loading: key !== null, error: null });
-  const buildRef = useRef(build);
-  buildRef.current = build;
+  const specRef = useRef(spec);
+  specRef.current = spec;
 
   useEffect(() => {
-    if (key === null) {
+    if (key === null || !specRef.current) {
       setState({ data: [], loading: false, error: null });
       return;
     }
     setState((prev) => (prev.loading ? prev : { data: [], loading: true, error: null }));
-    return onSnapshot(
-      buildRef.current(),
-      (snap) => {
-        setState({
-          data: snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as Doc<T>),
-          loading: false,
-          error: null,
-        });
-      },
+    return backend().data.watchQuery<T>(
+      specRef.current,
+      (data) => setState({ data, loading: false, error: null }),
       (error) => setState({ data: [], loading: false, error }),
     );
   }, [key]);
@@ -99,7 +87,7 @@ const urlCache = new Map<string, Promise<string>>();
 export function resolveStorageUrl(path: string): Promise<string> {
   let pending = urlCache.get(path);
   if (!pending) {
-    pending = getDownloadURL(storageRef(storage, path));
+    pending = backend().files.url(path);
     // Do not cache failures: the object may simply not be uploaded yet.
     pending.catch(() => urlCache.delete(path));
     urlCache.set(path, pending);

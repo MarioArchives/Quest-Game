@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AshtonLoader } from './AshtonLoader';
+import { Loader } from './Loader';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { useModal } from './useModal';
@@ -117,7 +117,7 @@ export function CameraSheet({ title, facing, onCapture, onClose, onUseFile }: Ca
           ) : (
             <video ref={videoRef} className={`camera__media${mode === 'user' ? ' is-mirrored' : ''}`} playsInline muted aria-hidden />
           )}
-          {!shot && !live && !error ? <AshtonLoader size={64} on="ink" label="Starting the camera" className="camera__loader" /> : null}
+          {!shot && !live && !error ? <Loader size={64} on="ink" label="Starting the camera" className="camera__loader" /> : null}
           {error ? (
             <div className="camera__error" role="alert">
               <p>{error}</p>

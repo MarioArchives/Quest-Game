@@ -1,0 +1,331 @@
+// The demo game, as plain data: four players with hands, claims, reactions, a feed and (when the pack has them)
+// a live side quest and map pins. The seed script writes it to Firestore; the mock backend loads it into memory.
+// Pure and deterministic: same pack, settings and nowMs give the same output. No Node APIs, no clock, no Math.random.
+import type { CatalogueQuest, GamePack } from '../packs/types.ts';
+import { termForms } from '../packs/terms.ts';
+import { Stamp } from '../store/stamp.ts';
+import type { DocData } from '../store/types.ts';
+import type { Settings } from '../types.ts';
+import { BOTS, hashString, mulberry32, REACTIONS, shuffled } from './bots.ts';
+import { posterSvg } from './poster.ts';
+
+export interface DemoFile {
+  path: string;
+  contentType: string;
+  /** The file's text (demo posters are SVG). */
+  text: string;
+}
+
+export interface DemoGame {
+  /** Documents to write, by path (only ones that don't exist yet should be written). */
+  docs: Array<{ path: string; data: DocData }>;
+  /** Files to store (demo photo posters). */
+  files: DemoFile[];
+  /** The demo players' uids, display names first. */
+  players: Array<{ uid: string; displayName: string }>;
+}
+
+export interface DemoOptions {
+  pack: GamePack;
+  settings: Settings;
+  /** "Now" in epoch ms; every time in the demo is relative to it. */
+  nowMs: number;
+}
+
+export const DEMO_SIDE_QUEST = 'demo-side';
+const SIDE_QUEST = DEMO_SIDE_QUEST;
+const SVG = 'image/svg+xml';
+
+export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
+  const T = termForms(pack.terms);
+  const { personal, global: sideQuests } = pack.catalogue;
+  const questPoints = settings.questPoints;
+  const rejectPenalty = settings.rejectPenalty;
+  const sidePoints = settings.sideQuestPoints;
+  const windowMin = settings.globalWindowMin;
+  const handSize = settings.starterQuestCount;
+  const at = (minutesAgo: number): Stamp => Stamp.fromMillis(nowMs - minutesAgo * 60_000);
+
+  const entries: Array<[string, DocData]> = [];
+  const files: DemoFile[] = [];
+  const postIds = new Set<string>();
+  let timeline = 200; // minutes ago; each event is a bit more recent than the last
+
+  // Witnesses are always other bots: bot i is vouched for by bot i+1, i+2, ... in turn (never itself).
+  const witnessFor = (botIndex: number, n: number) => BOTS[(botIndex + 1 + ((n - 1) % (BOTS.length - 1))) % BOTS.length];
+  const claimOf = (t: CatalogueQuest, witnessUid: string) => ({ witnessUid, claimTitle: t.title, claimDescription: t.description });
+  const pushPhoto = (path: string, thumbPath: string, title: string, who: string) => {
+    files.push({ path, contentType: SVG, text: posterSvg({ title, who, width: 1200, height: 900, name: pack.name }) });
+    files.push({ path: thumbPath, contentType: SVG, text: posterSvg({ title, who, width: 400, height: 300, name: pack.name }) });
+  };
+
+  /** Feed post, with its reactions (reactionCount is kept in step with them). */
+  const pushPost = (id: string, createdAt: Stamp, fields: DocData) => {
+    postIds.add(id);
+    const reactions = REACTIONS[id] ?? [];
+    entries.push([`feed/${id}`, { ...fields, createdAt, reactionCount: reactions.length }]);
+    reactions.forEach(([uid, emoji]: [string, string], i: number) => {
+      entries.push([`feed/${id}/reactions/${uid}`, { emoji, createdAt: Stamp.fromMillis(createdAt.toMillis() + (i + 1) * 90_000) }]);
+    });
+  };
+
+  for (const [botIndex, bot] of BOTS.entries()) {
+    const rng = mulberry32(hashString(bot.uid));
+    const deck = shuffled(personal, rng);
+    const needed = handSize + bot.done.length + bot.rerolls + (bot.rejected ? 1 : 0);
+    if (deck.length < needed) throw new Error(`Not enough personal ${T.quest.many} in the ${pack.id} catalogue for ${bot.name}`);
+    const take = (n: number) => deck.splice(0, n);
+
+    const live = take(handSize); // the current hand: q1.. (a fresh quest is dealt whenever one is completed or rejected)
+    const done = take(bot.done.length);
+    const replaced = take(bot.rerolls);
+    const rejectedQuest = bot.rejected ? take(1)[0] : undefined;
+
+    const questData = (t: CatalogueQuest, status: string, minutesAgo: number, extra: DocData = {}) => ({
+      templateId: t.id,
+      title: t.title,
+      description: t.description,
+      status,
+      assignedAt: at(minutesAgo),
+      submissionId: null,
+      completedAt: null,
+      exposedBy: null,
+      exposedAt: null,
+      ...extra,
+    });
+    const questRef = (id: string) => `players/${bot.uid}/quests/${id}`;
+    const pending = bot.submitted ? `${bot.uid}-pending` : null;
+    const rejectedId = bot.rejected ? `${bot.uid}-rejected` : null;
+
+    entries.push([
+      `players/${bot.uid}`,
+      {
+        displayName: bot.name,
+        photoURL: null,
+        joinedAt: at(240),
+        points: questPoints * bot.done.length - (bot.rejected ? rejectPenalty : 0),
+        rerollsUsed: bot.rerolls,
+        questsCompleted: bot.done.length,
+      },
+    ]);
+    pushPost(`join-${bot.uid}`, at(240), { type: 'join', text: `${bot.name} joined the game`, uid: bot.uid, ref: null });
+
+    // Live hand: mostly active; the last quest is "submitted" while its claim waits for the witness.
+    live.forEach((t: CatalogueQuest, i: number) => {
+      const isSubmitted = pending && i === live.length - 1;
+      entries.push([
+        questRef(`q${i + 1}`),
+        questData(t, isSubmitted ? 'submitted' : 'active', 230 - i * 5, { submissionId: isSubmitted ? pending : null }),
+      ]);
+    });
+    replaced.forEach((t: CatalogueQuest, i: number) => entries.push([questRef(`rr${i + 1}`), questData(t, 'replaced', 235 - i * 5)]));
+
+    // Completed quests: claimed with no photo, approved by a bot witness, evidence added afterwards.
+    done.forEach((t: CatalogueQuest, i: number) => {
+      const n = i + 1;
+      const d = bot.done[i];
+      const subId = `${bot.uid}-${n}`;
+      const minutesAgo = (timeline -= 11);
+      const witness = witnessFor(botIndex, n);
+      const withPhoto = d.evidence === 'photo';
+      const imagePath = withPhoto ? `submissions/${bot.uid}/${subId}.jpg` : null;
+      const thumbPath = withPhoto ? `submissions/${bot.uid}/${subId}_thumb.jpg` : null;
+      const caption = d.evidence ? d.caption : null;
+      const postId = `approved-${subId}`;
+
+      entries.push([questRef(`done${n}`), questData(t, 'done', 235 - i * 5, { submissionId: subId, completedAt: at(minutesAgo - 3) })]);
+      entries.push([
+        `submissions/${subId}`,
+        {
+          uid: bot.uid,
+          kind: 'personal',
+          questId: `done${n}`,
+          ...claimOf(t, witness.uid),
+          createdAt: at(minutesAgo + 4),
+          status: 'approved',
+          imagePath,
+          thumbPath,
+          caption,
+          evidenceAt: d.evidence ? at(minutesAgo - 3) : null,
+          feedId: postId,
+          processedAt: at(minutesAgo + 4),
+          pointsAwarded: questPoints,
+          reviewedBy: witness.uid,
+          reviewedAt: at(minutesAgo),
+          reviewNote: d.note,
+          rejectReason: null,
+          questTitle: t.title,
+          refillQuestId: `q${n}`,
+        },
+      ]);
+      entries.push([
+        `pointsLedger/ledger-${subId}`,
+        { uid: bot.uid, delta: questPoints, reason: 'quest', ref: subId, by: witness.uid, note: d.note, createdAt: at(minutesAgo) },
+      ]);
+      pushPost(postId, at(minutesAgo), {
+        type: 'approved',
+        text: `${bot.name} completed "${t.title}" — witnessed by ${witness.name}`,
+        uid: bot.uid,
+        ref: subId,
+        photoURL: null,
+        points: questPoints,
+        actorUid: witness.uid,
+        note: d.note,
+        questTitle: t.title,
+        submissionId: subId,
+        imagePath,
+        thumbPath,
+        caption,
+      });
+      if (imagePath && thumbPath) pushPhoto(imagePath, thumbPath, t.title, bot.name);
+    });
+
+    // A claim its witness turned down: -rejectPenalty, the quest swapped for a fresh one (no reroll cost).
+    if (bot.rejected) {
+      const t = rejectedQuest!;
+      const witness = BOTS.find((x) => x.uid === bot.rejected!.witness)!;
+      const minutesAgo = (timeline -= 11);
+      const postId = `rejected-${rejectedId}`;
+      entries.push([questRef('rej1'), questData(t, 'replaced', 220, { submissionId: rejectedId })]);
+      entries.push([
+        `submissions/${rejectedId}`,
+        {
+          uid: bot.uid,
+          kind: 'personal',
+          questId: 'rej1',
+          ...claimOf(t, witness.uid),
+          createdAt: at(minutesAgo + 3),
+          status: 'rejected',
+          imagePath: null,
+          thumbPath: null,
+          caption: null,
+          feedId: postId,
+          processedAt: at(minutesAgo + 3),
+          pointsAwarded: 0,
+          reviewedBy: witness.uid,
+          reviewedAt: at(minutesAgo),
+          reviewNote: bot.rejected.note,
+          rejectReason: null,
+        },
+      ]);
+      entries.push([
+        `pointsLedger/ledger-${rejectedId}`,
+        { uid: bot.uid, delta: -rejectPenalty, reason: 'rejected', ref: rejectedId, by: witness.uid, note: bot.rejected.note, createdAt: at(minutesAgo) },
+      ]);
+      pushPost(postId, at(minutesAgo), {
+        type: 'rejected',
+        text: `${witness.name} rejected ${bot.name}'s ${T.claim.one} "${t.title}"`,
+        uid: bot.uid,
+        ref: rejectedId,
+        photoURL: null,
+        points: -rejectPenalty,
+        actorUid: witness.uid,
+        note: bot.rejected.note,
+        questTitle: t.title,
+        submissionId: rejectedId,
+      });
+    }
+
+    // One bot has a claim waiting for its witness (processedAt is set so the functions trigger leaves it alone).
+    if (bot.submitted) {
+      const t = live[live.length - 1];
+      entries.push([
+        `submissions/${pending}`,
+        {
+          uid: bot.uid,
+          kind: 'personal',
+          questId: `q${live.length}`,
+          ...claimOf(t, bot.submitted.witness),
+          createdAt: at(6),
+          status: 'pending',
+          processedAt: at(6),
+        },
+      ]);
+    }
+
+  }
+
+  // A live side quest with two entries (no witness: everyone votes once voting opens). Only when the pack has them.
+  if (pack.features.sideQuests && sideQuests.length > 0) {
+    const template = sideQuests.find((q) => q.id === 'g-album-cover') ?? sideQuests[0];
+    const side = {
+      title: template.title,
+      description: template.description,
+      bonusPoints: sidePoints,
+      source: 'gm-random',
+      templateId: template.id,
+      startsAt: at(5),
+      endsAt: Stamp.fromMillis(nowMs - 5 * 60_000 + windowMin * 60_000),
+      status: 'live',
+      votingEndsAt: null,
+      winnerUids: [],
+      winningSubmissionIds: [],
+      tally: null,
+    };
+    entries.push([`globalQuests/${SIDE_QUEST}`, side]);
+    pushPost('side-open', at(5), { type: 'global-open', text: `New ${T.sideQuest.one}: ${side.title}`, uid: null, ref: SIDE_QUEST });
+    const sideEntrants = [
+      { bot: BOTS[0], caption: 'Moody. Very moody.', minutesAgo: 4 },
+      { bot: BOTS[1], caption: 'Sam on lead vocals, obviously.', minutesAgo: 2 },
+    ];
+    for (const { bot, caption, minutesAgo } of sideEntrants) {
+      const subId = `${bot.uid}-side`;
+      const imagePath = `submissions/${bot.uid}/${subId}.jpg`;
+      const thumbPath = `submissions/${bot.uid}/${subId}_thumb.jpg`;
+      const postId = `entry-${subId}`;
+      entries.push([
+        `submissions/${subId}`,
+        {
+          uid: bot.uid,
+          kind: 'global',
+          questId: SIDE_QUEST,
+          createdAt: at(minutesAgo),
+          status: 'approved',
+          imagePath,
+          thumbPath,
+          caption,
+          evidenceAt: at(minutesAgo),
+          feedId: postId,
+          processedAt: at(minutesAgo),
+          pointsAwarded: 0,
+          questTitle: side.title,
+        },
+      ]);
+      pushPost(postId, at(minutesAgo), {
+        type: 'approved',
+        text: `${bot.name} entered the ${T.sideQuest.one} "${side.title}"`,
+        uid: bot.uid,
+        ref: subId,
+        photoURL: null,
+        questTitle: side.title,
+        submissionId: subId,
+        imagePath,
+        thumbPath,
+        caption,
+      });
+      pushPhoto(imagePath, thumbPath, side.title, bot.name);
+    }
+  }
+
+  // Reactions only make sense on posts that exist; a typo in REACTIONS would silently drop them, so say so.
+  for (const id of Object.keys(REACTIONS)) if (!postIds.has(id) && !(id.startsWith('entry-') && !pack.features.sideQuests)) throw new Error(`REACTIONS refers to a post that is not seeded: ${id}`);
+
+  // Reactions only make sense on posts that exist; a typo in REACTIONS would silently drop them, so say so.
+  for (const id of Object.keys(REACTIONS)) {
+    if (!postIds.has(id) && !(id.startsWith('entry-') && !pack.features.sideQuests)) throw new Error(`REACTIONS refers to a post that is not seeded: ${id}`);
+  }
+
+  // Map pins around the pack's centre, only for packs with a map.
+  if (pack.features.map && pack.map) {
+    const { lat, lng } = pack.map.centre;
+    for (const bot of BOTS) {
+      entries.push([`locations/${bot.uid}`, { lat: lat + bot.offset[0], lng: lng + bot.offset[1], accuracy: 10, updatedAt: at(0) }]);
+    }
+  }
+
+  return {
+    docs: entries.map(([path, data]) => ({ path, data })),
+    files,
+    players: BOTS.map((b) => ({ uid: b.uid, displayName: b.name })),
+  };
+}

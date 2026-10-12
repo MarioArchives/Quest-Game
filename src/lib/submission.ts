@@ -1,7 +1,7 @@
 // What a claim looks like on the wire. The security rules check this exact field list
 // (hasOnly / hasAll), so it is decided in one place.
-import { collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { backend } from '../backend';
+import { SERVER_TIME } from '../backend/types';
 
 export interface ClaimInput {
   uid: string;
@@ -21,17 +21,17 @@ export function buildSubmissionDoc({ uid, questId, witnessUid }: ClaimInput) {
     kind: 'personal' as const,
     questId,
     witnessUid,
-    createdAt: serverTimestamp(),
+    createdAt: SERVER_TIME,
     status: 'pending' as const,
   };
 }
 
 /** A fresh submission id (so a retry after a network blip writes the same document). */
 export function newSubmissionId(): string {
-  return doc(collection(db, 'submissions')).id;
+  return backend().data.newId('submissions');
 }
 
 /** The ONE place that writes a claim (a server trigger then processes it). */
 export function writeSubmission(id: string, data: ReturnType<typeof buildSubmissionDoc>): Promise<void> {
-  return setDoc(doc(db, 'submissions', id), data);
+  return backend().data.set(`submissions/${id}`, data);
 }

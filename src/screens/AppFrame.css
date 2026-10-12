@@ -17,7 +17,7 @@
   z-index: 100;
   padding: 10px 14px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   font-weight: 800;
 }
 .skip-link:focus { top: 8px; }
@@ -33,7 +33,7 @@
 .appbar__right { display: flex; align-items: center; gap: 8px; flex: none; }
 .appbar__points { border-width: 0; padding: 6px 10px; font-size: 16px; }
 .appbar__avatar { padding: 0; border: 0; background: none; border-radius: 50%; display: inline-flex; text-decoration: none; }
-.appbar__avatar:hover .avatar { outline: 2px solid var(--red); outline-offset: 1px; }
+.appbar__avatar:hover .avatar { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .app__main {
   flex: 1;
@@ -63,17 +63,17 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  color: #fff;
+  color: var(--on-ink);
   text-decoration: none;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  --ring: #fff;
+  --ring: var(--on-ink);
 }
 .tabbar[data-count='5'] .tabbar__tab { letter-spacing: 0.06em; }
-.tabbar__tab:hover { background: #2a2a2a; }
-.tabbar__tab.is-active { background: var(--red); color: #fff; }
+.tabbar__tab:hover { background: var(--ink-hover); }
+.tabbar__tab.is-active { background: var(--accent); color: var(--on-accent); }
 .tabbar__tab span { line-height: 1; }
 
 .tabbar__icon { position: relative; display: inline-flex; }
@@ -81,8 +81,8 @@
   position: absolute;
   top: -4px; right: -7px;
   width: 12px; height: 12px;
-  background: var(--red);
-  border: 2px solid #fff;
+  background: var(--accent);
+  border: 2px solid var(--on-accent);
   border-radius: 50%;
 }
-.tabbar__tab.is-active .tabbar__dot { background: #fff; border-color: var(--ink); }
+.tabbar__tab.is-active .tabbar__dot { background: var(--card); border-color: var(--ink); }

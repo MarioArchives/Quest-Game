@@ -1,13 +1,14 @@
 import { lazy } from 'react';
 import { createHashRouter, Navigate } from 'react-router';
+import { features } from './pack';
 import { AppFrame } from './screens/AppFrame';
 import Dashboard from './screens/Dashboard';
 import { RequireAdmin } from './screens/guards';
 import { RouteError } from './screens/RouteError';
 
-// Heavier / rarer screens are split out and show the Ashton loader while they load.
+// Heavier / rarer screens are split out and show the loader while they load.
 const AccountScreen = lazy(() => import('./screens/AccountScreen'));
-const MapScreen = lazy(() => import('./screens/MapScreen'));
+const MapScreen = lazy(() => import('./modules/map/MapScreen'));
 const GMConsole = lazy(() => import('./screens/gm/GMConsole'));
 const WrapScreen = lazy(() => import('./screens/WrapScreen'));
 const JoinScreen = lazy(() => import('./screens/JoinScreen'));
@@ -22,7 +23,8 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'account', element: <AccountScreen /> },
-      { path: 'map', element: <MapScreen /> },
+      // The map only exists in packs that switch it on.
+      features.map ? { path: 'map', element: <MapScreen /> } : { path: 'map', element: <Navigate to="/" replace /> },
       // The full leaderboard, and any player's record (photos, quests done and failed, points history).
       { path: 'standings', element: <StandingsScreen /> },
       { path: 'player/:uid', element: <PlayerScreen /> },

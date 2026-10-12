@@ -1,12 +1,10 @@
-import { collection, query, where } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { db } from '../firebase';
 import { tabBadges } from '../lib/badges';
 import { isEvidenceSkipped, skipVersion, subscribeSkips } from '../lib/evidenceSkip';
 import { useSession } from '../session/SessionProvider';
 import type { JoinRequest } from '../shared';
 import { useGame } from './GameProvider';
-import { tsMs, useCollection, useNow } from './hooks';
+import { tsMs, useNow, useQuery } from './hooks';
 
 type SeenTab = 'home' | 'account' | 'wrap';
 type Seen = Partial<Record<SeenTab, number>>;
@@ -41,9 +39,7 @@ export function useTabBadges(pathname: string): { home: boolean; account: boolea
   // Re-render when an evidence banner is dismissed.
   const skipVer = useSyncExternalStore(subscribeSkips, skipVersion);
 
-  const joins = useCollection<JoinRequest>(isAdmin ? 'gm:badge-joins' : null, () =>
-    query(collection(db, 'joinRequests'), where('status', '==', 'pending')),
-  );
+  const joins = useQuery<JoinRequest>(isAdmin ? { path: 'joinRequests', where: [['status', '==', 'pending']] } : null);
 
   const [seen, setSeen] = useState<Seen>(() => readSeen(uid));
   useEffect(() => setSeen(readSeen(uid)), [uid]);

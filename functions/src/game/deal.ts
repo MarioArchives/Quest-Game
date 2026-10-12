@@ -1,5 +1,5 @@
 // Dealing personal quests: a player never gets a template they have ever held (any status).
-import type { Transaction } from 'firebase-admin/firestore';
+import type { Txn } from '../shared/store/types.js';
 import type { QuestTemplate } from '../shared/types.js';
 import type { Db } from './context.js';
 import { toTs } from './util.js';
@@ -19,7 +19,7 @@ export interface Dealing {
 }
 
 /** Reads the player's dealing state. Reads only; call before any write. */
-export async function readDealing(tx: Transaction, db: Db, uid: string): Promise<Dealing> {
+export async function readDealing(tx: Txn, db: Db, uid: string): Promise<Dealing> {
   const templates = await tx.get(
     db.collection('questTemplates').where('scope', '==', 'personal').where('active', '==', true),
   );
@@ -34,7 +34,7 @@ export async function readDealing(tx: Transaction, db: Db, uid: string): Promise
 }
 
 /** Active personal templates the player has never held. Reads only; call before any write. */
-export async function readFreshTemplates(tx: Transaction, db: Db, uid: string): Promise<FreshTemplate[]> {
+export async function readFreshTemplates(tx: Txn, db: Db, uid: string): Promise<FreshTemplate[]> {
   return (await readDealing(tx, db, uid)).pool;
 }
 
@@ -43,7 +43,7 @@ export async function readFreshTemplates(tx: Transaction, db: Db, uid: string): 
  * removed from the pool so repeated calls in one transaction never duplicate. Returns the new quest ids.
  */
 export function dealFrom(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
   now: Date,
   rng: () => number,
@@ -63,6 +63,7 @@ export function dealFrom(
       status: 'active',
       assignedAt: toTs(now),
       submissionId: null,
+      ...(typeof picked.template.points === 'number' ? { points: picked.template.points } : {}),
     });
     ids.push(ref.id);
   }
@@ -75,7 +76,7 @@ export function dealFrom(
  * Returns the new quest id, or null when nothing was dealt (full hand or no fresh template left).
  */
 export function dealReplacement(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
   now: Date,
   rng: () => number,

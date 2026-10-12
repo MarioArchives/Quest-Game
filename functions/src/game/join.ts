@@ -1,6 +1,6 @@
 import type { JoinRequest, Settings } from '../shared/types.js';
 import { DISPLAY_NAME_MAX } from '../shared/settings.js';
-import type { Transaction } from 'firebase-admin/firestore';
+import type { Txn } from '../shared/store/types.js';
 import type { Ctx, Db } from './context.js';
 import { GM_CONSOLE, type PushPlan } from './push.js';
 import { dealFrom, readFreshTemplates, type FreshTemplate } from './deal.js';
@@ -17,7 +17,7 @@ const PHOTO_URL_MAX = 2048;
 
 /** What admitting a player needs from the database. Reads only: call before any write. */
 async function readAdmission(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
   uid: string,
 ): Promise<{ settings: Settings; pool: FreshTemplate[] }> {
@@ -28,7 +28,7 @@ async function readAdmission(
 
 /** Makes someone a player: the player doc, the starter hand and the join post. Writes only. */
 function admitPlayer(
-  tx: Transaction,
+  tx: Txn,
   db: Db,
   now: Date,
   rng: () => number,

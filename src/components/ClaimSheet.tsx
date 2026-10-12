@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { friendlyError } from '../api';
 import { useGame } from '../data/GameProvider';
-import { auth } from '../firebase';
 import { buildSubmissionDoc, newSubmissionId, writeSubmission } from '../lib/submission';
 import type { Doc, Quest } from '../shared';
 import { BottomSheet } from './BottomSheet';
@@ -9,6 +8,8 @@ import { Button } from './Button';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
 import { readLastWitness, rememberWitness, WitnessPicker } from './WitnessPicker';
+import { t } from '../pack';
+import { backend } from '../backend';
 
 /**
  * Claim a quest: read what it asks, name the friend who saw you do it, send. The witness approves or
@@ -17,7 +18,7 @@ import { readLastWitness, rememberWitness, WitnessPicker } from './WitnessPicker
 export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): void }) {
   const toast = useToast();
   const { state, activePlayers, settings } = useGame();
-  const myUid = auth.currentUser?.uid ?? '';
+  const myUid = backend().auth.current()?.uid ?? '';
   // Last time's witness is pre-selected (if they are still a player); the player can change it.
   const [chosen, setChosen] = useState<string | null>(() => readLastWitness(myUid));
   const witness = activePlayers.find((p) => p.id === chosen && p.id !== myUid) ?? null;
@@ -44,10 +45,10 @@ export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): v
   };
 
   return (
-    <BottomSheet title={quest.title} subtitle="Claim this quest" onClose={onClose} locked={busy}>
+    <BottomSheet title={quest.title} subtitle={`${t.claim.One} this ${t.quest.one}`} onClose={onClose} locked={busy}>
       {!active ? (
         <p className="note" role="status">
-          The game isn&apos;t running right now, so claims can&apos;t be sent yet.
+          The game isn&apos;t running right now, so {t.claim.many} can&apos;t be sent yet.
         </p>
       ) : null}
       {quest.description ? <p className="claim__desc">{quest.description}</p> : null}
@@ -55,7 +56,7 @@ export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): v
         <WitnessPicker myUid={myUid} value={witness?.id ?? null} onChange={setChosen} disabled={busy} />
         <span className="field__hint">
           Pick a friend who saw you do it. They approve (you earn +{settings.questPoints}) or reject (you lose {settings.rejectPenalty} and get a
-          fresh quest). You can&apos;t approve your own, and neither can the GM. Add a photo or a comment once it&apos;s approved.
+          fresh {t.quest.one}). You can&apos;t approve your own, and neither can the {t.gm.One}. Add a photo or a comment once it&apos;s approved.
         </span>
       </div>
       {error ? (
@@ -64,7 +65,7 @@ export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): v
         </p>
       ) : null}
       <Button variant="primary" block busy={busy} disabled={!active || !witness} icon={<Icon name="send" size={20} strokeWidth={2.2} />} onClick={() => void send()}>
-        {error ? 'Retry' : witness ? `Send to ${witness.displayName}` : 'Choose a witness'}
+        {error ? 'Retry' : witness ? `Send to ${witness.displayName}` : `Choose a ${t.witness.one}`}
       </Button>
     </BottomSheet>
   );

@@ -3,6 +3,7 @@ import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
+import { t } from '../../pack';
 import type { Doc, JoinRequest } from '../../shared';
 import { useGmData } from './GmData';
 import { useRunner } from './common';
@@ -16,7 +17,7 @@ export function JoinSection() {
     void run(
       `${approve ? 'yes' : 'no'}:${req.id}`,
       () => reviewJoinRequest({ uid: req.id, approve }),
-      approve ? `${req.displayName} is in. Their quests are dealt.` : `${req.displayName} turned away.`,
+      approve ? `${req.displayName} is in. Their ${t.quest.many} are dealt.` : `${req.displayName} turned away.`,
     );
 
   return (
@@ -33,7 +34,7 @@ export function JoinSection() {
       ) : loading ? null : pendingJoins.length === 0 ? (
         <div className="empty">
           <h3>Nobody waiting</h3>
-          <p>New requests show up here the moment someone signs in and asks to join. GMs need no approval: they join the moment they ask.</p>
+          <p>New requests show up here the moment someone signs in and asks to join. {t.gm.Many} need no approval: they join the moment they ask.</p>
         </div>
       ) : (
         <ul className="gm-list">

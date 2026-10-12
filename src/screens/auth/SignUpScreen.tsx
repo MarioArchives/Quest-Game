@@ -1,8 +1,10 @@
+import look from '@pack';
 import { useState, type FormEvent } from 'react';
 import { friendlyError, requestJoin, type JoinStatus } from '../../api';
 import { AvatarPicker, type AvatarChoice } from '../../components/AvatarPicker';
 import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
+import { t } from '../../pack';
 import { uploadAvatar } from '../../lib/upload';
 import { useSession } from '../../session/SessionProvider';
 import { DISPLAY_NAME_MAX } from '../../shared';
@@ -58,7 +60,7 @@ export function SignUpScreen({ onCancel, onDone, bare = false }: SignUpScreenPro
 
   return (
     <div className={`auth${bare ? ' auth--bare' : ''}`}>
-      {bare ? null : <PosterHeader sticker="Secret side quests" />}
+      {bare ? null : <PosterHeader sticker={look.auth.sticker} />}
       <Main className={`auth__main${bare ? ' auth__main--bare' : ''}`}>
         <p className="auth__signed">
           <Icon name="check" size={20} strokeWidth={2.5} />
@@ -69,7 +71,7 @@ export function SignUpScreen({ onCancel, onDone, bare = false }: SignUpScreenPro
         </p>
         <form className="auth__form" onSubmit={submit}>
           <section className="auth__card" aria-labelledby="face-title">
-            <h2 id="face-title">Your festival face</h2>
+            <h2 id="face-title">{look.auth.signUpTitle}</h2>
             <AvatarPicker name={trimmed || user?.displayName || '?'} value={avatar} onChange={setAvatar} presets={presets} onError={setError} />
             <div className="field">
               <label className="field__label" htmlFor="display-name">
@@ -101,7 +103,9 @@ export function SignUpScreen({ onCancel, onDone, bare = false }: SignUpScreenPro
             {joinRequest && !bare ? 'Update my request' : 'Join the game'}
           </Button>
           <p className="auth__fine">
-            {bare ? 'GMs need no approval: your secret quests are dealt the moment you join. Tell no one.' : 'Once the GM lets you in you get your secret quests. Tell no one.'}
+            {bare
+              ? `${t.gm.Many} need no approval: your secret ${t.quest.many} are dealt the moment you join. Tell no one.`
+              : `Once the ${t.gm.One} lets you in you get your secret ${t.quest.many}. Tell no one.`}
           </p>
         </form>
         <div className="auth__links">

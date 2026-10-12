@@ -1,7 +1,6 @@
 // Client-side photo handling: decode, downscale on a canvas (which also strips EXIF), re-encode
 // as JPEG, then upload with progress. The pure geometry lives in ./image.ts.
-import { getDownloadURL, ref, uploadBytesResumable, type UploadTaskSnapshot } from 'firebase/storage';
-import { storage } from '../firebase';
+import { backend } from '../backend';
 import { AVATAR_SIZE, fitWithin, JPEG_QUALITY, PHOTO_MAX_EDGE, squareCrop, THUMB_MAX_EDGE } from './image';
 
 interface Decoded {
@@ -102,15 +101,7 @@ const METADATA = {
 
 /** Resumable upload of a JPEG to `path`. Resolves when finished; `onProgress` gets transferred bytes. */
 export function uploadJpeg(path: string, blob: Blob, onProgress?: (transferred: number, total: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const task = uploadBytesResumable(ref(storage, path), blob, METADATA);
-    task.on(
-      'state_changed',
-      (snap: UploadTaskSnapshot) => onProgress?.(snap.bytesTransferred, snap.totalBytes),
-      reject,
-      () => resolve(),
-    );
-  });
+  return backend().files.upload(path, blob, METADATA, onProgress);
 }
 
 /** Uploads an avatar JPEG to avatars/{uid}/{timestamp}.jpg and returns its download URL. */
@@ -121,5 +112,5 @@ export async function uploadAvatar(
 ): Promise<string> {
   const path = `avatars/${uid}/${Date.now()}.jpg`;
   await uploadJpeg(path, blob, onProgress);
-  return getDownloadURL(ref(storage, path));
+  return backend().files.url(path);
 }

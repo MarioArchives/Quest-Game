@@ -1,19 +1,12 @@
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
-} from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { auth, db } from '../firebase';
+import { backend } from '../backend';
+import type { BackendUser } from '../backend/types';
 import type { Doc, JoinRequest, Player } from '../shared';
 
 export interface SessionValue {
-  /** 'loading' until Firebase has told us who is signed in and we have read their docs. */
+  /** 'loading' until the backend has told us who is signed in and we have read their docs. */
   phase: 'loading' | 'signed-out' | 'ready';
-  user: User | null;
+  user: BackendUser | null;
   /** players/{uid}, once a GM has approved them. */
   player: Doc<Player> | null;
   /** admins/{uid} exists: the user is a GM. */
@@ -38,7 +31,7 @@ const NOT_LOADED: Loaded = { player: false, admin: false, request: false };
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<BackendUser | null>(null);
   const [player, setPlayer] = useState<Doc<Player> | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [joinRequest, setJoinRequest] = useState<Doc<JoinRequest> | null>(null);
@@ -47,7 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(
     () =>
-      onAuthStateChanged(auth, (next) => {
+      backend().auth.onUser((next) => {
         setUser(next);
         setAuthReady(true);
         if (!next) {
@@ -68,10 +61,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const mark = (key: keyof Loaded) => setLoaded((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
 
     // Permission errors here simply mean "no such doc for you": treat as absent.
-    const stopPlayer = onSnapshot(
-      doc(db, 'players', uid),
-      (snap) => {
-        setPlayer(snap.exists() ? ({ id: snap.id, ...snap.data() } as Doc<Player>) : null);
+    const { data } = backend();
+    const stopPlayer = data.watchDoc<Player>(
+      `players/${uid}`,
+      (doc) => {
+        setPlayer(doc);
         mark('player');
       },
       () => {
@@ -79,10 +73,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         mark('player');
       },
     );
-    const stopAdmin = onSnapshot(
-      doc(db, 'admins', uid),
-      (snap) => {
-        setIsAdmin(snap.exists());
+    const stopAdmin = data.watchDoc<Record<string, unknown>>(
+      `admins/${uid}`,
+      (doc) => {
+        setIsAdmin(doc !== null);
         mark('admin');
       },
       () => {
@@ -90,10 +84,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         mark('admin');
       },
     );
-    const stopRequest = onSnapshot(
-      doc(db, 'joinRequests', uid),
-      (snap) => {
-        setJoinRequest(snap.exists() ? ({ id: snap.id, ...snap.data({ serverTimestamps: 'estimate' }) } as Doc<JoinRequest>) : null);
+    const stopRequest = data.watchDoc<JoinRequest>(
+      `joinRequests/${uid}`,
+      (doc) => {
+        setJoinRequest(doc);
         mark('request');
       },
       () => {
@@ -108,15 +102,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [uid]);
 
-  const signIn = useCallback(async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    await signInWithPopup(auth, provider);
-  }, []);
+  const signIn = useCallback(() => backend().auth.signIn(), []);
 
-  const signOut = useCallback(async () => {
-    await firebaseSignOut(auth);
-  }, []);
+  const signOut = useCallback(() => backend().auth.signOut(), []);
 
   const phase: SessionValue['phase'] = !authReady
     ? 'loading'

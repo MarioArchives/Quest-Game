@@ -28,7 +28,7 @@ a { color: inherit; }
 
 h1, h2, h3 {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   line-height: 1.05;
@@ -87,7 +87,7 @@ h1, h2, h3 {
   line-height: 1.2;
   transform: rotate(-3deg);
 }
-.sticker--red { background: var(--red); color: #fff; }
+.sticker--accent { background: var(--accent); color: var(--on-accent); }
 
 .rule-list > li { border-bottom: var(--line); }
 .rule-list > li:first-child { border-top: var(--line); }
@@ -127,28 +127,28 @@ h1, h2, h3 {
   user-select: none;
   touch-action: manipulation;
 }
-.btn:hover:not(:disabled) { background: var(--red-tint); }
+.btn:hover:not(:disabled) { background: var(--accent-tint); }
 .btn:active:not(:disabled) { transform: translate(1px, 1px); }
 .btn:disabled, .btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
 
 .btn--primary {
   --btn-bg: var(--ink);
-  --btn-fg: #fff;
+  --btn-fg: var(--on-accent);
   min-height: 52px;
   font-family: var(--display);
   font-size: 22px;
   font-weight: 400;
   letter-spacing: 0.05em;
   /* An ink shadow would merge into the ink button, so the CTA's hard shadow is the red. */
-  box-shadow: 4px 4px 0 var(--red);
+  box-shadow: 4px 4px 0 var(--accent);
 }
-.btn--primary:hover:not(:disabled) { background: #2a2a2a; }
-.btn--primary:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--red); }
+.btn--primary:hover:not(:disabled) { background: var(--ink-hover); }
+.btn--primary:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--accent); }
 .btn--primary.btn--on-red { box-shadow: none; }
 
 .btn--small { min-height: 40px; padding: 0 12px; font-size: 12px; }
-.btn--danger { --btn-bg: var(--red); --btn-fg: #fff; border-color: var(--ink); }
-.btn--danger:hover:not(:disabled) { background: #c41f16; }
+.btn--danger { --btn-bg: var(--accent); --btn-fg: var(--on-accent); border-color: var(--ink); }
+.btn--danger:hover:not(:disabled) { background: var(--accent-hover); }
 .btn--ghost { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .btn--ghost:hover:not(:disabled) { background: transparent; text-decoration-thickness: 2px; }
 .btn--block { display: flex; width: 100%; }
@@ -162,7 +162,7 @@ h1, h2, h3 {
   border: var(--line);
   padding: 0;
 }
-.btn-icon:hover:not(:disabled) { background: var(--red-tint); }
+.btn-icon:hover:not(:disabled) { background: var(--accent-tint); }
 .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- form fields ---------- */
@@ -196,7 +196,7 @@ h1, h2, h3 {
   flex: none;
   padding: 3px 8px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   border: var(--line);
   font-family: var(--display);
   font-size: 16px;
@@ -206,8 +206,8 @@ h1, h2, h3 {
   text-transform: uppercase;
   white-space: nowrap;
 }
-.chip--neg { background: var(--red); }
-.chip--soft { background: var(--red-tint); color: var(--ink); }
+.chip--neg { background: var(--accent); }
+.chip--soft { background: var(--accent-tint); color: var(--ink); }
 .chip--plain { background: var(--card); color: var(--ink); }
 
 .tag {
@@ -220,9 +220,9 @@ h1, h2, h3 {
   text-transform: uppercase;
   background: var(--card);
 }
-.tag--red { background: var(--red); color: #fff; }
-.tag--tint { background: var(--red-tint); }
-.tag--ink { background: var(--ink); color: #fff; }
+.tag--accent { background: var(--accent); color: var(--on-accent); }
+.tag--tint { background: var(--accent-tint); }
+.tag--ink { background: var(--ink); color: var(--on-ink); }
 
 /* ---------- avatar ---------- */
 .avatar {
@@ -235,7 +235,7 @@ h1, h2, h3 {
   height: var(--size);
   border-radius: 50%;
   border: var(--line);
-  background: var(--red-tint);
+  background: var(--accent-tint);
   color: var(--ink);
   font-family: var(--display);
   font-size: calc(var(--size) * 0.48);
@@ -246,8 +246,8 @@ h1, h2, h3 {
   padding: 0;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar--you { background: var(--red); color: #fff; }
-button.avatar:hover { outline: 2px solid var(--red); outline-offset: 1px; }
+.avatar--you { background: var(--accent); color: var(--on-accent); }
+button.avatar:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ---------- photo frame ----------
    A fixed-ratio box for showing or previewing a photo. The image fills the box with object-fit: contain, so a tall
@@ -263,7 +263,7 @@ button.avatar:hover { outline: 2px solid var(--red); outline-offset: 1px; }
   overflow: hidden;
   background: var(--ink);
   border: var(--line);
-  color: #fff;
+  color: var(--on-ink);
 }
 .photo-frame img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
 
@@ -275,8 +275,8 @@ button.avatar:hover { outline: 2px solid var(--red); outline-offset: 1px; }
   font-size: 14px;
   line-height: 1.4;
 }
-.note--error { background: var(--red-tint); }
-.note--error strong { color: var(--red); }
+.note--error { background: var(--accent-tint); }
+.note--error strong { color: var(--accent); }
 .note strong { font-weight: 800; }
 
 .empty {
@@ -293,7 +293,7 @@ button.avatar:hover { outline: 2px solid var(--red); outline-offset: 1px; }
   background: var(--card);
   overflow: hidden;
 }
-.progress__bar { height: 100%; background: var(--red); transition: width 0.15s linear; }
+.progress__bar { height: 100%; background: var(--accent); transition: width 0.15s linear; }
 
 .switch {
   position: relative;
@@ -311,8 +311,8 @@ button.avatar:hover { outline: 2px solid var(--red); outline-offset: 1px; }
   background: var(--ink);
   transition: transform 0.15s ease;
 }
-.switch[aria-checked='true'] { background: var(--red); }
-.switch[aria-checked='true']::after { transform: translateX(24px); background: #fff; }
+.switch[aria-checked='true'] { background: var(--accent); }
+.switch[aria-checked='true']::after { transform: translateX(24px); background: var(--card); }
 .switch:focus-visible { outline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {

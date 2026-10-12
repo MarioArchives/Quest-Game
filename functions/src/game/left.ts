@@ -1,4 +1,5 @@
-import type { DocumentReference } from 'firebase-admin/firestore';
+import type { DocRef } from '../shared/store/types.js';
+import { termForms } from '../shared/packs/terms.js';
 import type { Player, PlayerLeft, Submission } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
@@ -26,6 +27,7 @@ export async function setPlayerLeft(
   data: { uid?: unknown; left?: unknown },
 ): Promise<{ left: PlayerLeft | null; push: PushPlan | null }> {
   return db.runTransaction(async (tx) => {
+    const t = termForms(ctx.pack.terms);
     const by = await requireGM(db, ctx, tx);
     const uid = asId(data.uid, 'uid');
     const left = data.left ?? null;
@@ -44,14 +46,14 @@ export async function setPlayerLeft(
     const waiting = left
       ? (await tx.get(db.collection('submissions').where('witnessUid', '==', uid).where('status', '==', 'pending'))).docs
       : [];
-    let withdrawn: DocumentReference[] = [];
+    let withdrawn: DocRef[] = [];
     if (left === 'out') {
       const entries = (await tx.get(db.collection('submissions').where('uid', '==', uid))).docs.filter((d) => {
         const sub = d.data() as Submission;
         return sub.kind === 'global' && (sub.status === 'sealed' || sub.status === 'approved');
       });
-      const quests = entries.length > 0 ? await tx.getAll(...entries.map((d) => db.doc(`globalQuests/${d.get('questId')}`))) : [];
-      withdrawn = entries.filter((_, i) => OPEN_QUEST.has(quests[i]?.get('status'))).map((d) => d.ref);
+      const quests = entries.length > 0 ? await tx.getAll(...entries.map((d) => db.doc(`globalQuests/${d.get('questId') as string}`))) : [];
+      withdrawn = entries.filter((_, i) => OPEN_QUEST.has(quests[i]?.get('status') as string)).map((d) => d.ref);
     }
 
     tx.update(playerRef, { left, leftAt: left ? toTs(ctx.now) : null });
@@ -74,8 +76,8 @@ export async function setPlayerLeft(
         ? {
             to: claimants,
             message: {
-              title: 'Pick another witness',
-              body: `${player.displayName} has left the game. Ask someone else to witness your claim.`,
+              title: `Pick another ${t.witness.one}`,
+              body: `${player.displayName} has left the game. Ask someone else to ${t.witness.one} your ${t.claim.one}.`,
               link: '#/account',
             },
           }

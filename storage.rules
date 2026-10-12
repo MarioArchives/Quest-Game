@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Festival Quest storage rules. Only `create` is allowed for writes (no overwrite, no delete) and
+// Quest Game storage rules. Only `create` is allowed for writes (no overwrite, no delete) and
 // nothing can be listed; the app stores the exact paths in Firestore and reads objects with `get`.
 service firebase.storage {
   match /b/{bucket}/o {

@@ -1,4 +1,5 @@
-# Builds the Vite app and publishes it to GitHub Pages on every push to master.
+# Builds the Vite app and publishes it to GitHub Pages. Manual only (Actions > Run workflow): the engine
+# repo has no live game; set VITE_GAME_PACK and the VITE_FIREBASE_* secrets for the game you deploy.
 #
 # One-off setup: repository Settings > Pages > Build and deployment > Source = "GitHub Actions".
 # The Firebase web config comes from repository secrets or variables named like .env.example
@@ -12,8 +13,6 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -51,9 +50,11 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || vars.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || vars.VITE_FIREBASE_APP_ID }}
-          # Public Web Push key for notifications (Cloud Messaging > Web Push certificates). Not secret: it ships
-          # in the site's JavaScript anyway. A repository variable of the same name overrides it.
-          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY || 'BPsybTU6pd_b44P-kNTzLYeFrwkS_zuU-vtYJc7H-47yiG893Wdz3t8bTbdI1aRAOQLsZ0QHuQi4MMNNsXNqvws' }}
+          # Which game pack to build; the functions must run the same one (GAME_PACK in functions/.env*).
+          VITE_GAME_PACK: ${{ vars.VITE_GAME_PACK || 'lancaster' }}
+          # Public Web Push key for notifications (Cloud Messaging > Web Push certificates) of the game's own
+          # Firebase project. Not secret. Without it the notifications switch is hidden.
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
 
       # GitHub Pages has no SPA fallback: serving index.html as 404.html makes deep links
       # (e.g. /<repo>/quests) load the app instead of a 404 page.

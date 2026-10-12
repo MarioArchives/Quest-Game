@@ -1,10 +1,8 @@
-import { doc, updateDoc } from 'firebase/firestore';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { friendlyError } from '../api';
 import { useGame } from '../data/GameProvider';
 import { useLocationSharing } from '../data/LocationProvider';
-import { db } from '../firebase';
 import { uploadAvatar } from '../lib/upload';
 import { useSession } from '../session/SessionProvider';
 import { DISPLAY_NAME_MAX } from '../shared';
@@ -14,6 +12,8 @@ import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import './ProfileSheet.css';
+import { t } from '../pack';
+import { backend } from '../backend';
 
 /** Change avatar / display name (players), see account details, sign out. */
 export function ProfileSheet({ onClose }: { onClose(): void }) {
@@ -60,7 +60,7 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
         onClose();
         return;
       }
-      await updateDoc(doc(db, 'players', user.uid), changes);
+      await backend().data.update(`players/${user.uid}`, changes);
       toast('Looking good.', 'success');
       onClose();
     } catch (err) {
@@ -83,7 +83,7 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
 
   return (
     <BottomSheet
-      title={player ? 'Your festival face' : 'Your account'}
+      title={player ? 'Your profile' : 'Your account'}
       onClose={onClose}
       locked={busy || signingOut}
       lead={player ? undefined : <Avatar name={user?.displayName ?? '?'} src={user?.photoURL} size={44} />}
@@ -128,7 +128,7 @@ export function ProfileSheet({ onClose }: { onClose(): void }) {
         </form>
       ) : (
         <p className="muted">
-          You&apos;re signed in as a GM. Want to play as well? Join as a player: GMs need no approval and your quests are dealt at
+          You&apos;re signed in as a {t.gm.One}. Want to play as well? Join as a player: {t.gm.Many} need no approval and your {t.quest.many} are dealt at
           once.
         </p>
       )}

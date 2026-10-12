@@ -1,4 +1,3 @@
-import { collection, query, where } from 'firebase/firestore';
 import { useMemo, useState, type FormEvent } from 'react';
 import { adjustPoints, friendlyError, grantRerolls, setPlayerLeft } from '../../api';
 import { Avatar } from '../../components/Avatar';
@@ -8,10 +7,10 @@ import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { PointsChip } from '../../components/PointsChip';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
-import { tsMs, useCollection, useNow } from '../../data/hooks';
-import { db } from '../../firebase';
+import { tsMs, useNow, useQuery } from '../../data/hooks';
 import { quickAdjustment } from '../../lib/gmQuick';
 import { formatAgo } from '../../lib/time';
+import { features, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft, type LedgerEntry } from '../../shared';
 import { LEDGER_REASONS } from './common';
@@ -53,7 +52,7 @@ export function PlayersSection() {
                   <span className="gm-player__sub">
                     {p.id === user?.uid ? 'you · ' : ''}
                     {p.left ? LEFT_LABEL[p.left] : ''}
-                    {p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? 'quest' : 'quests'} done
+                    {p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? t.quest.one : t.quest.many} done
                   </span>
                 </span>
                 <span className="gm-player__points" aria-hidden="true">
@@ -75,7 +74,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
   const { settings, state } = useGame();
   const [leaving, setLeaving] = useState<'frozen' | 'out' | 'back' | null>(null);
   const now = useNow(30_000);
-  const ledger = useCollection<LedgerEntry>(`gm:ledger:${player.id}`, () => query(collection(db, 'pointsLedger'), where('uid', '==', player.id)));
+  const ledger = useQuery<LedgerEntry>({ path: 'pointsLedger', where: [['uid', '==', player.id]] });
   const entries = useMemo(() => [...ledger.data].sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)), [ledger.data]);
 
   const [sign, setSign] = useState<1 | -1>(1);
@@ -180,7 +179,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           <label className="field__label" htmlFor="adj-reason">
             Reason (they see it in their points)
           </label>
-          <input id="adj-reason" className="input" value={reason} maxLength={120} placeholder="Bought the GM a pint" disabled={busy} onChange={(e) => setReason(e.target.value)} />
+          <input id="adj-reason" className="input" value={reason} maxLength={120} placeholder={`Bought the ${t.gm.one} a pint`} disabled={busy} onChange={(e) => setReason(e.target.value)} />
         </div>
         {error ? (
           <p className="note note--error" role="alert">
@@ -198,7 +197,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
         </h3>
         <p className="gm-hint">
           {left} left of {allowance}
-          {extras > 0 ? ` (includes ${extras} extra from the GM)` : ''}
+          {extras > 0 ? ` (includes ${extras} extra from the ${t.gm.one})` : ''}
         </p>
         <div className="gm-row">
           <Button className="gm-flex1" disabled={busy || ended} onClick={() => void grant(1)}>
@@ -217,7 +216,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           </h3>
           <p className="gm-hint">
             {player.left === 'frozen'
-              ? 'Frozen: still on the leaderboard, but they can’t play, be guessed or be a witness.'
+              ? `Frozen: still on the leaderboard, but they can’t play${features.guesses ? ', be guessed' : ''} or be a ${t.witness.one}.`
               : player.left === 'out'
                 ? 'Out: off the leaderboard and the final standings. Their history is kept.'
                 : 'Freeze keeps them on the leaderboard with their score. Kick out takes them off it. Both can be undone.'}
@@ -281,17 +280,22 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           }}
         >
           {leaving === 'back' ? (
-            <p>They can play again: claim, guess, enter side quests, vote and witness. Their quests and points are as they left them.</p>
+            <p>
+              They can play again: {t.claim.one}
+              {features.guesses ? ', guess' : ''}
+              {features.sideQuests ? `, enter ${t.sideQuest.many}, vote` : ''} and {t.witness.one}. Their {t.quest.many} and points are as they left
+              them.
+            </p>
           ) : (
             <>
               <p>
                 {leaving === 'frozen'
                   ? 'They stay on the leaderboard with their score, marked as left.'
-                  : 'They come off the leaderboard and won’t be in the final standings. Any side-quest entry of theirs still in play is withdrawn.'}{' '}
-                They can’t play, be guessed or be picked as a witness, they get no more notifications, and their map pin goes. A line in the
+                  : `They come off the leaderboard and won’t be in the final standings.${features.sideQuests ? ` Any ${t.sideQuest.one} entry of theirs still in play is withdrawn.` : ''}`}{' '}
+                They can’t play{features.guesses ? ', be guessed' : ''} or be picked as a {t.witness.one}, they get no more notifications{features.map ? ', and their map pin goes' : ''}. A line in the
                 feed says they’ve left.
               </p>
-              <p className="muted">Anyone waiting on them as a witness is asked to pick someone else. You can bring them back later.</p>
+              <p className="muted">Anyone waiting on them as a {t.witness.one} is asked to pick someone else. You can bring them back later.</p>
             </>
           )}
         </ConfirmSheet>
