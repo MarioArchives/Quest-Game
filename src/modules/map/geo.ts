@@ -20,6 +20,11 @@ export function distanceMeters(a: LatLng, b: LatLng): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** How many of `points` are within `radiusM` (inclusive) of `target`, e.g. players at a stop. */
+export function countWithin(points: readonly LatLng[], target: LatLng, radiusM: number): number {
+  return points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && distanceMeters(p, target) <= radiusM).length;
+}
+
 /** Closest venue within radiusM (inclusive), skipping venues without coordinates; null if none. */
 export function nearestVenue(
   pos: LatLng,

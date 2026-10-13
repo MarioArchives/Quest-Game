@@ -52,7 +52,10 @@ const look: PackLook = {
   screens: {
     home: lazy(() => import('./screens/Board')),
     account: lazy(() => import('./screens/MyFile')),
+    player: lazy(() => import('./screens/PlayerFile')),
+    gm: lazy(() => import('./screens/GmLocker')),
   },
+  error: { title: 'This page has been tampered with', body: 'Something broke on our side. Reload, or go back to the board.', home: 'Back to the board' },
   reward: { title: 'Evidence secured', clean: 'Destroy', frame: 'Frame', pickTitle: 'Frame who?' },
 };
 

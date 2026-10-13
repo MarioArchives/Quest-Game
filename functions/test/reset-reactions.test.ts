@@ -36,6 +36,8 @@ const WIPED = [
   // Packs with rewardChoice and characters (mystery plan).
   'rewards',
   'motives',
+  // Packs with checkins.
+  'checkins',
 ];
 
 async function fullGame() {
@@ -57,6 +59,10 @@ async function fullGame() {
   await seedGlobalQuest(db(), 'gq1', { status: 'closed' });
   await db().doc('rewards/s1').set({ uid: 'alice', submissionId: 's1', status: 'pending', createdAt: ts(T0) });
   await db().doc('motives/alice').set({ text: 'Revenge', updatedAt: ts(T0) });
+  await db().doc('checkins/c1').set({ periodicId: 'rc', name: 'Roll call', prompt: 'Show us your drink', status: 'closed', number: 1, penalty: 5, missedUids: [] });
+  await db().doc('periodics/rc').set({ name: 'Roll call', prompts: ['x'], intervalMin: 60, windowMin: 15, penalty: 5, count: 4, sent: 2, status: 'running', nextAt: ts(T0), createdAt: ts(T0) });
+  await db().doc('checkins/c1/answers/alice').set({ uid: 'alice', caption: 'Mild', createdAt: ts(T0) });
+  await db().doc('stops/st1').set({ name: 'The Golden Lion', lat: 54.05, lng: -2.8, order: 1, revealed: true, startsAt: ts(T0), endsAt: null, createdAt: ts(T0) });
   await db().doc('game/final').set({ standings: [], endedAt: ts(T0) });
 }
 
@@ -72,6 +78,10 @@ describe('resetGame', () => {
     expect(await getData(db(), 'game/final')).toBeUndefined();
 
     expect(await allDocs(db(), 'questTemplates')).toHaveLength(7);
+    // The route is set-up, like the templates: a new round keeps it.
+    expect(await allDocs(db(), 'stops')).toHaveLength(1);
+    // So are the periodic missions, with their counts back at 0.
+    expect(await getData(db(), 'periodics/rc')).toMatchObject({ sent: 0, nextAt: null, status: 'running' });
     expect(await getData(db(), 'game/settings')).toEqual({ ...DEFAULT_SETTINGS, rerollLimit: 7 });
     expect(await getData(db(), 'admins/gm')).toBeDefined();
     expect(await getData(db(), 'game/state')).toEqual({

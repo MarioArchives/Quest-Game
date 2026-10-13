@@ -44,6 +44,7 @@ export const PUSH_TOKEN_MAX = 4096;
 
 const HOME = '#/';
 const ACCOUNT = '#/account';
+const MAP = '#/map';
 export const GM_CONSOLE = '#/gm';
 
 /** pushTokens/{id}: a stable, path-safe id for a device token. */
@@ -58,6 +59,10 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, 
   switch (post.type) {
     case 'global-open':
       return { to: 'players', message: { title: `New ${t.sideQuest.one}`, body: `New ${t.sideQuest.one}: ${quest}`, link: HOME } };
+    case 'checkin-open':
+      // Everyone has to answer this one, so everyone hears about it.
+      // The post reads "Roll call: Show us what you're drinking".
+      return { to: 'players', message: { title: 'Answer now', body: post.text, link: HOME } };
     case 'checking':
       // Entries closed: the GMs check them before the vote (players hear when voting opens).
       return { to: 'gms', exclude: post.actorUid ?? null, message: { title: 'Entries to check', body: `Check the entries for ${quest}`, link: GM_CONSOLE } };
@@ -67,6 +72,8 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, 
       return { to: 'players', message: { title: `${t.sideQuest.One} won`, body: post.text, link: HOME } };
     case 'announcement':
       return { to: 'players', message: { title: 'Announcement', body: post.text, link: HOME } };
+    case 'stop-revealed':
+      return { to: 'players', exclude: post.actorUid ?? null, message: { title: 'New location', body: post.text, link: MAP } };
     case 'status':
       return { to: 'players', message: { title: pack.name, body: post.text, link: HOME } };
     case 'approved':

@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-quest-game"
+    "default": "demo-quest-game",
+    "prod": "musical-mischief"
   }
 }

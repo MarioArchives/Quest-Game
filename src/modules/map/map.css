@@ -1,42 +1,24 @@
-/* ---------- toolbar above the map ---------- */
-.fqbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.fqbar__count { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.fqbar__note { font-size: 13px; line-height: 1.35; color: var(--muted); max-width: 26ch; }
-.fqshare {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  background: var(--card);
-  color: var(--ink);
-  border: var(--line);
-  border-radius: 0;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  touch-action: manipulation;
-}
-.fqshare:hover:not(:disabled) { background: var(--accent-tint); }
+/* ---------- the map screen: the map fills everything between the app bar and the tab bar ---------- */
+.fqmapscreen { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .fqshare.is-on { background: var(--accent); color: var(--on-accent); --ring: var(--ink); }
-.fqshare.is-on:hover:not(:disabled) { background: var(--accent-hover); }
+.fqshare:hover:not(:disabled).is-on { background: var(--accent-hover); }
 .fqshare:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ---------- the map: full-bleed between two ink rules ---------- */
 .fqmap {
   position: relative;
+  flex: 1;
+  min-height: 0;
   /* Leaflet's panes use z-index up to 1000; keep them inside this box, under sheets (50) and the tab bar (20). */
   isolation: isolate;
   z-index: 0;
-  margin-inline: calc(-1 * var(--page-x));
-  height: clamp(300px, 54dvh, 560px);
-  border-block: var(--line);
+  border-top: var(--line);
   background-color: var(--paper);
   background-image: radial-gradient(rgba(17, 17, 17, 0.14) 1.2px, transparent 1.5px);
   background-size: 12px 12px;
 }
-.fqmap .fqmap__map { width: 100%; height: 100%; background: transparent; font: inherit; }
+.fqmap .fqmap__map { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; font: inherit; }
+.fqmap__map.is-picking { cursor: crosshair; }
+.fqmap__map.is-picking .leaflet-interactive { cursor: crosshair; }
 /* Quiet the OSM colours so the red pins pop. */
 .fqmap .leaflet-tile-pane { filter: grayscale(1) contrast(1.05); }
 .fqmap .leaflet-container a { color: inherit; }
@@ -50,6 +32,8 @@
 }
 .fqmap .leaflet-control-attribution a { text-decoration: underline; }
 .fqmap .leaflet-bottom.leaflet-left { margin-bottom: 4px; }
+/* Leave room for the line-up bar along the bottom. */
+.fqmapscreen.has-panel .leaflet-bottom { bottom: 46px; }
 .fqmap .leaflet-bar { border: var(--line); border-radius: 0; box-shadow: none; }
 .fqmap .leaflet-bar a {
   width: 36px;
@@ -67,7 +51,62 @@
 .fqmap .leaflet-container:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
 
 /* overlays (drawn over Leaflet's panes) */
-.fqmap__tools { position: absolute; top: 8px; left: 8px; z-index: 1100; display: flex; flex-direction: column; gap: 6px; }
+.fqmap__top {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none; /* the gaps pass drags and taps through to the map */
+}
+.fqmap__top > *, .fqmap__top .fqmap__row > * { pointer-events: auto; }
+.fqmap__top .fqmap__row { pointer-events: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.fqmap__tools { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.fqmap__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.fqmap__count {
+  padding: 4px 8px;
+  background: var(--card);
+  border: var(--line);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.fqmap__btn--add { background: var(--ink); color: var(--on-ink); }
+.fqmap__btn--add:hover, .fqmap__btn--add[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); }
+
+/* The route card at the bottom of the map (packs with stops): Now / Next tabs and the chosen stop. */
+.fqroute { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 1100; display: flex; flex-direction: column; }
+.fqroute__tabs { display: flex; gap: 4px; padding-left: 10px; }
+.fqroute__tab {
+  min-height: 36px; padding: 6px 12px 4px; border: var(--line); border-bottom: 0; background: var(--paper); color: var(--ink);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+}
+.fqroute__tab[aria-selected='true'] { background: var(--card); }
+.fqroute__body { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 12px; background: var(--card); border: var(--line); }
+.fqroute__meta { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.fqroute__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.fqroute__name { padding: 0; border: 0; background: none; color: var(--ink); font-family: var(--display); font-size: 22px; line-height: 1.1; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.fqroute__name--plain { cursor: default; }
+.fqroute__stamp { flex: none; padding: 1px 8px; border: 2px solid currentColor; color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.fqroute__stamp--now { color: var(--accent); }
+.fqroute__sub { font-size: 12px; color: var(--muted); }
+
+/* Short notices over the map */
+.fqnote {
+  padding: 6px 8px;
+  background: var(--card);
+  border: var(--line);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.fqnote--error { background: var(--accent-tint); }
+.fqnote--pick { display: flex; flex-direction: column; gap: 6px; background: var(--accent-tint); font-weight: 700; }
+.fqnote__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .fqmap__btn {
   display: inline-flex;
   align-items: center;
@@ -101,10 +140,6 @@
 }
 
 .fqmap__legend {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1100;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -126,7 +161,7 @@
 .fqmap__offline {
   position: absolute;
   left: 50%;
-  bottom: 34px;
+  bottom: 60px;
   z-index: 1100;
   transform: translateX(-50%);
   max-width: calc(100% - 24px);
@@ -280,3 +315,127 @@
 .vs__act { font-size: 16px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
 .vs__live { margin-left: 8px; vertical-align: 2px; }
 .vs__meta { font-size: 13px; color: var(--muted); }
+
+/* ---------- route stops ---------- */
+.fqmap .fqpin--stop { overflow: visible; }
+.fqstopno {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 16px;
+  line-height: 1;
+}
+.fqpin--stop-now .fqstopno { background: var(--accent); color: var(--on-accent); box-shadow: 2px 2px 0 var(--ink); }
+.fqpin--stop-next .fqstopno { background: var(--ink); color: var(--on-ink); box-shadow: 0 0 0 2px var(--card); }
+.fqpin--stop-past .fqstopno { background: var(--muted-soft); color: var(--muted); border-color: var(--muted); }
+.fqpin--stop-draft .fqstopno { background: var(--accent-tint); border-style: dashed; }
+.fqpin--stop .fqpin__label { left: calc(50% + 15px); max-width: 130px; }
+.fqpin--stop-now .fqpin__label { background: var(--accent); border: 2px solid var(--ink); }
+/* A stop only the GM can see yet: ghosted and dashed, still numbered. */
+.fqpin--stop-hidden .fqstopno { background: transparent; color: var(--muted); border: 2px dashed var(--muted); opacity: 0.85; }
+.fqpin--stop-hidden .fqpin__label { opacity: 0.6; }
+.fqmap .fqroute { stroke-linecap: butt; }
+
+/* Footprints along the route: a sole and a heel in ink, turned to the walk. */
+.fqmap .fqfoot { overflow: visible; pointer-events: none; }
+.fqfoot__turn, .fqfoot__flip { display: block; width: 9px; height: 14px; }
+.fqfoot svg { display: block; fill: var(--ink); opacity: 0.7; }
+.fqfoot--ghost svg { opacity: 0.35; }
+@media (prefers-reduced-motion: no-preference) {
+  .fqfoot svg { animation: fqfoot-in 0.4s ease-out both; }
+}
+@keyframes fqfoot-in { from { opacity: 0; } }
+
+/* The GM's route list */
+.routesheet { display: flex; flex-direction: column; gap: 12px; }
+.routesheet__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.routesheet__actions .btn { flex: 1 1 140px; }
+.routelist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.routerow {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-areas: 'no info move' 'no act act';
+  gap: 4px 10px;
+  align-items: center;
+  padding: 10px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+}
+.routerow.is-hidden { border-style: dashed; border-color: var(--muted); }
+.routerow__no { grid-area: no; align-self: start; }
+.routerow__info { grid-area: info; min-width: 0; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.routerow__name { display: block; font-size: 16px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.routerow__time { display: block; font-size: 13px; color: var(--muted); }
+.routerow__move { grid-area: move; display: flex; gap: 4px; }
+.routerow__act { grid-area: act; display: flex; gap: 8px; flex-wrap: wrap; }
+
+
+.stopsheet { display: flex; flex-direction: column; gap: 12px; }
+.stopsheet__times { display: flex; flex-direction: column; gap: 10px; }
+.stopsheet__times > div { display: flex; align-items: baseline; gap: 10px; font-size: 16px; line-height: 1.35; }
+.stopsheet__times dt { flex: none; min-width: 58px; text-align: center; }
+
+/* ---------- line-up panel over the map ---------- */
+.fqpanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  max-height: 65%;
+  background: var(--paper);
+  border-top: var(--line);
+}
+.fqpanel__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 var(--page-x);
+  background: var(--card);
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+.fqpanel__title { font-family: var(--display); font-size: 20px; letter-spacing: 0.02em; text-transform: uppercase; }
+.fqpanel__meta { flex: 1; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.fqpanel.is-open .fqpanel__bar svg { transform: rotate(180deg); }
+.fqpanel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--page-x) 16px;
+  border-top: var(--hairline);
+}
+.fqpanel__body[hidden] { display: none; }
+.fqpanel .nn .section-head h2 { display: none; }
+.routerow__up .icon, .routerow__up svg { transform: rotate(180deg); }
+.stopsheet__tba { margin: 0; color: var(--muted); }
+
+/* ---------- real bars: the GM's bar search, addresses and Google Maps links ---------- */
+.fqroute__go { align-self: flex-start; margin-top: 2px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.stopsheet__address { margin: 0 0 12px; font-size: 15px; color: var(--muted); }
+.field .stopsheet__address { margin: 0; font-size: 13px; }
+.stopsheet__links { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.stopsheet__links .btn { text-decoration: none; }
+.stopsheet__maps { align-self: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+.placesearch { display: flex; flex-direction: column; gap: 12px; }
+.placesearch__note { margin: 0; color: var(--muted); }
+.placesearch__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 48vh; overflow-y: auto; overscroll-behavior: contain; }
+.placesearch__row { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.placesearch__row:active { transform: translateY(1px); }
+.placesearch__name { font-size: 16px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.placesearch__meta { font-size: 13px; color: var(--muted); }
+.placesearch__credit { margin: 0; font-size: 11px; text-align: center; color: var(--muted); }

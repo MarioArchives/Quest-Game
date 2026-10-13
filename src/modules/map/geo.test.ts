@@ -1,7 +1,7 @@
 // Edge cases 40 (location throttle) and 43 (distance to a venue).
 import { describe, expect, it } from 'vitest';
 import type { Venue } from '../../../functions/src/shared/types';
-import { distanceLabel, distanceMeters, nearestVenue, shouldSendLocation } from './geo';
+import { countWithin, distanceLabel, distanceMeters, nearestVenue, shouldSendLocation } from './geo';
 
 /** The Lancaster pack's map centre (Market Square). */
 const CENTRE = { lat: 54.0489, lng: -2.8012 };
@@ -96,5 +96,17 @@ describe('distanceLabel (V20, now with the centre and place name from the pack)'
   it('uses the place name and nearby distance it is given', () => {
     expect(distanceLabel(north(CENTRE, 2_500), CENTRE, 'the party', 5)).toBeNull();
     expect(distanceLabel(north(CENTRE, 6_000), CENTRE, 'the party', 5)).toBe("You're 6.0 km from the party");
+  });
+});
+
+describe('countWithin (players at a stop)', () => {
+  const stop = { lat: 53.41571, lng: -2.23219 };
+  it('counts the points within the radius, the edge included, and skips broken ones', () => {
+    const near = { lat: 53.41571, lng: -2.23219 + 0.0005 }; // about 33 m
+    const far = { lat: 53.4185, lng: -2.2315 }; // about 300 m
+    expect(countWithin([near, far, near], stop, 75)).toBe(2);
+    expect(countWithin([near], stop, Math.ceil(distanceMeters(near, stop)))).toBe(1);
+    expect(countWithin([{ lat: Number.NaN, lng: 0 }], stop, 75)).toBe(0);
+    expect(countWithin([], stop, 75)).toBe(0);
   });
 });

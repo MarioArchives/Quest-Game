@@ -14,7 +14,7 @@
     "build:mock": "VITE_BACKEND=mock vite build",
     "dev": "concurrently --kill-others-on-fail -n fn,emu,web,tick,seed -c blue,magenta,green,yellow,cyan \"npm run build:watch -w functions\" \"npm run emulators\" \"vite\" \"node scripts/dev-tick.mjs\" \"node scripts/seed.mjs --wait || true\"",
     "players": "concurrently -n p2,p3,p4 -c cyan,red,white \"vite --port 5174 --strictPort\" \"vite --port 5175 --strictPort\" \"vite --port 5176 --strictPort\"",
-    "emulators": "firebase emulators:start --project demo-quest-game --import ./.emulator-data --export-on-exit ./.emulator-data",
+    "emulators": "firebase emulators:start --only auth,firestore,storage,functions --project demo-quest-game --import ./.emulator-data --export-on-exit ./.emulator-data",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b && npm run typecheck -w functions",

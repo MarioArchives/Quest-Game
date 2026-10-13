@@ -8,6 +8,7 @@ firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
 .env.local
+.env.*.local
 .DS_Store
 *.tsbuildinfo
 .playwright-mcp/

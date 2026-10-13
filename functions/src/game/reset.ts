@@ -16,6 +16,7 @@ const WIPED_COLLECTIONS = [
   'globalQuests',
   'rewards',
   'motives',
+  'checkins',
 ];
 
 /** GM wipes the game for a new round. Requires { confirm: 'RESET' }. Keeps templates, settings and admins. */
@@ -27,6 +28,9 @@ export async function resetGame(db: Db, ctx: Ctx, data: { confirm?: unknown }): 
     await db.recursiveDelete(db.collection(name));
   }
   await db.doc('game/final').delete();
+
+  // Periodic missions are set-up, like the templates: a new round keeps them and starts their counts again.
+  for (const p of (await db.collection('periodics').get()).docs) await p.ref.update({ sent: 0, nextAt: null });
 
   const lobby: GameState = { status: 'lobby', startedAt: null, endedAt: null, nextGlobalQuestAt: null, announcement: null };
   await db.doc('game/state').set(lobby);

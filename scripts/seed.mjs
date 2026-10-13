@@ -24,7 +24,7 @@ import { getStorage } from 'firebase-admin/storage';
 // Node 24 strips the types, so the pack and its defaults are shared with the functions.
 import { defaultSettingsFor, getPack } from '../functions/src/shared/packs/index.ts';
 import { buildDemo, DEMO_SIDE_QUEST } from '../functions/src/shared/demo/index.ts';
-import { planSettings, planState, resolvePackId } from './lib/seed-plan.mjs';
+import { planPeriodics, planRoute, planSettings, planState, resolvePackId } from './lib/seed-plan.mjs';
 import { toFirestore } from './lib/stamps.mjs';
 import { explainCredentials, selectTarget } from './lib/target.mjs';
 
@@ -199,6 +199,21 @@ async function seedTemplates(quests) {
   };
 }
 
+/** The pack's starting route as hidden stops. Creates only missing ids, so the GM's edits survive a re-seed. */
+async function seedRoute() {
+  const stops = planRoute(PACK);
+  if (stops.length === 0) return null;
+  const entries = stops.map((s) => [db.doc(`stops/${s.id}`), { ...s.data, createdAt: FieldValue.serverTimestamp() }]);
+  return createMissing(entries);
+}
+
+/** The pack's starting periodic missions. Creates only missing ids, so the GM's edits survive a re-seed. */
+async function seedPeriodics() {
+  const plan = planPeriodics(PACK);
+  if (plan.length === 0) return null;
+  return createMissing(plan.map((p) => [db.doc(`periodics/${p.id}`), { ...p.data, createdAt: FieldValue.serverTimestamp() }]));
+}
+
 // ---------------------------------------------------------------- demo data
 
 async function uploadPoster({ path, contentType, text }) {
@@ -227,6 +242,9 @@ async function resetDemo() {
   const sideFeed = await db.collection('feed').where('ref', '==', DEMO_SIDE_QUEST).get();
   for (const doc of sideFeed.docs) await db.recursiveDelete(doc.ref);
   await db.recursiveDelete(db.doc(`globalQuests/${DEMO_SIDE_QUEST}`));
+  for (const d of buildDemo({ pack: PACK, settings: DEFAULT_SETTINGS, nowMs: Date.now() }).docs) {
+    if (d.path.startsWith('stops/')) await db.doc(d.path).delete();
+  }
   for (const uid of uids) await getStorage().bucket(BUCKET).deleteFiles({ prefix: `submissions/${uid}/`, force: true });
   console.log('  demo reset      removed the demo players and everything they own');
 }
@@ -263,6 +281,8 @@ async function seedDemo(settings) {
     summary.push(`side quest "${side.data.title}" is live with ${entries} entries`);
   }
   summary.push(`${live.length} map pins`);
+  const stops = demo.docs.filter((d) => d.path.startsWith('stops/')).length;
+  if (stops) summary.push(`${stops} route stops`);
   return { created: missing.length, skipped: rest.length - missing.length, photos: demo.files.length, summary };
 }
 
@@ -284,6 +304,13 @@ async function main() {
   const t = await seedTemplates(quests);
   console.log(`  questTemplates  ${t.personal} personal + ${t.global} global (${t.created} new, ${t.updated} updated, ${t.retired} old retired)`);
 
+  if (!DEMO) {
+    const r = await seedRoute();
+    if (r) console.log(`  route stops     ${r.created} created, ${r.skipped} already there (hidden until the GM reveals them)`);
+  }
+  const pm = await seedPeriodics();
+  if (pm) console.log(`  periodic        ${pm.created} created, ${pm.skipped} already there (the GM manages them)`);
+
   if (DEMO) {
     if (RESET_DEMO) await resetDemo();
     console.log(`  demo players    uploading photos to ${BUCKET} (Storage ${process.env.FIREBASE_STORAGE_EMULATOR_HOST})`);
@@ -303,6 +330,7 @@ async function main() {
     reactions: await countOf(db.collectionGroup('reactions')),
     globalQuests: await countOf(db.collection('globalQuests')),
     locations: await countOf(db.collection('locations')),
+    ...(PACK.features.stops ? { stops: await countOf(db.collection('stops')) } : {}),
   };
   console.log(`Firestore now holds: ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   if (!DEMO && !PROD) console.log('Tip: add `-- --demo` for demo players and photos (plus a live side quest and map pins where the pack has them).');

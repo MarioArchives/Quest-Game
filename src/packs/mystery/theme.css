@@ -31,6 +31,23 @@
   --status-done: #2f6a3a;
   --status-pending: #8a5e0c;
   --silhouette: #8d9294;
+  /* Case files (E4·1): manila folders, kraft evidence tags on twine, steel eyelets and the inks stamped on them. */
+  --manila: #e6cf98;
+  --manila-tab: #d9bd7e;
+  --manila-ink: #2a2116;
+  --manila-sub: #5b4a33;
+  --kraft: #c9a974;
+  --kraft-line: #8e7550;
+  --twine: #b59e78;
+  --twine-dark: #a48c66;
+  --eyelet: #9aa0a3;
+  --eyelet-edge: #6f7477;
+  --stamp-good: #2f5a32;
+  --stamp-bad: #8f2a22;
+  --stamp-warm: #7a520a;
+  --stamp-plain: #14544f;
+  --print: #f1f0ec;
+  --chart-paper: #f4ecd5;
   --mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   /* engine tokens */
@@ -94,7 +111,8 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .tabbar { background: var(--ink); gap: 0; }
 .tabbar__tab { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--rule); }
 .tabbar__tab:hover { background: transparent; color: var(--walltext); }
-.tabbar__tab.is-active { background: transparent; color: #35b5ae; box-shadow: inset 0 3px 0 #1f8a85; }
+/* The active tab wears the evidence tags' kraft. */
+.tabbar__tab.is-active { background: transparent; color: var(--kraft); box-shadow: inset 0 3px 0 var(--kraft); }
 .tabbar[data-count='5'] .tabbar__tab { letter-spacing: 0; font-size: 11px; }
 .tabbar__dot { background: #e2574c; border-color: var(--ink); }
 .tabbar__tab.is-active .tabbar__dot { background: #e2574c; border-color: var(--ink); }
@@ -113,8 +131,14 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .hero__time { font-size: 36px; }
 .hero__cta { --btn-bg: var(--paper); --btn-fg: var(--ink); }
 .hero__eyebrow, .hero__desc, .hero__rule, .hero__left, .hero__entries, .hero__blocked { color: var(--felt-sub); }
-.pip { border-color: var(--felt-text); }
-.pip--on { background: var(--felt-text); }
+/* Entries as fingerprints: an inked print per player who has entered, a faint one for everyone still to. */
+.pips { gap: 4px; }
+.pip {
+  width: 18px; height: 22px; border: 0; background: var(--felt-text); opacity: 0.28;
+  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'><path d='M3.2 9.5C4.3 5.3 7 3 10 3s5.7 2.3 6.8 6.5'/><path d='M2.6 14.5c0-1.4.1-2.6.4-3.7M17.4 12c.1 2.7-.3 5.3-1.1 7.6'/><path d='M5 18.6c-.4-1.5-.5-3.1-.4-4.6C4.8 9.6 7.1 6.6 10 6.6s5.2 3 5.3 7.3c0 1.7-.1 3.3-.5 4.8'/><path d='M7.6 21c-.6-1.8-1-3.9-.9-6C6.8 11.6 8.2 9.8 10 9.8s3.2 1.8 3.3 5c.1 2.2-.3 4.3-1 6.3'/><path d='M10 13c.5 2.6.4 5.6-.4 8.5'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'><path d='M3.2 9.5C4.3 5.3 7 3 10 3s5.7 2.3 6.8 6.5'/><path d='M2.6 14.5c0-1.4.1-2.6.4-3.7M17.4 12c.1 2.7-.3 5.3-1.1 7.6'/><path d='M5 18.6c-.4-1.5-.5-3.1-.4-4.6C4.8 9.6 7.1 6.6 10 6.6s5.2 3 5.3 7.3c0 1.7-.1 3.3-.5 4.8'/><path d='M7.6 21c-.6-1.8-1-3.9-.9-6C6.8 11.6 8.2 9.8 10 9.8s3.2 1.8 3.3 5c.1 2.2-.3 4.3-1 6.3'/><path d='M10 13c.5 2.6.4 5.6-.4 8.5'/></svg>") center / contain no-repeat;
+}
+.pip--on { background: var(--felt-text); opacity: 1; }
 .eyebrow { font-family: var(--mono); letter-spacing: 2px; font-weight: 700; }
 .quiet__title { font-size: 22px; text-transform: none; }
 .empty h3 { font-size: 18px; text-transform: none; }
@@ -192,6 +216,39 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 }
 .sheet__body { padding-top: 16px; }
 
+/*
+ * Every other sheet as a manila folder (E4·1): the head is the folder's tab strip, the body manila, inputs on paper,
+ * secondary buttons ink-outlined on the manila; primary stays teal and danger red. The colour tokens are re-scoped
+ * inside the sheet, so the engine's cards, notes, tags and fields follow without their own rules. The reward pop-up
+ * (below) keeps its felt card.
+ */
+.sheet:not(:has(.reward-sheet)) {
+  --paper: var(--manila);
+  --card: #fbf8ef;
+  --ink: var(--manila-ink);
+  --muted: var(--manila-sub);
+  --line: 2px solid var(--manila-ink);
+  --hairline: 1px dashed var(--twine-dark);
+  --accent-tint: var(--manila-tab);
+  --alt: var(--manila-tab);
+  background: var(--manila); color: var(--manila-ink);
+}
+.sheet:not(:has(.reward-sheet)) .sheet__head {
+  background: var(--manila-tab); background-image: none; color: var(--manila-ink);
+  border-bottom: 2px solid var(--kraft-line); padding-bottom: 12px;
+}
+.sheet:not(:has(.reward-sheet)) .sheet__head .btn-icon { background: transparent; border: 2px solid var(--manila-ink); color: var(--manila-ink); }
+.sheet:not(:has(.reward-sheet)) .sheet__head .btn-icon:hover:not(:disabled) { background: var(--manila); }
+.sheet:not(:has(.reward-sheet)) .sheet__subtitle { color: var(--manila-sub); }
+.sheet:not(:has(.reward-sheet)) .btn { box-shadow: 0 2px 0 rgba(42, 33, 22, 0.35); }
+.sheet:not(:has(.reward-sheet)) .btn--ghost { box-shadow: none; color: var(--manila-ink); }
+.sheet:not(:has(.reward-sheet)) .btn--primary { border-color: var(--accent); }
+.sheet:not(:has(.reward-sheet)) .btn--danger { border-color: var(--warn); }
+.sheet:not(:has(.reward-sheet)) .input, .sheet:not(:has(.reward-sheet)) .textarea { background: #fbf8ef; border-color: var(--manila-ink); color: var(--manila-ink); }
+.sheet:not(:has(.reward-sheet)) .field__hint { color: var(--manila-sub); }
+.sheet:not(:has(.reward-sheet)) .note { background: #fbf8ef; }
+.sheet:not(:has(.reward-sheet)) .tag--ink { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); font-family: var(--mono); transform: rotate(-2deg); }
+
 /* the reward pop-up (P4 v2): a card in the middle of the room, felt header, big discs, round red-ringed targets */
 .sheet-root:has(.reward-sheet) { justify-content: center; padding: 0 16px; }
 .sheet:has(.reward-sheet) { max-width: none; width: 100%; max-height: 80dvh; box-shadow: 0 6px 0 var(--wall-shadow); animation: none; }
@@ -251,3 +308,107 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
   --ic-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 1v5M12 18v5M1 12h5M18 12h5'/%3E%3C/svg%3E");
 }
 
+
+/* ---------- the error page: crime-scene tape over the wall, a paper card ---------- */
+html .route-error { padding: 0 0 32px; max-width: var(--app-max); gap: 0; background: var(--wall); overflow-x: hidden; }
+html .route-error__tape { display: block; position: relative; height: 120px; margin-bottom: 28px; }
+html .route-error__tape::before,
+html .route-error__tape::after {
+  content: 'CRIME SCENE · DO NOT CROSS · CRIME SCENE · DO NOT CROSS · CRIME SCENE · DO NOT CROSS · CRIME SCENE · DO NOT CROSS · ';
+  position: absolute; left: -10%; width: 120%; height: 34px; line-height: 34px;
+  background: var(--warn); color: var(--paper);
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 3px; white-space: nowrap; overflow: hidden;
+  box-shadow: 0 3px 0 var(--wall-shadow);
+}
+html .route-error__tape::before { top: 22px; transform: rotate(-3deg); }
+html .route-error__tape::after { top: 62px; transform: rotate(2deg); background: var(--paper); color: var(--ink); }
+html .route-error__card {
+  display: flex; flex-direction: column; gap: 16px;
+  margin: 0 var(--page-x); padding: 22px 18px 20px;
+  background: var(--paper); color: var(--ink); box-shadow: var(--shadow);
+}
+html .route-error h1 { font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--ink); text-transform: none; }
+html .route-error p { font-size: 16px; line-height: 1.45; color: var(--muted); }
+html .route-error__home { display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
+
+/* ---------- the Map as an annotated case map (M1) ---------- */
+/* The street plan inked on manila. */
+.fqmapscreen .fqmap .leaflet-tile-pane { filter: sepia(0.75) saturate(0.6) hue-rotate(-6deg) brightness(1.03) contrast(0.92); }
+.fqmapscreen .fqmap .leaflet-container { background: var(--manila); }
+/* Stops: red-pen circles round the number, with a typed paper slip for the name. */
+.fqmapscreen .fqstopno {
+  width: 30px; height: 30px; border: 2.5px solid #c4302b; border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%;
+  background: transparent; color: #c4302b; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
+}
+.fqmapscreen .fqpin--stop-now .fqstopno { background: rgba(196, 48, 43, 0.12); color: #a3201b; box-shadow: none; border-width: 3px; }
+.fqmapscreen .fqpin--stop-next .fqstopno { background: transparent; color: #c4302b; box-shadow: none; }
+.fqmapscreen .fqpin--stop-past .fqstopno { background: transparent; color: #8a6f5a; border-color: #8a6f5a; opacity: 0.8; }
+.fqmapscreen .fqpin--stop-hidden .fqstopno { border: 2px dashed var(--manila-sub); color: var(--manila-sub); }
+.fqmapscreen .fqpin--stop .fqpin__label, .fqmapscreen .fqpin--stop-now .fqpin__label, .fqmapscreen .fqpin--player .fqpin__label {
+  background: var(--print); color: var(--manila-ink); border: 0; font-family: var(--mono); font-weight: 700; letter-spacing: 1px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.fqmapscreen .fqpin--stop .fqpin__label { left: calc(50% + 18px); transform: translateY(-50%) rotate(-2deg); }
+/* With no next stop on the map yet (players), a red-pen note by the current stop. */
+.fqmapscreen .leaflet-marker-pane:not(:has(.fqpin--stop-next)) .fqpin--stop-now::after {
+  content: 'next? sealed'; position: absolute; left: calc(50% + 6px); bottom: calc(100% + 18px); width: 110px; padding: 0 0 12px 54px;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; color: #c4302b; transform: rotate(-12deg); pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 34'%3E%3Cpath d='M4 30 C 20 24, 40 14, 62 8' fill='none' stroke='%23c4302b' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M54 4 L 63 8 L 56 15' fill='none' stroke='%23c4302b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") left bottom / 80px 34px no-repeat;
+}
+/* Footprints in ink. */
+.fqmapscreen .fqfoot svg { fill: var(--manila-ink); opacity: 0.8; }
+/* The controls as manila buttons; sharing on is teal. */
+.fqmapscreen .fqmap__btn { background: var(--manila); color: var(--manila-ink); border: 2px solid var(--manila-ink); font-family: var(--mono); letter-spacing: 1px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+.fqmapscreen .fqmap__btn:hover { background: var(--manila-tab); }
+.fqmapscreen .fqshare.is-on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.fqmapscreen .fqmap__count, .fqmapscreen .fqnote { background: var(--print); color: var(--manila-ink); border: 0; font-family: var(--mono); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+/* Now / Next as a manila folder at the bottom: tabs on top, the case file inside. */
+.fqmapscreen .fqroute__tab { border: 0; border-radius: 6px 6px 0 0; background: var(--kraft); color: var(--manila-ink); font-family: var(--mono); letter-spacing: 1.5px; }
+.fqmapscreen .fqroute__tab[aria-selected='true'] { background: var(--manila-tab); }
+.fqmapscreen .fqroute__body { position: relative; border: 0; border-top: 3px solid var(--manila-tab); background: var(--manila); color: var(--manila-ink); box-shadow: var(--shadow); }
+.fqmapscreen .fqroute__body::after {
+  content: ''; position: absolute; right: 16px; top: -14px; width: 16px; height: 44px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 44'%3E%3Cpath d='M5 40 V8 a3 3 0 0 1 6 0 V34 a5 5 0 0 1 -10 0 V12' fill='none' stroke='%239aa0a3' stroke-width='2'/%3E%3C/svg%3E") no-repeat;
+}
+.fqmapscreen .fqroute__meta { font-family: var(--mono); color: var(--manila-sub); letter-spacing: 1px; }
+.fqmapscreen .fqroute__meta::before { content: 'Case file · '; }
+.fqmapscreen .fqroute__name { color: var(--manila-ink); }
+.fqmapscreen .fqroute__stamp { font-family: var(--display); font-weight: 400; letter-spacing: 1.5px; color: var(--manila-sub); border-width: 2.5px; transform: rotate(-6deg); }
+.fqmapscreen .fqroute__stamp--now { color: var(--warn); }
+.fqmapscreen .fqroute__stamp--now::before { content: 'Active'; }
+.fqmapscreen .fqroute__stamp--now { font-size: 0; }
+.fqmapscreen .fqroute__stamp--now::before { font-size: 12px; }
+.fqmapscreen .fqroute__sub { font-family: var(--mono); font-size: 11px; color: var(--manila-sub); }
+
+/* ---------- the GM's route sheet and the stop sheets (portaled outside the map, so scoped by their own classes) ---------- */
+/* Each stop is a kraft tag with an eyelet; the list casts the tags' shadow (a clipped tag can't cast its own).
+   Doubled-up selectors so they outrank map.css, which loads later with the map. */
+.routesheet .routelist { gap: 10px; filter: drop-shadow(0 3px 0 rgba(42, 33, 22, 0.35)); }
+.routelist > .routerow {
+  position: relative; padding: 12px 12px 12px 44px; border: 0; color: var(--manila-ink);
+  background: var(--kraft); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.05));
+  clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
+}
+.routelist > .routerow::before {
+  content: ''; position: absolute; left: 12px; top: 50%; margin-top: -8px; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%;
+  border: 3px solid var(--eyelet); background: var(--manila); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge);
+}
+/* Hidden from players: a paler tag, the eyelet's ring dashed, the name in pencil. */
+.routelist > .routerow.is-hidden { border: 0; background: #e2d2ac; background-image: none; }
+.routelist > .routerow.is-hidden::before { border-style: dashed; }
+.routerow.is-hidden .routerow__name { color: var(--manila-sub); font-style: italic; }
+.routerow .routerow__name { font-family: var(--body); color: var(--manila-ink); }
+.routerow .routerow__time { font-family: var(--mono); font-size: 12px; color: var(--manila-sub); }
+/* The stop number as the map's red-pen circle. */
+.routerow .routerow__no.fqstopno {
+  width: 30px; height: 30px; border: 2.5px solid #c4302b; border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%;
+  background: transparent; color: #c4302b; box-shadow: none; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
+}
+.routerow.is-hidden .routerow__no.fqstopno { border: 2px dashed var(--manila-sub); color: var(--manila-sub); }
+.routerow .btn-icon { background: transparent; border: 2px solid var(--manila-ink); color: var(--manila-ink); }
+.routerow .btn-icon:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
+.routerow .btn:not(.btn--primary):not(.btn--danger) { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); box-shadow: none; }
+.routerow .btn--primary { box-shadow: none; }
+/* The stop's own sheet: arrive / leave as typed lines. */
+.sheet .stopsheet__times > div { font-family: var(--mono); font-size: 14px; }
+.sheet .stopsheet__times dt { min-width: 66px; }

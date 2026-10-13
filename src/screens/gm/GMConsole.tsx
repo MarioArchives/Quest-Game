@@ -1,15 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Loader } from '../../components/Loader';
 import { Icon } from '../../components/Icon';
-import { useModal } from '../../components/useModal';
 import { useGame } from '../../data/GameProvider';
 import { gmSectionsFor, type GmSectionId } from '../../lib/nav';
 import { features, t } from '../../pack';
 import { GameSection } from './GameSection';
+import { GM_DRAWER_ID, GmDrawer } from './GmDrawer';
 import { GmDataProvider, useGmData } from './GmData';
 import { GuessLogSection } from './GuessLogSection';
 import { JoinSection } from './JoinSection';
+import { PeriodicsSection } from './PeriodicsSection';
 import { PlayersSection } from './PlayersSection';
 import { QuestsSection } from './QuestsSection';
 import { ReviewSection } from './ReviewSection';
@@ -24,6 +24,7 @@ const LABELS: Record<GmSection, string> = {
   joins: 'Joins',
   review: 'Review',
   quests: t.sideQuest.Many,
+  periodics: t.checkin.Many,
   players: 'Players',
   guesses: 'Guesses',
   templates: t.quest.Many,
@@ -34,7 +35,6 @@ const LABELS: Record<GmSection, string> = {
 const SECTIONS: { id: GmSection; label: string }[] = gmSectionsFor(features).map((id) => ({ id, label: LABELS[id] }));
 
 const STORAGE_KEY = 'fq:gm-section';
-const DRAWER_ID = 'gm-drawer';
 
 function loadSection(): GmSection {
   try {
@@ -99,7 +99,7 @@ function Console() {
           className="gm-burger"
           aria-label={needsAttention > 0 ? `Menu, ${needsAttention} waiting` : 'Menu'}
           aria-expanded={menuOpen}
-          aria-controls={DRAWER_ID}
+          aria-controls={GM_DRAWER_ID}
           aria-haspopup="dialog"
           onClick={() => setMenuOpen(true)}
         >
@@ -124,6 +124,7 @@ function Console() {
         {section === 'joins' ? <JoinSection /> : null}
         {section === 'review' ? <ReviewSection /> : null}
         {section === 'quests' ? <QuestsSection /> : null}
+        {section === 'periodics' ? <PeriodicsSection /> : null}
         {section === 'players' ? <PlayersSection /> : null}
         {section === 'guesses' ? <GuessLogSection /> : null}
         {section === 'templates' ? <TemplatesSection /> : null}
@@ -132,8 +133,8 @@ function Console() {
 
       {menuOpen ? (
         <GmDrawer
+          items={SECTIONS.map((s) => ({ ...s, count: counts[s.id] ?? 0, countLabel: s.id === 'quests' ? 'running' : 'waiting' }))}
           current={section}
-          counts={counts}
           onChoose={(next) => {
             setSection(next);
             setMenuOpen(false);
@@ -142,65 +143,5 @@ function Console() {
         />
       ) : null}
     </>
-  );
-}
-
-/** Side drawer: slides in from the left over a dimmed page; Escape, the overlay and the close button dismiss it. */
-function GmDrawer({
-  current,
-  counts,
-  onChoose,
-  onClose,
-}: {
-  current: GmSection;
-  counts: Partial<Record<GmSection, number>>;
-  onChoose(section: GmSection): void;
-  onClose(): void;
-}) {
-  const titleId = useId();
-  const panelRef = useRef<HTMLElement>(null);
-  useModal(panelRef, onClose);
-
-  return createPortal(
-    <div className="gm-drawer-root">
-      <div className="gm-drawer-backdrop" onClick={onClose} />
-      <aside className="gm-drawer" id={DRAWER_ID} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1}>
-        <div className="gm-drawer__head">
-          <h2 id={titleId} className="gm-drawer__title">
-            {t.gm.One} console
-          </h2>
-          <button type="button" className="btn-icon" aria-label="Close menu" onClick={onClose}>
-            <Icon name="close" size={22} />
-          </button>
-        </div>
-        <nav aria-label={`${t.gm.One} console sections`}>
-          <ul className="gm-drawer__list">
-            {SECTIONS.map((item) => {
-              const count = counts[item.id] ?? 0;
-              const active = item.id === current;
-              return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className={`gm-drawer__item${active ? ' is-active' : ''}`}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => onChoose(item.id)}
-                  >
-                    <span className="gm-drawer__label">{item.label}</span>
-                    {count > 0 ? (
-                      <span className="gm-badge" aria-label={`${count} ${item.id === 'quests' ? 'running' : 'waiting'}`}>
-                        {count}
-                      </span>
-                    ) : null}
-                    <Icon name="chevron" size={20} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </aside>
-    </div>,
-    document.body,
   );
 }

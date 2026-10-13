@@ -55,17 +55,10 @@ export function surnameInitial(name: string): string {
   return `${words[words.length - 1]} ${words[0]![0]!.toUpperCase()}`;
 }
 
-export type GlassTile = { kind: 'suspect'; uid: string } | { kind: 'you' } | { kind: 'more'; count: number };
-
-/**
- * Up to six tiles: two other suspects, you, then up to three more; with more than five others it is two, you,
- * two, and "+N" for the rest. `others` is already in display order.
- */
-export function behindTheGlass(othersUids: readonly string[]): GlassTile[] {
-  const s = (uid: string): GlassTile => ({ kind: 'suspect', uid });
-  const head = othersUids.slice(0, 2).map(s);
-  const rest = othersUids.slice(2);
-  const tail: GlassTile[] =
-    rest.length <= 3 ? rest.map(s) : [...rest.slice(0, 2).map(s), { kind: 'more', count: rest.length - 2 }];
-  return [...head, { kind: 'you' }, ...tail];
+/** "Swap a mat for a note. Proof: your witness saw it." → the ask, and the proof line on its own (null without one). */
+export function splitProof(description: string): { what: string; proof: string | null } {
+  const at = description.search(/\bProof:\s*/);
+  if (at < 0) return { what: description.trim(), proof: null };
+  const proof = description.slice(at).replace(/^Proof:\s*/, '').trim();
+  return { what: description.slice(0, at).trim(), proof: proof || null };
 }

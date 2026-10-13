@@ -6,14 +6,14 @@ import { useNow } from '../data/hooks';
 import { useSession } from '../session/SessionProvider';
 import { FeedPost } from './home/FeedPost';
 import { RanksStrip } from './home/RanksStrip';
+import { CheckinCards } from './home/CheckinCard';
 import { SideQuestCards } from './home/SideQuestCard';
 import './home/home.css';
 import { features, t } from '../pack';
 
 /** Home: the game as a social feed. Ranks on top, the pinned announcement, the side quest, then everything that happened. */
 export default function Dashboard() {
-  const { player, isAdmin, joinRequest } = useSession();
-  const { state, ready, me, feed: feedPosts, feedLoading, feedError } = useGame();
+  const { ready, feed: feedPosts, feedLoading, feedError } = useGame();
   const now = useNow(30_000);
   const navigate = useNavigate();
 
@@ -23,45 +23,9 @@ export default function Dashboard() {
     <>
       <RanksStrip onSelect={(uid) => navigate(`/player/${uid}`)} />
 
-      {isAdmin && !player ? (
-        <aside className="banner" aria-label="Play as well">
-          <Icon name="user" size={22} />
-          <p>
-            {joinRequest?.status === 'pending' ? (
-              <>
-                <strong>Joining the game…</strong> Your {t.quest.many} are being dealt.
-              </>
-            ) : (
-              <>
-                <strong>Playing too?</strong> {t.gm.Many} need no approval: join as a player and your {t.quest.many} are dealt at once. <Link to="/join">Join the game</Link>
-              </>
-            )}
-          </p>
-        </aside>
-      ) : null}
+      <HomeBanners />
 
-      {state.announcement ? (
-        <aside className="announce" aria-label={`${t.gm.One} announcement`}>
-          <Icon name="megaphone" size={22} />
-          <p>
-            <span className="announce__label">Pinned from the {t.gm.One}</span>
-            {state.announcement}
-          </p>
-        </aside>
-      ) : null}
-
-      {state.status !== 'active' ? <StatusBanner status={state.status} /> : null}
-
-      {me?.left ? (
-        <aside className="banner" aria-label="You have left" role="status">
-          <Icon name="logout" size={22} />
-          <p>
-            <strong>The {t.gm.One} has marked you as having left.</strong>{' '}
-            {me.left === 'frozen' ? 'Your score is frozen. ' : ''}Ask the {t.gm.One} to bring you back if you want to play again.
-          </p>
-        </aside>
-      ) : null}
-
+      {features.checkins ? <CheckinCards /> : null}
       {features.sideQuests ? <SideQuestCards /> : null}
 
       <section aria-labelledby="feed-title">
@@ -87,6 +51,54 @@ export default function Dashboard() {
         )}
       </section>
 
+    </>
+  );
+}
+
+/** What sits above the side quest on Home: the GM's "playing too?", the pinned announcement, game status and "you have left". */
+export function HomeBanners() {
+  const { player, isAdmin, joinRequest } = useSession();
+  const { state, me } = useGame();
+  return (
+    <>
+    {isAdmin && !player ? (
+      <aside className="banner" aria-label="Play as well">
+        <Icon name="user" size={22} />
+        <p>
+          {joinRequest?.status === 'pending' ? (
+            <>
+              <strong>Joining the game…</strong> Your {t.quest.many} are being dealt.
+            </>
+          ) : (
+            <>
+              <strong>Playing too?</strong> {t.gm.Many} need no approval: join as a player and your {t.quest.many} are dealt at once. <Link to="/join">Join the game</Link>
+            </>
+          )}
+        </p>
+      </aside>
+    ) : null}
+
+    {state.announcement ? (
+      <aside className="announce" aria-label={`${t.gm.One} announcement`}>
+        <Icon name="megaphone" size={22} />
+        <p>
+          <span className="announce__label">Pinned from the {t.gm.One}</span>
+          {state.announcement}
+        </p>
+      </aside>
+    ) : null}
+
+    {state.status !== 'active' ? <StatusBanner status={state.status} /> : null}
+
+    {me?.left ? (
+      <aside className="banner" aria-label="You have left" role="status">
+        <Icon name="logout" size={22} />
+        <p>
+          <strong>The {t.gm.One} has marked you as having left.</strong>{' '}
+          {me.left === 'frozen' ? 'Your score is frozen. ' : ''}Ask the {t.gm.One} to bring you back if you want to play again.
+        </p>
+      </aside>
+    ) : null}
     </>
   );
 }

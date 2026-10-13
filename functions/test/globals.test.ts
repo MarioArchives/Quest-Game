@@ -340,6 +340,132 @@ describe('fireGlobalQuest', () => {
     expect(await allDocs(db(), 'globalQuests')).toHaveLength(0);
   });
 
+  describe('template (drawn and looked at first)', () => {
+    const fromTemplate = (over: Record<string, unknown> = {}) => ({ mode: 'template' as const, templateId: 'g02', ...over });
+
+    it('opens the named template as it is, with the default points and its own window', async () => {
+      await tickSetup({ settings: { sideQuestPoints: 75, globalWindowMin: 40 } });
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g01');
+      await seedGlobalTemplate(db(), 'g02', { windowMin: 25 });
+      const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), fromTemplate());
+      const q = await getData(db(), `globalQuests/${globalQuestId}`);
+      expect(q).toMatchObject({
+        title: 'Global quest g02',
+        description: 'Everyone: do g02',
+        bonusPoints: 75,
+        source: 'gm-random',
+        templateId: 'g02',
+        status: 'live',
+      });
+      expect(toMillis(q!.endsAt)).toBe(T0.getTime() + 25 * MIN);
+      expect((await feedOf(db(), 'global-open')).map((p) => p.questTitle)).toEqual(['Global quest g02']);
+    });
+
+    it("uses the settings' window when the template has none", async () => {
+      await tickSetup({ settings: { globalWindowMin: 40 } });
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02');
+      const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), fromTemplate());
+      expect(toMillis((await getData(db(), `globalQuests/${globalQuestId}`))!.endsAt)).toBe(T0.getTime() + 40 * MIN);
+    });
+
+    it("opens the GM's edits and still records the template", async () => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02');
+      const { globalQuestId } = await fireGlobalQuest(
+        db(),
+        ctx('gm'),
+        fromTemplate({ title: '  Best toast at The Crown ', description: 'A photo of the toast', windowMin: 15, points: 30 }),
+      );
+      const q = await getData(db(), `globalQuests/${globalQuestId}`);
+      expect(q).toMatchObject({ title: 'Best toast at The Crown', description: 'A photo of the toast', bonusPoints: 30, templateId: 'g02', source: 'gm-random' });
+      expect(toMillis(q!.endsAt)).toBe(T0.getTime() + 15 * MIN);
+    });
+
+    it('keeps the template values for any field left out', async () => {
+      await tickSetup({ settings: { sideQuestPoints: 75 } });
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02', { windowMin: 25 });
+      const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), fromTemplate({ title: 'Renamed' }));
+      const q = await getData(db(), `globalQuests/${globalQuestId}`);
+      expect(q).toMatchObject({ title: 'Renamed', description: 'Everyone: do g02', bonusPoints: 75 });
+      expect(toMillis(q!.endsAt)).toBe(T0.getTime() + 25 * MIN);
+    });
+
+    it('counts as used: the next random draw prefers another template', async () => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g01');
+      await seedGlobalTemplate(db(), 'g02');
+      await fireGlobalQuest(db(), ctx('gm'), fromTemplate({ templateId: 'g01', title: 'Edited' }));
+      const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm', T0, constRng(0)), { mode: 'random' });
+      expect((await getData(db(), `globalQuests/${globalQuestId}`))?.templateId).toBe('g02');
+    });
+
+    it.each([
+      ['blank title', { title: '   ' }],
+      ['81-char title', { title: 'x'.repeat(81) }],
+      ['501-char description', { description: 'x'.repeat(501) }],
+      ['window 4 min', { windowMin: 4 }],
+      ['window 181 min', { windowMin: 181 }],
+      ['negative points', { points: -1 }],
+      ['non-numeric window', { windowMin: '30' }],
+      ['no template id', { templateId: undefined }],
+      ['empty template id', { templateId: '' }],
+      ['a path for a template id', { templateId: 'g02/x' }],
+      ['a number for a template id', { templateId: 2 }],
+    ])('rejects %s and opens nothing', async (_label, over) => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02');
+      await expectCode(fireGlobalQuest(db(), ctx('gm'), fromTemplate(over)), 'invalid-argument');
+      expect(await allDocs(db(), 'globalQuests')).toHaveLength(0);
+    });
+
+    it('refuses a template that no longer exists', async () => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await expectCode(fireGlobalQuest(db(), ctx('gm'), fromTemplate({ templateId: 'gone' })), 'not-found');
+    });
+
+    it('refuses a retired template or a personal quest template', async () => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02', { active: false });
+      const [personal] = await seedPersonalTemplates(db(), 1);
+      await expectCode(fireGlobalQuest(db(), ctx('gm'), fromTemplate()), 'failed-precondition');
+      await expectCode(fireGlobalQuest(db(), ctx('gm'), fromTemplate({ templateId: personal })), 'failed-precondition');
+      expect(await allDocs(db(), 'globalQuests')).toHaveLength(0);
+    });
+
+    it('only a GM can fire it', async () => {
+      await tickSetup();
+      await seedGlobalTemplate(db(), 'g02');
+      await seedPlayer(db(), 'alice');
+      await expectCode(fireGlobalQuest(db(), ctx('alice'), fromTemplate()), 'permission-denied');
+      expect(await allDocs(db(), 'globalQuests')).toHaveLength(0);
+    });
+
+    it('sends the live side quest on to checking, like the other modes', async () => {
+      await tickSetup();
+      await seedAdmin(db(), 'gm');
+      await seedGlobalTemplate(db(), 'g02');
+      await seedGlobalQuest(db(), 'old', { status: 'live', endsAt: addMin(T0, 20) });
+      const { globalQuestId } = await fireGlobalQuest(db(), ctx('gm'), fromTemplate());
+      expect((await getData(db(), 'globalQuests/old'))?.status).toBe('checking');
+      expect((await liveQuests()).map((q) => q.id)).toEqual([globalQuestId]);
+    });
+  });
+
+  it('rejects an unknown mode', async () => {
+    await tickSetup();
+    await seedAdmin(db(), 'gm');
+    await seedGlobalTemplate(db(), 'g01');
+    await expectCode(fireGlobalQuest(db(), ctx('gm'), { mode: 'surprise' } as never), 'invalid-argument');
+  });
+
   it('moves the current live side quests on to checking (entries or not) before opening a new one', async () => {
     await tickSetup();
     await seedAdmin(db(), 'gm');

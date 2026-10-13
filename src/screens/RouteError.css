@@ -8,5 +8,8 @@
   margin: 0 auto;
   padding: 64px var(--page-x) 32px;
 }
+.route-error__tape { display: none; }
+.route-error__card { display: contents; }
 .route-error h1 { font-size: 44px; color: var(--accent); }
 .route-error p { font-size: 16px; }
+.route-error__home { text-decoration: none; }

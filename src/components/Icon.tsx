@@ -3,6 +3,8 @@ import type { SVGProps } from 'react';
 // 24px line icons: 2px stroke, round caps (same family as the mockups' inline SVGs).
 const PATHS = {
   home: ['M3 11l9-7 9 7', 'M5 10v10h14V10'],
+  /** A magnifying glass with a glint. */
+  search: ['M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z', 'M15.3 15.3L21 21', 'M7.5 9.5a3 3 0 0 1 3-3'],
   quests: ['M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z', 'M9 8h6M9 12h6M9 16h4'],
   map: ['M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z', 'M9 4v14M15 6v14'],
   ranks: ['M6 20v-8M12 20V5M18 20v-5'],
@@ -32,6 +34,9 @@ const PATHS = {
 } as const;
 
 export type IconName = keyof typeof PATHS;
+
+/** True for a name the icon set has (a pack's brand names icons as plain strings). */
+export const isIconName = (name: string | undefined): name is IconName => name !== undefined && Object.prototype.hasOwnProperty.call(PATHS, name);
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;

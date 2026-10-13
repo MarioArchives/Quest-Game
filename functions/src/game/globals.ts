@@ -1,4 +1,5 @@
 import type { DocSnap, Txn } from '../shared/store/types.js';
+import { drawTemplate } from '../shared/draw.js';
 import { getPack } from '../shared/packs/index.js';
 import { termForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
@@ -37,6 +38,13 @@ interface Picked {
   windowMin: number | null;
 }
 
+const picked = (doc: DocSnap): Picked => ({
+  id: doc.id,
+  title: doc.get('title') as string,
+  description: doc.get('description') as string,
+  windowMin: (doc.get('windowMin') as number | null) ?? null,
+});
+
 /** An active global template, preferring ones no side quest has used yet. Reads only. */
 async function chooseGlobalTemplate(
   tx: Txn,
@@ -45,18 +53,12 @@ async function chooseGlobalTemplate(
   rng: () => number,
 ): Promise<Picked | null> {
   const snap = await tx.get(db.collection('questTemplates').where('scope', '==', 'global').where('active', '==', true));
-  const candidates = snap.docs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  if (candidates.length === 0) return null;
-  const used = new Set(existing.map((q) => q.get('templateId') as string | null));
-  const fresh = candidates.filter((d) => !used.has(d.id));
-  const pool = fresh.length > 0 ? fresh : candidates;
-  const doc = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
-  return {
-    id: doc.id,
-    title: doc.get('title') as string,
-    description: doc.get('description') as string,
-    windowMin: (doc.get('windowMin') as number | null) ?? null,
-  };
+  const doc = drawTemplate(
+    snap.docs,
+    existing.map((q) => q.get('templateId') as string | null),
+    rng,
+  );
+  return doc ? picked(doc) : null;
 }
 
 interface OpenSpec {
@@ -167,39 +169,68 @@ export async function runTick(db: Db, now: Date, rng: () => number, pack: GamePa
   });
 }
 
-export type FireGlobalInput =
-  | { mode?: 'random' }
-  | {
-      mode: 'custom';
-      title?: unknown;
-      description?: unknown;
-      windowMin?: unknown;
-      points?: unknown;
-    };
-
-function parseCustom(data: Record<string, unknown>): OpenSpec {
-  const bad = (message: string): never => fail('invalid-argument', message);
-  if (typeof data.title !== 'string') bad('Enter a title.');
-  const title = (data.title as string).trim();
-  if (title.length < 1 || title.length > 80) bad('The title must be 1 to 80 characters.');
-  if (typeof data.description !== 'string' || data.description.length > 500) bad('The description must be text of at most 500 characters.');
-  const windowMin = data.windowMin;
-  if (typeof windowMin !== 'number' || !Number.isInteger(windowMin) || windowMin < 5 || windowMin > 180) {
-    bad('The window must be a whole number of minutes from 5 to 180.');
-  }
-  const points = data.points;
-  if (typeof points !== 'number' || !Number.isInteger(points) || points < 0) bad('Points must be a whole number, 0 or more.');
-  return {
-    title,
-    description: (data.description as string).trim(),
-    bonusPoints: points as number,
-    source: 'gm-custom',
-    templateId: null,
-    windowMin: windowMin as number,
-  };
+interface GmFields {
+  title?: unknown;
+  description?: unknown;
+  windowMin?: unknown;
+  points?: unknown;
 }
 
-/** The GM opens a side quest now: random from global templates, or a custom one. */
+export type FireGlobalInput =
+  | { mode?: 'random' }
+  | ({ mode: 'custom' } & GmFields)
+  /** One the GM drew and looked at first (see `drawTemplate`), sent as it is or with their edits. */
+  | ({ mode: 'template'; templateId?: unknown } & GmFields);
+
+interface Fields {
+  title: string;
+  description: string;
+  windowMin: number;
+  points: number;
+}
+
+/**
+ * The GM's title, description, window and points. In custom mode every field is required; with a `base` (the
+ * template's own values) a field left out keeps the base value, and every field given is checked the same way.
+ */
+function parseFields(data: Record<string, unknown>, base?: Fields): Fields {
+  const bad = (message: string): never => fail('invalid-argument', message);
+  const given = (key: keyof GmFields) => base === undefined || data[key] !== undefined;
+  let title = base?.title ?? '';
+  if (given('title')) {
+    if (typeof data.title !== 'string') bad('Enter a title.');
+    title = (data.title as string).trim();
+    if (title.length < 1 || title.length > 80) bad('The title must be 1 to 80 characters.');
+  }
+  let description = base?.description ?? '';
+  if (given('description')) {
+    if (typeof data.description !== 'string' || data.description.length > 500) bad('The description must be text of at most 500 characters.');
+    description = (data.description as string).trim();
+  }
+  let windowMin = base?.windowMin ?? 0;
+  if (given('windowMin')) {
+    const w = data.windowMin;
+    if (typeof w !== 'number' || !Number.isInteger(w) || w < 5 || w > 180) bad('The window must be a whole number of minutes from 5 to 180.');
+    windowMin = w as number;
+  }
+  let points = base?.points ?? 0;
+  if (given('points')) {
+    const p = data.points;
+    if (typeof p !== 'number' || !Number.isInteger(p) || p < 0) bad('Points must be a whole number, 0 or more.');
+    points = p as number;
+  }
+  return { title, description, windowMin, points };
+}
+
+function parseCustom(data: Record<string, unknown>): OpenSpec {
+  const f = parseFields(data);
+  return { title: f.title, description: f.description, bonusPoints: f.points, source: 'gm-custom', templateId: null, windowMin: f.windowMin };
+}
+
+/**
+ * The GM opens a side quest now: random from the global templates, a template they drew and looked at first
+ * (as it is or edited; it still counts as used, so the timer won't repeat it soon), or a custom one.
+ */
 export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): Promise<{ globalQuestId: string }> {
   const { pack } = ctx;
   const t = termForms(pack.terms);
@@ -212,14 +243,30 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
 
     const input = data as Record<string, unknown>;
     const mode = input.mode ?? 'random';
-    if (mode !== 'random' && mode !== 'custom') fail('invalid-argument', "mode must be 'random' or 'custom'.");
+    if (mode !== 'random' && mode !== 'custom' && mode !== 'template') fail('invalid-argument', "mode must be 'random', 'custom' or 'template'.");
     const custom = mode === 'custom' ? parseCustom(input) : null;
+    const templateId = input.templateId;
+    if (mode === 'template' && (typeof templateId !== 'string' || templateId.length === 0 || templateId.includes('/'))) {
+      fail('invalid-argument', 'Say which template to fire.');
+    }
 
     const settings = await loadSettings(db, tx);
     const quests = (await tx.get(db.collection('globalQuests'))).docs;
     let spec: OpenSpec;
     if (custom) {
       spec = custom;
+    } else if (mode === 'template') {
+      const doc = await tx.get(db.doc(`questTemplates/${templateId as string}`));
+      if (!doc.exists) fail('not-found', `That ${t.sideQuest.one} is no longer in the templates.`);
+      if (doc.get('scope') !== 'global' || doc.get('active') !== true) fail('failed-precondition', `That template isn't an active ${t.sideQuest.one}.`);
+      const template = fromTemplate(picked(doc), settings, 'gm-random');
+      const f = parseFields(input, {
+        title: template.title,
+        description: template.description,
+        windowMin: template.windowMin,
+        points: template.bonusPoints,
+      });
+      spec = { ...template, title: f.title, description: f.description, windowMin: f.windowMin, bonusPoints: f.points };
     } else {
       const template = await chooseGlobalTemplate(tx, db, quests, rng);
       if (!template) fail('failed-precondition', `There are no active global ${t.quest.one} templates.`);

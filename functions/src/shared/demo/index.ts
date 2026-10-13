@@ -3,6 +3,7 @@
 // Pure and deterministic: same pack, settings and nowMs give the same output. No Node APIs, no clock, no Math.random.
 import type { CatalogueQuest, GamePack } from '../packs/types.ts';
 import { termForms } from '../packs/terms.ts';
+import { routeSeedStops } from '../route.ts';
 import { Stamp } from '../store/stamp.ts';
 import type { DocData } from '../store/types.ts';
 import type { Settings } from '../types.ts';
@@ -35,6 +36,13 @@ export interface DemoOptions {
 export const DEMO_SIDE_QUEST = 'demo-side';
 const SIDE_QUEST = DEMO_SIDE_QUEST;
 const SVG = 'image/svg+xml';
+
+/** The demo's first stops are revealed and timed (minutes from "now"); later route stops stay hidden with no times. */
+const DEMO_ROUTE_TIMES: Array<{ startsMin: number; endsMin?: number }> = [
+  { startsMin: -60, endsMin: -5 },
+  { startsMin: 0 },
+  { startsMin: 60 },
+];
 
 export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
   const T = termForms(pack.terms);
@@ -287,7 +295,8 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
           kind: 'global',
           questId: SIDE_QUEST,
           createdAt: at(minutesAgo),
-          status: 'approved',
+          // Sealed, as enterSideQuest makes them: hidden until the vote, so a GM can check them first.
+          status: 'sealed',
           imagePath,
           thumbPath,
           caption,
@@ -306,9 +315,6 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         photoURL: null,
         questTitle: side.title,
         submissionId: subId,
-        imagePath,
-        thumbPath,
-        caption,
       });
       pushPhoto(imagePath, thumbPath, side.title, bot.name);
     }
@@ -328,6 +334,27 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
     for (const bot of BOTS) {
       entries.push([`locations/${bot.uid}`, { lat: lat + bot.offset[0], lng: lng + bot.offset[1], accuracy: 10, updatedAt: at(0) }]);
     }
+  }
+
+  // The GM's route, for packs with stops and a route: the first three revealed with times, the rest hidden.
+  for (const stop of routeSeedStops(pack)) {
+    const timed = DEMO_ROUTE_TIMES[stop.order - 1];
+    entries.push([
+      `stops/${stop.id}`,
+      {
+        name: stop.name,
+        lat: stop.lat,
+        lng: stop.lng,
+        order: stop.order,
+        address: stop.address,
+        placeRef: stop.placeRef,
+        placeName: stop.placeName,
+        startsAt: timed ? Stamp.fromMillis(nowMs + timed.startsMin * 60_000) : null,
+        endsAt: timed?.endsMin === undefined ? null : Stamp.fromMillis(nowMs + timed.endsMin * 60_000),
+        revealed: !!timed,
+        createdAt: at(240),
+      },
+    ]);
   }
 
   return {

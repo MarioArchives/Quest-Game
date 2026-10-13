@@ -1,0 +1,228 @@
+/*
+ * The GM console as case files (E4·1) on the wall: the incident room's folder, "needs your signature" on ruled index
+ * cards, the evidence as kraft tags on twine (the kit's Strung + Tag), and folders for the group mission, periodic
+ * missions, frames, suspects and the bulletin. The engine's sections shown here are restyled for paper below.
+ */
+.gl { display: flex; flex-direction: column; min-width: 0; }
+.gl-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--walltext); padding: 6px 0 12px; }
+.gl-badge { padding: 4px 8px; border: 1.5px solid var(--walltext); color: var(--walltext); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+/* ---------- folders ---------- */
+.gl-folder { margin-top: 22px; }
+.gl-folder:first-of-type { margin-top: 6px; }
+.gl-folder__row { align-self: stretch; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+/* Keep a stamp clear of the paperclip in the top right corner. */
+.gl-folder__row > .cf-stamp { margin-right: 26px; }
+.gl-plate__sub { font-family: var(--mono); font-size: 12px; color: var(--manila-sub); }
+.gl-casebtns { margin-top: 4px; }
+.gl-casebtns .gl-btn { min-width: 0; }
+
+/* ---------- needs your signature: index cards that filter the tags ---------- */
+.gl-section { margin: 22px 0 8px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--walltext); }
+.gl-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.gl .gl-tile {
+  min-height: 96px; margin: 0; border: 0; border-top: 2px solid var(--warn); border-radius: 0; text-align: left; cursor: pointer;
+  font: inherit; color: var(--ink); transform: rotate(-0.8deg);
+}
+.gl .gl-tile:nth-child(even) { transform: rotate(0.7deg); }
+.gl .gl-tile:hover { filter: brightness(0.97); }
+.gl .gl-tile:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.gl .gl-tile[aria-pressed='true'] { box-shadow: inset 0 0 0 3px var(--accent), var(--shadow); }
+.gl-tile__n { font-family: var(--display); font-size: 32px; line-height: 1; margin-top: 4px; }
+.gl-tile.is-zero .gl-tile__n { color: var(--muted); }
+.gl-tile__label { order: -1; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.gl-tile__sub { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-tile__flag { position: absolute; top: 6px; right: 6px; padding: 1px 5px; background: var(--warn); color: #fff; font-family: var(--mono); font-size: 10px; font-weight: 700; }
+.gl-showing { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.gl-showing__all { min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--walltext); font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- the evidence, strung ---------- */
+.gl-tags { margin-top: 8px; }
+.gl-more {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; margin-top: 12px;
+  border: 2px dashed var(--walltext); color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+}
+.gl-more:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.gl-tag__text { font-family: var(--mono); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.gl-tag__sub { font-size: 13px; color: var(--manila-sub); line-height: 1.35; }
+.gl-actions { align-self: stretch; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.gl-actions > .gl-btn { flex: 1 1 0; }
+.gl-actions--end > .gl-btn { flex: 0 0 auto; }
+.gl-grow { flex: 1; }
+.gl-pts { font-family: var(--display); font-size: 16px; color: var(--stamp-good); }
+
+/* ---------- buttons on paper ---------- */
+.gl .gl-btn {
+  min-height: 44px; padding: 0 12px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); box-shadow: none; border-radius: 0;
+}
+.gl .gl-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
+.gl .gl-btn:active:not(:disabled) { transform: none; box-shadow: none; }
+.gl .gl-btn:disabled { opacity: 0.45; }
+.gl .gl-btn--ink { background: var(--manila-ink); color: var(--manila); border-color: var(--manila-ink); }
+.gl .gl-btn--ink:hover:not(:disabled) { background: #3a2e1c; }
+.gl .gl-btn--teal { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gl .gl-btn--teal:hover:not(:disabled) { background: var(--accent-hover); }
+.gl .gl-btn--warn { border-color: var(--warn); color: var(--stamp-bad); }
+.gl .gl-btn--red { background: var(--warn); color: #fff; border-color: var(--warn); }
+.gl .gl-btn--red:hover:not(:disabled) { background: var(--warn-text); }
+.gl .gl-btn--wide { width: 100%; min-height: 48px; font-size: 13px; }
+.gl .gl-btn--sm { flex: none; min-height: 40px; min-width: 40px; padding: 0 6px; font-size: 12px; }
+
+.gl-quiet { margin-top: 16px; font-family: var(--mono); font-size: 12px; color: var(--chart); }
+.gl-quiet--paper { margin-top: 0; color: var(--manila-sub); }
+.gl-empty { margin-top: 16px; padding: 16px; background: var(--manila); color: var(--manila-ink); box-shadow: var(--shadow); }
+.gl-empty h3 { font-size: 18px; }
+.gl-empty p { margin-top: 4px; font-size: 14px; color: var(--manila-sub); }
+
+/* ---------- the group mission ---------- */
+.gl-mission__head { align-self: stretch; display: flex; flex-direction: column; gap: 4px; }
+.gl-live { flex: none; margin-right: 26px; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--stamp-bad); }
+.gl-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.gl-card__btns { align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gl-card__btns .gl-btn { min-width: 0; padding: 6px 8px; line-height: 1.2; white-space: normal; }
+.gl-card__desc { font-size: 13px; color: var(--manila-sub); line-height: 1.4; }
+.gl-clockrow { align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.gl-bigclock { font-family: var(--display); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.gl-prints { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
+.gl-prints__n { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.gl .pip, .gl .pip--on { background: var(--manila-ink); }
+
+.gl-bags { align-self: stretch; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.gl-bagcell { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gl-bag {
+  all: unset; box-sizing: border-box; position: relative; display: flex; align-items: flex-end; justify-content: center; height: 96px; overflow: hidden; cursor: pointer;
+  background: repeating-linear-gradient(135deg, #d5d8d8 0 6px, #cbcfcf 6px 12px); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+div.gl-bag { cursor: default; }
+.gl-bag:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.gl-bag img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.gl-bag__zip { position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 10px; background: var(--warn); }
+.gl-bag__label { position: relative; z-index: 1; max-width: calc(100% - 8px); margin-bottom: 6px; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--print); font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--ink); }
+.gl-bag__late { position: absolute; z-index: 1; top: 14px; right: 4px; padding: 1px 4px; background: var(--manila-ink); color: var(--manila); font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+.gl-bag__caption { font-size: 12px; color: var(--manila-sub); overflow-wrap: anywhere; }
+.gl-bag__pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.gl-bag__pick .gl-btn { padding: 0; min-width: 0; }
+.gl-stamp { min-height: 44px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--manila-sub); color: var(--manila-sub); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.gl-bag__pick .gl-stamp { min-width: 0; }
+.gl-stamp--ok { border-color: var(--stamp-good); color: var(--stamp-good); }
+
+/* ---------- frames on file (GM eyes only) ---------- */
+.gl-frames__lead { font-size: 13px; color: var(--manila-sub); }
+.gl-frames__sum { font-size: 13px; color: var(--manila-sub); }
+.gl-frames__rows { align-self: stretch; display: flex; flex-direction: column; }
+.gl-frames__rows li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px dashed var(--twine-dark); font-family: var(--mono); font-size: 12px; }
+.gl-frames__at { color: var(--manila-sub); }
+.gl-frames__rows b { font-weight: 700; color: var(--manila-sub); }
+.gl-frames__rows .is-neg { color: var(--stamp-bad); }
+.gl-frames__rows .is-pos { color: var(--stamp-good); }
+.gl-open { align-self: flex-start; min-height: 44px; min-width: 44px; padding: 0; background: none; border: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--stamp-plain); }
+
+/* ---------- suspects, with the quick nudges ---------- */
+.gl-sus__list { align-self: stretch; display: flex; flex-direction: column; }
+.gl-sus__row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--twine-dark); }
+.gl-sus__icon.avatar { border: 2px solid var(--accent); }
+.gl-sus__icon.is-neg.avatar { border-color: var(--warn); }
+.gl-sus__who { flex: 1; min-width: 0; }
+.gl-sus__name { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-sus__left { font-weight: 400; color: var(--manila-sub); }
+.gl-sus__role { font-family: var(--mono); font-size: 10px; color: var(--manila-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-sus__pts { font-family: var(--display); font-size: 17px; color: var(--stamp-good); }
+.gl-sus__pts.is-neg { color: var(--stamp-bad); }
+
+/* ---------- the engine's parts inside a folder: flat on the manila ---------- */
+.gl-folder .gm-card { padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--manila-ink); }
+.gl-folder .gm-h { font-family: var(--display); font-size: 18px; color: var(--manila-ink); }
+.gl-folder .gm-hint, .gl-folder .gm-intro { color: var(--manila-sub); }
+.gl-folder .gm-current { background: var(--manila-ink); color: var(--manila); }
+.gl-folder .btn { box-shadow: none; border-radius: 0; }
+.gl-folder .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger) { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); }
+.gl-folder .btn--primary { --btn-bg: var(--accent); --btn-fg: #fff; border-color: var(--accent); }
+.gl-folder .btn--ghost { color: var(--manila-ink); }
+.gl-folder .gm-current .btn:not(.btn--primary) { background: var(--manila); color: var(--manila-ink); border-color: var(--manila); }
+.gl-folder .textarea, .gl-folder .input { background: #fbf8ef; }
+
+/* Periodic missions: each series a section of the folder, divided by a dashed rule. */
+.gl-periodics .gm-list--cards { align-self: stretch; gap: 0; }
+.gl-periodics .gm-list--cards > li.gm-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px dashed var(--twine-dark); }
+.gl-periodics .gm-list--cards > li.gm-card:first-child { border-top: 0; padding-top: 0; }
+.gl-periodics .gm-pm__head { margin-right: 26px; }
+.gl-periodics .gm-count {
+  padding: 1px 6px; border: 2px solid var(--manila-sub); background: transparent; color: var(--manila-sub); transform: rotate(-4deg);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px;
+}
+.gl-periodics .gm-count--on { border-color: var(--stamp-plain); color: var(--stamp-plain); background: transparent; }
+
+/* The bulletin: the announcement form, its own heading folded into the tab. */
+.gl-engine .gm-card > .gm-h { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+
+/* ---------- the sub-pages (suspects, settings, …): on a manila sheet ---------- */
+.gl-sub { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.gl-back { align-self: flex-start; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.gl-sub__body {
+  display: flex; flex-direction: column; gap: var(--gap); min-width: 0; padding: 14px 16px 18px;
+  background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
+}
+/*
+ * The engine's sections on the sub-pages, drawn on the manila sheet: the tokens are re-scoped so their lists, fields
+ * and buttons turn manila/ink; cards lose their white paper and become folder sections divided by dashed rules;
+ * card lists (periodic missions, templates) become kraft tags; counts become stamps; the dark "open now" panel stays.
+ */
+.gl-sub__body {
+  --paper: var(--manila);
+  --card: #fbf8ef;
+  --ink: var(--manila-ink);
+  --muted: var(--manila-sub);
+  --line: 2px solid var(--manila-ink);
+  --hairline: 1px dashed var(--twine-dark);
+  --accent-tint: var(--manila-tab);
+  --alt: var(--manila-tab);
+}
+.gl-sub .gm-card { padding: 12px 0 0; background: transparent; border: 0; border-top: 1px dashed var(--twine-dark); box-shadow: none; color: var(--manila-ink); }
+.gl-sub .gl-sub__body > .gm-card:first-child, .gl-sub .gl-sub__body > section:first-child > .gm-card:first-child { padding-top: 0; border-top: 0; }
+.gl-sub .gm-h, .gl-sub .section-head h2 { font-family: var(--display); color: var(--manila-ink); text-transform: none; }
+.gl-sub .section-head { border-bottom: 2px solid var(--manila-ink); }
+.gl-sub .gm-hint, .gl-sub .gm-intro, .gl-sub .gm-person__sub { color: var(--manila-sub); }
+.gl-sub .gm-list > li { border-bottom: 1px dashed var(--twine-dark); }
+.gl-sub .gm-list > li:first-child { border-top: 2px solid var(--manila-ink); }
+.gl-sub .gm-list--cards > li, .gl-sub .gm-list--cards > li:first-child { border: 0; }
+/* Counts and badges as rubber stamps. */
+.gl-sub .gm-count, .gl-sub .gm-badge {
+  padding: 1px 6px; border: 2px solid var(--manila-sub); background: transparent; color: var(--manila-sub); transform: rotate(-4deg);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; box-shadow: none;
+}
+.app__main .gl-sub .section-head__meta {
+  align-self: center; padding: 1px 6px; border: 2px solid currentColor; color: var(--stamp-plain); transform: rotate(-3deg);
+  font-weight: 700; text-align: center;
+}
+.gl-sub .gm-count--on { border-color: var(--stamp-plain); color: var(--stamp-plain); background: transparent; }
+/* Buttons: ink outline on manila; primary teal, danger red, ghost an underlined link. */
+.gl-sub .btn { box-shadow: none; border-radius: 0; }
+.gl-sub .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger) { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); }
+.gl-sub .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger):hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
+.gl-sub .btn--primary { --btn-bg: var(--accent); --btn-fg: #fff; border-color: var(--accent); }
+.gl-sub .btn--danger { border-color: var(--warn); }
+.gl-sub .btn--ghost { color: var(--manila-ink); }
+.gl-sub .btn-icon { background: transparent; border: 2px solid var(--manila-ink); color: var(--manila-ink); }
+.gl-sub .input, .gl-sub .textarea { background: #fbf8ef; border-color: var(--manila-ink); color: var(--manila-ink); }
+.gl-sub .gm-current { background: var(--manila-ink); color: var(--manila); }
+.gl-sub .gm-current .gm-hint { color: inherit; }
+.gl-sub .gm-current .btn:not(.btn--primary) { background: var(--manila); color: var(--manila-ink); border-color: var(--manila); }
+.gl-sub .gm-seg { background: transparent; }
+.gl-sub .gm-seg__btn[aria-pressed='true'] { background: var(--manila-ink); color: var(--manila); }
+/* Card lists (periodic missions, quest templates): kraft tags with an eyelet, the list casting their shadow. */
+.gl-sub .gm-list--cards { gap: 12px; filter: drop-shadow(0 3px 0 rgba(42, 33, 22, 0.35)); }
+.gl-sub .gm-list--cards > li.gm-card {
+  position: relative; padding: 12px 14px 14px 44px; border: 0; color: var(--manila-ink);
+  background: var(--kraft); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.05));
+  clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
+}
+.gl-sub .gm-list--cards > li.gm-card::before {
+  content: ''; position: absolute; left: 12px; top: 50%; margin-top: -8px; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%;
+  border: 3px solid var(--eyelet); background: var(--manila); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge);
+}
+.gl-sub .gm-list--cards > li.gm-card .gm-h { font-size: 18px; }
+
+/* The burger: the engine's square ink button, sitting on the wall. */
+.gl-burger { border-color: var(--walltext); }
+.gl-burger .gm-burger__dot { border-color: var(--wall); }

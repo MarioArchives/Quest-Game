@@ -1,4 +1,4 @@
-// The GM's one-tap −10 / +10 buttons (plan edge case 16).
+// The GM's one-tap −/+ buttons (plan edge case 16): 10 points unless the pack sets its own step.
 import { describe, expect, it } from 'vitest';
 import { QUICK_POINTS, quickAdjustment } from './gmQuick';
 
@@ -15,6 +15,11 @@ describe('quickAdjustment', () => {
   ])('defaults %s reason to "Penalty" for -10 and "Bonus" for +10', (_label, reason) => {
     expect(quickAdjustment(-1, reason)).toEqual({ delta: -10, reason: 'Penalty' });
     expect(quickAdjustment(1, reason)).toEqual({ delta: 10, reason: 'Bonus' });
+  });
+
+  it("takes the pack's own step", () => {
+    expect(quickAdjustment(-1, '', 1)).toEqual({ delta: -1, reason: 'Penalty' });
+    expect(quickAdjustment(1, 'Nice alibi', 1)).toEqual({ delta: 1, reason: 'Nice alibi' });
   });
 
   it('uses the typed reason, trimmed', () => {

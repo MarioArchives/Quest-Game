@@ -1,6 +1,6 @@
 // Mystery plan edge case 21: the case file's small helpers (mission tags, nameplate, "behind the glass").
 import { describe, expect, it } from 'vitest';
-import { behindTheGlass, caseNumber, missionTag, surnameInitial } from './dossier';
+import { caseNumber, missionTag, splitProof, surnameInitial } from './dossier';
 
 describe('missionTag', () => {
   it('[✓] done: the witness and the points', () => {
@@ -69,23 +69,14 @@ describe('surnameInitial', () => {
   });
 });
 
-describe('behindTheGlass', () => {
-  const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i + 1}`);
-  const s = (uid: string) => ({ kind: 'suspect', uid });
-  const you = { kind: 'you' };
-
-  it('just you when nobody else plays', () => {
-    expect(behindTheGlass([])).toEqual([you]);
+describe('splitProof', () => {
+  it('splits the ask from its proof line', () => {
+    expect(splitProof('Swap a drink mat for a ransom note. Proof: your witness saw the swap.')).toEqual({ what: 'Swap a drink mat for a ransom note.', proof: 'your witness saw the swap.' });
   });
-
-  it('two others, then you, then the rest up to five others', () => {
-    expect(behindTheGlass(ids(1))).toEqual([s('p1'), you]);
-    expect(behindTheGlass(ids(2))).toEqual([s('p1'), s('p2'), you]);
-    expect(behindTheGlass(ids(5))).toEqual([s('p1'), s('p2'), you, s('p3'), s('p4'), s('p5')]);
+  it('keeps a description without a proof line whole', () => {
+    expect(splitProof('  Just do it.  ')).toEqual({ what: 'Just do it.', proof: null });
   });
-
-  it('with more than five others: two, you, two and "+N" for the rest', () => {
-    expect(behindTheGlass(ids(6))).toEqual([s('p1'), s('p2'), you, s('p3'), s('p4'), { kind: 'more', count: 2 }]);
-    expect(behindTheGlass(ids(12))).toEqual([s('p1'), s('p2'), you, s('p3'), s('p4'), { kind: 'more', count: 8 }]);
+  it('treats an empty proof as none', () => {
+    expect(splitProof('Do it. Proof:')).toEqual({ what: 'Do it.', proof: null });
   });
 });

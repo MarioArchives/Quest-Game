@@ -47,6 +47,9 @@ export interface EvidenceInput {
   caption?: string;
 }
 
+/** Answer the open check-in with a photo and/or a comment (once, before its time is up). */
+export const answerCheckin = (data: { checkinId: string } & EvidenceInput) => call<typeof data, { ok: true }>('answerCheckin', data);
+
 export const addEvidence = (data: EvidenceInput & { submissionId: string }) =>
   call<typeof data, { ok?: boolean }>('addEvidence', data);
 
@@ -81,6 +84,15 @@ export type FireGlobalQuestInput =
       description: string;
       windowMin: number;
       points: number;
+    }
+  /** A template the GM drew and looked at first, as it is or with any of the fields changed. */
+  | {
+      mode: 'template';
+      templateId: string;
+      title?: string;
+      description?: string;
+      windowMin?: number;
+      points?: number;
     };
 
 export const fireGlobalQuest = (data: FireGlobalQuestInput) =>
@@ -92,6 +104,26 @@ export const adjustPoints = (data: { uid: string; delta: number; reason: string 
 /** Packs with characters: who a player plays (public) and their motive (private). */
 export const setCharacter = (data: { uid: string; name: string; role: string; motive: string }) =>
   call<typeof data, { ok: true }>('setCharacter', data);
+
+/** What the GM sets on a periodic mission. */
+export interface PeriodicFieldsInput {
+  name: string;
+  prompts: string[];
+  intervalMin: number;
+  windowMin: number;
+  penalty: number;
+  count: number;
+}
+
+/** GM: manage periodic missions (create, update, start, stop, fire the next one now, end an open one, delete). */
+export type ManagePeriodicInput =
+  | { action: 'create'; fields: PeriodicFieldsInput; start?: boolean }
+  | { action: 'update'; id: string; fields: Partial<PeriodicFieldsInput> }
+  | { action: 'start' | 'stop' | 'delete'; id: string }
+  | { action: 'fire'; id: string; prompt?: string }
+  | { action: 'end'; checkinId: string; charge: boolean };
+
+export const managePeriodic = (data: ManagePeriodicInput) => call<ManagePeriodicInput, { id: string }>('managePeriodic', data);
 
 export const savePushToken = (data: { token: string }) => call<typeof data, { ok: true }>('savePushToken', data);
 

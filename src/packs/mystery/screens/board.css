@@ -1,52 +1,129 @@
 /* The Board screen: tabs, and the standings as bars from a zero line. */
-.bd-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; box-shadow: var(--shadow); }
+/* Feed and Standings as manila folder tabs standing on the folder's edge; the chosen one is the lighter, front tab. */
+.bd-tabs { display: flex; gap: 4px; padding: 0 10px; border-bottom: 6px solid var(--manila-tab); }
 .bd-tab {
-  min-height: 44px; padding: 0 8px;
-  border: 0; border-radius: 0;
-  background: var(--wall-shadow); color: var(--rule);
-  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  min-height: 40px; padding: 8px 16px 6px; border: 0; border-radius: 6px 6px 0 0;
+  background: var(--kraft); color: var(--manila-ink);
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
 }
-.bd-tab[aria-selected='true'] { background: var(--paper); color: var(--ink); box-shadow: inset 0 -4px 0 var(--accent); }
+.bd-tab[aria-selected='true'] { background: var(--manila-tab); }
 .bd-tab:focus-visible { outline-offset: -3px; }
+/*
+ * Standings chosen: the sheet is a file pulled up out of the folder, and its tab is the file's own tab, the same
+ * chart paper running straight down into it (no folder edge, no gap). The Feed tab waits behind, lower and darker.
+ */
+.bd-tabs--file { position: relative; z-index: 1; align-items: flex-end; margin-bottom: calc(-1 * var(--gap)); border-bottom: 0; }
+.bd-tabs--file .bd-tab[aria-selected='true'] {
+  min-height: 44px; margin-bottom: -1px; padding-bottom: 9px;
+  background: var(--chart-paper); box-shadow: -2px -2px 0 rgba(0, 0, 0, 0.18);
+}
+.bd-tabs--file .bd-tab[aria-selected='false'] { min-height: 36px; background: var(--kraft); box-shadow: inset 0 -6px 6px -6px rgba(0, 0, 0, 0.35); }
 
 .bd-panel { display: flex; flex-direction: column; gap: var(--gap); flex: 1; }
-/* the engine's home, laid out as if its parts were direct children of the page, without the ranks strip */
-.bd-feed { display: contents; }
-.bd-feed .rk-ranks { display: none; }
+/* Standings run edge to edge and down to the tab bar: break out of the page gutter and its bottom padding. */
+.bd-panel--bleed { margin: 0 calc(-1 * var(--page-x)) -32px; }
 
+/*
+ * Standings: one row per player on a squared grid, + to the left (in the clear) and − to the right (under suspicion).
+ * A bar is as thick as the face, and the face sits centred on the score, so it caps the bar like a rounded end;
+ * 0 sits on the zero line. --x / --f are shares of the half-width: the face's centre stops a face-radius from the edge.
+ */
 .st {
+  --st-face: 40px;
+  /* One player's row: a face and a little air, stacked from the top; the paper runs on below the last one. */
+  --st-row: 58px;
+  --st-half: calc(50% - var(--st-face) / 2 - 4px);
   position: relative;
   flex: 1;
   display: flex; flex-direction: column;
-  min-height: calc(var(--rows, 1) * 44px + 60px);
-  background: linear-gradient(90deg, var(--clear-half) 50%, var(--suspect-half) 50%);
-  box-shadow: var(--shadow);
+  container-type: inline-size;
+  min-height: calc(var(--rows, 1) * var(--st-row) + 96px);
+  background:
+    linear-gradient(90deg, rgba(31, 138, 133, 0.13) 50%, rgba(163, 52, 42, 0.12) 50%),
+    var(--chart-paper);
 }
-.st::after { content: ''; position: absolute; left: calc(50% - 1px); top: 0; bottom: 0; width: 2px; background: var(--ink); pointer-events: none; }
-.st__heads { display: grid; grid-template-columns: 1fr 1fr; padding: 16px 12px 6px; }
+/* Squares: vertical lines at every step, horizontal lines the same distance apart. */
+/* The grid paints over row backgrounds (so your highlighted row keeps its lines) and under everything else. */
+.st__grid {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+  --st-cell: calc((50cqw - var(--st-face) / 2 - 4px) / var(--squares, 5));
+  background-image: repeating-linear-gradient(180deg, transparent 0 calc(var(--st-cell) - 1px), rgba(91, 74, 51, 0.16) calc(var(--st-cell) - 1px) var(--st-cell));
+}
+.st__line { position: absolute; top: 0; bottom: 0; width: 1px; left: calc(50% - var(--x) * var(--st-half)); background: rgba(91, 74, 51, 0.18); }
+.st__line--zero { width: 2px; margin-left: -1px; background: var(--manila-ink); }
+
+/* The sheet's head (labels and scale) is plain chart paper, part of the file's tab; the halves' tints start under it. */
+.st__top { position: relative; background: var(--chart-paper); border-bottom: 1px solid rgba(91, 74, 51, 0.28); }
+.st__heads { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr 1fr; padding: 14px 12px 2px; }
 .st__head { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
 .st__head--clear { color: var(--teal-deep); }
 .st__head--suspect { color: var(--suspect-deep); text-align: right; }
-.st__rows { flex: 1; display: flex; flex-direction: column; padding-bottom: 8px; }
-.st__li { flex: 1; display: flex; min-height: 44px; }
-.st__row {
-  flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center;
-  padding: 0; border: 0; background: transparent; text-align: left;
+.st__axis { position: relative; z-index: 2; height: 22px; overflow: hidden; }
+.st__tick {
+  position: absolute; top: 4px; left: calc(50% - var(--x) * var(--st-half)); transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--manila-sub); white-space: nowrap;
 }
+
+.st__rows { position: relative; flex: 1; display: flex; flex-direction: column; }
+.st__li { flex: none; display: flex; height: var(--st-row); }
+/* A row sliding to its new place lifts above the grid lines (its transform would otherwise drop it under them). */
+.st__li.is-moving { position: relative; z-index: 2; }
+.st__row { position: relative; flex: 1; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .st__row:hover { background: rgba(22, 23, 24, 0.05); }
 .st__row:focus-visible { outline-offset: -3px; }
-.st__side { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.st__side--left { justify-content: flex-end; padding: 0 0 0 6px; }
-.st__side--right { justify-content: flex-start; padding: 0 6px 0 0; }
 .st__bar {
-  flex: 0 1 auto; min-width: 0; max-width: calc(100% - 42px); height: 32px;
-  display: flex; align-items: center;
-  color: #fff; font-family: var(--mono); font-size: 14px; font-weight: 700;
+  position: absolute; z-index: 2; top: 50%; height: var(--st-face); margin-top: calc(var(--st-face) / -2);
+  width: calc(var(--f) * var(--st-half));
 }
-.st__bar--plus { background: var(--accent); justify-content: flex-end; padding-right: 10px; }
-.st__bar--minus { background: var(--warn); justify-content: flex-start; padding-left: 10px; }
-.st__icon { flex: none; }
-.st__icon.avatar { border-width: 2px; }
+.st__row--plus .st__bar { right: 50%; background: var(--accent); }
+.st__row--minus .st__bar { left: 50%; background: var(--warn); }
+.st__face { position: absolute; top: 50%; margin-top: calc(var(--st-face) / -2); display: flex; z-index: 3; }
+.st__row--plus .st__face { left: calc(50% - var(--f) * var(--st-half) - var(--st-face) / 2); }
+.st__row--minus .st__face { left: calc(50% + var(--f) * var(--st-half) - var(--st-face) / 2); }
+.st__row--zero .st__face { left: calc(50% - var(--st-face) / 2); }
+.st__icon.avatar { border-width: 3px; }
 .st__icon--plus.avatar { border-color: var(--accent); }
 .st__icon--minus.avatar { border-color: var(--warn); }
-.st__icon--me.avatar { box-shadow: 0 0 0 3px var(--ink); }
+.st__icon--zero.avatar { border-color: var(--muted); }
+/* Your own row is lit a little, rather than your face getting a ring. */
+.st__row--me { background: rgba(255, 255, 255, 0.55); }
+.st__row--me:hover { background: rgba(255, 255, 255, 0.7); }
+/* Name and score sit on the empty side, next to the zero line, and always clear of the face (a small score on a
+   wide grid puts the face across the line). */
+.st__label { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 14px; }
+.st__row--plus .st__label { left: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
+.st__row--minus .st__label { right: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
+.st__row--zero .st__label { left: calc(50% + var(--st-face) / 2 + 8px); }
+.st__name { font-weight: 600; color: var(--manila-ink); }
+.st__name--me { font-weight: 800; }
+.st__score { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.st__row--plus .st__score { color: var(--teal-deep); }
+.st__row--minus .st__score { color: var(--suspect-deep); }
+.st__row--zero .st__score { color: var(--muted); }
+.st__key { position: relative; z-index: 2; color: var(--manila-sub) !important; padding: 4px 12px 10px; text-align: center; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+
+/*
+ * What changed since you last looked: a chip that pops in, stays a moment and fades. It hangs off the label's outer
+ * end (after the score on the clear side, before the name on the suspicion side), out of the text's flow, so the
+ * name and score never move when it comes and goes.
+ */
+.st { overflow-x: clip; }
+.st__delta {
+  position: absolute; top: 50%; translate: 0 -50%; padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; color: #fff;
+  animation: st-delta 4.5s ease-out both;
+}
+.st__row--plus .st__delta, .st__row--zero .st__delta { left: 100%; margin-left: 6px; }
+.st__row--minus .st__delta { right: 100%; margin-right: 6px; }
+.st__delta--up { background: var(--accent); }
+.st__delta--down { background: var(--warn); }
+@keyframes st-delta {
+  0% { opacity: 0; transform: translateY(6px) scale(0.6); }
+  8% { opacity: 1; transform: translateY(-2px) scale(1.12); }
+  14%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .st__delta { animation: st-delta-fade 4.5s linear both; }
+  @keyframes st-delta-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+}

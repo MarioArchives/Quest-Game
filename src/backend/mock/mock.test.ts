@@ -304,7 +304,7 @@ describe('M23. the mystery pack', () => {
     const players = await docs(m, 'players');
     for (const p of players) expect(p.character, p.id).toEqual({ name: expect.any(String), role: expect.any(String) });
     expect((await docs(m, 'motives')).map((x) => x.id).sort()).toEqual(players.map((p) => p.id).sort());
-    expect(await read(m, 'game/settings')).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 25, cleanPoints: 50, framePoints: 50 });
+    expect(await read(m, 'game/settings')).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 5, cleanPoints: 5, framePoints: 5 });
   });
 
   it('a confirmed mission earns a reward; framing through call() posts anonymously and costs the target', async () => {
@@ -335,9 +335,9 @@ describe('M23. the mystery pack', () => {
     expect(pending.map((r) => r.id)).toContain(id);
 
     const before = (await read(m, 'players/demo-priya'))!.points as number;
-    expect(await m.call('resolveReward', { rewardId: id, choice: 'frame', targetUid: 'demo-priya' })).toEqual({ status: 'framed', points: -50 });
+    expect(await m.call('resolveReward', { rewardId: id, choice: 'frame', targetUid: 'demo-priya' })).toEqual({ status: 'framed', points: -5 });
     await m.settle();
-    expect((await read(m, 'players/demo-priya'))!.points).toBe(before - 50);
+    expect((await read(m, 'players/demo-priya'))!.points).toBe(before - 5);
     expect(pending.map((r) => r.id)).not.toContain(id);
     const framed = (await docs(m, 'feed')).filter((p) => p.type === 'framed');
     expect(framed).toHaveLength(1);

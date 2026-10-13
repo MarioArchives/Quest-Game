@@ -1,5 +1,6 @@
-// My file: the interview room. Who you are, your motive, your exhibits and your tampering missions, then the
-// engine's working cards (witness requests, notifications, house rules…) as paper files.
+// My file as a case file (E4·1): witness requests first, as tags asking for your word; your suspect folder (mugshot,
+// case number, character, stats, the sealed motive); a pending reward; your tampering missions strung up as kraft
+// tags whose states are stamps; the exhibits folder of clipped prints; then the engine's working cards as folders.
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { rerollQuest } from '../../../api';
@@ -10,52 +11,44 @@ import { ClaimSheet } from '../../../components/ClaimSheet';
 import { ConfirmSheet } from '../../../components/ConfirmSheet';
 import { Icon } from '../../../components/Icon';
 import { Loader } from '../../../components/Loader';
-import { PhotoThumb } from '../../../components/PhotoViewer';
 import { ProfileSheet } from '../../../components/ProfileSheet';
 import { useRewardSheet } from '../../../components/RewardSheet';
 import { useToast } from '../../../components/Toast';
 import { useGame } from '../../../data/GameProvider';
-import { tsMs, useNow, useQuery } from '../../../data/hooks';
+import { tsMs, useQuery } from '../../../data/hooks';
+import { clockTime } from '../../../lib/time';
 import { useLocationSharing } from '../../../data/LocationProvider';
 import { forgetThisDevice } from '../../../data/usePush';
 import { exhibitsFor } from '../../../lib/exhibits';
 import { features, t, zone } from '../../../pack';
 import { AddEvidenceBanners } from '../../../screens/account/AddEvidenceBanners';
 import { ClaimHistory } from '../../../screens/account/ClaimHistory';
-import { HouseRules } from '../../../screens/account/HouseRules';
 import { LocationCard } from '../../../screens/account/LocationCard';
 import { NotificationsCard } from '../../../screens/account/NotificationsCard';
 import { SideQuestEntries } from '../../../screens/account/SideQuestEntries';
-import { WitnessRequests } from '../../../screens/account/WitnessRequests';
+import { RequestCard } from '../../../screens/account/WitnessRequests';
 import { characterLine } from '../../../screens/player/PlayerTicket';
 import { useSession } from '../../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft as rerollsLeftFor, type Doc, type Quest } from '../../../shared';
-import { behindTheGlass, caseNumber, missionTag, surnameInitial } from '../dossier';
+import { missionTag, splitProof, type MissionTag } from '../dossier';
+import { Folder, Stamp, Strung, Tag, TagTop, tiltFor, type StampTone } from './CaseKit';
+import { ExhibitsFolder, SealedNote, Stat, SuspectHead, TopStrip } from './FileParts';
 import '../../../screens/account/account.css';
 import './myfile.css';
 
-const PRECINCT = 'Blackwood Manor PD';
-
-/** hh:mm in the pack's time zone, ticking. */
-function RecClock() {
-  const now = useNow(15_000);
-  const time = useMemo(
-    () => new Intl.DateTimeFormat(zone.locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zone.timeZone }).format(now),
-    [now],
-  );
-  return (
-    <div className="mf-rec">
-      <span className="mf-rec__dot" aria-hidden="true" />
-      REC {time}
-    </div>
-  );
-}
-
 const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** A mission's state as the stamp on its tag. */
+const STAMP: Record<MissionTag['tone'], { tone: StampTone; label: string }> = {
+  done: { tone: 'good', label: 'Done' },
+  pending: { tone: 'warm', label: `With your ${t.witness.one}` },
+  open: { tone: 'plain', label: 'To do' },
+  exposed: { tone: 'bad', label: 'Exposed' },
+};
 
 export default function MyFile() {
   const { user, player, isAdmin, signOut } = useSession();
-  const { me, settings, state, ready, players, activePlayers, playersById, myMotive, myGuesses, mySubmissions, globalQuests } = useGame();
+  const { me, settings, state, ready, players, playersById, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests } = useGame();
   const reward = useRewardSheet();
   const toast = useToast();
   const { stopAndClear } = useLocationSharing();
@@ -84,7 +77,6 @@ export default function MyFile() {
   const character = features.characters ? player?.character : null;
   const charName = character?.name?.trim() || displayName;
   const exhibits = uid ? exhibitsFor(uid, mySubmissions, globalQuests) : [];
-  const others = activePlayers.filter((p) => p.id !== uid);
   const repick = repicking ? mySubmissions.find((s) => s.id === repicking && s.status === 'pending') : undefined;
 
   const leave = async () => {
@@ -112,198 +104,142 @@ export default function MyFile() {
 
   return (
     <div className="mf">
-      <div className="mf-top">
-        <div className="mf-top__room">Interview room B</div>
-        <RecClock />
-      </div>
+      <TopStrip />
 
       {player ? (
         <>
-          <section className="mf-id" aria-label="Your profile">
-            <div className="mf-chart">
-              <div className="mf-chart__scale" aria-hidden="true">
-                <span>6&apos;6&quot;</span>
-                <span>6&apos;0&quot;</span>
-                <span>5&apos;6&quot;</span>
-              </div>
-              {photo ? (
-                <img className="mf-chart__photo" src={photo} alt={`${displayName}, in the interview room`} referrerPolicy="no-referrer" />
-              ) : (
-                <svg className="mf-chart__figure" width="200" height="290" viewBox="0 0 220 330" aria-hidden="true">
-                  <circle cx="110" cy="110" r="56" />
-                  <path d="M10 330c0-90 45-150 100-150s100 60 100 150z" />
-                </svg>
-              )}
-            </div>
-            <div className="mf-felt">
-              <div className="mf-felt__sub">{PRECINCT}</div>
-              <div className="mf-felt__name">{surnameInitial(charName)}</div>
-              <div className="mf-felt__no">{uid ? caseNumber(uid) : ''}</div>
-            </div>
-          </section>
-
-          <section className="mf-card mf-subject" aria-label="Subject">
-            <span className="mf-clip" aria-hidden="true" />
-            <div className="mf-subject__who">
-              <div className="mf-label">Subject</div>
-              <h2 className="mf-subject__name">{charName}</h2>
-              <p className="mf-subject__line">{character ? characterLine({ name: displayName, role: character.role }) : displayName}</p>
-            </div>
-
-            <dl className={`mf-stats${features.guesses ? '' : ' mf-stats--two'}`}>
-              <div className={`mf-stat mf-stat--score${(player.points ?? 0) < 0 ? ' is-neg' : ''}`}>
-                <dt>Score</dt>
-                <dd>{player.points ?? 0}</dd>
-              </div>
-              <div className="mf-stat">
-                <dt>Rank</dt>
-                <dd>
-                  {me ? me.rank : '-'}
-                  <small>/{players.length}</small>
-                </dd>
-              </div>
-              {features.guesses ? (
-                <div className="mf-stat">
-                  <dt>Guesses</dt>
-                  <dd>
-                    {myGuesses.length}
-                    {settings.guessLimit > 0 ? <small>/{settings.guessLimit}</small> : null}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-
-            <div className="mf-glass">
-              <div className="mf-label">Behind the glass</div>
-              <ul className="mf-glass__row">
-                {behindTheGlass(others.map((p) => p.id)).map((tile, i) => {
-                  if (tile.kind === 'you') {
-                    return (
-                      <li key="you" className="mf-tile mf-tile--you">
-                        You
-                      </li>
-                    );
-                  }
-                  if (tile.kind === 'more') {
-                    return (
-                      <li key="more" className="mf-tile">
-                        +{tile.count}
-                      </li>
-                    );
-                  }
-                  const p = playersById.get(tile.uid);
-                  return (
-                    <li key={tile.uid + i} className="mf-tile">
-                      <button type="button" className="mf-tile__btn" aria-label={p?.displayName ?? 'Player'} onClick={() => navigate(`/player/${tile.uid}`)}>
-                        <Avatar name={p?.displayName ?? '?'} src={p?.photoURL} size={36} uid={tile.uid} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            {features.characters ? (
-              <div className="mf-motive">
-                <div className="mf-motive__label">Motive · not for the record</div>
-                {myMotive?.text ? <p className="mf-motive__text">{myMotive.text}</p> : <p className="mf-motive__text mf-motive__text--none">The GM hasn&apos;t given you a motive yet.</p>}
-              </div>
-            ) : null}
-          </section>
-
-          {reward.pending ? (
-            <section className="mf-card mf-reward" aria-label="Reward">
-              <div>
-                <div className="mf-card__title">Evidence secured</div>
-                <p className="mf-muted">You have a choice waiting: destroy it or frame someone.</p>
-              </div>
-              <Button small variant="primary" onClick={reward.open}>
-                Choose
-              </Button>
-            </section>
+          {/* Someone waiting on you as their witness comes first. */}
+          {witnessRequests.length > 0 ? (
+            <Strung className="mf-witness" label={`${t.witness.One} requests`}>
+              {witnessRequests.map((request) => (
+                <Tag key={request.id} tilt={tiltFor(request.id)}>
+                  <TagTop left={`${t.witness.One} request`} right={`${witnessRequests.length} waiting`} />
+                  <Stamp tone="bad">Needs your word</Stamp>
+                  <p className="mf-wnote">
+                    Only approve what you really saw. Rejecting costs them {settings.rejectPenalty} and swaps their {t.quest.one}.
+                  </p>
+                  <RequestCard request={request} as="div" />
+                </Tag>
+              ))}
+            </Strung>
           ) : null}
 
-          <section className="mf-card" aria-labelledby="mf-ex">
-            <div className="mf-card__head">
-              <h2 id="mf-ex" className="mf-card__title">
-                Exhibits
-              </h2>
-              <Link to="/" className="mf-link">
-                + Photo
-              </Link>
-            </div>
-            {exhibits.length === 0 ? (
-              <p className="mf-muted">No exhibits yet. Photos from group missions you enter are filed here.</p>
-            ) : (
-              <ul className="mf-exhibits">
-                {exhibits.map((e) => (
-                  <li key={e.submissionId}>
-                    <PhotoThumb submissionId={e.submissionId} thumbPath={e.thumbPath} fill label={`Exhibit: ${e.caption}`} />
-                    <div className="mf-exhibits__cap">{e.caption}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="mf-card mf-missions" aria-labelledby="mf-ms">
-            <div className="mf-card__head">
-              <h2 id="mf-ms" className="mf-card__title">
-                Tampering missions
-              </h2>
-              <span className="mf-mono" title={`${rerollsLeft} of ${rerollsTotal} rerolls left`}>
-                {rerollsLeft} REROLLS
-              </span>
-            </div>
-            {!gameActive ? (
-              <p className="mf-muted mf-missions__note" role="status">
-                {state.status === 'lobby'
-                  ? `The game hasn't started yet. ${t.claim.Many} open when the ${t.gm.One} starts.`
-                  : state.status === 'paused'
-                    ? `The game is paused. ${t.claim.Many} open again when the ${t.gm.One} resumes.`
-                    : `The game has ended. No more ${t.claim.many}.`}
-              </p>
+          <Folder tab={`Suspect file · ${firstName(displayName)}`} label="Your profile" className="mf-suspect">
+            <SuspectHead
+              photo={photo}
+              name={charName}
+              displayName={displayName}
+              uid={uid ?? ''}
+              line={character ? `${characterLine({ name: character.name, role: character.role })} · played by ${firstName(displayName)}` : displayName}
+              onEditPhoto={() => setProfileOpen(true)}
+            />
+            <dl className={`mf-stats${features.guesses ? '' : ' mf-stats--two'}`}>
+              <Stat label="Score" score negative={(player.points ?? 0) < 0}>
+                {player.points ?? 0}
+              </Stat>
+              <Stat label="Rank">
+                {me ? me.rank : '-'}
+                <small>/{players.length}</small>
+              </Stat>
+              {features.guesses ? (
+                <Stat label="Guesses">
+                  {myGuesses.length}
+                  {settings.guessLimit > 0 ? <small>/{settings.guessLimit}</small> : null}
+                </Stat>
+              ) : null}
+            </dl>
+            {features.characters ? (
+              <SealedNote label="Motive · not for the record">
+                {myMotive?.text ? <p className="mf-sealed__text">{myMotive.text}</p> : <p className="mf-sealed__text mf-sealed__text--none">The GM hasn&apos;t given you a motive yet.</p>}
+              </SealedNote>
             ) : null}
+          </Folder>
+
+          {reward.pending ? (
+            <Strung label="Reward">
+              <Tag>
+                <TagTop left="Reward" right="Yours to use" />
+                <Stamp tone="good">Evidence secured</Stamp>
+                <p className="cf-text">You have a choice waiting: destroy it or frame someone.</p>
+                <button type="button" className="cf-btn cf-btn--go" onClick={reward.open}>
+                  Choose
+                </button>
+              </Tag>
+            </Strung>
+          ) : null}
+
+          <div className="mf-group">
+            <Folder tab={`${t.quest.Many} · ${rerollsLeft} ${rerollsLeft === 1 ? 'reroll' : 'rerolls'} left`} clip={false} label={t.quest.Many}>
+              <p className="mf-desc" title={`${rerollsLeft} of ${rerollsTotal} rerolls left`}>
+                Strung up in the order they were dealt. Send one to your {t.witness.one} when it&apos;s done.
+              </p>
+              {!gameActive ? (
+                <p className="mf-desc mf-missions__note" role="status">
+                  {state.status === 'lobby'
+                    ? `The game hasn't started yet. ${t.claim.Many} open when the ${t.gm.One} starts.`
+                    : state.status === 'paused'
+                      ? `The game is paused. ${t.claim.Many} open again when the ${t.gm.One} resumes.`
+                      : `The game has ended. No more ${t.claim.many}.`}
+                </p>
+              ) : null}
+            </Folder>
             {quests.loading ? (
               <Loader className="app__loader" caption="Dealing" />
             ) : hand.length === 0 ? (
-              <p className="mf-muted">None in hand. Ask the {t.gm.One} if this looks wrong.</p>
+              <p className="mf-quiet">None in hand. Ask the {t.gm.One} if this looks wrong.</p>
             ) : (
-              <ol className="mf-list">
-                {hand.map((quest) => {
-                  const tag = missionTag(quest, infoFor(quest));
+              <Strung label={t.quest.Many} className="mf-missions">
+                {hand.map((quest, i) => {
+                  const info = infoFor(quest);
+                  const tag = missionTag(quest, info);
                   if (!tag) return null;
-                  const pending = quest.status === 'submitted' ? mySubmissions.find((s) => s.kind === 'personal' && s.questId === quest.id && s.status === 'pending') : undefined;
+                  const sub = quest.submissionId ? mySubmissions.find((x) => x.id === quest.submissionId) : undefined;
+                  const pending = quest.status === 'submitted' ? mySubmissions.find((x) => x.kind === 'personal' && x.questId === quest.id && x.status === 'pending') : undefined;
+                  const who = ('witnessName' in info ? info.witnessName : null) || ('exposedByName' in info ? info.exposedByName : null);
+                  const stamp = STAMP[tag.tone];
+                  const label =
+                    tag.tone === 'done' && who
+                      ? `${tag.tag} ${stamp.label} · ${who} saw it`
+                      : tag.tone === 'pending' && who
+                        ? `${tag.tag} ${stamp.label} · ${who}`
+                        : tag.tone === 'exposed' && who
+                          ? `${tag.tag} ${stamp.label} by ${who}`
+                          : `${tag.tag} ${stamp.label}`;
+                  const at =
+                    tag.tone === 'done'
+                      ? tsMs(sub?.reviewedAt ?? null)
+                      : tag.tone === 'pending'
+                        ? tsMs(pending?.createdAt ?? null)
+                        : tag.tone === 'exposed'
+                          ? tsMs(quest.exposedAt ?? null)
+                          : 0;
+                  const when = tag.tone === 'open' ? 'Open' : at ? `${tag.tone === 'pending' ? 'Sent ' : ''}${clockTime(at, zone)}` : '';
+                  const { what, proof } = splitProof(quest.description ?? '');
+                  const pts = tag.tone === 'done' && 'points' in info && info.points != null ? `+${info.points}` : tag.tone === 'exposed' && settings.exposePenalty ? `−${settings.exposePenalty}` : null;
                   return (
-                    <li key={quest.id} className={`mf-mission mf-mission--${tag.tone}`}>
-                      <div className="mf-mission__row">
-                        <span className="mf-mission__tag" aria-hidden="true">
-                          {tag.tag}
-                        </span>
-                        <div className="mf-mission__text">
-                          <div className={`mf-mission__title${tag.tone === 'exposed' ? ' is-struck' : ''}`}>{quest.title}</div>
-                          {quest.description && (tag.tone === 'open' || tag.tone === 'pending') ? (
-                            <details className="mf-mission__more">
-                              <summary>Details</summary>
-                              <p>{quest.description}</p>
-                            </details>
-                          ) : null}
-                          {tag.sub ? <div className="mf-mission__sub">{tag.sub}</div> : null}
-                          {pending ? (
-                            <button type="button" className="mf-link mf-link--btn" onClick={() => setRepicking(pending.id)}>
-                              Ask someone else
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
+                    <Tag key={quest.id} tilt={tiltFor(quest.id)} rowClassName={`mf-mission mf-mission--${tag.tone}`}>
+                      <TagTop left={`No. ${i + 1} · ${quest.title}`} right={when} />
+                      <Stamp tone={stamp.tone}>{label}</Stamp>
+                      <p className={`cf-text${tag.tone === 'exposed' ? ' is-struck' : ''}`}>{what || quest.title}</p>
+                      {proof && (tag.tone === 'open' || tag.tone === 'pending') ? (
+                        <details className="mf-mission__more">
+                          <summary>Proof</summary>
+                          <p>{proof}</p>
+                        </details>
+                      ) : null}
+                      {pending ? (
+                        <button type="button" className="mf-link mf-link--btn" onClick={() => setRepicking(pending.id)}>
+                          Ask someone else
+                        </button>
+                      ) : null}
                       {quest.status === 'active' ? (
-                        <div className="mf-mission__actions">
-                          <button type="button" className="mf-btn mf-btn--fill" disabled={!gameActive} aria-label={`${t.claim.One}: ${quest.title}`} onClick={() => setClaiming(quest)}>
+                        <div className="cf-btns">
+                          <button type="button" className="cf-btn cf-btn--go" disabled={!gameActive} aria-label={`${t.claim.One}: ${quest.title}`} onClick={() => setClaiming(quest)}>
                             Submit
                           </button>
                           <button
                             type="button"
-                            className="mf-btn mf-btn--line"
+                            className="cf-btn"
                             disabled={rerollsLeft <= 0 || state.status === 'ended'}
                             aria-label={`Reroll: ${quest.title}`}
                             title={rerollsLeft <= 0 ? 'No rerolls left' : `Reroll this ${t.quest.one}`}
@@ -313,16 +249,28 @@ export default function MyFile() {
                           </button>
                         </div>
                       ) : null}
-                    </li>
+                      {pts ? (
+                        <div className="cf-foot">
+                          <span className={`cf-pts ${tag.tone === 'exposed' ? 'cf-pts--neg' : 'cf-pts--pos'}`}>{pts}</span>
+                        </div>
+                      ) : null}
+                    </Tag>
                   );
                 })}
-              </ol>
+              </Strung>
             )}
-          </section>
-
-          <div className="mf-card mf-work">
-            <WitnessRequests />
           </div>
+
+          <ExhibitsFolder
+            exhibits={exhibits}
+            empty="No exhibits yet. Photos from group missions you enter are filed here."
+            action={
+              <Link to="/" className="mf-link">
+                + Photo
+              </Link>
+            }
+          />
+
           <div className="mf-card mf-work">
             <AddEvidenceBanners titleById={titleById} />
           </div>
@@ -362,10 +310,6 @@ export default function MyFile() {
         </div>
       ) : null}
 
-      <div className="mf-card mf-work">
-        <HouseRules />
-      </div>
-
       <section className="mf-card mf-profile" aria-label="Account">
         <div className="mf-profile__who">
           <Avatar name={displayName} src={photo} size={44} uid={uid ?? undefined} />
@@ -377,7 +321,7 @@ export default function MyFile() {
         <div className="mf-profile__actions">
           {player ? (
             <Button small icon={<Icon name="edit" size={16} strokeWidth={2.4} />} onClick={() => setProfileOpen(true)}>
-              Edit profile
+              Edit name
             </Button>
           ) : null}
           <Button small variant="ghost" busy={signingOut} icon={<Icon name="logout" size={18} />} onClick={() => void leave()}>

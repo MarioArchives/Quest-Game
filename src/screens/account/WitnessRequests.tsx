@@ -9,8 +9,8 @@ import { formatAgo } from '../../lib/time';
 import { NOTE_MAX, type Doc, type Submission } from '../../shared';
 import { t } from '../../pack';
 
-/** One friend's claim: what they say they did, a comment box, Approve or Reject. */
-function RequestCard({ request }: { request: Doc<Submission> }) {
+/** One friend's claim: what they say they did, a comment box, Approve or Reject. `as` lets a pack's own list wrap it. */
+export function RequestCard({ request, as: Wrap = 'li' }: { request: Doc<Submission>; as?: 'li' | 'div' }) {
   const toast = useToast();
   const { playersById, settings, state } = useGame();
   const now = useNow(30_000);
@@ -40,7 +40,7 @@ function RequestCard({ request }: { request: Doc<Submission> }) {
   };
 
   return (
-    <li className="wreq">
+    <Wrap className="wreq">
       <div className="wreq__who">
         <Avatar name={ownerName} src={owner?.photoURL} size={36} uid={owner?.id} />
         <p className="wreq__name">
@@ -83,7 +83,7 @@ function RequestCard({ request }: { request: Doc<Submission> }) {
           Reject
         </Button>
       </div>
-    </li>
+    </Wrap>
   );
 }
 

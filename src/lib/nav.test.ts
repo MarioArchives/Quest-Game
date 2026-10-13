@@ -40,6 +40,11 @@ describe('gmSectionsFor', () => {
     expect(gmSectionsFor({ ...ALL_ON, sideQuests: false })).toEqual(['game', 'joins', 'review', 'players', 'guesses', 'templates', 'settings']);
   });
 
+  it('a periodic missions section after side quests, only for packs with check-ins', () => {
+    expect(gmSectionsFor({ ...ALL_ON, checkins: true })).toEqual(['game', 'joins', 'review', 'quests', 'periodics', 'players', 'guesses', 'templates', 'settings']);
+    expect(gmSectionsFor(ALL_ON)).not.toContain('periodics');
+  });
+
   it('the map changes nothing in the console', () => {
     expect(gmSectionsFor({ ...ALL_ON, map: false })).toEqual(gmSectionsFor(ALL_ON));
   });

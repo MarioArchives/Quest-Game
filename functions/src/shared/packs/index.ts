@@ -1,5 +1,6 @@
 // The registry of game packs. A deployment picks one by id (VITE_GAME_PACK for the app, GAME_PACK for the
 // functions and scripts); both default to DEFAULT_PACK_ID.
+import { periodicProblems } from '../periodics.ts';
 import type { Settings } from '../types.ts';
 import { DEFAULT_SETTINGS } from '../settings.ts';
 import { RULESETS } from '../scoring/index.ts';
@@ -55,6 +56,36 @@ export function validatePack(pack: GamePack): string[] {
   if (pack.features.map) {
     // Venues are optional: without them the map shows the players who share their location.
     if (!pack.map) problems.push('The map feature is on but the pack has no map setup.');
+  }
+  if (pack.features.stops && !pack.features.map) problems.push('The stops feature draws on the map, so the map feature must be on too.');
+  for (const [i, stop] of (pack.route ?? []).entries()) {
+    const name = stop.name?.trim() ?? '';
+    if (name.length < 1 || name.length > 60) problems.push(`Route stop ${i + 1} needs a name of 1 to 60 characters.`);
+    const placed = Number.isFinite(stop.lat) && Math.abs(stop.lat) <= 90 && Number.isFinite(stop.lng) && Math.abs(stop.lng) <= 180;
+    if (!placed) problems.push(`Route stop ${i + 1} ("${name}") needs a latitude between -90 and 90 and a longitude between -180 and 180.`);
+    if (stop.address !== undefined && (typeof stop.address !== 'string' || !stop.address.trim() || stop.address.length > 200)) {
+      problems.push(`Route stop ${i + 1} ("${name}") has an address that is blank or over 200 characters.`);
+    }
+    if (stop.placeRef !== undefined && (typeof stop.placeRef !== 'string' || !stop.placeRef.trim() || stop.placeRef.length > 80)) {
+      problems.push(`Route stop ${i + 1} ("${name}") has a place reference that is blank or over 80 characters.`);
+    }
+  }
+  if (pack.route && pack.route.length > 999) problems.push('The route has more than 999 stops.');
+  if (pack.route?.length && !pack.features.stops) problems.push('The pack has a route but the stops feature is off.');
+  if (pack.terms.checkin && (!pack.terms.checkin.one?.trim() || !pack.terms.checkin.many?.trim())) {
+    problems.push('The term "checkin" needs a non-blank singular and plural.');
+  }
+  const seenPeriodics = new Set<string>();
+  for (const [i, p] of (pack.periodics ?? []).entries()) {
+    const label = `Periodic mission ${i + 1} ("${p.id}")`;
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(p.id)) problems.push(`${label} needs an id of lower case letters, digits and hyphens.`);
+    if (seenPeriodics.has(p.id)) problems.push(`${label} has a duplicate id.`);
+    seenPeriodics.add(p.id);
+    for (const problem of periodicProblems(p)) problems.push(`${label}: ${problem}`);
+  }
+  if (pack.periodics?.length && !pack.features.checkins) problems.push('The pack has periodic missions but the checkins feature is off.');
+  if (pack.gmQuickPoints !== undefined && !(Number.isInteger(pack.gmQuickPoints) && pack.gmQuickPoints > 0)) {
+    problems.push(`gmQuickPoints is ${pack.gmQuickPoints}; it must be a positive whole number.`);
   }
   if (pack.features.sideQuests && pack.catalogue.global.length === 0) {
     problems.push('Side quests are on but the catalogue has no side quests (global list is empty).');

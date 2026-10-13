@@ -98,6 +98,72 @@ describe('E2. validatePack', () => {
     expect(problems.join('\n')).toMatch(message);
   });
 
+  describe('a route', () => {
+    const withRoute = (route: NonNullable<ReturnType<typeof getPack>['route']>) => ({ ...getPack('mystery'), route });
+    it('is fine when every stop has a name and a place', () => {
+      expect(validatePack(withRoute([{ name: 'The Crown', lat: 53.4, lng: -2.2 }]))).toEqual([]);
+      expect(validatePack(withRoute([{ name: 'The Crown', lat: 53.4, lng: -2.2, address: '770 Wilmslow Road', placeRef: 'osm:node/1' }]))).toEqual([]);
+    });
+    it.each([
+      ['a blank name', { name: ' ', lat: 53.4, lng: -2.2 }],
+      ['a 61 character name', { name: 'x'.repeat(61), lat: 53.4, lng: -2.2 }],
+      ['a latitude over 90', { name: 'A', lat: 91, lng: -2.2 }],
+      ['a longitude under -180', { name: 'A', lat: 53, lng: -181 }],
+      ['a missing coordinate', { name: 'A', lat: NaN, lng: -2.2 }],
+      ['a blank address', { name: 'A', lat: 53.4, lng: -2.2, address: ' ' }],
+      ['a 201 character address', { name: 'A', lat: 53.4, lng: -2.2, address: 'x'.repeat(201) }],
+      ['an 81 character place reference', { name: 'A', lat: 53.4, lng: -2.2, placeRef: 'x'.repeat(81) }],
+    ])('rejects %s', (_label, stop) => {
+      expect(validatePack(withRoute([stop])).join('\n')).toMatch(/Route stop 1/);
+    });
+    it('needs the stops feature', () => {
+      const p = { ...getPack('mystery'), features: { ...getPack('mystery').features, stops: false } };
+      expect(validatePack(p).join('\n')).toMatch(/stops feature is off/);
+    });
+  });
+
+  describe('periodic missions', () => {
+    const seed = { id: 'drinks', name: 'Drinks check', prompts: ['Show us your drink'], intervalMin: 60, windowMin: 15, penalty: 5, count: 4 };
+    const on = (periodics: unknown[] = [seed]) => ({
+      ...getPack('lancaster'),
+      features: { ...getPack('lancaster').features, checkins: true },
+      periodics: periodics as NonNullable<ReturnType<typeof getPack>['periodics']>,
+    });
+    it('are optional, and fine when every field is in range', () => {
+      expect(validatePack(on([]))).toEqual([]);
+      expect(validatePack(on())).toEqual([]);
+    });
+    it.each([
+      ['no prompts', { prompts: [] }],
+      ['a blank prompt', { prompts: ['  '] }],
+      ['a 201-character prompt', { prompts: ['x'.repeat(201)] }],
+      ['a blank name', { name: ' ' }],
+      ['a 4-minute interval', { intervalMin: 4 }],
+      ['a fractional fine', { penalty: 2.5 }],
+      ['a bad id', { id: 'Drinks Check' }],
+    ])('rejects one with %s', (_label, over) => {
+      expect(validatePack(on([{ ...seed, ...over }])).join('\n')).toMatch(/Periodic mission 1/);
+    });
+    it('rejects duplicate ids, and periodic missions without the feature', () => {
+      expect(validatePack(on([seed, seed])).join('\n')).toMatch(/duplicate/);
+      expect(validatePack({ ...getPack('lancaster'), periodics: [seed] }).join('\n')).toMatch(/checkins feature is off/);
+    });
+    it('rejects a blank name for them', () => {
+      const p = on();
+      expect(validatePack({ ...p, terms: { ...p.terms, checkin: { one: ' ', many: 'x' } } }).join('\n')).toMatch(/checkin/);
+    });
+  });
+
+  describe("the GM's quick-button step", () => {
+    it('is optional, and fine as a positive whole number', () => {
+      expect(validatePack({ ...getPack('lancaster'), gmQuickPoints: undefined })).toEqual([]);
+      expect(validatePack({ ...getPack('lancaster'), gmQuickPoints: 1 })).toEqual([]);
+    });
+    it.each([0, -1, 2.5, NaN])('rejects %s', (step) => {
+      expect(validatePack({ ...getPack('lancaster'), gmQuickPoints: step }).join('\n')).toMatch(/gmQuickPoints/);
+    });
+  });
+
   it('allows no side quests in the catalogue when side quests are off', () => {
     const p = testPack({ features: { sideQuests: false } });
     expect(validatePack({ ...p, catalogue: { ...p.catalogue, global: [] } })).toEqual([]);
@@ -156,12 +222,12 @@ describe('M18. the mystery pack', () => {
   it('is a murder-mystery pub crawl with every extra on', () => {
     const p = getPack('mystery');
     expect(p.name).toBe('Mystery Pub Crawl');
-    expect(p.features).toEqual({ guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true });
+    expect(p.features).toEqual({ guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true });
     expect(p.timeZone).toBe('Europe/London');
     expect(p.scoring).toBe('classic');
   });
 
-  it('speaks of tampering missions, group missions, submissions and case files', () => {
+  it('speaks of tampering missions, group missions, submissions, case files and periodic missions', () => {
     const p = getPack('mystery');
     expect(p.terms).toEqual({
       quest: { one: 'tampering mission', many: 'tampering missions' },
@@ -170,12 +236,43 @@ describe('M18. the mystery pack', () => {
       claim: { one: 'submission', many: 'submissions' },
       gm: { one: 'GM', many: 'GMs' },
       wrap: { one: 'case file', many: 'case files' },
+      checkin: { one: 'periodic mission', many: 'periodic missions' },
     });
   });
 
-  it('starts with a guess limit of 3, a skip penalty of 25, +50 to clean, −50 to frame, and scores may go below zero', () => {
+  it('scores every move as 5 points, with a guess limit of 3, and scores may go below zero', () => {
     const s = defaultSettingsFor(getPack('mystery'));
-    expect(s).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 25, cleanPoints: 50, framePoints: 50, pointsFloorZero: false });
+    expect(s).toMatchObject({
+      questPoints: 5,
+      sideQuestPoints: 5,
+      exposePenalty: 5,
+      correctGuessReward: 5,
+      wrongGuessCost: 5,
+      fraudPenalty: 5,
+      rejectPenalty: 5,
+      sideQuestSkipPenalty: 5,
+      cleanPoints: 5,
+      framePoints: 5,
+      guessLimit: 3,
+      pointsFloorZero: false,
+    });
+  });
+
+  it('starts the GM with one periodic mission: a roll call four times a night, an hour apart, 15 minutes to answer, 5 off', () => {
+    const p = getPack('mystery');
+    expect(p.features.checkins).toBe(true);
+    expect(p.terms.checkin).toEqual({ one: 'periodic mission', many: 'periodic missions' });
+    expect(p.periodics?.map(({ prompts, ...rest }) => ({ ...rest, prompts: prompts.length }))).toEqual([
+      { id: 'roll-call', name: 'Roll call', intervalMin: 60, windowMin: 15, penalty: 5, count: 4, prompts: 10 },
+    ]);
+    expect(getPack('lancaster').features.checkins).toBeFalsy();
+    expect(getPack('lancaster').periodics).toBeUndefined();
+  });
+
+  it("nudges by 1 point on the GM's quick buttons; other packs keep the default", () => {
+    expect(getPack('mystery').gmQuickPoints).toBe(1);
+    expect(getPack('lancaster').gmQuickPoints).toBeUndefined();
+    expect(getPack('starter').gmQuickPoints).toBeUndefined();
   });
 
   it('has a map with no venues yet, and enough missions to deal from', () => {
@@ -184,6 +281,22 @@ describe('M18. the mystery pack', () => {
     expect(p.venues).toEqual([]);
     expect(p.catalogue.personal.length).toBeGreaterThanOrEqual(20);
     expect(p.catalogue.global.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('opens on Didsbury with a seven-pub route and footprints between stops', () => {
+    const p = getPack('mystery');
+    expect(p.map).toMatchObject({ centre: { lat: 53.4145, lng: -2.2312 }, zoom: 16, placeName: 'Didsbury', routeStyle: 'footprints' });
+    expect(p.route?.map((s) => s.name)).toEqual([
+      'The Didsbury',
+      'Ye Olde Cock Inn',
+      'The Crown',
+      'The Royal Oak',
+      'Fletcher Moss Pub',
+      'Dog and Partridge',
+      'Head of Steam',
+    ]);
+    expect(p.route?.[2]).toEqual({ name: 'The Crown', lat: 53.41571, lng: -2.23219, address: '770 Wilmslow Road, M20 2DR', placeRef: 'osm:node/27465378' });
+    expect(p.route?.every((s) => s.address && s.placeRef?.startsWith('osm:'))).toBe(true);
   });
 
   it('has a character and a motive for each demo player', () => {

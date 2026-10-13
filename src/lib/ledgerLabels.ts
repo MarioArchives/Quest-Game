@@ -23,5 +23,6 @@ export function ledgerLabels(t: TermForms, voice: LedgerVoice): Record<LedgerRea
     cleared: { you: 'Cleared your name', them: 'Cleared their name', gm: 'Name cleared' }[voice],
     framed: { you: 'You were framed', them: 'They were framed', gm: 'Framed' }[voice],
     skipped: `Skipped a ${t.sideQuest.one}`,
+    missed: `Missed a ${t.checkin.one}`,
   };
 }

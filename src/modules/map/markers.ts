@@ -22,7 +22,7 @@ export function esc(text: string): string {
 }
 
 /** Z-offsets keep busier things on top: venues < players < you. */
-export const Z = { none: -100, later: 0, soon: 100, now: 200, player: 500, you: 600 } as const;
+export const Z = { feet: -300, none: -100, later: 0, soon: 100, now: 200, stop: 300, player: 500, you: 600 } as const;
 
 const PIN = 30; // hit area (px); the visible square is smaller
 
@@ -75,6 +75,56 @@ export function youIcon(name: string): DivIcon {
       html: `<span class="fqpin__halo"></span><span class="fqpin__avatar">${initial}</span><span class="fqpin__label fqpin__label--below">You</span>`,
       iconSize: [AVATAR, AVATAR],
       iconAnchor: [AVATAR / 2, AVATAR / 2],
+    }),
+  );
+}
+
+export type StopState = 'now' | 'next' | 'later' | 'past' | 'hidden';
+
+const STOP_STATE_TEXT: Record<StopState, string> = { now: 'here now', next: 'next', later: 'later', past: 'done', hidden: 'hidden from players' };
+
+/** Route stop: a numbered square with the name beside it. Red = the group is there now, ink = next, white = later, grey = done, dashed ghost = hidden from players (GM view). */
+export function stopIcon(number: number, name: string, state: StopState): DivIcon {
+  return cached(`s:${number}:${state}:${name}`, () =>
+    divIcon({
+      className: `fqpin fqpin--stop fqpin--stop-${state}`,
+      html: `<span class="fqstopno">${number}</span><span class="fqpin__label">${esc(name)}</span><span class="visually-hidden">Stop ${number}, ${esc(name)}, ${STOP_STATE_TEXT[state]}</span>`,
+      iconSize: [PIN, PIN],
+      iconAnchor: [PIN / 2, PIN / 2],
+    }),
+  );
+}
+
+/** The pin being placed or moved, before it is saved. */
+export function draftIcon(): DivIcon {
+  return cached('draft', () =>
+    divIcon({
+      className: 'fqpin fqpin--stop fqpin--stop-draft',
+      html: '<span class="fqstopno">+</span><span class="visually-hidden">New stop</span>',
+      iconSize: [PIN, PIN],
+      iconAnchor: [PIN / 2, PIN / 2],
+    }),
+  );
+}
+
+const FOOT_H = 14;
+const FOOT_W = 9;
+
+/** A shoe print (sole and heel) pointing up; the left foot is mirrored. Filled by CSS (`.fqfoot`), so it follows the theme. */
+const FOOT_SVG =
+  '<svg viewBox="0 0 9 14" width="9" height="14" aria-hidden="true" focusable="false">' +
+  '<path d="M4.5 0C6.9 0 8 1.9 8 4.4 8 6.7 7.2 8.2 4.5 8.2S1 6.7 1 4.4C1 1.9 2.1 0 4.5 0z"/>' +
+  '<ellipse cx="4.5" cy="11.2" rx="2.2" ry="2.6"/></svg>';
+
+/** One footprint, turned to the walking direction (rounded to 5 degrees so icons are shared). `ghost` = a leg to a hidden stop. */
+export function footprintIcon(bearing: number, side: 'left' | 'right', ghost: boolean): DivIcon {
+  const deg = (Math.round(bearing / 5) * 5) % 360;
+  return cached(`f:${deg}:${side}:${ghost}`, () =>
+    divIcon({
+      className: `fqfoot${ghost ? ' fqfoot--ghost' : ''}`,
+      html: `<span class="fqfoot__turn" style="transform:rotate(${deg}deg)"><span class="fqfoot__flip" style="transform:scaleX(${side === 'left' ? -1 : 1})">${FOOT_SVG}</span></span>`,
+      iconSize: [FOOT_W, FOOT_H],
+      iconAnchor: [FOOT_W / 2, FOOT_H / 2],
     }),
   );
 }

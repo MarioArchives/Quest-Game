@@ -23,6 +23,9 @@ export type {
   QuestStatus,
   QuestTemplate,
   Reward,
+  Checkin,
+  CheckinAnswer,
+  Periodic,
   RewardStatus,
   Motive,
   Reaction,
@@ -32,6 +35,7 @@ export type {
   Submission,
   SubmissionKind,
   SubmissionStatus,
+  Stop,
   Venue,
   Wrap,
 } from '../functions/src/shared/types';
@@ -42,6 +46,8 @@ export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/sett
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
 export { tallyVotes } from '../functions/src/shared/votes';
+export { drawTemplate } from '../functions/src/shared/draw';
+export { PERIODIC_LIMITS, periodicDone, periodicProblems } from '../functions/src/shared/periodics';
 
 /** A Firestore document with its id. */
 export type Doc<T> = T & { id: string };

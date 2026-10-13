@@ -60,6 +60,10 @@ const TAG: Record<FeedType, Label & { red?: boolean }> = {
   status: { text: 'Game', icon: 'gm' },
   adjust: { text: 'Points', icon: 'edit' },
   left: { text: 'Left', icon: 'logout' },
+  'stop-revealed': { text: 'New location', icon: 'pin', red: true },
+  'checkin-open': { text: t.checkin.One, icon: 'clock', red: true },
+  'checkin-answer': { text: t.checkin.One, icon: 'check' },
+  'checkin-closed': { text: `${t.checkin.One} closed`, icon: 'clock' },
 };
 
 /** What the stub shows when there are no points to print on it. */
@@ -78,17 +82,21 @@ const MARK: Record<FeedType, Label> = {
   status: { text: 'Game', icon: 'gm' },
   adjust: { text: t.gm.One, icon: 'edit' },
   left: { text: 'Out', icon: 'logout' },
+  'stop-revealed': { text: 'Map', icon: 'pin' },
+  'checkin-open': { text: 'Answer', icon: 'clock' },
+  'checkin-answer': { text: 'Here', icon: 'check' },
+  'checkin-closed': { text: 'Closed', icon: 'clock' },
 };
 
 /** Types shown as a quiet one-liner rather than a ticket. */
 const QUIET: ReadonlySet<FeedType> = new Set(['join', 'status', 'left']);
 
 /** Approval posts end "— witnessed by Alex"; the stub prints the witness, so the headline drops it. */
-const WITNESSED = / — witnessed by (.+)$/;
+export const WITNESSED = / — witnessed by (.+)$/;
 
-const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
-function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
+export function PostPhoto({ item, label }: { item: Doc<FeedItem>; label: string }) {
   const open = usePhotoViewer();
   const full = useStorageUrl(item.imagePath);
   const thumb = useStorageUrl(item.thumbPath);

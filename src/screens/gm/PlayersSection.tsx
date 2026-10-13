@@ -8,13 +8,16 @@ import { PointsChip } from '../../components/PointsChip';
 import { useToast } from '../../components/Toast';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
 import { tsMs, useDocument, useNow, useQuery } from '../../data/hooks';
-import { quickAdjustment } from '../../lib/gmQuick';
+import { QUICK_POINTS, quickAdjustment } from '../../lib/gmQuick';
 import { formatAgo } from '../../lib/time';
-import { features, t } from '../../pack';
+import { features, pack, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft, type LedgerEntry, type Motive } from '../../shared';
 import { characterLine } from '../player/PlayerTicket';
 import { LEDGER_REASONS } from './common';
+
+/** The quick buttons' step: the pack's own, else 10. */
+const QUICK = pack.gmQuickPoints ?? QUICK_POINTS;
 
 /** What a player's row says about them having left. */
 const LEFT_LABEL = { frozen: 'left · frozen · ', out: 'out of the game · ' } as const;
@@ -94,7 +97,7 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
     setBusy(true);
     setError(null);
     try {
-      const { points } = await adjustPoints({ uid: player.id, ...quickAdjustment(quickSign, reason) });
+      const { points } = await adjustPoints({ uid: player.id, ...quickAdjustment(quickSign, reason, QUICK) });
       toast(`${player.displayName} now has ${points}.`, 'success');
       setReason('');
     } catch (err) {
@@ -151,11 +154,11 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
       <div className="gm-form gm-quick">
         <h3 className="gm-h">Quick points</h3>
         <div className="gm-row">
-          <Button variant="danger" className="gm-flex1" disabled={busy} aria-label={`Take 10 points from ${player.displayName}`} onClick={() => void quick(-1)}>
-            −10
+          <Button variant="danger" className="gm-flex1" disabled={busy} aria-label={`Take ${QUICK} ${QUICK === 1 ? 'point' : 'points'} from ${player.displayName}`} onClick={() => void quick(-1)}>
+            −{QUICK}
           </Button>
-          <Button variant="primary" className="gm-flex1" disabled={busy} aria-label={`Give ${player.displayName} 10 points`} onClick={() => void quick(1)}>
-            +10
+          <Button variant="primary" className="gm-flex1" disabled={busy} aria-label={`Give ${player.displayName} ${QUICK} ${QUICK === 1 ? 'point' : 'points'}`} onClick={() => void quick(1)}>
+            +{QUICK}
           </Button>
         </div>
         <p className="gm-hint">Uses the reason box below if filled in, otherwise “Penalty” or “Bonus”.</p>

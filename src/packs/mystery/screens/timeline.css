@@ -1,0 +1,64 @@
+/*
+ * The Board's Feed as case files (E4·1): one manila folder per stop (CaseKit's Folder), its posts as kraft tags strung
+ * under it (Strung + Tag). The kit draws the folders, tags, line and stamps; this is what is particular to the feed.
+ */
+.tl { display: flex; flex-direction: column; gap: var(--gap); }
+.tl__trail { display: flex; flex-direction: column; margin-top: 4px; }
+.tl__chapter { display: flex; flex-direction: column; }
+.tl__folderrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.tl__stopname { font-size: 24px; line-height: 1.05; }
+.tl__none { position: relative; z-index: 1; padding: 6px 0 6px 22px; font-family: var(--mono); font-size: 11px; color: var(--chart); list-style: none; }
+
+.tl__name { padding: 0; border: 0; background: none; color: inherit; font-family: var(--body); font-size: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.tl__name:hover { text-decoration: underline; }
+.tl__caption { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.tl__note { font-size: 13px; font-style: italic; color: var(--manila-sub); overflow-wrap: anywhere; }
+.tl__add {
+  min-height: 36px; padding: 0 10px; border: 1.5px solid var(--manila-ink); background: rgba(255, 255, 255, 0.25); color: var(--manila-ink);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+/* A post's photo is a print clipped to its tag. */
+.tl .cf-tag .tk__photo { align-self: stretch; width: auto; border: 6px solid var(--print); border-bottom-width: 18px; transform: rotate(0.6deg); }
+.tl__row.is-flagged .tk__photo, .tl__row.is-flagged .tl__caption { opacity: 0.6; }
+.tl .cf-foot .reactions { margin: 0; }
+.tl .cf-pts.is-struck { text-decoration: line-through; text-decoration-color: var(--stamp-bad); }
+
+/* ---------- between stops ---------- */
+.tl__walk { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0 14px; }
+.tl__walk span { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--chart); }
+
+/* ---------- open periodic missions: big tags under the tabs ---------- */
+.tl__calls { margin-top: -6px; }
+.tl__call { gap: 8px; }
+.tl__callprompt { font-family: var(--mono); font-size: 16px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.tl__callrow { align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.tl__callclock { font-family: var(--display); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tl__callprints { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.tl__call .pip, .tl__call .pip--on { background: var(--manila-ink); }
+.tl__callwait { font-family: var(--mono); font-size: 11px; color: var(--manila-sub); }
+.tl__callanswer { align-self: stretch; }
+.tl__callmine { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; }
+
+/* ---------- the group mission as a manila folder (the engine's card, restyled) ---------- */
+.tl .hero {
+  position: relative; margin-top: 30px; overflow: visible;
+  background: var(--manila); background-image: none; color: var(--manila-ink); border: 0; border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
+}
+.tl .hero::after {
+  content: ''; position: absolute; right: 16px; top: -14px; width: 16px; height: 44px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 44'%3E%3Cpath d='M5 40 V8 a3 3 0 0 1 6 0 V34 a5 5 0 0 1 -10 0 V12' fill='none' stroke='%239aa0a3' stroke-width='2'/%3E%3C/svg%3E") no-repeat;
+}
+.tl .hero__eyebrow {
+  position: absolute; left: 18px; top: -29px; margin: 0; padding: 6px 14px 4px; border-radius: 6px 6px 0 0;
+  background: var(--manila-tab); color: var(--manila-ink); font-size: 11px; letter-spacing: 1.5px;
+}
+.tl .hero__sticker {
+  position: absolute; right: 44px; top: 12px; padding: 1px 6px; background: none; border: 2px solid var(--warn); color: var(--warn);
+  box-shadow: none; transform: rotate(-4deg); font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px;
+}
+.tl .hero__title, .tl .hero__time { color: var(--manila-ink); }
+.tl .hero__desc, .tl .hero__rule, .tl .hero__left, .tl .hero__entries, .tl .hero__blocked { color: var(--manila-sub); }
+.tl .hero .pip, .tl .hero .pip--on { background: var(--manila-ink); }
+.tl .hero__who-item { background: rgba(255, 255, 255, 0.4); color: var(--manila-ink); }
+.tl .hero__cta { --btn-bg: var(--accent); --btn-fg: #fff; }
+.tl .hero__mine { background: rgba(255, 255, 255, 0.35); color: var(--manila-ink); }

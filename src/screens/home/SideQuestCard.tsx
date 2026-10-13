@@ -13,7 +13,7 @@ import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
 import { t } from '../../pack';
 
-function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string }) {
+export function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string }) {
   const now = useNow(1000);
   const text = formatCountdown(endsAt, now);
   const over = text === 'closed';
@@ -27,7 +27,7 @@ function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string 
   );
 }
 
-function Pips({ filled, total }: { filled: number; total: number }) {
+export function Pips({ filled, total }: { filled: number; total: number }) {
   const pips = Math.min(Math.max(total, 1), 14);
   const on = Math.min(filled, pips);
   return (

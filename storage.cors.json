@@ -1,7 +1,14 @@
 [
   {
-    "origin": ["https://marioarchives.github.io", "http://localhost:4173"],
-    "method": ["GET"],
+    "origin": [
+      "https://musical-mischief.firebaseapp.com",
+      "https://musical-mischief.web.app",
+      "https://marioarchives.github.io",
+      "http://localhost:4173"
+    ],
+    "method": [
+      "GET"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

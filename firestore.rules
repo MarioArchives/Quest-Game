@@ -48,6 +48,19 @@ service cloud.firestore {
       allow read: if isPlayerOrGM();
     }
 
+    // Periodic missions (the series) are the GM's plans: the GM reads them, only functions write (managePeriodic,
+    // the timer). Their check-ins and answers: everyone in the game reads them; only functions write (answerCheckin,
+    // managePeriodic and the timer).
+    match /periodics/{id} {
+      allow read: if isGM();
+    }
+    match /checkins/{id} {
+      allow read: if isPlayerOrGM();
+      match /answers/{uid} {
+        allow read: if isPlayerOrGM();
+      }
+    }
+
     // ---------- identity ----------
     // A signed-in user may read their own (possibly missing) admins doc so a GM who does not play can
     // detect GM status; otherwise the admin list is readable by players.
@@ -181,6 +194,33 @@ service cloud.firestore {
     // A player's secret motive (packs with characters): that player and the GM read it; only functions write it.
     match /motives/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGM());
+    }
+
+    // ---------- route stops (packs with stops) ----------
+    // The GM reads every stop and writes them straight from the client. Players read only revealed stops, so
+    // their query must filter `revealed == true`; a hidden stop's place never reaches their device.
+    function validStop(d) {
+      return d.keys().hasOnly(['name', 'lat', 'lng', 'order', 'startsAt', 'endsAt', 'revealed', 'createdAt', 'address', 'placeRef', 'placeName'])
+        && d.keys().hasAll(['name', 'lat', 'lng', 'order', 'revealed', 'createdAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && isNum(d.lat) && d.lat >= -90 && d.lat <= 90
+        && isNum(d.lng) && d.lng >= -180 && d.lng <= 180
+        && d.order is int && d.order >= 1 && d.order <= 999
+        && d.revealed is bool
+        && (d.get('startsAt', null) == null || d.startsAt is timestamp)
+        && (d.get('endsAt', null) == null
+            || (d.endsAt is timestamp && (d.get('startsAt', null) == null || d.endsAt >= d.startsAt)))
+        && d.createdAt is timestamp
+        // The real bar it is, when the GM picked one: its address, where it came from ("osm:node/123") and its own
+        // name (the stop's name may be the GM's own), so Google Maps finds it.
+        && (d.get('address', null) == null || (d.address is string && d.address.size() <= 200))
+        && (d.get('placeRef', null) == null || (d.placeRef is string && d.placeRef.size() <= 80))
+        && (d.get('placeName', null) == null || (d.placeName is string && d.placeName.size() <= 100));
+    }
+    match /stops/{id} {
+      allow read: if isGM() || (isPlayer() && resource.data.revealed == true);
+      allow create, update: if isGM() && validStop(request.resource.data);
+      allow delete: if isGM();
     }
 
     // ---------- live locations ----------

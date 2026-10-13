@@ -212,7 +212,7 @@ function Warn() {
   );
 }
 
-function Announcement() {
+export function Announcement() {
   const { state } = useGame();
   const toast = useToast();
   const [text, setText] = useState('');

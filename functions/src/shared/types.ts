@@ -308,6 +308,7 @@ export const LEDGER_REASON_LIST = [
   'cleared',
   'framed',
   'skipped',
+  'missed',
 ] as const;
 
 export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
@@ -339,8 +340,76 @@ export type FeedType =
   | 'status'
   | 'adjust'
   | 'left'
+  /** The GM revealed the next stop on the route (packs with stops). `ref` is the stop's id. */
+  | 'stop-revealed'
   /** Someone used a reward to frame this player; never names who (packs with rewardChoice). */
-  | 'framed';
+  | 'framed'
+  /** A check-in opened (packs with checkins): `ref` is its id, `questTitle` its prompt. */
+  | 'checkin-open'
+  /** A player answered a check-in, with their photo and/or comment on the post. */
+  | 'checkin-answer'
+  /** A check-in closed; the text names who missed it. */
+  | 'checkin-closed';
+
+export type PeriodicStatus = 'running' | 'stopped';
+
+/**
+ * periodics/{id} — a periodic mission (packs with checkins): a series the GM manages. While running, the timer sends
+ * one every `intervalMin` (a check-in, drawn from `prompts`), up to `count` in all (0 = no limit). The GM can also
+ * fire the next one now, end an open one, stop and start it, edit it and delete it. GM-only; functions write it.
+ */
+export interface Periodic {
+  name: string;
+  /** What it asks for; one is drawn at random each time, unused ones first. */
+  prompts: string[];
+  intervalMin: number;
+  /** Minutes everyone has to answer each one. */
+  windowMin: number;
+  /** Points lost for not answering one in time (0 = none). Each one keeps the fine it opened with. */
+  penalty: number;
+  /** How many to send in all; 0 = no limit. */
+  count: number;
+  /** How many have gone out so far (by the timer or the GM). */
+  sent: number;
+  status: PeriodicStatus;
+  /** When the next one goes out; null while stopped (or not yet scheduled). */
+  nextAt: TS | null;
+  createdAt: TS;
+}
+
+export type CheckinStatus = 'open' | 'closed';
+
+/**
+ * checkins/{id} — one request from a periodic mission: everyone answers with a photo or a comment before `endsAt`.
+ * There are no points for answering; whoever could have answered and didn't loses `penalty` when it closes.
+ */
+export interface Checkin {
+  /** The series it came from (null if that has been deleted since), and its name when it was sent. */
+  periodicId: string | null;
+  name: string;
+  prompt: string;
+  /** Which of its series' sends this is (1-based). */
+  number: number;
+  startsAt: TS;
+  endsAt: TS;
+  status: CheckinStatus;
+  /** The penalty it opened with. */
+  penalty: number;
+  /** Set when it closes: who was charged for missing it (none when the GM ends it without fines). */
+  missedUids: string[];
+  /** Set when it closes: its time ran out, or the GM ended it early. */
+  endedBy?: 'time' | 'gm';
+}
+
+/** checkins/{id}/answers/{uid} — one answer per player; written only by answerCheckin. */
+export interface CheckinAnswer {
+  uid: string;
+  imagePath: string | null;
+  thumbPath: string | null;
+  caption: string | null;
+  createdAt: TS;
+  feedId: string;
+}
 
 /** feed/{id} — the Home feed. Everything that happens in the game posts here. */
 export interface FeedItem {
@@ -423,6 +492,28 @@ export interface Wrap {
   /** settings.rerollLimit plus the player's GM extras when the game ended. Absent on older wraps. */
   rerollAllowance?: number;
   award: Award;
+}
+
+/** stops/{id} — a place on the GM's route (packs with the stops feature). Players only ever see revealed stops. */
+export interface Stop {
+  name: string;
+  lat: number;
+  lng: number;
+  /** Place on the route, a whole number 1–999 the GM controls (ties break by createdAt, then id). */
+  order: number;
+  /** When the group arrives; null while the GM does not know yet. */
+  startsAt: TS | null;
+  /** When the group leaves; missing or null → until the next stop starts. */
+  endsAt?: TS | null;
+  /** False hides the stop from players until the GM reveals it. */
+  revealed: boolean;
+  createdAt: TS;
+  /** The real bar, when the GM picked one from the map's bar search: its address, for directions. */
+  address?: string | null;
+  /** Where that bar came from, e.g. "osm:node/123" (OpenStreetMap). */
+  placeRef?: string | null;
+  /** The bar's own name, which Google Maps knows it by; `name` may be the GM's own ("Scene of the crime"). */
+  placeName?: string | null;
 }
 
 /** Static schedule data from a pack (venues and events). */

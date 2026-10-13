@@ -3,6 +3,8 @@ import type { GamePack } from '../../../functions/src/shared/packs/types.ts';
 import type { WatchableStore } from '../../../functions/src/shared/store/types.ts';
 import { CALLABLES, type Services } from '../../../functions/src/game/callables.ts';
 import type { Ctx } from '../../../functions/src/game/context.ts';
+import { runPeriodics } from '../../../functions/src/game/checkins.ts';
+import { periodicSeeds } from '../../../functions/src/shared/periodics.ts';
 import { runTick } from '../../../functions/src/game/globals.ts';
 import { buildDemo, type DemoGame } from '../../../functions/src/shared/demo/index.ts';
 import { defaultSettingsFor } from '../../../functions/src/shared/packs/index.ts';
@@ -73,6 +75,7 @@ function seed(store: WatchableStore, pack: GamePack, nowMs: number, demo: boolea
   for (const q of pack.catalogue.global) {
     put(`questTemplates/${q.id}`, { title: q.title, description: q.description, scope: 'global', windowMin: q.windowMin ?? null, active: true });
   }
+  for (const p of periodicSeeds(pack)) put(`periodics/${p.id}`, { ...p.data, createdAt: Stamp.fromMillis(nowMs - 2 * HOUR) });
   put(`admins/${MOCK_GM_UID}`, { email: 'gm@mock.local' });
   if (!demo) return { docs: [], files: [], players: [] };
   const game = buildDemo({ pack, settings, nowMs });
@@ -121,6 +124,7 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
 
   async function tick() {
     await runTick(store, now(), rng, pack);
+    await runPeriodics(store, now(), rng, pack);
     await triggers.settle();
   }
 

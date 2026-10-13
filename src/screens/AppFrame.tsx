@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
-import { Icon, type IconName } from '../components/Icon';
+import { Icon, isIconName, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
 import { RewardSheetProvider } from '../components/RewardSheet';
 import { tabLabels, tabsFor, type TabId } from '../lib/nav';
@@ -35,13 +35,19 @@ const TITLES: Record<string, string> = {
   '/standings': 'Standings',
 };
 
+/** A tab's icon: the pack's own if it draws one, else the engine's. */
+const iconFor = (id: TabId, fallback: IconName): IconName => {
+  const own = brand.tabIcons?.[id];
+  return isIconName(own) ? own : fallback;
+};
+
 /** Every tab the frame can show; tabsFor picks which ones and in what order. */
 const TABS: Record<TabId, Tab> = {
-  home: { to: '/', label: LABELS.home, icon: 'home', end: true, dotLabel: 'new posts' },
-  map: { to: '/map', label: LABELS.map, icon: 'map' },
-  account: { to: '/account', label: LABELS.account, icon: 'user', dotLabel: 'something needs you' },
-  gm: { to: '/gm', label: LABELS.gm, icon: 'gm', dotLabel: 'work waiting' },
-  wrap: { to: '/wrap', label: LABELS.wrap, icon: 'wrap', dotLabel: 'the game is over, see your wrap' },
+  home: { to: '/', label: LABELS.home, icon: iconFor('home', 'home'), end: true, dotLabel: 'new posts' },
+  map: { to: '/map', label: LABELS.map, icon: iconFor('map', 'map') },
+  account: { to: '/account', label: LABELS.account, icon: iconFor('account', 'user'), dotLabel: 'something needs you' },
+  gm: { to: '/gm', label: LABELS.gm, icon: iconFor('gm', 'gm'), dotLabel: 'work waiting' },
+  wrap: { to: '/wrap', label: LABELS.wrap, icon: iconFor('wrap', 'wrap'), dotLabel: 'the game is over, see your wrap' },
 };
 
 export function AppFrame() {
@@ -87,7 +93,7 @@ export function AppFrame() {
 
   return (
     <RewardSheetProvider>
-    <div className="app">
+    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to content
       </a>

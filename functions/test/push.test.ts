@@ -81,6 +81,20 @@ describe('P1. who hears about each feed post', () => {
     expect(said(pushFor(post('announcement', { text: 'Last orders at the Dukes!' })))).toContain('Last orders at the Dukes!');
   });
 
+  it('a periodic mission goes to every player with its name and prompt and opens Home; answers and the closing post stay quiet', () => {
+    expect(pushFor(post('checkin-open', { text: 'Roll call: Show us your drink', questTitle: 'Show us your drink', ref: 'c1' }))).toEqual({
+      to: 'players',
+      message: { title: 'Answer now', body: 'Roll call: Show us your drink', link: '#/' },
+    });
+    expect(pushFor(post('checkin-answer', { uid: 'alice', ref: 'c1' }))).toBeNull();
+    expect(pushFor(post('checkin-closed', { ref: 'c1' }))).toBeNull();
+  });
+
+  it('a revealed stop goes to every player, but not the GM who revealed it, and opens the map', () => {
+    const plan = pushFor(post('stop-revealed', { text: 'New location: The Crown', ref: 's1', actorUid: 'gm' }));
+    expect(plan).toEqual({ to: 'players', exclude: 'gm', message: { title: 'New location', body: 'New location: The Crown', link: '#/map' } });
+  });
+
   it.each(['approved', 'rejected', 'fraud', 'adjust'] as const)('%s goes only to the player it is about', (type) => {
     const plan = pushFor(post(type, { uid: 'alice', actorUid: 'bob', points: 100 }), 'personal');
     expect(plan?.to).toEqual(['alice']);
@@ -444,6 +458,7 @@ describe('P12. tap-through links', () => {
     ['global-won', '#/'],
     ['announcement', '#/'],
     ['status', '#/'],
+    ['stop-revealed', '#/map'],
     ['approved', '#/account'],
     ['rejected', '#/account'],
     ['fraud', '#/account'],

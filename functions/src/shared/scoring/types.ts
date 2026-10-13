@@ -20,7 +20,9 @@ export type ScoreEvent =
   /** Reward choice: the owner clears their name. */
   | { kind: 'rewardClean'; uid: string }
   /** Reward choice: the owner (`uid`) frames `target`. Only the target's points should change. */
-  | { kind: 'rewardFrame'; uid: string; target: string };
+  | { kind: 'rewardFrame'; uid: string; target: string }
+  /** A player who could have answered a check-in and didn't, as it closes; `penalty` is the one it opened with. */
+  | { kind: 'checkinMissed'; uid: string; penalty: number };
 
 export interface ScoreContext {
   settings: Settings;

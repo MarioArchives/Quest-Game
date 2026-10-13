@@ -379,3 +379,19 @@
 .gm-quick, .gm-rerolls { padding-bottom: 14px; margin-bottom: 14px; border-bottom: var(--hairline); }
 .gm-quick .btn, .gm-rerolls .btn { min-height: 48px; }
 .gm-quick .btn { font-size: 19px; }
+
+/* ---------- Fire random: the draw, before it goes out ---------- */
+.gm-draw { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--card); border: var(--line); box-shadow: var(--shadow); }
+.gm-draw__meta { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.gm-draw__title { font-family: var(--display); font-weight: var(--display-weight); font-size: 26px; line-height: 1.05; overflow-wrap: anywhere; }
+.gm-draw__desc { font-size: 15px; line-height: 1.45; }
+.gm-draw__facts { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* ---------- periodic missions ---------- */
+.gm-pm__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gm-pm__actions > .btn { min-width: 0; }
+/* Small buttons here, not the hero row's big primary. */
+.gm-pm__actions > .btn.btn--small { font-size: 12px; }
+/* A hint inside the dark "open now" panel reads in the panel's own colour. */
+.gm-current .gm-hint { color: inherit; opacity: 0.8; }
+.gm-pm__open { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }

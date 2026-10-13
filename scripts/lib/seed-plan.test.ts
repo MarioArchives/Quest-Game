@@ -2,7 +2,7 @@
 // settings without ever replacing GM values, and only seeds demo parts the pack has.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultSettingsFor, getPack } from '../../functions/src/shared/packs/index.ts';
-import { demoParts, planSettings, planState, resolvePackId } from './seed-plan.mjs';
+import { demoParts, planPeriodics, planRoute, planSettings, planState, resolvePackId } from './seed-plan.mjs';
 
 describe('resolvePackId', () => {
   it('takes --pack <id> and --pack=<id>', () => {
@@ -116,5 +116,47 @@ describe('demoParts', () => {
     expect(demoParts({ guesses: true, sideQuests: true, map: true })).toEqual({ locations: true, sideQuest: true });
     expect(demoParts({ guesses: true, sideQuests: true, map: false })).toEqual({ locations: false, sideQuest: true });
     expect(demoParts({ guesses: true, sideQuests: false, map: true })).toEqual({ locations: true, sideQuest: false });
+  });
+});
+
+describe('planRoute', () => {
+  it('turns the pack’s route into hidden, untimed stops route-1..n in order', () => {
+    const plan = planRoute(getPack('mystery'));
+    expect(plan.map((s) => s.id)).toEqual(['route-1', 'route-2', 'route-3', 'route-4', 'route-5', 'route-6', 'route-7']);
+    expect(plan.map((s) => s.data.order)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(plan[0].data).toEqual({
+      name: 'The Didsbury',
+      lat: 53.41027,
+      lng: -2.23091,
+      order: 1,
+      address: '852 Wilmslow Road, M20 2SG',
+      placeRef: 'osm:node/27024692',
+      placeName: 'The Didsbury',
+      startsAt: null,
+      endsAt: null,
+      revealed: false,
+    });
+    expect(plan.every((s) => s.data.revealed === false)).toBe(true);
+  });
+
+  it('is empty for packs with no stops or no route', () => {
+    expect(planRoute(getPack('lancaster'))).toEqual([]);
+    expect(planRoute(getPack('starter'))).toEqual([]);
+    expect(planRoute({ ...getPack('mystery'), features: { ...getPack('mystery').features, stops: false } })).toEqual([]);
+    expect(planRoute({ ...getPack('mystery'), route: undefined })).toEqual([]);
+  });
+});
+
+describe('planPeriodics', () => {
+  it("turns the pack's periodic missions into running series with nothing sent yet", () => {
+    const plan = planPeriodics(getPack('mystery'));
+    expect(plan.map((p) => p.id)).toEqual(['roll-call']);
+    expect(plan[0]!.data).toMatchObject({ name: 'Roll call', intervalMin: 60, windowMin: 15, penalty: 5, count: 4, sent: 0, status: 'running', nextAt: null });
+    expect(plan[0]!.data.prompts.length).toBe(10);
+  });
+
+  it('is empty for packs without periodic missions', () => {
+    expect(planPeriodics(getPack('lancaster'))).toEqual([]);
+    expect(planPeriodics({ ...getPack('mystery'), features: { ...getPack('mystery').features, checkins: false } })).toEqual([]);
   });
 });

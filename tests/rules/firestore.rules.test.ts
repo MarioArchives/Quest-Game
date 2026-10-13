@@ -470,6 +470,124 @@ describe('9. locations', () => {
   });
 });
 
+const stopDoc = (over: Record<string, unknown> = {}) => ({
+  name: 'The Golden Lion',
+  lat: 54.0489,
+  lng: -2.8021,
+  order: 1,
+  startsAt: Timestamp.fromMillis(1_800_000_000_000),
+  endsAt: Timestamp.fromMillis(1_800_003_600_000),
+  revealed: true,
+  createdAt: serverTimestamp(),
+  ...over,
+});
+
+describe('9b. route stops', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'stops/s1'), stopDoc({ createdAt: T }));
+      await setDoc(doc(c.firestore(), 'stops/hidden'), stopDoc({ createdAt: T, revealed: false, order: 2, startsAt: null, endsAt: null }));
+    });
+  });
+
+  const revealedOnly = (who: string) => query(collection(as(who), 'stops'), where('revealed', '==', true));
+
+  it('players read revealed stops; a filtered list works, an unfiltered one does not', async () => {
+    await assertSucceeds(getDoc(doc(as('alice'), 'stops/s1')));
+    await assertSucceeds(getDocs(revealedOnly('alice')));
+    await assertFails(getDocs(collection(as('alice'), 'stops')));
+    await assertFails(getDocs(query(collection(as('alice'), 'stops'), where('revealed', '==', false))));
+  });
+
+  it('a player cannot read a hidden stop', async () => {
+    await assertFails(getDoc(doc(as('alice'), 'stops/hidden')));
+  });
+
+  it('the GM reads every stop, hidden ones too', async () => {
+    await assertSucceeds(getDocs(collection(as('gm'), 'stops')));
+    await assertSucceeds(getDoc(doc(as('gm'), 'stops/hidden')));
+  });
+
+  it('signed-out users and people awaiting approval cannot read', async () => {
+    await assertFails(getDocs(query(collection(anon(), 'stops'), where('revealed', '==', true))));
+    await assertFails(getDocs(revealedOnly('pending')));
+    await assertFails(getDoc(doc(anon(), 'stops/s1')));
+  });
+
+  it('a player cannot create, update or delete a stop', async () => {
+    await assertFails(setDoc(doc(as('alice'), 'stops/s2'), stopDoc()));
+    await assertFails(updateDoc(doc(as('alice'), 'stops/s1'), { name: 'Mine now' }));
+    await assertFails(updateDoc(doc(as('alice'), 'stops/hidden'), { revealed: true }));
+    await assertFails(deleteDoc(doc(as('alice'), 'stops/s1')));
+  });
+
+  it('the GM creates, updates, reveals, hides and deletes valid stops', async () => {
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/s2'), stopDoc()));
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/s3'), stopDoc({ endsAt: null })));
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/s4'), stopDoc({ startsAt: null, endsAt: null, revealed: false })));
+    const { endsAt: _e, startsAt: _s, ...noTimes } = stopDoc();
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/s5'), noTimes));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/s1'), { name: 'The Sun Hotel', lat: 54.05, lng: -2.8 }));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/hidden'), { revealed: true }));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/s1'), { revealed: false, order: 7 }));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/s1'), { startsAt: null }));
+    // A real bar: its address, where it came from and its own name, and clearing them again.
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/s6'), stopDoc({ address: '1 Elm Grove, M20 6PL', placeRef: 'osm:node/123', placeName: 'The Crown' })));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/s1'), { name: 'Scene of the crime', address: 'x'.repeat(200), placeRef: 'osm:way/9', placeName: 'x'.repeat(100) }));
+    await assertSucceeds(updateDoc(doc(as('gm'), 'stops/s1'), { address: null, placeRef: null, placeName: null }));
+    await assertSucceeds(deleteDoc(doc(as('gm'), 'stops/s1')));
+  });
+
+  it('accepts the boundary values and an end equal to the start', async () => {
+    const t = Timestamp.fromMillis(1_800_000_000_000);
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/b1'), stopDoc({ lat: -90, lng: 180, name: 'x'.repeat(60), endsAt: t, startsAt: t, order: 1 })));
+    await assertSucceeds(setDoc(doc(as('gm'), 'stops/b2'), stopDoc({ order: 999 })));
+  });
+
+  it.each([
+    ['an empty name', { name: '' }],
+    ['a 61 character name', { name: 'x'.repeat(61) }],
+    ['a numeric name', { name: 7 }],
+    ['lat 91', { lat: 91 }],
+    ['lng -181', { lng: -181 }],
+    ['a string lat', { lat: '54' }],
+    ['a string startsAt', { startsAt: '2027-01-01' }],
+    ['an endsAt before startsAt', { endsAt: Timestamp.fromMillis(1_700_000_000_000) }],
+    ['a string endsAt', { endsAt: 'later' }],
+    ['order 0', { order: 0 }],
+    ['order 1000', { order: 1000 }],
+    ['a fractional order', { order: 1.5 }],
+    ['a string order', { order: '1' }],
+    ['a string revealed', { revealed: 'yes' }],
+    ['a null revealed', { revealed: null }],
+    ['an extra field', { note: 'hi' }],
+    ['a 201 character address', { address: 'x'.repeat(201) }],
+    ['a numeric address', { address: 12 }],
+    ['an 81 character place ref', { placeRef: 'x'.repeat(81) }],
+    ['a numeric place ref', { placeRef: 5 }],
+    ['a 101 character place name', { placeName: 'x'.repeat(101) }],
+    ['a place name that is not a string', { placeName: true }],
+  ])('rejects %s', async (_label, over) => {
+    await assertFails(setDoc(doc(as('gm'), 'stops/bad'), stopDoc(over)));
+    await assertFails(updateDoc(doc(as('gm'), 'stops/s1'), over));
+  });
+
+  it('rejects a stop with no order or no revealed flag', async () => {
+    const { order: _o, ...noOrder } = stopDoc();
+    const { revealed: _r, ...noRevealed } = stopDoc();
+    await assertFails(setDoc(doc(as('gm'), 'stops/bad'), noOrder));
+    await assertFails(setDoc(doc(as('gm'), 'stops/bad2'), noRevealed));
+  });
+});
+
+describe('9c. the stop-revealed feed post', () => {
+  it('the GM can post it; a player cannot', async () => {
+    const post = { type: 'stop-revealed', text: 'New location: The Crown', uid: null, ref: 's1', actorUid: 'gm', createdAt: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(as('gm'), 'feed/reveal1'), post));
+    await assertFails(setDoc(doc(as('alice'), 'feed/reveal2'), post));
+  });
+});
+
 describe('10. game docs, templates and global quests', () => {
   it('players and the GM can read state, settings and final standings', async () => {
     for (const who of ['alice', 'gm']) {
@@ -582,5 +700,55 @@ describe('M8/M15. rewards and motives are private to their owner and the GM', ()
   it('a player cannot set their own character on their player doc', async () => {
     await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { character: { name: 'The Detective', role: 'Innocent' } }));
     await assertFails(updateDoc(doc(as('alice'), 'players/alice'), { photoURL: 'https://example.com/a.png', character: { name: 'X', role: 'Y' } }));
+  });
+});
+
+describe('C1. periodic missions, their check-ins and answers', () => {
+  async function seedCheckin() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'periodics/rc'), {
+        name: 'Roll call', prompts: ['Show us your drink'], intervalMin: 60, windowMin: 15, penalty: 5, count: 4, sent: 1, status: 'running', nextAt: T, createdAt: T,
+      });
+      await setDoc(doc(db, 'checkins/c1'), {
+        periodicId: 'rc', name: 'Roll call', prompt: 'Show us your drink', number: 1, startsAt: T, endsAt: T, status: 'open', penalty: 5, missedUids: [],
+      });
+      await setDoc(doc(db, 'checkins/c1/answers/alice'), { uid: 'alice', imagePath: null, thumbPath: null, caption: 'Mild', createdAt: T, feedId: 'f9' });
+    });
+  }
+
+  it('players and the GM read them and every answer; nobody outside the game does', async () => {
+    await seedCheckin();
+    for (const uid of ['alice', 'bob', 'gm']) {
+      await assertSucceeds(getDoc(doc(as(uid), 'checkins/c1')));
+      await assertSucceeds(getDocs(query(collection(as(uid), 'checkins'), where('status', '==', 'open'))));
+      await assertSucceeds(getDocs(collection(as(uid), 'checkins/c1/answers')));
+    }
+    await assertFails(getDoc(doc(as('pending'), 'checkins/c1')));
+    await assertFails(getDocs(collection(as('pending'), 'checkins/c1/answers')));
+    await assertFails(getDoc(doc(anon(), 'checkins/c1')));
+  });
+
+  it('the series are the GM\'s plans: only the GM reads them (players would see what is coming)', async () => {
+    await seedCheckin();
+    await assertSucceeds(getDoc(doc(as('gm'), 'periodics/rc')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'periodics')));
+    await assertFails(getDoc(doc(as('alice'), 'periodics/rc')));
+    await assertFails(getDocs(collection(as('alice'), 'periodics')));
+    await assertFails(getDoc(doc(anon(), 'periodics/rc')));
+  });
+
+  it('no client writes a series, a check-in or an answer directly, not a player or the GM (the functions do)', async () => {
+    await seedCheckin();
+    for (const uid of ['alice', 'bob', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), 'periodics/p2'), { name: 'x', status: 'running' }));
+      await assertFails(updateDoc(doc(as(uid), 'periodics/rc'), { status: 'stopped' }));
+      await assertFails(deleteDoc(doc(as(uid), 'periodics/rc')));
+      await assertFails(setDoc(doc(as(uid), 'checkins/c2'), { prompt: 'x', status: 'open' }));
+      await assertFails(updateDoc(doc(as(uid), 'checkins/c1'), { status: 'closed' }));
+      await assertFails(deleteDoc(doc(as(uid), 'checkins/c1')));
+      await assertFails(setDoc(doc(as(uid), `checkins/c1/answers/${uid}`), { uid, caption: 'Here', createdAt: serverTimestamp() }));
+      await assertFails(updateDoc(doc(as(uid), 'checkins/c1/answers/alice'), { caption: 'Changed' }));
+    }
   });
 });

@@ -10,11 +10,11 @@ import { RouteError } from './screens/RouteError';
 // Heavier / rarer screens are split out and show the loader while they load.
 const AccountScreen = look.screens?.account ?? lazy(() => import('./screens/AccountScreen'));
 const MapScreen = lazy(() => import('./modules/map/MapScreen'));
-const GMConsole = lazy(() => import('./screens/gm/GMConsole'));
+const GMConsole = look.screens?.gm ?? lazy(() => import('./screens/gm/GMConsole'));
 const WrapScreen = lazy(() => import('./screens/WrapScreen'));
 const JoinScreen = lazy(() => import('./screens/JoinScreen'));
 const StandingsScreen = lazy(() => import('./screens/StandingsScreen'));
-const PlayerScreen = lazy(() => import('./screens/PlayerScreen'));
+const PlayerScreen = look.screens?.player ?? lazy(() => import('./screens/PlayerScreen'));
 
 const HomeScreen = look.screens?.home;
 

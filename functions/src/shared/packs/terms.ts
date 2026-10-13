@@ -8,7 +8,10 @@ export interface NounForms {
   Many: string;
 }
 
-export type TermForms = Record<TermKey, NounForms>;
+export type TermForms = Record<TermKey, NounForms> & { checkin: NounForms };
+
+/** What a check-in is called when the pack doesn't say. */
+export const CHECKIN_NOUN: Noun = { one: 'check-in', many: 'check-ins' };
 
 /** Upper-cases the first letter only: "side quest" → "Side quest", "GM" stays "GM". */
 export function capitalise(word: string): string {
@@ -20,5 +23,6 @@ export function nounForms(noun: Noun): NounForms {
 }
 
 export function termForms(terms: Terms): TermForms {
-  return Object.fromEntries(Object.entries(terms).map(([key, noun]) => [key, nounForms(noun)])) as TermForms;
+  const forms = Object.fromEntries(Object.entries(terms).map(([key, noun]) => [key, nounForms(noun as Noun)]));
+  return { ...forms, checkin: nounForms(terms.checkin ?? CHECKIN_NOUN) } as TermForms;
 }

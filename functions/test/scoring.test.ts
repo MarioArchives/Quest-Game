@@ -494,3 +494,29 @@ describe('M16. reward choice and the skip penalty, in every rule set', () => {
     expect(rows(id, { ...ALL, sideQuests: false })).not.toMatch(/\b21\b/);
   });
 });
+
+describe('C2. a missed check-in, in every rule set', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  const run = (rules: ScoringRules, e: ScoreEvent) => scoreEvent(rules, e, sctx(rules, { settings: SETTINGS, startedAt: START, now: at(30) }));
+
+  it.each(ids)('%s charges the penalty the check-in opened with (not the current setting), never decayed or moved', (id) => {
+    const rules = RULESETS[id]!;
+    expect(run(rules, { kind: 'checkinMissed', uid: 'carol', penalty: 9 })).toEqual([pts('carol', -9, 'missed')]);
+    expect(run(rules, { kind: 'checkinMissed', uid: 'carol', penalty: 0 })).toEqual([]);
+  });
+
+  it('names only the player who missed it', () => {
+    expect(participants({ kind: 'checkinMissed', uid: 'carol', penalty: 5 })).toEqual(['carol']);
+  });
+
+  const ALL = { guesses: true, sideQuests: true, map: true };
+  const rows = (id: string, features: Features) => {
+    const rules = RULESETS[id]!;
+    return rules.describe(SETTINGS, resolveParams(rules, undefined), termForms(DARE_TERMS), features).map(([l, v]) => `${l}: ${v}`).join('\n');
+  };
+
+  it.each(ids)('%s lists it only for packs with periodic missions (each sets its own fine)', (id) => {
+    expect(rows(id, { ...ALL, checkins: true })).toMatch(/Check-in missed: you lose its fine if you don't answer in time \(the host sets it\)/);
+    expect(rows(id, ALL)).not.toMatch(/check-in/i);
+  });
+});

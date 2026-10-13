@@ -9,11 +9,14 @@ import { PhotoThumb } from '../../components/PhotoViewer';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
+import { sideQuestProblem, type SideQuestDraft } from '../../lib/sideQuestDraft';
 import { formatAgo, formatCountdown } from '../../lib/time';
 import { t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
 import { NoteSheet, clockTime, useRunner } from './common';
+import { DrawSheet } from './DrawSheet';
+import { SideQuestFields } from './SideQuestFields';
 
 /**
  * Entries for one side quest, newest first: approved ones plus the ones still sealed (hidden from players until
@@ -32,10 +35,10 @@ function useEntries(questId: string): Doc<Submission>[] {
 
 export function QuestsSection() {
   const { state, settings, globalQuests } = useGame();
-  const { busyKey, run } = useRunner();
+  const { busyKey } = useRunner();
   const now = useNow(1000);
   const [writing, setWriting] = useState(false);
-  const [confirmRandom, setConfirmRandom] = useState(false);
+  const [drawing, setDrawing] = useState(false);
 
   const live = globalQuests.filter((g) => g.status === 'live');
   const checking = globalQuests.filter((g) => g.status === 'checking');
@@ -44,8 +47,6 @@ export function QuestsSection() {
   const active = state.status === 'active';
   const nextAt = tsMs(state.nextGlobalQuestAt);
   const running = live[0] ?? null;
-
-  const fireRandom = () => run('random', () => fireGlobalQuest({ mode: 'random' }), `${t.sideQuest.One} fired.`);
 
   return (
     <>
@@ -68,14 +69,7 @@ export function QuestsSection() {
           </p>
         )}
         <div className="gm-row">
-          <Button
-            variant="primary"
-            onRed
-            className="gm-flex1"
-            busy={busyKey === 'random'}
-            disabled={!active || busyKey !== null}
-            onClick={() => (running ? setConfirmRandom(true) : void fireRandom())}
-          >
+          <Button variant="primary" onRed className="gm-flex1" disabled={!active || busyKey !== null} onClick={() => setDrawing(true)}>
             Fire random
           </Button>
           <Button onRed className="gm-flex1" disabled={!active || busyKey !== null} onClick={() => setWriting(true)}>
@@ -154,20 +148,15 @@ export function QuestsSection() {
         </details>
       ) : null}
 
-      {confirmRandom && running ? (
-        <ConfirmSheet
-          title={`Replace the live ${t.sideQuest.one}?`}
-          confirmLabel="Fire a new one"
-          onClose={() => setConfirmRandom(false)}
-          onConfirm={async () => {
-            await fireGlobalQuest({ mode: 'random' });
+      {drawing ? (
+        <DrawSheet
+          liveTitle={running?.title ?? null}
+          onClose={() => setDrawing(false)}
+          onWrite={() => {
+            setDrawing(false);
+            setWriting(true);
           }}
-        >
-          <p>
-            <strong>&ldquo;{running.title}&rdquo;</strong> closes right away and a random {t.sideQuest.one} opens instead. Only one takes entries at a
-            time.
-          </p>
-        </ConfirmSheet>
+        />
       ) : null}
       {writing ? <CustomSheet hasLive={live.length > 0} onClose={() => setWriting(false)} /> : null}
     </>
@@ -450,28 +439,22 @@ function PastQuest({ quest }: { quest: Doc<GlobalQuest> }) {
   );
 }
 
-function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }) {
+export function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }) {
   const { settings } = useGame();
   const toast = useToast();
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [windowMin, setWindowMin] = useState(String(Math.min(180, Math.max(5, settings.globalWindowMin))));
-  const [points, setPoints] = useState(String(settings.sideQuestPoints));
+  const [draft, setDraft] = useState<SideQuestDraft>({
+    title: '',
+    description: '',
+    windowMin: String(Math.min(180, Math.max(5, settings.globalWindowMin))),
+    points: String(settings.sideQuestPoints),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const problem = (() => {
-    if (!title.trim()) return 'Give it a title.';
-    if (title.trim().length > 80) return 'The title can be 80 characters at most.';
-    const w = Number(windowMin);
-    if (!/^\d+$/.test(windowMin.trim()) || w < 5 || w > 180) return 'The window is 5 to 180 minutes.';
-    if (!/^\d+$/.test(points.trim())) return 'Points are a whole number, 0 or more.';
-    return null;
-  })();
-
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    const problem = sideQuestProblem(draft);
     if (problem) {
       setError(problem);
       return;
@@ -480,10 +463,10 @@ function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }
     setError(null);
     const input: FireGlobalQuestInput = {
       mode: 'custom',
-      title: title.trim(),
-      description: description.trim(),
-      windowMin: Number(windowMin),
-      points: Number(points),
+      title: draft.title.trim(),
+      description: draft.description.trim(),
+      windowMin: Number(draft.windowMin),
+      points: Number(draft.points),
     };
     try {
       await fireGlobalQuest(input);
@@ -498,35 +481,7 @@ function CustomSheet({ hasLive, onClose }: { hasLive: boolean; onClose(): void }
   return (
     <BottomSheet title={`Write a ${t.sideQuest.one}`} subtitle={hasLive ? 'Replaces the one taking entries' : 'Opens for everyone right now'} onClose={onClose} locked={busy}>
       <form className="gm-form" onSubmit={(event) => void submit(event)} noValidate>
-        <div className="field">
-          <label className="field__label" htmlFor="sq-title">
-            Title
-          </label>
-          <input id="sq-title" className="input" value={title} maxLength={80} disabled={busy} placeholder="Best crowd shot" onChange={(e) => setTitle(e.target.value)} />
-          <span className="field__hint">{80 - title.length} characters left</span>
-        </div>
-        <div className="field">
-          <label className="field__label" htmlFor="sq-desc">
-            What to do or photograph
-          </label>
-          <textarea id="sq-desc" className="textarea" value={description} maxLength={500} disabled={busy} placeholder="The more specific, the fewer arguments." onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="gm-grid2">
-          <div className="field">
-            <label className="field__label" htmlFor="sq-window">
-              Open for (minutes)
-            </label>
-            <input id="sq-window" className="input" inputMode="numeric" value={windowMin} disabled={busy} onChange={(e) => setWindowMin(e.target.value)} />
-            <span className="field__hint">5 to 180, then you check entries and everyone votes</span>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="sq-points">
-              Winner gets
-            </label>
-            <input id="sq-points" className="input" inputMode="numeric" value={points} disabled={busy} onChange={(e) => setPoints(e.target.value)} />
-            <span className="field__hint">points, tied winners all get it</span>
-          </div>
-        </div>
+        <SideQuestFields draft={draft} onChange={setDraft} busy={busy} />
         {error ? (
           <p className="note note--error" role="alert">
             {error}

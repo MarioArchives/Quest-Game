@@ -44,6 +44,10 @@ async function tick() {
     if (opened.length > 0) log(`opened side quest ${opened.join(', ')}`);
     if (checking.length > 0) log(`time's up (checking) on ${checking.join(', ')}`);
     if (closed.length > 0) log(`closed ${closed.join(', ')}`);
+    const calledIn = asList(result.checkins?.opened);
+    const closedIn = asList(result.checkins?.closed);
+    if (calledIn.length > 0) log(`sent periodic mission ${calledIn.join(', ')}`);
+    if (closedIn.length > 0) log(`closed periodic mission ${closedIn.join(', ')}`);
     return true;
   } catch (err) {
     if (online) log(`lost devTick (${reason(err)}); will keep retrying`);

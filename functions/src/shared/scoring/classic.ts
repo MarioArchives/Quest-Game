@@ -28,6 +28,8 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
       return [{ kind: 'points', uid: event.uid, delta: s.cleanPoints, reason: 'cleared' }];
     case 'rewardFrame':
       return [{ kind: 'points', uid: event.target, delta: -s.framePoints, reason: 'framed' }];
+    case 'checkinMissed':
+      return [{ kind: 'points', uid: event.uid, delta: -event.penalty, reason: 'missed' }];
   }
 }
 
@@ -41,6 +43,9 @@ export function sharedRows(s: Settings, t: TermForms, features: Features = ALL_O
     ...(features.sideQuests ? [[`${t.sideQuest.One} win`, `+${s.sideQuestPoints} for the most votes (ties all win)`] as [string, string]] : []),
     ...(features.sideQuests && s.sideQuestSkipPenalty > 0
       ? [[`${t.sideQuest.One} skipped`, `you lose ${s.sideQuestSkipPenalty} if you don't enter`] as [string, string]]
+      : []),
+    ...(features.checkins
+      ? [[`${t.checkin.One} missed`, `you lose its fine if you don't answer in time (the ${t.gm.one} sets it)`] as [string, string]]
       : []),
     ...(features.rewardChoice
       ? [

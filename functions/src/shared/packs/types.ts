@@ -3,6 +3,17 @@
 // scripts. The look half (theme, art, long copy, public files) lives in src/packs/<id>/.
 import type { AwardKey, Settings, Venue } from '../types.ts';
 
+/** A periodic mission a pack starts with: a path-safe id and what the GM would set on it. */
+export interface PeriodicSeed {
+  id: string;
+  name: string;
+  prompts: string[];
+  intervalMin: number;
+  windowMin: number;
+  penalty: number;
+  count: number;
+}
+
 /** A noun as the game says it, lower case unless it is an acronym ("GM"). Plurals are spelled out. */
 export interface Noun {
   one: string;
@@ -11,20 +22,22 @@ export interface Noun {
 
 export const TERM_KEYS = ['quest', 'sideQuest', 'witness', 'claim', 'gm', 'wrap'] as const;
 export type TermKey = (typeof TERM_KEYS)[number];
-export type Terms = Record<TermKey, Noun>;
+/** The required nouns, plus what packs with checkins call one (default "check-in"). */
+export type Terms = Record<TermKey, Noun> & { checkin?: Noun };
 
 /** Optional parts of the game. Witnessed claims, the feed, the GM and the wrap are always on. */
 export const FEATURES = ['guesses', 'sideQuests', 'map'] as const;
 export type Feature = (typeof FEATURES)[number];
 
 /** Extra parts only some packs use; off unless a pack turns them on. */
-export const EXTRA_FEATURES = ['rewardChoice', 'characters'] as const;
+export const EXTRA_FEATURES = ['rewardChoice', 'characters', 'stops', 'checkins'] as const;
 export type ExtraFeature = (typeof EXTRA_FEATURES)[number];
 
 /**
  * The core three are always set; the extras are optional and default to off:
  * - rewardChoice: completing a personal quest earns a choice: points to yourself, or framing another player (anonymous)
  * - characters: each player has a character (public) and a secret motive, set by the GM
+ * - stops: the GM sets a route of stops (name, place, optional arrival and leave times) and reveals them one by one; the map shows them in order with a now/next strip
  */
 export type Features = Record<Feature, boolean> & Partial<Record<ExtraFeature, boolean>>;
 
@@ -59,6 +72,8 @@ export interface MapConfig {
   nearbyKm: number;
   /** Who the venue and schedule data belongs to, credited on the map; null when it is the pack's own. */
   credit: { label: string; url: string } | null;
+  /** Packs with stops: how the route is drawn between stops. Default 'line' (a dashed line). */
+  routeStyle?: 'line' | 'footprints';
 }
 
 export interface GamePack {
@@ -87,4 +102,14 @@ export interface GamePack {
   venues: Venue[];
   /** Packs with characters: characters and motives for the demo players (mock and seed), in demo order. */
   demoCharacters?: Array<{ name: string; role: string; motive: string }>;
+  /**
+   * Packs with stops: the starting route, in order. A real seed writes these as hidden stops (`route-1`..) the GM can
+   * edit, reorder and reveal; the demo reveals the first three and gives them times. A stop that is a real bar can
+   * carry its address (for Google Maps directions) and where it came from ("osm:node/123").
+   */
+  route?: Array<{ name: string; lat: number; lng: number; address?: string; placeRef?: string }>;
+  /** Points the GM's one-tap −/+ buttons move (default 10): small for packs that score in small steps. */
+  gmQuickPoints?: number;
+  /** Packs with checkins: the periodic missions a seed starts the GM with (created once; the GM edits them after). */
+  periodics?: PeriodicSeed[];
 }

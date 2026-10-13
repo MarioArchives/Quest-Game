@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { addEvidence, enterSideQuest, friendlyError, type EvidenceInput } from '../api';
+import { addEvidence, answerCheckin, enterSideQuest, friendlyError, type EvidenceInput } from '../api';
 import { useGame } from '../data/GameProvider';
 import { useStorageUrl } from '../data/hooks';
 import { compressPhoto, uploadJpeg, type CompressedPhoto } from '../lib/upload';
-import { CAPTION_MAX, type Doc, type GlobalQuest, type Submission } from '../shared';
+import { CAPTION_MAX, type Checkin, type Doc, type GlobalQuest, type Submission } from '../shared';
 import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { CameraSheet, prefersInAppCamera } from './CameraSheet';
@@ -17,7 +17,9 @@ export type EvidenceTarget =
   /** Add (or replace) the photo and comment on an approved claim, or on a side-quest entry while it is still live. */
   | { mode: 'evidence'; submission: Doc<Submission>; title: string }
   /** Enter a side quest with a photo and/or a comment. */
-  | { mode: 'enter'; quest: Doc<GlobalQuest> };
+  | { mode: 'enter'; quest: Doc<GlobalQuest> }
+  /** Answer the open check-in with a photo and/or a comment (once). */
+  | { mode: 'checkin'; checkin: Doc<Checkin> };
 
 type Phase = 'idle' | 'uploading' | 'saving';
 
@@ -58,7 +60,8 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
 
   const busy = phase !== 'idle';
   const ended = state.status === 'ended';
-  const active = target.mode === 'enter' ? state.status === 'active' : !ended;
+  // A check-in can be answered while the game is paused: its clock keeps running.
+  const active = target.mode === 'enter' ? state.status === 'active' : target.mode === 'checkin' ? state.status === 'active' || state.status === 'paused' : !ended;
   const trimmed = caption.trim();
   const hasPhoto = photo !== null || keepExisting;
   const canSave = active && !compressing && (photo !== null || trimmed.length > 0);
@@ -140,6 +143,9 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
               : `You're in the ${t.sideQuest.one}.`,
           'success',
         );
+      } else if (target.mode === 'checkin') {
+        await answerCheckin({ checkinId: target.checkin.id, ...evidence });
+        toast(`Answered. You're down as present.`, 'success');
       } else {
         await addEvidence({ submissionId: target.submission.id, ...evidence });
         toast(existing?.imagePath || existing?.caption ? 'Updated.' : 'Added to your post.', 'success');
@@ -152,23 +158,26 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
   };
 
   const entering = target.mode === 'enter';
-  const title = entering ? `Enter ${t.sideQuest.one}` : existing?.imagePath || existing?.caption ? 'Edit your post' : 'Add to your post';
-  const subtitle = entering ? target.quest.title : target.title;
+  const answering = target.mode === 'checkin';
+  const title = entering ? `Enter ${t.sideQuest.one}` : answering ? `Answer: ${target.mode === 'checkin' ? target.checkin.name : ''}` : existing?.imagePath || existing?.caption ? 'Edit your post' : 'Add to your post';
+  const subtitle = target.mode === 'enter' ? target.quest.title : target.mode === 'checkin' ? target.checkin.prompt : target.title;
   const failed = error !== null;
-  const saveLabel = failed ? 'Retry' : entering ? `Enter the ${t.sideQuest.one}` : 'Save';
+  const saveLabel = failed ? 'Retry' : entering ? `Enter the ${t.sideQuest.one}` : answering ? 'Send my answer' : 'Save';
   const previewSrc = photo?.preview ?? (keepExisting ? existingThumb : null);
 
   return (
     <BottomSheet title={title} subtitle={subtitle} onClose={onClose} locked={busy}>
       {!active ? (
         <p className="note" role="status">
-          {entering ? "The game isn't running right now, so entries can't be sent yet." : 'The game has ended, so posts can no longer change.'}
+          {entering || answering ? "The game isn't running right now, so this can't be sent yet." : 'The game has ended, so posts can no longer change.'}
         </p>
       ) : null}
       <p className="evidence__intro">
         {entering
           ? `Show everyone your take: a photo, a comment, or both. When time is up the ${t.gm.One} checks the entries (late ones still count), then the group votes.`
-          : 'Add a photo, a comment, or both. It shows on your post in the feed.'}
+          : answering
+            ? 'A photo, a comment, or both. It goes in the feed, and you can only answer once.'
+            : 'Add a photo, a comment, or both. It shows on your post in the feed.'}
       </p>
 
       {previewSrc || (keepExisting && !existingThumb) ? (

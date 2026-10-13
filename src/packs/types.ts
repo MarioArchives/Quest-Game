@@ -12,6 +12,8 @@ export interface PackBrand {
   backgroundColor: string;
   /** Tab labels the pack words its own way ("Board", "My file"); the others keep the engine's. */
   tabs?: Partial<Record<TabId, string>>;
+  /** Tab icons the pack draws its own way, by Icon name (the mystery Board's 'search'); the others keep the engine's. */
+  tabIcons?: Partial<Record<TabId, string>>;
   /** Player icons without a photo: the initial (default) or a silhouette, on a tint per player from `tints`. */
   avatar?: { placeholder: 'initial' | 'silhouette'; tints: string[] };
 }
@@ -52,8 +54,19 @@ export interface PackLook {
    */
   LoaderArt: ComponentType;
   auth: AuthCopy;
-  /** Screens the pack replaces, loaded lazily; without them the engine's Home and Account are used. */
-  screens?: { home?: LazyExoticComponent<ComponentType>; account?: LazyExoticComponent<ComponentType> };
+  /**
+   * Screens the pack replaces, loaded lazily; without them the engine's Home, Account and player pass are used.
+   * `player` is another player's pass, at `/player/:uid` (it reads the uid from the route).
+   */
+  screens?: {
+    home?: LazyExoticComponent<ComponentType>;
+    account?: LazyExoticComponent<ComponentType>;
+    player?: LazyExoticComponent<ComponentType>;
+    /** The GM console at `/gm` (still behind the admin guard); without it the engine's GMConsole is used. */
+    gm?: LazyExoticComponent<ComponentType>;
+  };
   /** The reward pop-up's words; the engine has plain defaults. */
   reward?: RewardCopy;
+  /** The words on the router's error page (a crash or a failed chunk load); the engine has plain defaults. */
+  error?: { title: string; body: string; /** The label of the link back to the home screen (default "Back home"). */ home?: string };
 }

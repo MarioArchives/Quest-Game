@@ -72,6 +72,19 @@ describe('buildDemo', () => {
     expect(off.some((x) => x.path.startsWith('submissions/') && x.data.kind === 'global')).toBe(false);
   });
 
+  it("the live side quest's entries are sealed like real ones: hidden until the vote, so a GM can check them", () => {
+    const docs = demo().docs;
+    const entries = docs.filter((x) => /^submissions\/[^/]+$/.test(x.path) && x.data.kind === 'global');
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries) {
+      expect(e.data.status, e.path).toBe('sealed');
+      // The entry keeps its photo; its feed post only says who entered.
+      expect(e.data.imagePath, e.path).toEqual(expect.any(String));
+      const post = docs.find((x) => x.path === `feed/${e.data.feedId}`)!;
+      expect(post.data.imagePath ?? null, e.path).toBeNull();
+    }
+  });
+
   it('hands are dealt from the pack’s catalogue', () => {
     const pack = getPack('starter');
     const ids = new Set(pack.catalogue.personal.map((q) => q.id));
@@ -132,3 +145,46 @@ describe('M23. demo characters and rewards', () => {
   });
 });
 
+
+describe('demo route stops', () => {
+  const ROUTE = [
+    { name: 'First', lat: 53.41, lng: -2.23 },
+    { name: 'Second', lat: 53.42, lng: -2.24 },
+    { name: 'Third', lat: 53.43, lng: -2.25 },
+    { name: 'Fourth', lat: 53.44, lng: -2.26 },
+  ];
+  const stops = (d: ReturnType<typeof demo>) => d.docs.filter((x) => x.path.startsWith('stops/'));
+  const ms = (v: unknown) => (v as Stamp).toMillis();
+
+  it('with stops on, the pack’s route is seeded: the first three revealed and timed around now, the rest hidden', () => {
+    const list = stops(demo(testPack({ features: { stops: true }, route: ROUTE })));
+    expect(list.map((x) => x.path)).toEqual(['stops/route-1', 'stops/route-2', 'stops/route-3', 'stops/route-4']);
+    expect(list.map((x) => x.data.order)).toEqual([1, 2, 3, 4]);
+    expect(list.map((x) => x.data.revealed)).toEqual([true, true, true, false]);
+    expect(list[0].data).toMatchObject({ name: 'First', lat: 53.41, lng: -2.23 });
+    expect(ms(list[0].data.startsAt)).toBe(NOW - 60 * 60_000);
+    expect(ms(list[0].data.endsAt)).toBe(NOW - 5 * 60_000);
+    expect(ms(list[1].data.startsAt)).toBe(NOW);
+    expect(list[1].data.endsAt).toBeNull();
+    expect(ms(list[2].data.startsAt)).toBe(NOW + 60 * 60_000);
+    expect(list[3].data.startsAt).toBeNull();
+    expect(list[3].data.endsAt).toBeNull();
+    expect(list[3].data.createdAt).toBeInstanceOf(Stamp);
+  });
+
+  it('a short route is all revealed; with stops off, or no route, none', () => {
+    const two = stops(demo(testPack({ features: { stops: true }, route: ROUTE.slice(0, 2) })));
+    expect(two.map((x) => x.data.revealed)).toEqual([true, true]);
+    expect(stops(demo(testPack({ features: { stops: false }, route: ROUTE })))).toEqual([]);
+    expect(stops(demo(testPack({ features: { stops: true } })))).toEqual([]);
+    expect(stops(demo())).toEqual([]);
+    expect(stops(demo(getPack('starter')))).toEqual([]);
+  });
+
+  it('the mystery pack’s demo is its Didsbury route: seven stops, three revealed', () => {
+    const list = stops(demo(getPack('mystery')));
+    expect(list.length).toBe(7);
+    expect(list.filter((x) => x.data.revealed).length).toBe(3);
+    expect(list[0].data.name).toBe('The Didsbury');
+  });
+});

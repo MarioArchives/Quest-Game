@@ -1,4 +1,6 @@
 // Pure decisions for scripts/seed.mjs, kept apart so they can be tested without Firestore.
+import { periodicSeeds } from '../../functions/src/shared/periodics.ts';
+import { routeSeedStops } from '../../functions/src/shared/route.ts';
 import { DEFAULT_PACK_ID, getPack } from '../../functions/src/shared/packs/index.ts';
 
 /**
@@ -96,4 +98,26 @@ export function planSettings(_existing, _defaults, _opts) {
  */
 export function demoParts(_features) {
   return { locations: _features.map, sideQuest: _features.sideQuests };
+}
+
+/**
+ * The route stops a real (non-demo) seed writes: the pack's route as hidden, untimed stops. Callers create only the
+ * ids that are missing, so the GM's edits, reordering and reveals survive a re-seed.
+ * @param {import('../../functions/src/shared/packs/types.ts').GamePack} _pack
+ * @returns {Array<{ id: string, data: { name: string, lat: number, lng: number, order: number, startsAt: null, endsAt: null, revealed: false } }>}
+ */
+export function planRoute(_pack) {
+  return routeSeedStops(_pack).map(({ id, ...s }) => ({
+    id,
+    data: { name: s.name, lat: s.lat, lng: s.lng, order: s.order, address: s.address, placeRef: s.placeRef, placeName: s.placeName, startsAt: null, endsAt: null, revealed: false },
+  }));
+}
+
+/**
+ * The periodic missions a seed starts the GM with (packs with checkins): running, nothing sent yet, the first one an
+ * interval after the timer first sees them. Callers create only missing ids, so the GM's edits survive a re-seed.
+ * @param {import('../../functions/src/shared/packs/types.ts').GamePack} pack
+ */
+export function planPeriodics(pack) {
+  return periodicSeeds(pack);
 }
