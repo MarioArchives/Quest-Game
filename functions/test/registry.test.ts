@@ -26,6 +26,10 @@ describe('CALLABLES', () => {
     expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['resolveReward', 'setCharacter']));
   });
 
+  it('includes answering a police check-in and tipping off the police (plan edge case 38)', () => {
+    expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['answerPoliceCall', 'tipOffPolice']));
+  });
+
   it('every entry has a handler', () => {
     for (const [name, def] of Object.entries(CALLABLES)) expect(typeof def.run, name).toBe('function');
   });
@@ -44,12 +48,13 @@ describe('CALLABLES', () => {
 });
 
 describe('TRIGGERS', () => {
-  it('are the five document triggers, on the same paths as before', () => {
+  it('are the five document triggers on the same paths as before, plus every player write (standings)', () => {
     expect(TRIGGERS.map((t) => [t.name, t.pattern, t.on]).sort()).toEqual([
       ['onAdminCreated', 'admins/{uid}', 'create'],
       ['onFeedCreated', 'feed/{feedId}', 'create'],
       ['onFeedReactionWritten', 'feed/{feedId}/reactions/{uid}', 'write'],
       ['onJoinRequestCreated', 'joinRequests/{uid}', 'create'],
+      ['onPlayerWritten', 'players/{uid}', 'write'],
       ['onSubmissionCreated', 'submissions/{submissionId}', 'create'],
     ]);
   });

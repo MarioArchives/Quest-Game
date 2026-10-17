@@ -98,6 +98,22 @@ describe('E2. validatePack', () => {
     expect(problems.join('\n')).toMatch(message);
   });
 
+  describe('the bar search area', () => {
+    const withArea = (barSearch: unknown) => ({ ...getPack('mystery'), map: { ...getPack('mystery').map!, barSearch } }) as ReturnType<typeof getPack>;
+    it('is fine as a named box with south < north and west < east', () => {
+      expect(validatePack(withArea({ name: 'Manchester', south: 53.34, west: -2.32, north: 53.545, east: -2.146 }))).toEqual([]);
+    });
+    it.each([
+      ['no name', { name: ' ', south: 53.34, west: -2.32, north: 53.545, east: -2.146 }],
+      ['south above north', { name: 'X', south: 53.6, west: -2.32, north: 53.545, east: -2.146 }],
+      ['west east of east', { name: 'X', south: 53.34, west: -2.1, north: 53.545, east: -2.146 }],
+      ['a latitude past 90', { name: 'X', south: 53.34, west: -2.32, north: 95, east: -2.146 }],
+      ['a missing edge', { name: 'X', south: 53.34, west: -2.32, north: NaN, east: -2.146 }],
+    ])('rejects %s', (_label, area) => {
+      expect(validatePack(withArea(area)).join('\n')).toMatch(/bar search area/);
+    });
+  });
+
   describe('a route', () => {
     const withRoute = (route: NonNullable<ReturnType<typeof getPack>['route']>) => ({ ...getPack('mystery'), route });
     it('is fine when every stop has a name and a place', () => {
@@ -151,6 +167,57 @@ describe('E2. validatePack', () => {
     it('rejects a blank name for them', () => {
       const p = on();
       expect(validatePack({ ...p, terms: { ...p.terms, checkin: { one: ' ', many: 'x' } } }).join('\n')).toMatch(/checkin/);
+    });
+  });
+
+  describe('story missions (plan edge case 19)', () => {
+    const body = { id: 's-body', title: 'The body is found', description: 'Your alibi, as a photo', judging: 'submit' as const };
+    const withStory = (story: unknown[], features = {}) => {
+      const p = testPack({ features });
+      return { ...p, catalogue: { ...p.catalogue, story: story as NonNullable<GamePack['catalogue']['story']> } };
+    };
+
+    it('are optional, and fine with s- ids, a way of judging and whole numbers', () => {
+      expect(validatePack(withStory([]))).toEqual([]);
+      expect(validatePack(withStory([body, { id: 's-will', title: 'The will', description: 'x', judging: 'vote', windowMin: 30, points: 0, fastestBonus: 2, penalty: 0 }]))).toEqual([]);
+      expect(validatePack(withStory([{ ...body, windowMin: null, points: null, fastestBonus: null, penalty: null }]))).toEqual([]);
+    });
+
+    it.each([
+      ['an id without the s- prefix', { id: 'g-body' }, /prefix|s-/],
+      ['a blank title', { title: '  ' }, /title/i],
+      ['an unknown way of judging', { judging: 'secret' }, /judg/i],
+      ['a 4-minute window', { windowMin: 4 }, /window|minute/i],
+      ['a 181-minute window', { windowMin: 181 }, /window|minute/i],
+      ['negative points', { points: -1 }, /points/i],
+      ['fractional points', { points: 1.5 }, /points/i],
+      ['a negative fastest bonus', { fastestBonus: -1 }, /fastest|bonus/i],
+      ['a fractional fine', { penalty: 2.5 }, /fine|penalty/i],
+    ])('rejects one with %s', (_label, over, message) => {
+      const problems = validatePack(withStory([{ ...body, ...over }]));
+      expect(problems.join('\n')).toMatch(/s-body|Story mission 1/);
+      expect(problems.join('\n')).toMatch(message);
+    });
+
+    it('rejects an id used twice, in the story or anywhere in the catalogue', () => {
+      expect(validatePack(withStory([body, body])).join('\n')).toMatch(/duplicate/i);
+      const p = withStory([body]);
+      const clash = { ...p, catalogue: { ...p.catalogue, global: [...p.catalogue.global, { id: 's-body', title: 'x', description: 'y' }] } };
+      expect(validatePack(clash).join('\n')).toMatch(/duplicate/i);
+    });
+
+    it('rejects story missions in a pack with side quests off', () => {
+      const p = withStory([body], { sideQuests: false });
+      expect(validatePack({ ...p, catalogue: { ...p.catalogue, global: [] } }).join('\n')).toMatch(/story/i);
+    });
+  });
+
+  describe('the optional standings and police words', () => {
+    it('reject a blank one', () => {
+      const p = getPack('lancaster');
+      for (const key of ['confidant', 'poi', 'policeCall'] as const) {
+        expect(validatePack({ ...p, terms: { ...p.terms, [key]: { one: ' ', many: 'x' } } }).join('\n'), key).toMatch(new RegExp(key));
+      }
     });
   });
 
@@ -222,7 +289,7 @@ describe('M18. the mystery pack', () => {
   it('is a murder-mystery pub crawl with every extra on', () => {
     const p = getPack('mystery');
     expect(p.name).toBe('Mystery Pub Crawl');
-    expect(p.features).toEqual({ guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true });
+    expect(p.features).toEqual({ guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true, police: true });
     expect(p.timeZone).toBe('Europe/London');
     expect(p.scoring).toBe('classic');
   });
@@ -286,6 +353,7 @@ describe('M18. the mystery pack', () => {
   it('opens on Didsbury with a seven-pub route and footprints between stops', () => {
     const p = getPack('mystery');
     expect(p.map).toMatchObject({ centre: { lat: 53.4145, lng: -2.2312 }, zoom: 16, placeName: 'Didsbury', routeStyle: 'footprints' });
+    expect(p.map?.barSearch).toMatchObject({ name: 'Manchester' });
     expect(p.route?.map((s) => s.name)).toEqual([
       'The Didsbury',
       'Ye Olde Cock Inn',
@@ -315,13 +383,52 @@ describe('M18. the mystery pack', () => {
     for (const id of ['lancaster', 'starter']) {
       expect(getPack(id).features.rewardChoice ?? false, id).toBe(false);
       expect(getPack(id).features.characters ?? false, id).toBe(false);
+      expect(getPack(id).features.police ?? false, id).toBe(false);
+      expect(getPack(id).catalogue.story ?? [], id).toEqual([]);
     }
+  });
+
+  it('has a story to fire in order: s- ids, both ways of judging, every one valid', () => {
+    const story = getPack('mystery').catalogue.story ?? [];
+    expect(story.length).toBeGreaterThanOrEqual(5);
+    expect(story.every((q) => q.id.startsWith('s-') && q.title.trim() && q.description.trim())).toBe(true);
+    expect(new Set(story.map((q) => q.judging))).toEqual(new Set(['vote', 'submit']));
+    expect(new Set(story.map((q) => q.id)).size).toBe(story.length);
+  });
+
+  it('puts a trusted confidant above 10 and a person of interest below −10, with police check-ins on', () => {
+    expect(defaultSettingsFor(getPack('mystery'))).toMatchObject({
+      autoSideQuests: true,
+      confidantAbove: 10,
+      poiBelow: -10,
+      policeEveryMin: 30,
+      policeTipEveryMin: 60,
+      policeWindowMin: 5,
+      policePassPoints: 5,
+      policeFailPenalty: 5,
+    });
   });
 
   it('the engine defaults keep the new rules off', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ guessLimit: 0, sideQuestSkipPenalty: 0 });
     for (const id of ['lancaster', 'starter']) {
       expect(defaultSettingsFor(getPack(id)), id).toMatchObject({ guessLimit: 0, sideQuestSkipPenalty: 0 });
+    }
+  });
+
+  it('the engine defaults drop random side quests on the timer and leave the standings off', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({
+      autoSideQuests: true,
+      confidantAbove: null,
+      poiBelow: null,
+      policeEveryMin: 30,
+      policeTipEveryMin: 60,
+      policeWindowMin: 5,
+      policePassPoints: 5,
+      policeFailPenalty: 5,
+    });
+    for (const id of ['lancaster', 'starter']) {
+      expect(defaultSettingsFor(getPack(id)), id).toMatchObject({ autoSideQuests: true, confidantAbove: null, poiBelow: null });
     }
   });
 });
@@ -376,6 +483,20 @@ describe('E5. noun forms', () => {
     expect(t.claim.many).toBe('bids');
     expect(t.gm.One).toBe('Host');
     expect(t.wrap.One).toBe('Recap');
+  });
+
+  it('gives the standings and a police check-in their engine words when the pack names none', () => {
+    const t = termForms(DARE_TERMS);
+    expect(t.confidant).toEqual({ one: 'trusted confidant', One: 'Trusted confidant', many: 'trusted confidants', Many: 'Trusted confidants' });
+    expect(t.poi).toEqual({ one: 'person of interest', One: 'Person of interest', many: 'persons of interest', Many: 'Persons of interest' });
+    expect(t.policeCall).toEqual({ one: 'police check-in', One: 'Police check-in', many: 'police check-ins', Many: 'Police check-ins' });
+  });
+
+  it("takes the pack's own words for them", () => {
+    const t = termForms({ ...DARE_TERMS, poi: { one: 'black sheep', many: 'black sheep' }, policeCall: { one: 'raid', many: 'raids' } });
+    expect(t.poi.One).toBe('Black sheep');
+    expect(t.policeCall.Many).toBe('Raids');
+    expect(t.confidant.one).toBe('trusted confidant');
   });
 });
 

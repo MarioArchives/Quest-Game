@@ -56,6 +56,16 @@ export function validatePack(pack: GamePack): string[] {
   if (pack.features.map) {
     // Venues are optional: without them the map shows the players who share their location.
     if (!pack.map) problems.push('The map feature is on but the pack has no map setup.');
+    const area = pack.map?.barSearch;
+    if (area) {
+      const { name, south, west, north, east } = area;
+      const lat = (n: number) => Number.isFinite(n) && Math.abs(n) <= 90;
+      const lng = (n: number) => Number.isFinite(n) && Math.abs(n) <= 180;
+      if (!name?.trim()) problems.push('The bar search area needs a name.');
+      if (!lat(south) || !lat(north) || !lng(west) || !lng(east) || south >= north || west >= east) {
+        problems.push('The bar search area needs south < north (latitudes) and west < east (longitudes).');
+      }
+    }
   }
   if (pack.features.stops && !pack.features.map) problems.push('The stops feature draws on the map, so the map feature must be on too.');
   for (const [i, stop] of (pack.route ?? []).entries()) {
@@ -72,8 +82,9 @@ export function validatePack(pack: GamePack): string[] {
   }
   if (pack.route && pack.route.length > 999) problems.push('The route has more than 999 stops.');
   if (pack.route?.length && !pack.features.stops) problems.push('The pack has a route but the stops feature is off.');
-  if (pack.terms.checkin && (!pack.terms.checkin.one?.trim() || !pack.terms.checkin.many?.trim())) {
-    problems.push('The term "checkin" needs a non-blank singular and plural.');
+  for (const key of ['checkin', 'confidant', 'poi', 'policeCall'] as const) {
+    const noun = pack.terms[key];
+    if (noun && (!noun.one?.trim() || !noun.many?.trim())) problems.push(`The term "${key}" needs a non-blank singular and plural.`);
   }
   const seenPeriodics = new Set<string>();
   for (const [i, p] of (pack.periodics ?? []).entries()) {
@@ -105,6 +116,23 @@ export function validatePack(pack: GamePack): string[] {
     if (q.points != null && !(Number.isInteger(q.points) && q.points > 0)) {
       problems.push(`The quest "${q.id}" has points ${q.points}; points must be a positive whole number.`);
     }
+  }
+  const story = pack.catalogue.story ?? [];
+  if (story.length > 0 && !pack.features.sideQuests) problems.push('The pack has story missions but side quests are off.');
+  for (const [i, q] of story.entries()) {
+    const label = `Story mission ${i + 1} ("${q.id}")`;
+    if (seen.has(q.id)) dupes.add(q.id);
+    seen.add(q.id);
+    if (!q.id.startsWith('s-')) problems.push(`${label} must have the prefix s-.`);
+    if (!q.title?.trim()) problems.push(`${label} needs a title.`);
+    if (q.judging !== 'vote' && q.judging !== 'submit') problems.push(`${label} must be judged by 'vote' or 'submit'.`);
+    if (q.windowMin != null && !(Number.isInteger(q.windowMin) && q.windowMin >= 5 && q.windowMin <= 180)) {
+      problems.push(`${label} has a window of ${q.windowMin}; it must be a whole number of minutes from 5 to 180.`);
+    }
+    const whole = (n: number | null | undefined) => n == null || (Number.isInteger(n) && n >= 0);
+    if (!whole(q.points)) problems.push(`${label} has points ${q.points}; points must be a whole number, 0 or more.`);
+    if (!whole(q.fastestBonus)) problems.push(`${label} has a fastest bonus of ${q.fastestBonus}; it must be a whole number, 0 or more.`);
+    if (!whole(q.penalty)) problems.push(`${label} has a fine of ${q.penalty}; the fine must be a whole number, 0 or more.`);
   }
   for (const id of dupes) problems.push(`The quest id "${id}" is a duplicate.`);
   for (const q of pack.catalogue.personal) {

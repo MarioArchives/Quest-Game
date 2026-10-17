@@ -5,39 +5,17 @@ import { Button } from '../../components/Button';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { features, t, zone } from '../../pack';
-import { RULESETS, type ParamSpec, type Settings } from '../../shared';
-
-type NumKey =
-  | 'starterQuestCount'
-  | 'rerollLimit'
-  | 'questPoints'
-  | 'sideQuestPoints'
-  | 'exposePenalty'
-  | 'correctGuessReward'
-  | 'wrongGuessCost'
-  | 'guessCooldownMin'
-  | 'fraudPenalty'
-  | 'rejectPenalty'
-  | 'globalIntervalMin'
-  | 'globalIntervalMax'
-  | 'globalWindowMin'
-  | 'voteWindowMin'
-  | 'guessLimit'
-  | 'sideQuestSkipPenalty'
-  | 'cleanPoints'
-  | 'framePoints';
-type FlagKey = 'refillOnComplete' | 'revealOnComplete' | 'pointsFloorZero';
+import { RULESETS } from '../../shared';
+import { fromSettings, rulesFor, toSettings, validateSettingsForm, type FlagKey, type NumKey, type SettingsForm, type StandingKey } from './settingsForm';
 
 interface NumField {
   key: NumKey;
   label: string;
   hint: string;
-  min: number;
-  max: number;
 }
 
 interface Group {
-  id: 'hands' | 'points' | 'guessing' | 'sideQuests' | 'rewards';
+  id: 'hands' | 'points' | 'guessing' | 'sideQuests' | 'rewards' | 'police';
   title: string;
   fields: NumField[];
   /** Hidden when the pack leaves the feature out. */
@@ -50,8 +28,8 @@ const GROUPS: Group[] = [
     on: true,
     title: 'Hands',
     fields: [
-      { key: 'starterQuestCount', label: `${t.quest.Many} dealt`, hint: `Secret ${t.quest.many} in each hand`, min: 1, max: 20 },
-      { key: 'rerollLimit', label: 'Rerolls per player', hint: `Swaps for a fresh ${t.quest.one}`, min: 0, max: 100 },
+      { key: 'starterQuestCount', label: `${t.quest.Many} dealt`, hint: `Secret ${t.quest.many} in each hand` },
+      { key: 'rerollLimit', label: 'Rerolls per player', hint: `Swaps for a fresh ${t.quest.one}` },
     ],
   },
   {
@@ -59,10 +37,10 @@ const GROUPS: Group[] = [
     on: true,
     title: 'Points',
     fields: [
-      { key: 'questPoints', label: `${t.quest.One} approved`, hint: `Points for an approved ${t.claim.one}`, min: 0, max: 10000 },
-      { key: 'sideQuestPoints', label: `${t.sideQuest.One} win`, hint: 'Default bonus for the winner', min: 0, max: 10000 },
-      { key: 'rejectPenalty', label: `Rejected ${t.claim.one} fine`, hint: `Lost when a ${t.witness.one} rejects a ${t.claim.one}`, min: 0, max: 10000 },
-      { key: 'fraudPenalty', label: 'Fraud fine', hint: `Taken on top of the ${t.claim.one}’s points`, min: 0, max: 10000 },
+      { key: 'questPoints', label: `${t.quest.One} approved`, hint: `Points for an approved ${t.claim.one}` },
+      { key: 'sideQuestPoints', label: `${t.sideQuest.One} win`, hint: 'Default bonus for the winner' },
+      { key: 'rejectPenalty', label: `Rejected ${t.claim.one} fine`, hint: `Lost when a ${t.witness.one} rejects a ${t.claim.one}` },
+      { key: 'fraudPenalty', label: 'Fraud fine', hint: `Taken on top of the ${t.claim.one}’s points` },
     ],
   },
   {
@@ -70,11 +48,11 @@ const GROUPS: Group[] = [
     on: features.guesses,
     title: 'Guessing',
     fields: [
-      { key: 'exposePenalty', label: 'Exposed', hint: `Lost when your ${t.quest.one} is guessed`, min: 0, max: 10000 },
-      { key: 'correctGuessReward', label: 'Right guess', hint: 'Gained by the guesser', min: 0, max: 10000 },
-      { key: 'wrongGuessCost', label: 'Wrong guess', hint: 'Lost by the guesser', min: 0, max: 10000 },
-      { key: 'guessCooldownMin', label: 'Cooldown (min)', hint: 'Between guesses at the same player', min: 0, max: 1440 },
-      { key: 'guessLimit', label: 'Guesses per player', hint: 'In the whole game; 0 = no limit', min: 0, max: 1000 },
+      { key: 'exposePenalty', label: 'Exposed', hint: `Lost when your ${t.quest.one} is guessed` },
+      { key: 'correctGuessReward', label: 'Right guess', hint: 'Gained by the guesser' },
+      { key: 'wrongGuessCost', label: 'Wrong guess', hint: 'Lost by the guesser' },
+      { key: 'guessCooldownMin', label: 'Cooldown (min)', hint: 'Between guesses at the same player' },
+      { key: 'guessLimit', label: 'Guesses per player', hint: 'In the whole game; 0 = no limit' },
     ],
   },
   {
@@ -82,11 +60,11 @@ const GROUPS: Group[] = [
     on: features.sideQuests,
     title: t.sideQuest.Many,
     fields: [
-      { key: 'globalIntervalMin', label: 'Drop every, at least (min)', hint: 'Shortest gap between auto drops', min: 1, max: 1440 },
-      { key: 'globalIntervalMax', label: 'Drop every, at most (min)', hint: 'Longest gap', min: 1, max: 1440 },
-      { key: 'globalWindowMin', label: 'Open for (min)', hint: 'Then you check the entries; late ones still count until you start the vote', min: 1, max: 180 },
-      { key: 'voteWindowMin', label: 'Voting open for (min)', hint: 'How long everyone has to vote', min: 1, max: 180 },
-      { key: 'sideQuestSkipPenalty', label: 'Skip fine', hint: `Lost for not entering a ${t.sideQuest.one}; 0 = none`, min: 0, max: 10000 },
+      { key: 'globalIntervalMin', label: 'Drop every, at least (min)', hint: 'Shortest gap between auto drops' },
+      { key: 'globalIntervalMax', label: 'Drop every, at most (min)', hint: 'Longest gap' },
+      { key: 'globalWindowMin', label: 'Open for (min)', hint: 'Then you check the entries; late ones still count until you start the vote' },
+      { key: 'voteWindowMin', label: 'Voting open for (min)', hint: 'How long everyone has to vote' },
+      { key: 'sideQuestSkipPenalty', label: 'Skip fine', hint: `Lost for not entering a ${t.sideQuest.one}; 0 = none` },
     ],
   },
   {
@@ -94,8 +72,20 @@ const GROUPS: Group[] = [
     on: Boolean(features.rewardChoice),
     title: 'Rewards',
     fields: [
-      { key: 'cleanPoints', label: 'Points for you', hint: 'Gained when a player picks the first choice', min: 0, max: 10000 },
-      { key: 'framePoints', label: 'Points off someone', hint: 'Taken from the player they pick', min: 0, max: 10000 },
+      { key: 'cleanPoints', label: 'Points for you', hint: 'Gained when a player picks the first choice' },
+      { key: 'framePoints', label: 'Points off someone', hint: 'Taken from the player they pick' },
+    ],
+  },
+  {
+    id: 'police',
+    on: Boolean(features.police),
+    title: t.policeCall.Many,
+    fields: [
+      { key: 'policeEveryMin', label: `${t.poi.One} checked every (min)`, hint: `Gap between ${t.policeCall.many} for a ${t.poi.one}` },
+      { key: 'policeTipEveryMin', label: 'Tip-off cooldown (min)', hint: `How often a ${t.confidant.one} can tip off the police` },
+      { key: 'policeWindowMin', label: 'Time to answer (min)', hint: 'Then it counts as missed' },
+      { key: 'policePassPoints', label: 'Pass', hint: 'Points for a right answer' },
+      { key: 'policeFailPenalty', label: 'Fail or miss', hint: 'Points lost for a wrong or missing answer' },
     ],
   },
 ];
@@ -110,100 +100,23 @@ const FLAGS: { key: FlagKey; label: string; hint: string }[] = [
   { key: 'pointsFloorZero', label: 'Points can’t go below 0', hint: 'Fines and penalties stop at zero' },
 ];
 
-interface Form {
-  numbers: Record<NumKey, string>;
-  /** Scoring rule-set id. */
-  scoring: string;
-  /** Every rule set's params as typed, by param key; only the chosen rule set's are shown and saved. */
-  params: Record<string, string>;
-  quietOn: boolean;
-  quietStart: string;
-  quietEnd: string;
-  flags: Record<FlagKey, boolean>;
-}
-
-const ALL_NUM_KEYS = GROUPS.flatMap((g) => g.fields.map((f) => f.key));
 const RULESET_LIST = Object.values(RULESETS);
-/** The rule set picked in the form; an unknown id shows as the first one, like the server's fallback. */
-const rulesFor = (id: string) => RULESETS[id] ?? RULESET_LIST[0]!;
-const allParams = (): ParamSpec[] => RULESET_LIST.flatMap((rules) => [...rules.params]);
 
-function fromSettings(s: Settings): Form {
-  const numbers = Object.fromEntries(ALL_NUM_KEYS.map((key) => [key, String(s[key])])) as Record<NumKey, string>;
-  const params = Object.fromEntries(allParams().map((p) => [p.key, String(s.scoringParams?.[p.key] ?? p.default)]));
-  return {
-    numbers,
-    scoring: rulesFor(s.scoring).id,
-    params,
-    quietOn: s.quietHours !== null,
-    quietStart: s.quietHours?.start ?? '01:00',
-    quietEnd: s.quietHours?.end ?? '10:00',
-    flags: { refillOnComplete: s.refillOnComplete, revealOnComplete: s.revealOnComplete, pointsFloorZero: s.pointsFloorZero },
-  };
-}
+/** The standing lines (any pack): blank means off. */
+const STANDING_FIELDS: { key: StandingKey; label: string; hint: string }[] = [
+  { key: 'confidantAbove', label: `${t.confidant.One} above`, hint: 'Points above this line; blank = off' },
+  { key: 'poiBelow', label: `${t.poi.One} below`, hint: 'Points below this line; blank = off' },
+];
 
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-function validate(form: Form): Record<string, string> {
-  const errors: Record<string, string> = {};
-  for (const group of GROUPS.filter((g) => g.on)) {
-    for (const f of group.fields) {
-      const raw = form.numbers[f.key].trim();
-      if (!/^\d+$/.test(raw)) errors[f.key] = 'Whole number, 0 or more';
-      else if (Number(raw) < f.min || Number(raw) > f.max) errors[f.key] = `${f.min} to ${f.max}`;
-    }
-  }
-  for (const p of rulesFor(form.scoring).params) {
-    const raw = form.params[p.key]?.trim() ?? '';
-    if (!/^\d+$/.test(raw)) errors[`param:${p.key}`] = 'Whole number, 0 or more';
-    else if (Number(raw) < p.min || Number(raw) > p.max) errors[`param:${p.key}`] = `${p.min} to ${p.max}`;
-  }
-  if (!errors.globalIntervalMin && !errors.globalIntervalMax && Number(form.numbers.globalIntervalMax) < Number(form.numbers.globalIntervalMin)) {
-    errors.globalIntervalMax = 'At least the shortest gap';
-  }
-  if (form.quietOn) {
-    if (!TIME.test(form.quietStart)) errors.quietStart = 'Use HH:MM';
-    if (!TIME.test(form.quietEnd)) errors.quietEnd = 'Use HH:MM';
-  }
-  return errors;
-}
-
-function toSettings(form: Form): Settings {
-  const n = (key: NumKey) => Number(form.numbers[key].trim());
-  return {
-    starterQuestCount: n('starterQuestCount'),
-    rerollLimit: n('rerollLimit'),
-    questPoints: n('questPoints'),
-    sideQuestPoints: n('sideQuestPoints'),
-    exposePenalty: n('exposePenalty'),
-    correctGuessReward: n('correctGuessReward'),
-    wrongGuessCost: n('wrongGuessCost'),
-    guessCooldownMin: n('guessCooldownMin'),
-    globalIntervalMin: n('globalIntervalMin'),
-    globalIntervalMax: n('globalIntervalMax'),
-    globalWindowMin: n('globalWindowMin'),
-    quietHours: form.quietOn ? { start: form.quietStart, end: form.quietEnd } : null,
-    fraudPenalty: n('fraudPenalty'),
-    rejectPenalty: n('rejectPenalty'),
-    voteWindowMin: n('voteWindowMin'),
-    guessLimit: n('guessLimit'),
-    sideQuestSkipPenalty: n('sideQuestSkipPenalty'),
-    cleanPoints: n('cleanPoints'),
-    framePoints: n('framePoints'),
-    refillOnComplete: form.flags.refillOnComplete,
-    revealOnComplete: form.flags.revealOnComplete,
-    pointsFloorZero: form.flags.pointsFloorZero,
-    scoring: form.scoring,
-    scoringParams: Object.fromEntries(rulesFor(form.scoring).params.map((p) => [p.key, Number(form.params[p.key]!.trim())])),
-  };
-}
+/** The form as compared for unsaved changes: the random-drop switch is edited elsewhere and doesn't count. */
+const comparable = (f: SettingsForm, auto: boolean) => JSON.stringify({ ...f, autoSideQuests: auto });
 
 export function SettingsSection() {
   const { settings } = useGame();
   const toast = useToast();
   const settingsKey = JSON.stringify(settings);
   const baseline = useMemo(() => fromSettings(settings), [settingsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [form, setForm] = useState<Form>(baseline);
+  const [form, setForm] = useState<SettingsForm>(baseline);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -217,17 +130,20 @@ export function SettingsSection() {
     lastBaseline.current = next;
   }, [baseline]);
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
-  const errors = useMemo(() => validate(form), [form]);
+  const dirty = comparable(form, baseline.autoSideQuests) !== JSON.stringify(baseline);
+  const errors = useMemo(() => validateSettingsForm(form), [form]);
   const errorCount = Object.keys(errors).length;
 
   const setNumber = (key: NumKey, value: string) => setForm((f) => ({ ...f, numbers: { ...f.numbers, [key]: value } }));
   const setParam = (key: string, value: string) => setForm((f) => ({ ...f, params: { ...f.params, [key]: value } }));
+  const setStanding = (key: StandingKey, value: string) => setForm((f) => ({ ...f, standing: { ...f.standing, [key]: value } }));
   const setFlag = (key: FlagKey, value: boolean) => setForm((f) => ({ ...f, flags: { ...f.flags, [key]: value } }));
   const showError = (key: string) => {
     const changed = key.startsWith('param:')
       ? form.params[key.slice(6)]?.trim() !== baseline.params[key.slice(6)]?.trim()
-      : form.numbers[key as NumKey]?.trim() !== baseline.numbers[key as NumKey]?.trim();
+      : key === 'confidantAbove' || key === 'poiBelow'
+        ? form.standing.confidantAbove.trim() !== baseline.standing.confidantAbove.trim() || form.standing.poiBelow.trim() !== baseline.standing.poiBelow.trim()
+        : form.numbers[key as NumKey]?.trim() !== baseline.numbers[key as NumKey]?.trim();
     return tried || changed ? errors[key] : undefined;
   };
   const rules = rulesFor(form.scoring);
@@ -243,7 +159,7 @@ export function SettingsSection() {
     setError(null);
     try {
       // Merge so keys this form doesn't know about survive; the doc may not exist on a fresh emulator.
-      await backend().data.set('game/settings', { ...toSettings(form) }, { merge: true });
+      await backend().data.set('game/settings', { ...toSettings(form), autoSideQuests: settings.autoSideQuests }, { merge: true });
       setTried(false);
       toast('Settings saved. They apply straight away.', 'success');
     } catch (err) {
@@ -324,6 +240,32 @@ export function SettingsSection() {
           ) : null}
         </fieldset>
       ))}
+
+      <fieldset className="gm-fields">
+        <legend className="gm-h">Standings</legend>
+        {STANDING_FIELDS.map((f) => {
+          const err = showError(f.key) ? errors[f.key] : undefined;
+          const id = `set-${f.key}`;
+          return (
+            <div key={f.key} className="gm-setting">
+              <label className="gm-setting__text" htmlFor={id}>
+                <span className="gm-setting__label">{f.label}</span>
+                <span className="gm-setting__hint">{err ? <strong className="gm-err">{err}</strong> : f.hint}</span>
+              </label>
+              <input
+                id={id}
+                className={`input gm-setting__input${err ? ' is-invalid' : ''}`}
+                inputMode="text"
+                placeholder="Off"
+                value={form.standing[f.key]}
+                disabled={busy}
+                aria-invalid={err ? true : undefined}
+                onChange={(e) => setStanding(f.key, e.target.value)}
+              />
+            </div>
+          );
+        })}
+      </fieldset>
 
       <fieldset className="gm-fields">
         <legend className="gm-h">Scoring</legend>

@@ -8,6 +8,7 @@ import { PhotoThumb } from '../../components/PhotoViewer';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
+import { gmChecks, judgingOf, submitRule, voteReward } from '../../lib/judging';
 import { formatCountdown } from '../../lib/time';
 import { useSession } from '../../session/SessionProvider';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
@@ -66,7 +67,8 @@ export function SideQuestCards() {
   return (
     <>
       {open.map((quest) =>
-        quest.status === 'voting' ? (
+        // A Submit mission is scored when it closes: it has no vote to show.
+        quest.status === 'voting' && judgingOf(quest) === 'submit' ? null : quest.status === 'voting' ? (
           <VotingCard key={quest.id} quest={quest} />
         ) : quest.status === 'checking' ? (
           <CheckingCard key={quest.id} quest={quest} />
@@ -108,7 +110,9 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
         <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; everyone plays</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
-        <p className="hero__rule">Enter with a photo or a comment. Entries stay hidden until voting. When time is up the {t.gm.One} checks them, then everyone votes &middot; +{quest.bonusPoints} to the winner</p>
+        <p className="hero__rule">
+          <LiveRule quest={quest} />
+        </p>
         <div className="hero__row">
           <Countdown endsAt={tsMs(quest.endsAt)} closedText="Time's up" />
           <div className="hero__entries">
@@ -171,6 +175,21 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
   );
 }
 
+/** The live card's rule line, by how the mission is judged. */
+function LiveRule({ quest }: { quest: Doc<GlobalQuest> }) {
+  const { settings } = useGame();
+  if (judgingOf(quest) === 'submit') return <>Enter with a photo or a comment. {submitRule(quest, settings)}</>;
+  return gmChecks(quest) ? (
+    <>
+      Enter with a photo or a comment. Entries stay hidden until voting. When time is up the {t.gm.One} checks them, then everyone votes &middot; {voteReward(quest)}
+    </>
+  ) : (
+    <>
+      Enter with a photo or a comment. Entries stay hidden until voting. When time is up everyone votes &middot; {voteReward(quest)}
+    </>
+  );
+}
+
 /** Time is up and the GM is checking the entries; late entries still count until the GM starts the vote. */
 function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
   const { player } = useSession();
@@ -191,7 +210,7 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
       <p className="hero__rule">
-        The {t.gm.One} is checking the entries and starts the vote when ready. Late entries still count until then &middot; +{quest.bonusPoints} to the winner
+        The {t.gm.One} is checking the entries and starts the vote when ready. Late entries still count until then &middot; {voteReward(quest)}
       </p>
       {mine ? (
         <div className="hero__mine">
@@ -280,6 +299,7 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
         {quest.votingEndsAt ? <Countdown endsAt={tsMs(quest.votingEndsAt)} closedText="Counting" /> : null}
         <p className="hero__rule hero__rule--right">
           Most votes wins +{quest.bonusPoints}
+          {(quest.fastestBonus ?? 0) > 0 ? <>, the fastest entry +{quest.fastestBonus}</> : null}
           <br />
           Ties all win
         </p>

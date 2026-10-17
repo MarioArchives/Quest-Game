@@ -1,7 +1,7 @@
 // Typed wrappers around the server callables (functions region europe-west2).
 import { backend } from './backend';
 import { ApiError, toApiError } from './lib/apiError';
-import type { GameStatus, GlobalQuestStatus, SubmissionStatus } from './shared';
+import type { GameStatus, GlobalQuestStatus, Judging, SubmissionStatus } from './shared';
 
 export { ApiError, toApiError };
 
@@ -93,10 +93,29 @@ export type FireGlobalQuestInput =
       description?: string;
       windowMin?: number;
       points?: number;
+    }
+  /** A story mission from the pack, judged by vote or by submission; anything left out comes from the story, then settings. */
+  | {
+      mode: 'story';
+      storyId: string;
+      judging?: Judging;
+      title?: string;
+      description?: string;
+      windowMin?: number;
+      points?: number;
+      fastestBonus?: number;
+      penalty?: number;
     };
 
 export const fireGlobalQuest = (data: FireGlobalQuestInput) =>
   call<FireGlobalQuestInput, { globalQuestId: string }>('fireGlobalQuest', data);
+
+/** Packs with police: the player being checked answers their open check-in. */
+export const answerPoliceCall = (data: { callId: string; answer: string }) =>
+  call<typeof data, { status: 'passed' | 'failed'; points: number }>('answerPoliceCall', data);
+
+/** Packs with police: a trusted confidant tips off the police about another player. */
+export const tipOffPolice = (data: { targetUid: string; note: string }) => call<typeof data, { callId: string }>('tipOffPolice', data);
 
 export const adjustPoints = (data: { uid: string; delta: number; reason: string }) =>
   call<typeof data, { points: number }>('adjustPoints', data);

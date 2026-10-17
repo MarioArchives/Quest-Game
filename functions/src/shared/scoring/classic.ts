@@ -23,13 +23,21 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
     case 'sideQuestWon':
       return [{ kind: 'points', uid: event.uid, delta: event.bonus, reason: 'global-win' }];
     case 'sideQuestSkipped':
-      return [{ kind: 'points', uid: event.uid, delta: -s.sideQuestSkipPenalty, reason: 'skipped' }];
+      return [{ kind: 'points', uid: event.uid, delta: -(event.penalty ?? s.sideQuestSkipPenalty), reason: 'skipped' }];
     case 'rewardClean':
       return [{ kind: 'points', uid: event.uid, delta: s.cleanPoints, reason: 'cleared' }];
     case 'rewardFrame':
       return [{ kind: 'points', uid: event.target, delta: -s.framePoints, reason: 'framed' }];
     case 'checkinMissed':
       return [{ kind: 'points', uid: event.uid, delta: -event.penalty, reason: 'missed' }];
+    case 'sideQuestEntered':
+      return [{ kind: 'points', uid: event.uid, delta: event.points, reason: 'global-entry' }];
+    case 'sideQuestFastest':
+      return [{ kind: 'points', uid: event.uid, delta: event.bonus, reason: 'fastest' }];
+    case 'policePassed':
+      return [{ kind: 'points', uid: event.uid, delta: event.points, reason: 'police-pass' }];
+    case 'policeFailed':
+      return [{ kind: 'points', uid: event.uid, delta: -event.penalty, reason: event.missed ? 'police-missed' : 'police-fail' }];
   }
 }
 

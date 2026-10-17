@@ -32,7 +32,7 @@ import { useSession } from '../../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft as rerollsLeftFor, type Doc, type Quest } from '../../../shared';
 import { missionTag, splitProof, type MissionTag } from '../dossier';
 import { Folder, Stamp, Strung, Tag, TagTop, tiltFor, type StampTone } from './CaseKit';
-import { ExhibitsFolder, SealedNote, Stat, SuspectHead, TopStrip } from './FileParts';
+import { ExhibitsFolder, SealedNote, Stat, StandingStamp, SuspectHead, TopStrip } from './FileParts';
 import '../../../screens/account/account.css';
 import './myfile.css';
 
@@ -124,7 +124,7 @@ export default function MyFile() {
             </Strung>
           ) : null}
 
-          <Folder tab={`Suspect file · ${firstName(displayName)}`} label="Your profile" className="mf-suspect">
+          <Folder tab={`Suspect file · ${firstName(displayName)}`} clip="tab" label="Your profile" className="mf-suspect">
             <SuspectHead
               photo={photo}
               name={charName}
@@ -132,7 +132,9 @@ export default function MyFile() {
               uid={uid ?? ''}
               line={character ? `${characterLine({ name: character.name, role: character.role })} · played by ${firstName(displayName)}` : displayName}
               onEditPhoto={() => setProfileOpen(true)}
-            />
+            >
+              <StandingStamp points={player.points} />
+            </SuspectHead>
             <dl className={`mf-stats${features.guesses ? '' : ' mf-stats--two'}`}>
               <Stat label="Score" score negative={(player.points ?? 0) < 0}>
                 {player.points ?? 0}

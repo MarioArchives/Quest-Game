@@ -490,3 +490,28 @@ describe('P13. the emulators never call FCM', () => {
     expect(lines.join('\n')).toContain('Hats only!');
   });
 });
+
+describe('story missions, standings and police check-ins (plan edge cases 25, 32)', () => {
+  it('a mission scored by submission goes to every player with its summary', () => {
+    const plan = pushFor(post('global-scored', { questTitle: 'The body is found', text: 'The body is found: Alice was fastest' }));
+    expect(plan?.to).toBe('players');
+    expect(said(plan)).toContain('Alice was fastest');
+  });
+
+  it('a change of standing goes only to that player, with what the post says', () => {
+    const plan = pushFor(post('standing', { uid: 'alice', text: 'Alice is now a person of interest' }));
+    expect(plan?.to).toEqual(['alice']);
+    expect(said(plan)).toContain('person of interest');
+  });
+
+  it.each(['police-call', 'police-tip'] as const)('a %s goes only to the player being checked, and opens Home', (type) => {
+    const plan = pushFor(post(type, { uid: 'alice', actorUid: 'bob', text: 'Bob tipped off the police about Alice' }));
+    expect(plan?.to).toEqual(['alice']);
+    expect(plan?.message.link).toBe('#/');
+    expect(plan?.message.title).toBeTruthy();
+  });
+
+  it('the result of a check-in stays quiet', () => {
+    expect(pushFor(post('police-result', { uid: 'alice', points: 3 }))).toBeNull();
+  });
+});

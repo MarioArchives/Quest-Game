@@ -23,6 +23,7 @@ import type {
 } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { fail, loadSettings, loadState, requireGM } from './guards.js';
+import { cancelOpenPoliceCalls } from './police.js';
 import { settleOpenQuests } from './voting.js';
 
 export interface PlayerStats {
@@ -178,6 +179,8 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
 
   // Decide every open side quest first (tally the votes, pay the winners) so the standings include it.
   await settleOpenQuests(db, ctx.now, ctx.pack);
+  // Open police check-ins are called off, with no fine.
+  if (ctx.pack.features.police) await cancelOpenPoliceCalls(db, ctx.now);
 
   const [everyone, submissions, guesses, ledger, globals, templates, locations, feed] = await Promise.all([
     docs<Player>(db, 'players'),

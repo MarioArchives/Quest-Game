@@ -7,15 +7,18 @@ import { signInErrorMessage, useSession } from '../../session/SessionProvider';
 import { PosterHeader } from './PosterHeader';
 import './auth.css';
 
-export function SignInScreen() {
+/**
+ * What a sign-in screen needs: the mock backend's accounts to sign in as (null on Firebase, which has only the Google
+ * pop-up), whether a sign-in is running, its error, and `signInAs` (an account's uid, or nothing for Google). Shared
+ * by the engine's screen and a pack's own (`look.screens.signIn`).
+ */
+export function useSignIn() {
   const { signIn } = useSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // The mock backend lists accounts to sign in as; Firebase has only the Google pop-up.
   const accounts = backend().auth.accounts?.() ?? null;
 
-  const onSignIn = async (uid?: string) => {
+  const signInAs = async (uid?: string) => {
     setBusy(true);
     setError(null);
     try {
@@ -28,6 +31,12 @@ export function SignInScreen() {
     }
   };
 
+  return { accounts, busy, error, signInAs };
+}
+
+export function SignInScreen() {
+  const { accounts, busy, error, signInAs } = useSignIn();
+
   return (
     <div className="auth">
       <PosterHeader sticker={look.auth.sticker} />
@@ -36,12 +45,12 @@ export function SignInScreen() {
         <div className="auth__actions">
           {accounts ? (
             accounts.map((account) => (
-              <Button key={account.uid} variant="primary" block busy={busy} onClick={() => onSignIn(account.uid)}>
+              <Button key={account.uid} variant="primary" block busy={busy} onClick={() => signInAs(account.uid)}>
                 {account.role === 'gm' ? `Sign in as the ${t.gm.one}` : `Sign in as ${account.label}`}
               </Button>
             ))
           ) : (
-            <Button variant="primary" block busy={busy} onClick={() => onSignIn()}>
+            <Button variant="primary" block busy={busy} onClick={() => signInAs()}>
               Sign in with Google
             </Button>
           )}

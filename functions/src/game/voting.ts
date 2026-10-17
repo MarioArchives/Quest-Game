@@ -5,7 +5,8 @@ import type { DocRef, Txn } from '../shared/store/types.js';
 import { termForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
 import { tallyVotes } from '../shared/votes.js';
-import type { GlobalQuest, Player, Settings, Submission, Vote } from '../shared/types.js';
+import type { ScoreEvent } from '../shared/scoring/types.js';
+import type { GlobalQuest, GlobalQuestStatus, Player, Settings, Submission, Vote } from '../shared/types.js';
 import type { Db } from './context.js';
 import { addFeed } from './feed.js';
 import { isPlaying, loadSettings, loadState } from './guards.js';
@@ -96,6 +97,22 @@ export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): 
  * its current evidence goes onto its feed post. All routes into voting come through here.
  */
 export function startVoting(tx: Txn, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): void {
+  revealEntries(tx, entries);
+  tx.update(q.ref, { status: 'voting', votingEndsAt: toTs(new Date(now.getTime() + settings.voteWindowMin * MIN_MS)) });
+  addFeed(tx, db, now, {
+    type: 'voting-open',
+    text: `Voting is open: ${q.gq.title}`,
+    uid: null,
+    ref: q.id,
+    questTitle: q.gq.title,
+  });
+}
+
+/**
+ * Reveals every sealed entry: it becomes 'approved' (votable) and its current evidence goes onto its feed post.
+ * Call attachPosts on `entries` first.
+ */
+export function revealEntries(tx: Txn, entries: Entry[]): void {
   for (const entry of entries.filter((e) => e.data.status === 'sealed')) {
     tx.update(entry.ref, { status: 'approved' });
     if (entry.postRef) {
@@ -106,14 +123,142 @@ export function startVoting(tx: Txn, db: Db, now: Date, settings: Settings, q: Q
       });
     }
   }
-  tx.update(q.ref, { status: 'voting', votingEndsAt: toTs(new Date(now.getTime() + settings.voteWindowMin * MIN_MS)) });
+}
+
+/** True for a side quest no GM checks (a story mission): it goes straight on when entries close. */
+export const isUnchecked = (gq: GlobalQuest): boolean => gq.gmChecks === false;
+
+/** What moveOn needs read in advance (reads must come before any write): the unchecked quests' entries, and the players. */
+export interface MoveOnData {
+  entries: Map<string, Entry[]>;
+  players: Map<string, Player>;
+}
+
+/**
+ * Reads what moveOn needs for these live quests: for the unchecked ones their entries (with the posts to
+ * fill in) and the players. `withPlayers` reads the players even when none is unchecked.
+ */
+export async function readMoveOn(tx: Txn, db: Db, quests: Quest[], withPlayers = false): Promise<MoveOnData> {
+  const entries = new Map<string, Entry[]>();
+  const unchecked = quests.filter((q) => isUnchecked(q.gq));
+  for (const q of unchecked) {
+    const list = await readEntries(tx, db, q.id);
+    await attachPosts(tx, db, list);
+    entries.set(q.id, list);
+  }
+  const players = withPlayers || unchecked.length > 0 ? await readPlayers(tx, db) : new Map<string, Player>();
+  return { entries, players };
+}
+
+/**
+ * A live side quest's entries are closed (time's up, everyone in, or a GM moved it on). By its mode: one a GM
+ * checks goes to checking; a story vote goes straight to voting (closed with no winner and fines when nobody
+ * entered); a story submission is scored at once. `by` is the GM who did it, if one did. Returns where it went.
+ */
+export function moveOn(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  pack: GamePack,
+  settings: Settings,
+  scoring: Scoring,
+  q: Quest,
+  data: MoveOnData,
+  by: string | null = null,
+): GlobalQuestStatus {
+  if (!isUnchecked(q.gq)) {
+    startChecking(tx, db, now, pack, q, by);
+    return 'checking';
+  }
+  const entries = data.entries.get(q.id) ?? [];
+  if (q.gq.judging === 'submit') {
+    scoreSubmitted(tx, db, now, scoring, q, entries, data.players);
+    return 'closed';
+  }
+  return finishChecking(tx, db, now, settings, scoring, q, entries, data.players);
+}
+
+/**
+ * Scores a submission-judged story mission: the entries are revealed; each entrant earns the mission's points, the
+ * fastest entry still standing earns the fastest bonus too (both added to the entry's award, so a disqualification
+ * takes them back), everyone who could have entered and didn't pays the fine, and one summary goes in the feed.
+ * Call once, as it closes. `entries` come from readEntries (thrown-out ones are not there), oldest first.
+ */
+export function scoreSubmitted(tx: Txn, db: Db, now: Date, scoring: Scoring, q: Quest, entries: Entry[], players: Map<string, Player>): void {
+  revealEntries(tx, entries);
+  const balances = balancesOf(players);
+  const awards = new Map<string, number>();
+  const meta = (entry: Entry) => ({ ref: entry.id, by: 'system' });
+  if (q.gq.bonusPoints > 0) {
+    for (const entry of entries) {
+      const uid = entry.data.uid;
+      awards.set(entry.id, payOut(tx, db, now, scoring, { kind: 'sideQuestEntered', uid, points: q.gq.bonusPoints }, balances, meta(entry)));
+    }
+  }
+  const fastest = payFastest(tx, db, now, scoring, q, entries, balances, awards);
+  for (const [id, paid] of awards) {
+    const entry = entries.find((e) => e.id === id)!;
+    if (paid !== 0) tx.update(entry.ref, { pointsAwarded: (entry.data.pointsAwarded ?? 0) + paid });
+  }
+  tx.update(q.ref, { status: 'closed', winnerUids: [], winningSubmissionIds: [], tally: {}, fastestSubmissionId: fastest?.id ?? null });
+  const fined = penaliseSkippers(tx, db, now, scoring, q, entries, players, balances);
   addFeed(tx, db, now, {
-    type: 'voting-open',
-    text: `Voting is open: ${q.gq.title}`,
+    type: 'global-scored',
+    text: scoredText(q.gq.title, entries, players, fastest, fined),
     uid: null,
     ref: q.id,
     questTitle: q.gq.title,
   });
+}
+
+const nameOf = (players: Map<string, Player>, uid: string) => players.get(uid)?.displayName ?? 'Someone';
+
+/** "The body is found: Alice, Bob entered (Alice was fastest); 1 did not." */
+function scoredText(title: string, entries: Entry[], players: Map<string, Player>, fastest: Entry | null, missed: number): string {
+  const names = entries.map((e) => nameOf(players, e.data.uid));
+  const entered = names.length === 0 ? 'Nobody entered' : `${names.join(', ')} entered`;
+  const first = fastest ? ` (${nameOf(players, fastest.data.uid)} was fastest)` : '';
+  return `${title}: ${entered}${first}${missed > 0 ? `; ${missed} did not` : ''}.`;
+}
+
+const balancesOf = (players: Map<string, Player>): Map<string, number> => new Map([...players].map(([uid, p]) => [uid, p.points]));
+
+/** Scores one event for one player, keeps `balances` current for the next one, and returns what was applied. */
+function payOut(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  scoring: Scoring,
+  event: ScoreEvent & { uid: string },
+  balances: Map<string, number>,
+  meta: { ref: string | null; by: string },
+): number {
+  const { applied, totals } = applyScore(tx, db, now, scoring, event, balances, meta);
+  for (const [uid, total] of totals) balances.set(uid, total);
+  return applied.get(event.uid) ?? 0;
+}
+
+/**
+ * The fastest-entry bonus of an unchecked side quest: the earliest entry (`entries` are oldest first and exclude thrown-out
+ * ones) earns it. What is paid is added to `awards` (entry id → points paid). Returns that entry, or null when there is none.
+ */
+function payFastest(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  scoring: Scoring,
+  q: Quest,
+  entries: Entry[],
+  balances: Map<string, number>,
+  awards: Map<string, number>,
+): Entry | null {
+  const fastest = entries[0] ?? null;
+  const bonus = q.gq.fastestBonus ?? 0;
+  if (fastest && bonus > 0) {
+    const paid = payOut(tx, db, now, scoring, { kind: 'sideQuestFastest', uid: fastest.data.uid, bonus }, balances, { ref: fastest.id, by: 'system' });
+    awards.set(fastest.id, (awards.get(fastest.id) ?? 0) + paid);
+  }
+  return fastest;
 }
 
 /**
@@ -161,19 +306,34 @@ export function closeWithoutWinner(tx: Txn, q: Quest): void {
 }
 
 /**
- * Charges the skip penalty (settings.sideQuestSkipPenalty, 0 = off) to every player who could have entered this side
- * quest and has no entry among `entries` (the revealed ones): they had a player doc, are still playing and joined
- * by the time it opened. A GM without a player doc never pays. Call once, as the side quest closes.
+ * Charges the skip penalty (the fine the side quest opened with, else settings.sideQuestSkipPenalty; 0 = off) to every
+ * player who could have entered this side quest and has no entry among `entries` (the revealed ones): they had a player
+ * doc, are still playing and joined by the time it opened. A GM without a player doc never pays. Call once, as the
+ * side quest closes. `balances` carries points already changed in this transaction. Returns how many were fined.
  */
-function penaliseSkippers(tx: Txn, db: Db, now: Date, scoring: Scoring, q: Quest, entries: Entry[], players: Map<string, Player>): void {
-  if (scoring.sctx.settings.sideQuestSkipPenalty <= 0) return;
+export function penaliseSkippers(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  scoring: Scoring,
+  q: Quest,
+  entries: Entry[],
+  players: Map<string, Player>,
+  balances: Map<string, number> = balancesOf(players),
+): number {
+  const penalty = q.gq.skipPenalty ?? scoring.sctx.settings.sideQuestSkipPenalty;
+  if (penalty <= 0) return 0;
   const entered = new Set(entries.map((e) => e.data.uid));
   const opened = millis(q.gq.startsAt);
+  let fined = 0;
   for (const [uid, player] of players) {
     if (entered.has(uid) || !isPlaying(player)) continue;
     if (player.joinedAt && millis(player.joinedAt) > opened) continue;
-    applyScore(tx, db, now, scoring, { kind: 'sideQuestSkipped', uid }, new Map([[uid, player.points]]), { ref: q.id, by: 'system' });
+    const event: ScoreEvent = q.gq.skipPenalty == null ? { kind: 'sideQuestSkipped', uid } : { kind: 'sideQuestSkipped', uid, penalty: q.gq.skipPenalty };
+    payOut(tx, db, now, scoring, event, balances, { ref: q.id, by: 'system' });
+    fined += 1;
   }
+  return fined;
 }
 
 /**
@@ -197,6 +357,8 @@ export function closeWithTally(
   const { counts, winners } = tallyVotes([...votes.values()], entries.map((e) => e.id));
   const winnerUids: string[] = [];
   const winningSubmissionIds: string[] = [];
+  const balances = balancesOf(players);
+  const awards = new Map<string, number>();
 
   for (const entry of entries.filter((e) => winners.includes(e.id))) {
     const uid = entry.data.uid;
@@ -204,18 +366,11 @@ export function closeWithTally(
     winnerUids.push(uid);
     winningSubmissionIds.push(entry.id);
     // The rule set decides the bonus; a winner who has no player doc gets nothing (applyScore skips them).
-    const { applied: changes } = applyScore(
-      tx,
-      db,
-      now,
-      scoring,
-      { kind: 'sideQuestWon', uid, bonus: q.gq.bonusPoints, votes: counts[entry.id] },
-      new Map(player ? [[uid, player.points]] : []),
-      { ref: entry.id, by: 'system' },
-    );
-    const applied = changes.get(uid) ?? 0;
-    // What was paid is part of the entry's award, so a later disqualification takes it back.
-    tx.update(entry.ref, { pointsAwarded: (entry.data.pointsAwarded ?? 0) + applied });
+    const applied = payOut(tx, db, now, scoring, { kind: 'sideQuestWon', uid, bonus: q.gq.bonusPoints, votes: counts[entry.id] }, balances, {
+      ref: entry.id,
+      by: 'system',
+    });
+    awards.set(entry.id, applied);
     addFeed(tx, db, now, {
       type: 'global-won',
       text: `${player?.displayName ?? 'Someone'} won the ${t.sideQuest.one} "${q.gq.title}" with ${counts[entry.id]} ${counts[entry.id] === 1 ? 'vote' : 'votes'}`,
@@ -231,8 +386,16 @@ export function closeWithTally(
     });
   }
 
-  tx.update(q.ref, { status: 'closed', winnerUids, winningSubmissionIds, tally: counts });
-  penaliseSkippers(tx, db, now, scoring, q, entries, players);
+  // A story mission also pays its fastest entry, who need not be a winner.
+  const unchecked = isUnchecked(q.gq);
+  const fastest = unchecked ? payFastest(tx, db, now, scoring, q, entries, balances, awards) : null;
+  // What was paid is part of the entry's award, so a later disqualification takes it back.
+  for (const [id, paid] of awards) {
+    const entry = entries.find((e) => e.id === id)!;
+    tx.update(entry.ref, { pointsAwarded: (entry.data.pointsAwarded ?? 0) + paid });
+  }
+  tx.update(q.ref, { status: 'closed', winnerUids, winningSubmissionIds, tally: counts, ...(unchecked ? { fastestSubmissionId: fastest?.id ?? null } : {}) });
+  penaliseSkippers(tx, db, now, scoring, q, entries, players, balances);
 }
 
 /**

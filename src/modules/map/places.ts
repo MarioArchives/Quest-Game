@@ -1,7 +1,7 @@
-// Real bars for the route (packs with stops): the pubs and bars OpenStreetMap knows near a point, for the GM to pick
-// instead of dropping a bare pin, and Google Maps links so everyone can find the way. No API key: the list comes
-// from the public Overpass API (OpenStreetMap data), or from Nominatim (OpenStreetMap's search) when Overpass is
-// busy, and the links are plain Google Maps URLs.
+// Real bars for the route (packs with stops): the pubs and bars OpenStreetMap knows near a point (and across the
+// pack's search area, e.g. a whole city), for the GM to pick instead of dropping a bare pin, and Google Maps links so
+// everyone can find the way. No API key: the list comes from the public Overpass API (OpenStreetMap data), or from
+// Nominatim (OpenStreetMap's search) when Overpass is busy, and the links are plain Google Maps URLs.
 import { distanceMeters, type LatLng } from './geo';
 
 export interface Place {
@@ -15,15 +15,27 @@ export interface Place {
   kind: string;
 }
 
+/** An area in degrees, e.g. a city's bounding box. */
+export interface Box {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 /** Overpass is often busy: give up on it after this long and ask Nominatim. */
-const OVERPASS_WAIT_MS = 8_000;
+const OVERPASS_WAIT_MS = 10_000;
+/** What counts as a bar, in OpenStreetMap's `amenity` tag. */
+const BAR_KINDS = ['pub', 'bar', 'biergarten'];
 
-/** The Overpass query: named pubs, bars and beer gardens within `radiusM` of a point. */
-export function barsQuery(at: LatLng, radiusM: number): string {
-  const around = `around:${Math.round(radiusM)},${at.lat.toFixed(5)},${at.lng.toFixed(5)}`;
-  return `[out:json][timeout:20];nwr(${around})["amenity"~"^(pub|bar|biergarten)$"]["name"];out center tags 150;`;
+/** The Overpass query: named pubs, bars and beer gardens within `radiusM` of a point, and anywhere in `box`. */
+export function barsQuery(at: LatLng, radiusM: number, box?: Box): string {
+  const bars = `["amenity"~"^(${BAR_KINDS.join('|')})$"]["name"]`;
+  const near = `nwr(around:${Math.round(radiusM)},${at.lat.toFixed(5)},${at.lng.toFixed(5)})${bars};`;
+  const area = box ? `nwr(${[box.south, box.west, box.north, box.east].map((n) => n.toFixed(5)).join(',')})${bars};` : '';
+  return `[out:json][timeout:25];(${near}${area});out center tags;`;
 }
 
 interface OverpassElement {
@@ -65,16 +77,21 @@ interface NominatimResult {
   osm_type?: string;
   osm_id?: number;
   name?: string;
+  category?: string;
   type?: string;
   lat?: string;
   lon?: string;
   address?: Record<string, string>;
 }
 
-/** The places in a Nominatim reply (`format=jsonv2&addressdetails=1`); unnamed and unplaced ones are dropped. */
-export function parseNominatim(json: unknown): Place[] {
+/**
+ * The places in a Nominatim reply (`format=jsonv2&addressdetails=1`); unnamed and unplaced ones are dropped, and with
+ * `barsOnly` anything that isn't a pub, bar or beer garden (a name search also finds streets and shops).
+ */
+export function parseNominatim(json: unknown, barsOnly = false): Place[] {
   const out: Place[] = [];
   for (const r of Array.isArray(json) ? (json as NominatimResult[]) : []) {
+    if (barsOnly && !(r.category === 'amenity' && BAR_KINDS.includes(r.type ?? ''))) continue;
     const name = r.name?.trim();
     const lat = Number(r.lat);
     const lng = Number(r.lon);
@@ -98,14 +115,30 @@ export function nominatimUrl(kind: string, at: LatLng, radiusM: number): string 
   return `${NOMINATIM}?q=${encodeURIComponent(`[${kind}]`)}&format=jsonv2&addressdetails=1&limit=40&bounded=1&viewbox=${box}`;
 }
 
-async function fromOverpass(at: LatLng, radiusM: number, fetchFn: typeof fetch): Promise<Place[]> {
+/** Nominatim's name search inside a box: what the GM typed, when Overpass couldn't give the whole list. */
+export function nominatimSearchUrl(text: string, box: Box): string {
+  const viewbox = [box.west, box.north, box.east, box.south].map((n) => n.toFixed(5)).join(',');
+  return `${NOMINATIM}?q=${encodeURIComponent(text)}&format=jsonv2&addressdetails=1&limit=40&bounded=1&viewbox=${viewbox}`;
+}
+
+/**
+ * Bars in `box` whose name or street matches `text`, from Nominatim. A bare name ("crown") finds streets first, so
+ * "pub" goes on the end (it finds bars and beer gardens too) unless the GM typed it.
+ */
+export async function searchBars(text: string, box: Box, fetchFn: typeof fetch = fetch): Promise<Place[]> {
+  const res = await fetchFn(nominatimSearchUrl(/\b(pub|bar)s?\b/i.test(text) ? text : `${text} pub`, box));
+  if (!res.ok) throw new Error(`Nominatim answered ${res.status}`);
+  return parseNominatim(await res.json(), true);
+}
+
+async function fromOverpass(at: LatLng, radiusM: number, box: Box | undefined, fetchFn: typeof fetch): Promise<Place[]> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), OVERPASS_WAIT_MS);
   try {
     const res = await fetchFn(OVERPASS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(barsQuery(at, radiusM))}`,
+      body: `data=${encodeURIComponent(barsQuery(at, radiusM, box))}`,
       signal: stop.signal,
     });
     if (!res.ok) throw new Error(`Overpass answered ${res.status}`);
@@ -132,22 +165,33 @@ async function fromNominatim(at: LatLng, radiusM: number, fetchFn: typeof fetch,
   return out;
 }
 
+export interface BarsOptions {
+  radiusM?: number;
+  /** The pack's search area (a city): Overpass lists every bar in it too. */
+  box?: Box;
+  fetchFn?: typeof fetch;
+  /** Between Nominatim's requests (its rules ask for one a second). */
+  pauseMs?: number;
+}
+
 /**
- * Bars near a point, nearest first: from Overpass, or from Nominatim when Overpass is busy or down. Throws when both
- * fail (the sheet says so and offers the pin).
+ * Bars near a point (and across `box`), nearest first: from Overpass, or from Nominatim when Overpass is busy or down,
+ * which only lists the nearby ones (`source` says which; the picker then searches the box by name as the GM types).
+ * Throws when both fail (the sheet says so and offers the pin).
  */
-export async function barsNear(at: LatLng, radiusM = 2500, fetchFn: typeof fetch = fetch, pauseMs = 1100): Promise<Place[]> {
-  let places: Place[];
+export async function barsNear(
+  at: LatLng,
+  { radiusM = 2500, box, fetchFn = fetch, pauseMs = 1100 }: BarsOptions = {},
+): Promise<{ places: Place[]; source: 'overpass' | 'nominatim' }> {
   try {
-    places = await fromOverpass(at, radiusM, fetchFn);
+    return { places: filterPlaces(await fromOverpass(at, radiusM, box, fetchFn), '', at), source: 'overpass' };
   } catch (overpass) {
     try {
-      places = await fromNominatim(at, radiusM, fetchFn, pauseMs);
+      return { places: filterPlaces(await fromNominatim(at, radiusM, fetchFn, pauseMs), '', at), source: 'nominatim' };
     } catch (nominatim) {
       throw new Error(`${(overpass as Error).message}; ${(nominatim as Error).message}`);
     }
   }
-  return filterPlaces(places, '', at);
 }
 
 /** Lower case, no accents, single spaces: "Ye Olde Cock Inn" ~ "ye olde cock". */

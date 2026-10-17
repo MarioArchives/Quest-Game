@@ -15,6 +15,7 @@ import { features, t, zone } from '../../../pack';
 import { PostPhoto, WITNESSED, firstName } from '../../../screens/home/FeedPost';
 import { ReactionsBar } from '../../../screens/home/ReactionsBar';
 import { HomeBanners } from '../../../screens/Dashboard';
+import { PoliceCallCard } from '../../../screens/home/PoliceCallCard';
 import { SideQuestCards } from '../../../screens/home/SideQuestCard';
 import { useSession } from '../../../session/SessionProvider';
 import type { Doc, FeedItem, Stop } from '../../../shared';
@@ -43,6 +44,7 @@ export function TimelineFeed() {
     <div className="tl">
       <HomeBanners />
 
+      {features.police ? <PoliceCallCard /> : null}
       {features.checkins ? <RollCallTags /> : null}
       {features.sideQuests ? <SideQuestCards /> : null}
 
@@ -152,11 +154,11 @@ function Row({ item, ms }: { item: Doc<FeedItem>; ms: number }) {
   const wantsEvidence = Boolean(mine && mine.kind === 'personal' && mine.status === 'approved' && !mine.imagePath && !mine.caption && !isEvidenceSkipped(user?.uid ?? '', mine.id));
   const showNote = Boolean(item.note) && !item.text.includes(item.note as string);
   const pointsText = points !== null ? formatDelta(points) : '';
-  const tone = ['rejected', 'checking'].includes(item.type)
+  const tone = ['rejected', 'checking', 'standing'].includes(item.type)
     ? 'warm'
-    : ['exposed', 'framed', 'fraud'].includes(item.type)
+    : ['exposed', 'framed', 'fraud', 'police-call', 'police-tip'].includes(item.type) || (item.type === 'police-result' && (points ?? 0) < 0)
       ? 'bad'
-      : ['approved', 'global-won'].includes(item.type) && !entry
+      : ['approved', 'global-won', 'global-scored', 'police-result'].includes(item.type) && !entry
         ? 'good'
         : 'plain';
 

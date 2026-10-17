@@ -24,5 +24,9 @@ export function ledgerLabels(t: TermForms, voice: LedgerVoice): Record<LedgerRea
     framed: { you: 'You were framed', them: 'They were framed', gm: 'Framed' }[voice],
     skipped: `Skipped a ${t.sideQuest.one}`,
     missed: `Missed a ${t.checkin.one}`,
+    fastest: `Fastest ${t.sideQuest.one} entry`,
+    'police-pass': `Passed a ${t.policeCall.one}`,
+    'police-fail': `Failed a ${t.policeCall.one}`,
+    'police-missed': `Missed a ${t.policeCall.one}`,
   };
 }

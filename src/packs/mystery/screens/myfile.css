@@ -26,8 +26,6 @@
 .mf-mug__btn { display: block; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .mf-mug__btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 3px; }
 .mf-mug .mf-mug__face.avatar { border: 0; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
-.mf-mug__clip { position: absolute; left: 50%; top: -18px; margin-left: -8px; pointer-events: none; }
-.mf-mug__clip .cf-clip { position: static; }
 .mf-head__who { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
 .mf-head__name { font-family: var(--display); font-size: 24px; line-height: 1.05; text-transform: none; overflow-wrap: anywhere; color: var(--manila-ink); }
 .mf-head__line { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-ink); overflow-wrap: anywhere; }
@@ -100,3 +98,5 @@
 .mf-profile__who { display: flex; align-items: center; gap: 12px; }
 .mf-profile__name { font-weight: 600; font-size: 15px; }
 .mf-profile__actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.mf-standing { margin-top: 6px; }

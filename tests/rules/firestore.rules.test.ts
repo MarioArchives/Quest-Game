@@ -168,6 +168,10 @@ describe('3. player profiles', () => {
     ['extraRerolls alongside their photo', { photoURL: 'https://x/z.jpg', extraRerolls: 5 }],
     ['questsCompleted', { questsCompleted: 40 }],
     ['name and points together', { displayName: 'Ally', points: 1 }],
+    ['their standing', { standing: 'confidant' }],
+    ['when they were last checked by the police', { lastCheckedAt: T }],
+    ['when they last tipped off the police', { lastSnitchedAt: null }],
+    ['a police field alongside their photo', { photoURL: 'https://x/z.jpg', lastSnitchedAt: null }],
   ])('cannot change %s', async (_label, data) => {
     await assertFails(updateDoc(doc(as('alice'), 'players/alice'), data));
   });
@@ -749,6 +753,50 @@ describe('C1. periodic missions, their check-ins and answers', () => {
       await assertFails(deleteDoc(doc(as(uid), 'checkins/c1')));
       await assertFails(setDoc(doc(as(uid), `checkins/c1/answers/${uid}`), { uid, caption: 'Here', createdAt: serverTimestamp() }));
       await assertFails(updateDoc(doc(as(uid), 'checkins/c1/answers/alice'), { caption: 'Changed' }));
+    }
+  });
+});
+
+describe('Police check-ins are private to the player being checked and the GM (plan edge case 35)', () => {
+  async function seedCall() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'policeCalls/pc1'), {
+        uid: 'alice', kind: 'tip', byUid: 'bob', note: 'Shifty', question: "What's 7 + 8?", expected: '15', startsAt: T, endsAt: T,
+        status: 'open', answer: null, answeredAt: null, passPoints: 5, failPenalty: 5,
+      });
+    });
+  }
+
+  it('the player being checked reads their own calls, by doc or by a query on their uid', async () => {
+    await seedCall();
+    await assertSucceeds(getDoc(doc(as('alice'), 'policeCalls/pc1')));
+    await assertSucceeds(getDocs(query(collection(as('alice'), 'policeCalls'), where('uid', '==', 'alice'))));
+    await assertSucceeds(getDocs(query(collection(as('alice'), 'policeCalls'), where('uid', '==', 'alice'), where('status', '==', 'open'))));
+  });
+
+  it('the GM reads every call', async () => {
+    await seedCall();
+    await assertSucceeds(getDoc(doc(as('gm'), 'policeCalls/pc1')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'policeCalls')));
+  });
+
+  it('nobody else reads them, not even the confidant who tipped', async () => {
+    await seedCall();
+    for (const uid of ['bob', 'carol', 'pending']) {
+      await assertFails(getDoc(doc(as(uid), 'policeCalls/pc1')));
+      await assertFails(getDocs(query(collection(as(uid), 'policeCalls'), where('uid', '==', 'alice'))));
+      await assertFails(getDocs(collection(as(uid), 'policeCalls')));
+    }
+    await assertFails(getDocs(collection(as('alice'), 'policeCalls')));
+    await assertFails(getDoc(doc(anon(), 'policeCalls/pc1')));
+  });
+
+  it('no client writes a call, not the player or the GM (the functions do)', async () => {
+    await seedCall();
+    for (const uid of ['alice', 'bob', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), 'policeCalls/pc2'), { uid, kind: 'watch', status: 'open' }));
+      await assertFails(updateDoc(doc(as(uid), 'policeCalls/pc1'), { status: 'passed', answer: '15' }));
+      await assertFails(deleteDoc(doc(as(uid), 'policeCalls/pc1')));
     }
   });
 });

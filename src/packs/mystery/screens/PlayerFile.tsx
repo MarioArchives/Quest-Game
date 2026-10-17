@@ -17,7 +17,8 @@ import { characterLine } from '../../../screens/player/PlayerTicket';
 import { usePlayerData, type PlayerData } from '../../../screens/player/usePlayerData';
 import { useSession } from '../../../session/SessionProvider';
 import { Folder, Stamp, Strung, Tag, TagTop } from './CaseKit';
-import { ExhibitsFolder, Stat, SuspectHead } from './FileParts';
+import { TipOff, useTipOffApplies } from '../../../screens/home/TipOff';
+import { ExhibitsFolder, StandingStamp, Stat, SuspectHead } from './FileParts';
 import '../../../screens/player/player.css';
 import './playerfile.css';
 
@@ -89,7 +90,7 @@ function Pass({ player }: { player: RankedPlayer }) {
   return (
     <div className="mf">
       <BackLink />
-      <Folder tab={`Suspect file · ${firstName(name)}`} label={`${name}'s profile`} className="mf-suspect">
+      <Folder tab={`Suspect file · ${firstName(name)}`} clip="tab" label={`${name}'s profile`} className="mf-suspect">
         <SuspectHead
           photo={player.photoURL ?? null}
           name={charName}
@@ -97,6 +98,7 @@ function Pass({ player }: { player: RankedPlayer }) {
           uid={player.id}
           line={character ? `${characterLine({ name: character.name, role: character.role })} · played by ${firstName(name)}` : name}
         >
+          <StandingStamp points={player.points} />
           {player.left ? <p className="pf-status">{out ? 'Out of the game' : 'Left · score frozen'}</p> : null}
         </SuspectHead>
         <dl className="mf-stats">
@@ -123,9 +125,25 @@ function Pass({ player }: { player: RankedPlayer }) {
         )
       ) : null}
 
+      <TipOffTag target={player} />
+
       <ExhibitsFolder exhibits={exhibits} empty={`No exhibits yet. Photos from ${t.sideQuest.many} they enter are filed here.`} />
       <Statement player={player} data={data} />
     </div>
+  );
+}
+
+/** The tip-off to the police as a strung tag (a police pack, not yourself, not someone who has left). */
+function TipOffTag({ target }: { target: RankedPlayer }) {
+  const applies = useTipOffApplies(target);
+  if (!applies) return null;
+  return (
+    <Strung className="pf-accuse" label="Tip off the police">
+      <Tag>
+        <TagTop left="Tip-off · Form 7" />
+        <TipOff target={target} />
+      </Tag>
+    </Strung>
   );
 }
 

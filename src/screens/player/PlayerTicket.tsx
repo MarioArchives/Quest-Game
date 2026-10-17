@@ -3,6 +3,7 @@ import { Avatar } from '../../components/Avatar';
 import type { RankedPlayer } from '../../data/GameProvider';
 import { features } from '../../pack';
 import { ordinal } from '../../lib/record';
+import { StandingBadge } from '../home/StandingBadge';
 
 const STATUS = {
   playing: 'Status · playing',
@@ -36,6 +37,7 @@ export function PlayerTicket({ player, isMe, boardSize, gap }: { player: RankedP
         <p className="pl-ticket__score">
           <span className="pl-ticket__pts">{player.points ?? 0}</span>
           <span className="pl-ticket__unit">pts</span>
+          <StandingBadge points={player.points} className="pl-ticket__standing" />
           {gap && !out ? <span className="pl-ticket__gap">&middot; {gap}</span> : null}
         </p>
       </div>

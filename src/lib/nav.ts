@@ -2,7 +2,7 @@
 import type { Features } from '../../functions/src/shared/packs/types.ts';
 
 export type TabId = 'home' | 'map' | 'account' | 'gm' | 'wrap';
-export type GmSectionId = 'game' | 'joins' | 'review' | 'quests' | 'periodics' | 'players' | 'guesses' | 'templates' | 'settings';
+export type GmSectionId = 'game' | 'joins' | 'review' | 'quests' | 'story' | 'periodics' | 'police' | 'players' | 'guesses' | 'templates' | 'settings';
 
 /** Bottom tabs in order: Home, Map (map feature), Account, GM (admins), Wrap (once the game has ended). */
 export function tabsFor(opts: { features: Features; isAdmin: boolean; ended: boolean }): TabId[] {
@@ -14,11 +14,19 @@ export function tabsFor(opts: { features: Features; isAdmin: boolean; ended: boo
   return tabs;
 }
 
-/** GM console sections in order; 'quests' (side quests) needs sideQuests, 'periodics' checkins and 'guesses' guesses. */
-export function gmSectionsFor(features: Features): GmSectionId[] {
-  const all: GmSectionId[] = ['game', 'joins', 'review', 'quests', 'periodics', 'players', 'guesses', 'templates', 'settings'];
+/**
+ * GM console sections in order; 'quests' (side quests) needs sideQuests, 'story' needs side quests and a story list
+ * (`opts.story`), 'periodics' checkins, 'police' police and 'guesses' guesses.
+ */
+export function gmSectionsFor(features: Features, opts: { story?: boolean } = {}): GmSectionId[] {
+  const all: GmSectionId[] = ['game', 'joins', 'review', 'quests', 'story', 'periodics', 'police', 'players', 'guesses', 'templates', 'settings'];
   return all.filter(
-    (id) => (id !== 'quests' || features.sideQuests) && (id !== 'periodics' || Boolean(features.checkins)) && (id !== 'guesses' || features.guesses),
+    (id) =>
+      (id !== 'quests' || features.sideQuests) &&
+      (id !== 'story' || (features.sideQuests && Boolean(opts.story))) &&
+      (id !== 'periodics' || Boolean(features.checkins)) &&
+      (id !== 'police' || Boolean(features.police)) &&
+      (id !== 'guesses' || features.guesses),
   );
 }
 

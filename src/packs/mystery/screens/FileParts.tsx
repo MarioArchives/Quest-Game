@@ -1,5 +1,5 @@
 // Pieces My file and the other player's file have in common, in the case-file look (E4·1): the top strip, the
-// suspect head (a round paperclipped mugshot, the case number, the name and character), the stat boxes, the sealed
+// suspect head (a round mugshot, the case number, the name and character), the stat boxes, the sealed
 // motive and the exhibits folder of clipped prints.
 import { useMemo, type ReactNode } from 'react';
 import { Avatar } from '../../../components/Avatar';
@@ -8,7 +8,8 @@ import { useNow } from '../../../data/hooks';
 import type { Exhibit } from '../../../lib/exhibits';
 import { zone } from '../../../pack';
 import { caseNumber, surnameInitial } from '../dossier';
-import { Folder, Paperclip } from './CaseKit';
+import { standingWord, useStanding } from '../../../screens/home/StandingBadge';
+import { Folder, Paperclip, Stamp } from './CaseKit';
 import './myfile.css';
 
 export const PRECINCT = 'Blackwood Manor PD';
@@ -39,9 +40,9 @@ export function TopStrip() {
 }
 
 /**
- * The suspect's head: a round, borderless mugshot with a paperclip (a silhouette without a photo), the case number,
- * the surname-and-initial name and the character line. With `onEditPhoto` (My file) the mugshot and an EDIT PHOTO
- * link open the photo picker.
+ * The suspect's head: a round, borderless mugshot (a silhouette without a photo), the case number, the
+ * surname-and-initial name and the character line. With `onEditPhoto` (My file) the mugshot and an EDIT PHOTO link
+ * open the photo picker. The paperclip is on its folder's tab (`clip="tab"`).
  */
 export function SuspectHead({
   photo,
@@ -73,9 +74,6 @@ export function SuspectHead({
         ) : (
           mug
         )}
-        <span className="mf-mug__clip">
-          <Paperclip />
-        </span>
       </div>
       <div className="mf-head__who">
         <span className="cf-meta">Case {caseNumber(uid)}</span>
@@ -89,6 +87,17 @@ export function SuspectHead({
         {children}
       </div>
     </div>
+  );
+}
+
+/** The stamp for a standing (confidant in green, person of interest in red); nothing without one. */
+export function StandingStamp({ points }: { points: number | null | undefined }) {
+  const standing = useStanding(points);
+  if (!standing) return null;
+  return (
+    <p className="mf-standing">
+      <Stamp tone={standing === 'confidant' ? 'good' : 'bad'}>{standingWord(standing)}</Stamp>
+    </p>
   );
 }
 

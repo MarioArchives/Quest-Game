@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import look from '@pack';
+import { Suspense, type ReactNode } from 'react';
 import { RouterProvider } from 'react-router';
 import { packMismatch } from '../functions/src/shared/packs/index.ts';
 import { Loader } from './components/Loader';
@@ -13,6 +14,9 @@ import { SignInScreen } from './screens/auth/SignInScreen';
 import { SignUpScreen } from './screens/auth/SignUpScreen';
 import { WaitingScreen } from './screens/auth/WaitingScreen';
 import { useSession } from './session/SessionProvider';
+
+/** The pack's own signed-out screen, when it has one. */
+const PackSignIn = look.screens?.signIn;
 
 /** Blocks the app when the data was seeded for a different game than this build. */
 function PackCheck({ children }: { children: ReactNode }) {
@@ -38,7 +42,15 @@ export function Gate() {
   if (session.phase === 'loading') {
     return <Loader fullScreen size={96} label={`Loading ${pack.name}`} caption={pack.name} />;
   }
-  if (session.phase === 'signed-out') return <SignInScreen />;
+  if (session.phase === 'signed-out') {
+    return PackSignIn ? (
+      <Suspense fallback={<Loader fullScreen size={96} label={`Loading ${pack.name}`} caption={pack.name} />}>
+        <PackSignIn />
+      </Suspense>
+    ) : (
+      <SignInScreen />
+    );
+  }
 
   if (session.player || session.isAdmin) {
     return (

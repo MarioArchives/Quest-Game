@@ -5,6 +5,8 @@ import { CALLABLES, type Services } from '../../../functions/src/game/callables.
 import type { Ctx } from '../../../functions/src/game/context.ts';
 import { runPeriodics } from '../../../functions/src/game/checkins.ts';
 import { periodicSeeds } from '../../../functions/src/shared/periodics.ts';
+import { runPolice } from '../../../functions/src/game/police.ts';
+import { runStandings } from '../../../functions/src/game/standing.ts';
 import { runTick } from '../../../functions/src/game/globals.ts';
 import { buildDemo, type DemoGame } from '../../../functions/src/shared/demo/index.ts';
 import { defaultSettingsFor } from '../../../functions/src/shared/packs/index.ts';
@@ -125,6 +127,8 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
   async function tick() {
     await runTick(store, now(), rng, pack);
     await runPeriodics(store, now(), rng, pack);
+    await runStandings(store, now(), pack);
+    await runPolice(store, now(), rng, pack);
     await triggers.settle();
   }
 

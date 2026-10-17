@@ -10,10 +10,12 @@ import { GmDataProvider, useGmData } from './GmData';
 import { GuessLogSection } from './GuessLogSection';
 import { JoinSection } from './JoinSection';
 import { PeriodicsSection } from './PeriodicsSection';
+import { PoliceSection } from './PoliceSection';
 import { PlayersSection } from './PlayersSection';
 import { QuestsSection } from './QuestsSection';
 import { ReviewSection } from './ReviewSection';
 import { SettingsSection } from './SettingsSection';
+import { STORY, StorySection } from './StorySection';
 import { TemplatesSection } from './TemplatesSection';
 import './gm.css';
 
@@ -24,7 +26,9 @@ const LABELS: Record<GmSection, string> = {
   joins: 'Joins',
   review: 'Review',
   quests: t.sideQuest.Many,
+  story: 'Story',
   periodics: t.checkin.Many,
+  police: t.policeCall.Many,
   players: 'Players',
   guesses: 'Guesses',
   templates: t.quest.Many,
@@ -32,7 +36,7 @@ const LABELS: Record<GmSection, string> = {
 };
 
 /** The sections this pack's features leave in the console. */
-const SECTIONS: { id: GmSection; label: string }[] = gmSectionsFor(features).map((id) => ({ id, label: LABELS[id] }));
+const SECTIONS: { id: GmSection; label: string }[] = gmSectionsFor(features, { story: STORY.length > 0 }).map((id) => ({ id, label: LABELS[id] }));
 
 const STORAGE_KEY = 'fq:gm-section';
 
@@ -124,7 +128,9 @@ function Console() {
         {section === 'joins' ? <JoinSection /> : null}
         {section === 'review' ? <ReviewSection /> : null}
         {section === 'quests' ? <QuestsSection /> : null}
+        {section === 'story' ? <StorySection /> : null}
         {section === 'periodics' ? <PeriodicsSection /> : null}
+        {section === 'police' ? <PoliceSection /> : null}
         {section === 'players' ? <PlayersSection /> : null}
         {section === 'guesses' ? <GuessLogSection /> : null}
         {section === 'templates' ? <TemplatesSection /> : null}

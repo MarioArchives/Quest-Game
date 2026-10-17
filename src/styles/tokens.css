@@ -1,6 +1,7 @@
 /* Engine design tokens: neutral defaults. A game pack's theme.css (src/packs/<id>/) overrides them.
-   Paper, ink and one accent colour. */
-:root {
+   Paper, ink and one accent colour. `:where()` gives these no weight, so a pack's `:root` wins whatever order the
+   bundler loads the sheets in (a production build can put this file last). */
+:where(:root) {
   --paper: #f5f5f2;
   --card: #ffffff;
   --ink: #161616;

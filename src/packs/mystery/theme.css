@@ -220,7 +220,7 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
  * Every other sheet as a manila folder (E4·1): the head is the folder's tab strip, the body manila, inputs on paper,
  * secondary buttons ink-outlined on the manila; primary stays teal and danger red. The colour tokens are re-scoped
  * inside the sheet, so the engine's cards, notes, tags and fields follow without their own rules. The reward pop-up
- * (below) keeps its felt card.
+ * (below) is its own case file.
  */
 .sheet:not(:has(.reward-sheet)) {
   --paper: var(--manila);
@@ -249,44 +249,85 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .sheet:not(:has(.reward-sheet)) .note { background: #fbf8ef; }
 .sheet:not(:has(.reward-sheet)) .tag--ink { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); font-family: var(--mono); transform: rotate(-2deg); }
 
-/* the reward pop-up (P4 v2): a card in the middle of the room, felt header, big discs, round red-ringed targets */
+/*
+ * The reward pop-up as a case file in the middle of the room: an "Evidence secured" folder with its tab and a
+ * paperclip, the two choices as kraft evidence tags (an eyelet, a rubber-stamp mark and a stamped word), and "frame
+ * who?" as little mugshot prints laid on the folder.
+ */
 .sheet-root:has(.reward-sheet) { justify-content: center; padding: 0 16px; }
-.sheet:has(.reward-sheet) { max-width: none; width: 100%; max-height: 80dvh; box-shadow: 0 6px 0 var(--wall-shadow); animation: none; }
-.sheet:has(.reward-sheet) .sheet__head { justify-content: center; }
-.sheet:has(.reward-sheet) .sheet__titles { text-align: center; }
+.sheet:has(.reward-sheet) {
+  --ink: var(--manila-ink);
+  --muted: var(--manila-sub);
+  max-width: 420px; width: 100%; max-height: 80dvh; background: transparent; box-shadow: none; animation: none;
+}
+.sheet:has(.reward-sheet) .sheet__head {
+  align-self: flex-start; margin-left: 18px; padding: 8px 16px 6px; border: 0; border-radius: 7px 7px 0 0;
+  background: var(--manila-tab); background-image: none; color: var(--manila-ink);
+}
+.sheet:has(.reward-sheet) .sheet__title { font-size: 13px; }
 .sheet:has(.reward-sheet) .btn-icon { display: none; }
-.sheet:has(.reward-sheet) .sheet__body { padding: 24px 10px 24px; gap: 8px; }
-.reward-sheet { gap: 8px; }
-.reward-sheet__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+.sheet:has(.reward-sheet) .sheet__body {
+  padding: 18px 14px 22px; gap: 14px;
+  background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: 0 6px 0 var(--wall-shadow);
+}
+/* The paperclip on the folder's top edge (on the sheet, so the body's scrolling can't clip it). */
+.sheet:has(.reward-sheet)::after {
+  content: ''; position: absolute; z-index: 1; right: 22px; top: 16px; width: 16px; height: 44px; pointer-events: none;
+  background: var(--ic-clip) no-repeat center / contain;
+}
+.reward-sheet { gap: 14px; }
+.reward-sheet::before {
+  content: 'Witness confirmed · your call';
+  padding-right: 34px; /* clear of the paperclip */
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.reward-sheet:has(.reward-grid)::before { content: 'Pick a suspect · nobody will know it was you'; }
+.reward-sheet__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; filter: drop-shadow(0 3px 0 rgba(42, 33, 22, 0.35)); }
 .reward-disc {
-  all: unset;
-  box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  cursor: pointer;
-  font-family: var(--mono);
-  text-align: center;
+  all: unset; box-sizing: border-box; position: relative; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 8px 16px; text-align: center;
+  background: var(--kraft); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.05));
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%, 0 16px);
+  font-family: var(--mono); color: var(--manila-ink);
 }
+.reward-disc--clean { transform: rotate(-1.5deg); }
+.reward-disc--frame { transform: rotate(1.5deg); }
+/* The tag's eyelet. */
+.reward-disc::after {
+  content: ''; position: absolute; top: 10px; left: 50%; margin-left: -8px; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%;
+  border: 3px solid var(--eyelet); background: var(--manila); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge);
+}
+/* The rubber-stamp mark: a ring of ink round the shredder or the crosshair. */
 .reward-disc::before {
-  content: ''; width: 84px; height: 84px; border-radius: 50%; display: block;
-  background-repeat: no-repeat; background-position: center; background-size: 38px 38px;
+  content: ''; display: block; width: 72px; height: 72px; box-sizing: border-box; border-radius: 50%; border: 3px solid;
+  background: no-repeat center / 34px 34px; transform: rotate(-8deg); opacity: 0.9;
 }
-.reward-disc--clean::before { background-color: var(--accent); background-image: var(--ic-destroy); }
-.reward-disc--frame::before { background-color: var(--warn); background-image: var(--ic-frame); }
-.reward-disc:hover:not(:disabled) { background: transparent; color: inherit; }
-.reward-disc:hover:not(:disabled)::before { box-shadow: 0 0 0 3px var(--ink); }
-.reward-disc:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+.reward-disc--clean::before { border-color: var(--stamp-plain); background-image: var(--ic-destroy-ink); }
+.reward-disc--frame::before { border-color: var(--stamp-bad); background-image: var(--ic-frame-ink); }
+.reward-disc:hover:not(:disabled) { background-color: var(--manila-tab); color: var(--manila-ink); }
+.reward-disc:focus-visible .reward-disc__label { outline: 3px solid var(--manila-ink); outline-offset: 3px; }
 .reward-disc:disabled { opacity: 0.5; cursor: progress; }
-.reward-disc__label { order: 1; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; }
-.reward-disc__points { order: 2; font-family: var(--body); font-size: 12px; font-weight: 400; }
-.reward-disc--clean .reward-disc__points { color: var(--teal-text); }
-.reward-disc--frame .reward-disc__points { color: var(--warn-text); }
-.reward-sheet__back { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
-.reward-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 0; }
-.reward-target { gap: 4px; padding: 4px 0; border-radius: 0; font-family: var(--mono); }
-.reward-target:hover:not(:disabled) { background: transparent; }
+.reward-disc__label {
+  order: 1; padding: 2px 10px; border: 2px solid currentColor; transform: rotate(-3deg);
+  font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; line-height: 1.3;
+}
+.reward-disc--clean .reward-disc__label { color: var(--stamp-plain); }
+.reward-disc--frame .reward-disc__label { color: var(--stamp-bad); }
+.reward-disc__points { order: 2; font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--manila-sub); }
+.reward-disc--clean .reward-disc__points::after { content: ' to you'; }
+.reward-disc--frame .reward-disc__points::after { content: ' off a suspect'; }
+.reward-sheet__back { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-ink); }
+.reward-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.reward-target {
+  gap: 4px; padding: 8px 4px; border-radius: 0; background: var(--print); color: var(--manila-ink);
+  box-shadow: 0 2px 0 rgba(42, 33, 22, 0.35); font-family: var(--mono); transform: rotate(-1.5deg);
+}
+.reward-grid > li:nth-child(even) .reward-target { transform: rotate(1.2deg); }
+.reward-target:hover:not(:disabled) { background: #fff; box-shadow: 0 0 0 2px var(--warn), 0 2px 0 rgba(42, 33, 22, 0.35); }
+.reward-target:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
 .reward-target .avatar { border: 2px solid var(--warn); }
-.reward-target__name { font-size: 11px; color: var(--ink); }
-.reward-target__score { font-size: 11px; color: var(--muted); }
+.reward-target__name { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-ink); }
+.reward-target__score { font-size: 11px; color: var(--manila-sub); }
 
 /* ---------- sign-in family ---------- */
 .auth { background: var(--wall); color: var(--walltext); }
@@ -306,6 +347,10 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 :root {
   --ic-destroy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6'%3E%3Crect x='5' y='3' width='14' height='8'/%3E%3Cpath d='M7 11v10M10 11v8M13 11v10M16 11v7'/%3E%3C/svg%3E");
   --ic-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 1v5M12 18v5M1 12h5M18 12h5'/%3E%3C/svg%3E");
+  /* the same in stamp ink (the case-file reward), and the folder's paperclip */
+  --ic-destroy-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='none' stroke='%2314544f' stroke-width='1.8'%3E%3Crect x='5' y='3' width='14' height='8'/%3E%3Cpath d='M7 11v10M10 11v8M13 11v10M16 11v7'/%3E%3C/svg%3E");
+  --ic-frame-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='none' stroke='%238f2a22' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 1v5M12 18v5M1 12h5M18 12h5'/%3E%3C/svg%3E");
+  --ic-clip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='44' viewBox='0 0 16 44'%3E%3Cpath d='M5 40 V8 a3 3 0 0 1 6 0 V34 a5 5 0 0 1 -10 0 V12' fill='none' stroke='%239aa0a3' stroke-width='2'/%3E%3C/svg%3E");
 }
 
 

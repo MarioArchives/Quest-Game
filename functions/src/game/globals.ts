@@ -2,14 +2,14 @@ import type { DocSnap, Txn } from '../shared/store/types.js';
 import { drawTemplate } from '../shared/draw.js';
 import { getPack } from '../shared/packs/index.js';
 import { termForms } from '../shared/packs/terms.js';
-import type { GamePack } from '../shared/packs/types.js';
-import type { GlobalQuest, GlobalQuestSource, QuietHours, Settings } from '../shared/types.js';
+import type { GamePack, StoryQuest } from '../shared/packs/types.js';
+import type { GlobalQuest, GlobalQuestSource, Judging, QuietHours, Settings } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { fail, loadSettings, loadState, requireGM } from './guards.js';
 import { MIN_MS, millis, nextGlobalTime, toTs } from './util.js';
 import { scoringFor } from './ledger.js';
-import { closeWithTally, readAllEntries, readPlayers, readVotes, startChecking, type Entry, type Quest } from './voting.js';
+import { closeWithTally, moveOn, readAllEntries, readMoveOn, readVotes, type Entry, type Quest } from './voting.js';
 
 function minutesOfDay(hhmm: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
@@ -68,6 +68,8 @@ interface OpenSpec {
   source: GlobalQuestSource;
   templateId: string | null;
   windowMin: number;
+  /** A story mission's own fields (see GlobalQuest); a random or custom side quest leaves them out. */
+  story?: { storyId: string; judging: Judging; skipPenalty: number; fastestBonus: number };
 }
 
 /** Creates a live side quest, schedules the next timer quest and announces it. Returns the new id. */
@@ -94,6 +96,7 @@ function openGlobalQuest(
     winnerUids: [],
     winningSubmissionIds: [],
     tally: null,
+    ...(spec.story ? { ...spec.story, gmChecks: false } : {}),
   };
   tx.create(ref, quest);
   tx.update(db.doc('game/state'), { nextGlobalQuestAt: toTs(nextGlobalTime(now, settings, rng)) });
@@ -143,25 +146,32 @@ export async function runTick(db: Db, now: Date, rng: () => number, pack: GamePa
     // Checking never runs out: only a GM opens the vote.
     const votingOver = quests.filter((q) => q.get('status') === 'voting' && q.get('votingEndsAt') && millis(q.get('votingEndsAt')) <= nowMs);
 
+    // A due random drop needs the timer on, and waits while a story mission is still open for entries.
     const nextAt = state.nextGlobalQuestAt;
-    const due = !isQuietHours(now, settings.quietHours, pack.timeZone) && (nextAt == null || millis(nextAt) <= nowMs);
+    const storyOpen = running.some((q) => q.get('storyId'));
+    const due =
+      settings.autoSideQuests !== false &&
+      !storyOpen &&
+      !isQuietHours(now, settings.quietHours, pack.timeZone) &&
+      (nextAt == null || millis(nextAt) <= nowMs);
     const template = due ? await chooseGlobalTemplate(tx, db, quests, rng) : null;
 
     // Only one live quest at a time: whatever is still running makes way for the new one (late entries still count).
-    const moveOn = [...expired, ...(template ? running : [])];
+    const moving = [...expired, ...(template ? running : [])].map(asQuest);
+    const move = await readMoveOn(tx, db, moving, votingOver.length > 0);
     const entries = votingOver.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
     const votes = new Map<string, Map<string, string>>();
     for (const q of votingOver) votes.set(q.id, await readVotes(tx, db, q.id));
-    const players = votingOver.length > 0 ? await readPlayers(tx, db) : new Map();
     const scoring = scoringFor(pack, settings, state, now);
 
     const result: TickResult = { opened: null, closed: [], checking: [] };
-    for (const doc of moveOn) {
-      startChecking(tx, db, now, pack, asQuest(doc));
-      result.checking.push(doc.id);
+    for (const q of moving) {
+      const status = moveOn(tx, db, now, pack, settings, scoring, q, move);
+      if (status === 'checking') result.checking.push(q.id);
+      else if (status === 'closed') result.closed.push(q.id);
     }
     for (const doc of votingOver) {
-      closeWithTally(tx, db, now, pack, scoring, asQuest(doc), entries.get(doc.id) ?? [], votes.get(doc.id) ?? new Map(), players);
+      closeWithTally(tx, db, now, pack, scoring, asQuest(doc), entries.get(doc.id) ?? [], votes.get(doc.id) ?? new Map(), move.players);
       result.closed.push(doc.id);
     }
     if (template) result.opened = openGlobalQuest(tx, db, now, rng, pack, settings, fromTemplate(template, settings, 'timer'));
@@ -176,8 +186,17 @@ interface GmFields {
   points?: unknown;
 }
 
+/** A story mission from the pack's list; anything left out falls back to the story's own value, then to the settings. */
+interface StoryFields extends GmFields {
+  storyId?: unknown;
+  judging?: unknown;
+  fastestBonus?: unknown;
+  penalty?: unknown;
+}
+
 export type FireGlobalInput =
   | { mode?: 'random' }
+  | ({ mode: 'story' } & StoryFields)
   | ({ mode: 'custom' } & GmFields)
   /** One the GM drew and looked at first (see `drawTemplate`), sent as it is or with their edits. */
   | ({ mode: 'template'; templateId?: unknown } & GmFields);
@@ -222,6 +241,36 @@ function parseFields(data: Record<string, unknown>, base?: Fields): Fields {
   return { title, description, windowMin, points };
 }
 
+/** A whole number, 0 or more, when given (null counts as not given). */
+function parseCount(value: unknown, what: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) fail('invalid-argument', `${what} must be a whole number, 0 or more.`);
+  return value as number;
+}
+
+/** The story mission's fields: the GM's changes over the story's own values over the settings. */
+function storySpec(input: Record<string, unknown>, story: StoryQuest, settings: Settings): OpenSpec {
+  const f = parseFields(input, {
+    title: story.title,
+    description: story.description,
+    windowMin: story.windowMin ?? settings.globalWindowMin,
+    points: story.points ?? settings.sideQuestPoints,
+  });
+  const judging = input.judging ?? story.judging;
+  if (judging !== 'vote' && judging !== 'submit') fail('invalid-argument', "Judging must be 'vote' or 'submit'.");
+  const fastestBonus = parseCount(input.fastestBonus, 'The fastest bonus') ?? story.fastestBonus ?? 0;
+  const skipPenalty = parseCount(input.penalty, 'The fine') ?? story.penalty ?? settings.sideQuestSkipPenalty;
+  return {
+    title: f.title,
+    description: f.description,
+    bonusPoints: f.points,
+    source: 'story',
+    templateId: null,
+    windowMin: f.windowMin,
+    story: { storyId: story.id, judging: judging as Judging, skipPenalty, fastestBonus },
+  };
+}
+
 function parseCustom(data: Record<string, unknown>): OpenSpec {
   const f = parseFields(data);
   return { title: f.title, description: f.description, bonusPoints: f.points, source: 'gm-custom', templateId: null, windowMin: f.windowMin };
@@ -243,7 +292,11 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
 
     const input = data as Record<string, unknown>;
     const mode = input.mode ?? 'random';
-    if (mode !== 'random' && mode !== 'custom' && mode !== 'template') fail('invalid-argument', "mode must be 'random', 'custom' or 'template'.");
+    if (mode !== 'random' && mode !== 'custom' && mode !== 'template' && mode !== 'story') {
+      fail('invalid-argument', "mode must be 'random', 'custom', 'template' or 'story'.");
+    }
+    const storyId = input.storyId;
+    if (mode === 'story' && (typeof storyId !== 'string' || storyId.length === 0)) fail('invalid-argument', 'Say which story mission to fire.');
     const custom = mode === 'custom' ? parseCustom(input) : null;
     const templateId = input.templateId;
     if (mode === 'template' && (typeof templateId !== 'string' || templateId.length === 0 || templateId.includes('/'))) {
@@ -255,6 +308,13 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
     let spec: OpenSpec;
     if (custom) {
       spec = custom;
+    } else if (mode === 'story') {
+      const story = (pack.catalogue.story ?? []).find((q) => q.id === storyId);
+      if (!story) fail('not-found', `That story mission is not in this game.`);
+      if (quests.some((q) => q.get('storyId') === storyId && q.get('status') !== 'closed')) {
+        fail('failed-precondition', `That story mission is already running.`);
+      }
+      spec = storySpec(input, story!, settings);
     } else if (mode === 'template') {
       const doc = await tx.get(db.doc(`questTemplates/${templateId as string}`));
       if (!doc.exists) fail('not-found', `That ${t.sideQuest.one} is no longer in the templates.`);
@@ -273,9 +333,12 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
       spec = fromTemplate(template, settings, 'gm-random');
     }
 
-    // Only one live quest at a time: the current one moves on to checking first (late entries still count there).
-    const live = quests.filter((q) => q.get('status') === 'live');
-    for (const doc of live) startChecking(tx, db, ctx.now, pack, asQuest(doc), ctx.uid);
+    // Only one live quest at a time: the current one moves on first, by its own mode (a random one to checking,
+    // where late entries still count; a story vote to voting; a story submission is scored).
+    const live = quests.filter((q) => q.get('status') === 'live').map(asQuest);
+    const move = await readMoveOn(tx, db, live);
+    const scoring = scoringFor(pack, settings, state, ctx.now);
+    for (const q of live) moveOn(tx, db, ctx.now, pack, settings, scoring, q, move, ctx.uid);
     return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, pack, settings, spec) };
   });
 }

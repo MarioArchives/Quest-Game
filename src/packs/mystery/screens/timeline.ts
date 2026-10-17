@@ -124,5 +124,10 @@ export function kicker(type: FeedType, opts: { entry?: boolean; witness?: string
     case 'checkin-open': return 'ANSWER NOW';
     case 'checkin-answer': return 'PRESENT';
     case 'checkin-closed': return "TIME'S UP";
+    case 'global-scored': return 'GROUP MISSION SCORED';
+    case 'standing': return 'STANDING CHANGED';
+    case 'police-call': return 'POLICE ON THE LINE';
+    case 'police-tip': return 'TIP-OFF FILED';
+    case 'police-result': return 'POLICE REPORT';
   }
 }

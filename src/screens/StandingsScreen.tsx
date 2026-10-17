@@ -5,6 +5,7 @@ import { useGame } from '../data/GameProvider';
 import { firstName, formatPoints, playerLabel, splitStandings, tiedRanks } from '../lib/standings';
 import { useSession } from '../session/SessionProvider';
 import { Podium } from './home/RanksStrip';
+import { StandingBadge } from './home/StandingBadge';
 import './home/ranks.css';
 import { t } from '../pack';
 
@@ -59,6 +60,7 @@ export default function StandingsScreen() {
                         <span className="rk-band__rank">{p.rank}</span>
                         <span className="rk-band__who">
                           <span className="rk-band__name">{you ? 'You' : firstName(p.displayName)}</span>
+                          <StandingBadge points={p.points} />
                           {p.left ? (
                             <span className="rk-band__tag">
                               Left

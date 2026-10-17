@@ -11,6 +11,9 @@ import {
   closeWithTally,
   attachPosts,
   eligibleVoters,
+  isUnchecked,
+  moveOn,
+  readMoveOn,
   finishChecking,
   readEntries,
   readPlayers,
@@ -90,8 +93,8 @@ export async function advanceGlobalQuest(
     const q = { id: questId, ref: questRef, gq };
 
     if (gq.status === 'live') {
-      startChecking(tx, db, ctx.now, ctx.pack, q, by);
-      return { status: 'checking' as const };
+      const move = await readMoveOn(tx, db, [q]);
+      return { status: moveOn(tx, db, ctx.now, ctx.pack, settings, scoringFor(ctx.pack, settings, state, ctx.now), q, move, by) };
     }
     if (gq.status === 'checking') {
       await attachPosts(tx, db, entries);
@@ -131,8 +134,10 @@ export async function enterSideQuest(
     if (gq.status !== 'live' && gq.status !== 'checking') {
       fail('failed-precondition', `Voting has started on this ${t.sideQuest.one}, so entries are closed.`);
     }
-    // Past the window (the timer moves it to checking within 15 min) or while the GMs check: a late entry.
+    // Past the window (the timer moves it on soon) or while the GMs check: a late entry. A story mission takes none,
+    // so the fastest entry and the fines are fair.
     const late = gq.status === 'checking' || ctx.now.getTime() >= millis(gq.endsAt);
+    if (late && isUnchecked(gq)) fail('failed-precondition', `Time is up for this ${t.sideQuest.one}, so entries are closed.`);
     const evidence = parseEvidence(uid, data);
 
     const entries = await readEntries(tx, db, questId);
@@ -142,9 +147,14 @@ export async function enterSideQuest(
     }
     const players = gq.status === 'live' ? await readPlayers(tx, db) : new Map();
 
-    // Everyone still playing in on a live side quest (sealed entries count)? Then time's up: the GMs check them.
+    // Everyone still playing in on a live side quest (sealed entries count)? Then time's up: the GMs check them, or
+    // (a story mission) it goes straight on.
     const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
     const checking = gq.status === 'live' && [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
+    const q = { id: questId, ref: questRef, gq };
+    const direct = checking && isUnchecked(gq);
+    const settings = direct ? await loadSettings(db, tx) : null;
+    const move = direct ? await readMoveOn(tx, db, [q]) : null;
 
     const entryRef = db.collection('submissions').doc();
     const now = toTs(ctx.now);
@@ -162,13 +172,15 @@ export async function enterSideQuest(
       submissionId: entryRef.id,
       questTitle: gq.title,
       photoURL: player.photoURL ?? null,
+      // The last one in moves it straight on, so this entry is revealed at once.
+      ...(direct ? { imagePath: photo.imagePath, thumbPath: photo.thumbPath, caption: photo.caption } : {}),
     });
     const entry: Submission = {
       uid,
       kind: 'global',
       questId,
       createdAt: now,
-      status: 'sealed',
+      status: direct ? 'approved' : 'sealed',
       pointsAwarded: 0,
       ...photo,
       evidenceAt: now,
@@ -178,7 +190,13 @@ export async function enterSideQuest(
     } as Submission;
     tx.create(entryRef, entry);
 
-    if (checking) startChecking(tx, db, ctx.now, ctx.pack, { id: questId, ref: questRef, gq });
+    if (direct) {
+      // The new entry joins the others (already read) as the latest.
+      const all = [...move!.entries.get(questId)!, { id: entryRef.id, ref: entryRef, data: entry }];
+      moveOn(tx, db, ctx.now, ctx.pack, settings!, scoringFor(ctx.pack, settings!, state, ctx.now), q, { ...move!, entries: new Map([[questId, all]]) });
+    } else if (checking) {
+      startChecking(tx, db, ctx.now, ctx.pack, q);
+    }
     return { submissionId: entryRef.id, checking, late };
   });
 }
@@ -221,6 +239,7 @@ export async function checkEntry(
     const questRef = db.doc(`globalQuests/${sub.questId}`);
     const questSnap = await tx.get(questRef);
     const gq = questSnap.data() as GlobalQuest | undefined;
+    if (gq && isUnchecked(gq)) fail('failed-precondition', `Entries to this ${t.sideQuest.one} are not checked: it goes straight on.`);
     if (!gq || gq.status !== 'checking') {
       fail('failed-precondition', "Entries are checked once time is up and before voting opens.");
     }

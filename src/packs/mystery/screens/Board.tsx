@@ -2,14 +2,15 @@
 // Standings is bars from zero on a squared grid (±25 in squares of 5, wider when someone goes past it), filed under
 // its own tab. The standings move: scores glide from what you last saw to where they are, rows slide to their new
 // places, and each change since then shows as a "+5" / "−5" chip for a few seconds.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { Avatar } from '../../../components/Avatar';
 import { Loader } from '../../../components/Loader';
 import { useGame } from '../../../data/GameProvider';
-import { scaleTicks, signed, standingBars, standingScale } from '../../../lib/standingBars';
+import { scaleTicks, signed, standingBars, standingRowSize, standingScale } from '../../../lib/standingBars';
 import { easeOutCubic, parseSeen, pointDeltas, rankUids, tweenPoints, type PointsByUid } from '../../../lib/standingsMotion';
 import { useSession } from '../../../session/SessionProvider';
+import { StandingBadge } from '../../../screens/home/StandingBadge';
 import { TimelineFeed } from './TimelineFeed';
 import './board.css';
 
@@ -151,6 +152,24 @@ function useSlide(order: string[], before: string[]) {
   return list;
 }
 
+/**
+ * The rows share the sheet's height, so a few players fill it: each row (and its bar and face) grows with the room
+ * there is, from the smallest row up to half as big again. Measured before the first paint, and again on resize.
+ */
+function useRowSize(list: RefObject<HTMLOListElement | null>, rows: number, mounted: boolean) {
+  const [space, setSpace] = useState(0);
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!el) return;
+    setSpace(el.clientHeight);
+    if (typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(() => setSpace(el.clientHeight));
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [list, mounted]);
+  return standingRowSize(space, rows);
+}
+
 function Standings() {
   const { user } = useSession();
   const { ready, players } = useGame();
@@ -168,6 +187,7 @@ function Standings() {
     bars.map((b) => b.uid),
     before,
   );
+  const size = useRowSize(list, bars.length, ready && bars.length > 0);
 
   if (!ready) return <Loader className="app__loader" caption="Loading" />;
   if (bars.length === 0) {
@@ -179,12 +199,16 @@ function Standings() {
     );
   }
   const edge = shown[EDGE] ?? scale.max;
-  // A position on the grid, as a share of the half-width: + to the left (in the clear), − to the right.
+  // A position on the grid, as a share of the half-width: − to the left (under suspicion), + to the right.
   const at = (points: number) => points / edge;
   const vars = (v: Record<string, string | number>) => v as CSSProperties;
 
   return (
-    <section className="st" aria-label="Standings" style={vars({ '--rows': bars.length, '--squares': edge / scale.step })}>
+    <section
+      className="st"
+      aria-label="Standings"
+      style={vars({ '--rows': bars.length, '--squares': edge / scale.step, '--st-row': `${size.row}px`, '--st-face': `${size.face}px` })}
+    >
       <div className="st__grid" aria-hidden="true">
         {scaleTicks(scale).map((tick) => (
           <span key={tick.value} className={`st__line${tick.value === 0 ? ' st__line--zero' : ''}`} style={vars({ '--x': at(tick.value) })} />
@@ -192,8 +216,8 @@ function Standings() {
       </div>
       <div className="st__top">
         <div className="st__heads" aria-hidden="true">
-          <span className="st__head st__head--clear">&larr; In the clear</span>
-          <span className="st__head st__head--suspect">Under suspicion &rarr;</span>
+          <span className="st__head st__head--suspect">&larr; Under suspicion</span>
+          <span className="st__head st__head--clear">In the clear &rarr;</span>
         </div>
         <div className="st__axis" aria-hidden="true">
           {scaleTicks(scale).map((tick) =>
@@ -221,10 +245,10 @@ function Standings() {
               >
                 {side !== 'zero' ? <span className="st__bar" /> : null}
                 <span className="st__face">
-                  <Avatar name={b.name} src={b.photoURL} size={40} uid={b.uid} className={`st__icon st__icon--${side}`} />
+                  <Avatar name={b.name} src={b.photoURL} size={size.face} uid={b.uid} className={`st__icon st__icon--${side}`} />
                 </span>
                 <span className="st__label" aria-hidden="true">
-                  <span className={`st__name${b.me ? ' st__name--me' : ''}`}>{b.me ? 'You' : b.name}</span> <span className="st__score">{signed(now)}</span>
+                  <span className={`st__name${b.me ? ' st__name--me' : ''}`}>{b.me ? 'You' : b.name}</span> <span className="st__score">{signed(now)}</span> <StandingBadge points={b.points} className="st__standing" />
                   {delta ? (
                     <span key={change.id} className={`st__delta st__delta--${delta > 0 ? 'up' : 'down'}`}>
                       {signed(delta)}

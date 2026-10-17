@@ -64,6 +64,8 @@ export interface PackLook {
     player?: LazyExoticComponent<ComponentType>;
     /** The GM console at `/gm` (still behind the admin guard); without it the engine's GMConsole is used. */
     gm?: LazyExoticComponent<ComponentType>;
+    /** The signed-out screen; its buttons come from the engine's `useSignIn`. Without it the poster sign-in is used. */
+    signIn?: LazyExoticComponent<ComponentType>;
   };
   /** The reward pop-up's words; the engine has plain defaults. */
   reward?: RewardCopy;

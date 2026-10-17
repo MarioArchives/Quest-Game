@@ -13,6 +13,7 @@ import { PlayerTicket, Wristband } from './player/PlayerTicket';
 import { PointsReceipt } from './player/PointsReceipt';
 import { AchievedList, SideQuestWins } from './player/QuestTickets';
 import { RecordCard } from './player/RecordCard';
+import { TipOff } from './home/TipOff';
 import { usePlayerData, type PlayerData } from './player/usePlayerData';
 import './player/player.css';
 import { features, t } from '../pack';
@@ -127,6 +128,8 @@ function PlayerPass({ player }: { player: RankedPlayer }) {
     <GuessCard target={player} />
   );
 
+  const tip = features.police ? <TipOff target={player} /> : null;
+
   return (
     <>
       <BackLink />
@@ -158,7 +161,7 @@ function PlayerPass({ player }: { player: RankedPlayer }) {
 
       <div className="pl-panel" role="tabpanel" id="pl-panel" aria-labelledby={`pl-tab-${tab}`} tabIndex={0}>
         {tab === 'overview' ? (
-          <Overview player={player} data={data} joined={joinedMs ? dayDate(joinedMs) : null} guess={guess} onTab={(to) => select(to, true)} />
+          <Overview player={player} data={data} joined={joinedMs ? dayDate(joinedMs) : null} guess={guess} tip={tip} onTab={(to) => select(to, true)} />
         ) : tab === 'photos' ? (
           <Section id="pl-photos" title="Photos" meta={`${data.photos.length} approved`}>
             {data.photos.length === 0 ? (
@@ -194,12 +197,14 @@ function Overview({
   data,
   joined,
   guess,
+  tip,
   onTab,
 }: {
   player: RankedPlayer;
   data: PlayerData;
   joined: string | null;
   guess: ReactNode;
+  tip: ReactNode;
   onTab(tab: Tab): void;
 }) {
   const quests = data.achieved.length;
@@ -208,6 +213,7 @@ function Overview({
     <>
       <RecordCard record={data.record} joined={joined} loading={data.ledgerLoading} />
       {guess}
+      {tip}
 
       <Section id="pl-ov-photos" title="Photos" meta={`${data.photos.length} approved`}>
         {data.photos.length === 0 ? (

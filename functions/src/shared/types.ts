@@ -44,6 +44,22 @@ export interface Settings {
   cleanPoints: number;
   /** Reward choice: points taken from the player you frame. */
   framePoints: number;
+  /** Random side quests drop on the timer; off, only the GM fires them (story missions, custom, random). */
+  autoSideQuests: boolean;
+  /** A player is a trusted confidant while their points are above this (null = off). */
+  confidantAbove: number | null;
+  /** A player is a person of interest while their points are below this (null = off). */
+  poiBelow: number | null;
+  /** Police check-ins (packs with police): a person of interest is checked every this many minutes. */
+  policeEveryMin: number;
+  /** A trusted confidant may tip off the police once every this many minutes. */
+  policeTipEveryMin: number;
+  /** Minutes a player has to answer a police check-in. */
+  policeWindowMin: number;
+  /** Points for passing a police check-in. */
+  policePassPoints: number;
+  /** Points lost for failing or missing a police check-in. */
+  policeFailPenalty: number;
   /** Scoring rule-set id (functions/src/shared/scoring); an unknown id falls back to the pack's default. */
   scoring: string;
   /** The rule sets' own numbers by param key (keys are unique across rule sets). */
@@ -99,7 +115,16 @@ export interface Player {
   leftAt?: TS | null;
   /** Packs with characters: who they play, set by the GM. Public; the motive is private (motives/{uid}). */
   character?: { name: string; role: string } | null;
+  /** Their standing as last posted (kept by the onPlayerWritten trigger); the app works it out live from points. */
+  standing?: PlayerStanding | null;
+  /** Packs with police: when the last watch check-in (as a person of interest) went to this player. */
+  lastCheckedAt?: TS | null;
+  /** Packs with police: when this player last tipped off the police about someone else. */
+  lastSnitchedAt?: TS | null;
 }
+
+/** Above settings.confidantAbove: a trusted confidant; below settings.poiBelow: a person of interest. */
+export type PlayerStanding = 'confidant' | 'poi';
 
 /** rewards/{submissionId}: the choice a player earns by completing a personal quest (packs with rewardChoice). */
 export type RewardStatus = 'pending' | 'cleaned' | 'framed' | 'void';
@@ -161,7 +186,9 @@ export interface QuestTemplate {
  * then everyone votes ('voting'); the most-voted entries win (ties all win), then 'closed'.
  */
 export type GlobalQuestStatus = 'live' | 'checking' | 'voting' | 'closed';
-export type GlobalQuestSource = 'timer' | 'gm-random' | 'gm-custom';
+export type GlobalQuestSource = 'timer' | 'gm-random' | 'gm-custom' | 'story';
+/** How a side quest is judged: everyone votes, or everyone who enters scores (no vote). */
+export type Judging = 'vote' | 'submit';
 
 /** globalQuests/{id}. Votes live server-only in globalQuests/{id}/votes/{voterUid}. */
 export interface GlobalQuest {
@@ -181,6 +208,18 @@ export interface GlobalQuest {
   winningSubmissionIds: string[];
   /** Votes per entry (submission id), published when voting closes. */
   tally: Record<string, number> | null;
+  /** The pack's story mission it was fired from (catalogue.story id), if any. */
+  storyId?: string | null;
+  /** Missing = 'vote'. */
+  judging?: Judging;
+  /** Missing = true: a GM checks the entries before the vote. Story missions skip the check (false). */
+  gmChecks?: boolean;
+  /** The fine for not entering, as it opened; missing = settings.sideQuestSkipPenalty. */
+  skipPenalty?: number | null;
+  /** Extra points for the fastest entry still standing when it is scored; missing = 0. */
+  fastestBonus?: number;
+  /** Set when it is scored: the fastest entry, if one was paid the bonus or could have been. */
+  fastestSubmissionId?: string | null;
 }
 
 /** globalQuests/{id}/votes/{voterUid} — server only */
@@ -309,6 +348,10 @@ export const LEDGER_REASON_LIST = [
   'framed',
   'skipped',
   'missed',
+  'fastest',
+  'police-pass',
+  'police-fail',
+  'police-missed',
 ] as const;
 
 export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
@@ -349,7 +392,17 @@ export type FeedType =
   /** A player answered a check-in, with their photo and/or comment on the post. */
   | 'checkin-answer'
   /** A check-in closed; the text names who missed it. */
-  | 'checkin-closed';
+  | 'checkin-closed'
+  /** A side quest judged by submission was scored: who took part, who was fastest, who missed it. */
+  | 'global-scored'
+  /** A player became, or stopped being, a trusted confidant or a person of interest. `uid` is the player. */
+  | 'standing'
+  /** A watch police check-in opened for `uid` (packs with police); `ref` is the call. */
+  | 'police-call'
+  /** A trusted confidant (`actorUid`) tipped off the police about `uid`, saying `note`; `ref` is the call. */
+  | 'police-tip'
+  /** A police check-in ended for `uid`: passed, failed or missed, with the points. */
+  | 'police-result';
 
 export type PeriodicStatus = 'running' | 'stopped';
 
@@ -409,6 +462,32 @@ export interface CheckinAnswer {
   caption: string | null;
   createdAt: TS;
   feedId: string;
+}
+
+export type PoliceCallKind = 'watch' | 'tip';
+export type PoliceCallStatus = 'open' | 'passed' | 'failed' | 'missed' | 'cancelled';
+
+/**
+ * policeCalls/{id} — a police check-in (packs with police): `uid` has until `endsAt` to answer `question`. 'watch'
+ * calls go to persons of interest every settings.policeEveryMin; 'tip' calls come from a trusted confidant (`byUid`,
+ * with their `note`). Read by that player and the GM; only functions write it.
+ */
+export interface PoliceCall {
+  uid: string;
+  kind: PoliceCallKind;
+  byUid: string | null;
+  note: string | null;
+  question: string;
+  expected: string;
+  startsAt: TS;
+  endsAt: TS;
+  status: PoliceCallStatus;
+  /** What they answered, once they have. */
+  answer: string | null;
+  answeredAt: TS | null;
+  /** The points it opened with. */
+  passPoints: number;
+  failPenalty: number;
 }
 
 /** feed/{id} — the Home feed. Everything that happens in the game posts here. */

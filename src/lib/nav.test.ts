@@ -45,6 +45,19 @@ describe('gmSectionsFor', () => {
     expect(gmSectionsFor(ALL_ON)).not.toContain('periodics');
   });
 
+  it('a story section after side quests when the pack has story missions', () => {
+    expect(gmSectionsFor(ALL_ON, { story: true })).toEqual(['game', 'joins', 'review', 'quests', 'story', 'players', 'guesses', 'templates', 'settings']);
+    expect(gmSectionsFor(ALL_ON, { story: false })).not.toContain('story');
+    expect(gmSectionsFor({ ...ALL_ON, sideQuests: false }, { story: true })).not.toContain('story');
+  });
+
+  it('a police section after periodic missions, only for packs with police', () => {
+    expect(gmSectionsFor({ ...ALL_ON, checkins: true, police: true }, { story: true })).toEqual([
+      'game', 'joins', 'review', 'quests', 'story', 'periodics', 'police', 'players', 'guesses', 'templates', 'settings',
+    ]);
+    expect(gmSectionsFor(ALL_ON)).not.toContain('police');
+  });
+
   it('the map changes nothing in the console', () => {
     expect(gmSectionsFor({ ...ALL_ON, map: false })).toEqual(gmSectionsFor(ALL_ON));
   });

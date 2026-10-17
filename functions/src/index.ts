@@ -14,6 +14,8 @@ import { CALLABLES, type Services } from './game/callables.js';
 import type { Ctx } from './game/context.js';
 import { runPeriodics } from './game/checkins.js';
 import { runTick } from './game/globals.js';
+import { runPolice } from './game/police.js';
+import { runStandings } from './game/standing.js';
 import { makeSender, sendPush, type PushSender } from './game/push.js';
 import { TRIGGERS, type TriggerDef, type TriggerEnv } from './game/triggers.js';
 import { getPack, validatePack } from './shared/packs/index.js';
@@ -83,6 +85,8 @@ export const resolveReward = callable('resolveReward');
 export const setCharacter = callable('setCharacter');
 export const answerCheckin = callable('answerCheckin');
 export const managePeriodic = callable('managePeriodic');
+export const answerPoliceCall = callable('answerPoliceCall');
+export const tipOffPolice = callable('tipOffPolice');
 export const endGame = callable('endGame');
 export const resetGame = callable('resetGame');
 
@@ -98,13 +102,18 @@ export const onFeedCreated = onDocumentCreated(trigger('onFeedCreated').pattern,
 export const onJoinRequestCreated = onDocumentCreated(trigger('onJoinRequestCreated').pattern, async (event) => {
   await trigger('onJoinRequestCreated').run(db, event.params, triggerEnv());
 });
+export const onPlayerWritten = onDocumentWritten(trigger('onPlayerWritten').pattern, async (event) => {
+  await trigger('onPlayerWritten').run(db, event.params, triggerEnv());
+});
 export const onFeedReactionWritten = onDocumentWritten(trigger('onFeedReactionWritten').pattern, async (event) => {
   await trigger('onFeedReactionWritten').run(db, event.params, triggerEnv());
 });
 
-export const globalQuestTick = onSchedule({ schedule: 'every 15 minutes', timeZone: PACK.timeZone }, async () => {
+export const globalQuestTick = onSchedule({ schedule: 'every 5 minutes', timeZone: PACK.timeZone }, async () => {
   await runTick(db, new Date(), Math.random, PACK);
   await runPeriodics(db, new Date(), Math.random, PACK);
+  await runStandings(db, new Date(), PACK);
+  await runPolice(db, new Date(), Math.random, PACK);
 });
 
 // Dev only: the emulator never runs schedules, so expose the tick over HTTP there.
@@ -113,7 +122,10 @@ export const devTick =
     ? onRequest(async (_req, res) => {
         try {
           const sideQuests = await runTick(db, new Date(), Math.random, PACK);
-          res.json({ ...sideQuests, checkins: await runPeriodics(db, new Date(), Math.random, PACK) });
+          const checkins = await runPeriodics(db, new Date(), Math.random, PACK);
+          const standings = await runStandings(db, new Date(), PACK);
+          const police = await runPolice(db, new Date(), Math.random, PACK);
+          res.json({ ...sideQuests, checkins, standings, police });
         } catch (err) {
           logger.error('devTick failed', err);
           res.status(500).json({ error: err instanceof Error ? err.message : String(err) });

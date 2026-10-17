@@ -24,11 +24,13 @@ import { GuessLogSection } from '../../../screens/gm/GuessLogSection';
 import { PlayersSection } from '../../../screens/gm/PlayersSection';
 import { SettingsSection } from '../../../screens/gm/SettingsSection';
 import { TemplatesSection } from '../../../screens/gm/TemplatesSection';
-import { Announcement } from '../../../screens/gm/GameSection';
+import { Announcement, ResetSheet } from '../../../screens/gm/GameSection';
 import { PeriodicCards, PeriodicsSection, runningCount, usePeriodics } from '../../../screens/gm/PeriodicsSection';
 import { DrawSheet } from '../../../screens/gm/DrawSheet';
 import { GM_DRAWER_ID, GmDrawer, type GmDrawerItem } from '../../../screens/gm/GmDrawer';
 import { CustomSheet } from '../../../screens/gm/QuestsSection';
+import { PoliceSection } from '../../../screens/gm/PoliceSection';
+import { STORY, StoryFireSheet, StorySection, useStory } from '../../../screens/gm/StorySection';
 import { NoteSheet, clockTime, useClaim, useRunner } from '../../../screens/gm/common';
 import '../../../screens/gm/gm.css';
 import { useSession } from '../../../session/SessionProvider';
@@ -38,7 +40,7 @@ import { PRECINCT } from './FileParts';
 import { lockerSummary, runningFor, tagNumber, type LockerFilter } from './lockerLib';
 import './gmlocker.css';
 
-type View = 'locker' | 'players' | 'periodics' | 'settings' | 'bulletin' | 'templates' | 'guesses';
+type View = 'locker' | 'players' | 'story' | 'periodics' | 'police' | 'settings' | 'bulletin' | 'templates' | 'guesses';
 
 const STATUS_LABEL = { lobby: 'Case not open', active: 'Case open', paused: 'Case paused', ended: 'Case closed' } as const;
 
@@ -68,7 +70,9 @@ function Locker() {
   const sections: GmDrawerItem<View | 'route'>[] = [
     { id: 'locker', label: 'Evidence locker', count: needYou },
     { id: 'players', label: 'Suspects' },
+    ...(STORY.length > 0 && features.sideQuests ? [{ id: 'story' as const, label: 'Story missions' }] : []),
     ...(features.checkins ? [{ id: 'periodics' as const, label: t.checkin.Many }] : []),
+    ...(features.police ? [{ id: 'police' as const, label: t.policeCall.Many }] : []),
     { id: 'settings', label: 'Settings' },
     { id: 'bulletin', label: 'Bulletin' },
     ...(features.map ? [{ id: 'route' as const, label: 'Route' }] : []),
@@ -105,7 +109,9 @@ function Locker() {
           </button>
           <div className="gl-sub__body">
             {view === 'players' ? <PlayersSection /> : null}
+            {view === 'story' ? <StorySection /> : null}
             {view === 'periodics' ? <PeriodicsSection /> : null}
+            {view === 'police' ? <PoliceSection /> : null}
             {view === 'settings' ? <SettingsSection /> : null}
             {view === 'bulletin' ? <Announcement /> : null}
             {view === 'templates' ? <TemplatesSection /> : null}
@@ -833,7 +839,10 @@ function SuspectsCard({ go }: { go(view: View): void }) {
 
 /** Draw a random one (seen first, see DrawSheet) or write your own. */
 function FireSheets({ live, onClose }: { live: Doc<GlobalQuest> | null; onClose(): void }) {
-  const [step, setStep] = useState<'choose' | 'draw' | 'write'>('choose');
+  const [step, setStep] = useState<'choose' | 'draw' | 'write' | 'story'>('choose');
+  const { nextId } = useStory();
+  const nextStory = STORY.find((s) => s.id === nextId);
+  if (step === 'story' && nextStory) return <StoryFireSheet story={nextStory} liveTitle={live?.title ?? null} onClose={onClose} />;
   if (step === 'draw') return <DrawSheet liveTitle={live?.title ?? null} onClose={onClose} onWrite={() => setStep('write')} />;
   if (step === 'write') return <CustomSheet hasLive={Boolean(live)} onClose={onClose} />;
   return (
@@ -843,7 +852,12 @@ function FireSheets({ live, onClose }: { live: Doc<GlobalQuest> | null; onClose(
           <strong>&ldquo;{live.title}&rdquo;</strong> closes right away if you fire another. Only one takes entries at a time.
         </p>
       ) : null}
-      <Button variant="primary" block onClick={() => setStep('draw')}>
+      {nextStory ? (
+        <Button variant="primary" block onClick={() => setStep('story')}>
+          Next story mission: {nextStory.title}
+        </Button>
+      ) : null}
+      <Button variant={nextStory ? undefined : 'primary'} block onClick={() => setStep('draw')}>
         Draw a random one
       </Button>
       <Button block onClick={() => setStep('write')}>
@@ -863,6 +877,7 @@ function CaseButtons() {
   const { pendingSubs } = useGmData();
   const { busyKey, run } = useRunner();
   const [closing, setClosing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const status = state.status;
   const live = globalQuests.find((g) => g.status === 'live');
   const voting = globalQuests.filter((g) => g.status === 'voting');
@@ -894,6 +909,11 @@ function CaseButtons() {
           Close case
         </Button>
       </div>
+      {/* Back to the lobby for a new round: players, evidence and scores go; missions, settings and the route stay. */}
+      <button type="button" className="gl-reset" onClick={() => setResetting(true)}>
+        Reset the case…
+      </button>
+      {resetting ? <ResetSheet onClose={() => setResetting(false)} /> : null}
       {closing ? (
         <ConfirmSheet
           title="Close the case?"

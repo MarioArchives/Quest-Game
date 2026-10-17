@@ -290,7 +290,8 @@ export function Announcement() {
   );
 }
 
-function ResetSheet({ onClose }: { onClose(): void }) {
+/** Type RESET to wipe the round and go back to the lobby (also used by packs' own GM consoles). */
+export function ResetSheet({ onClose }: { onClose(): void }) {
   const toast = useToast();
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);

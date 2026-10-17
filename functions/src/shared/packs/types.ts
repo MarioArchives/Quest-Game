@@ -22,15 +22,18 @@ export interface Noun {
 
 export const TERM_KEYS = ['quest', 'sideQuest', 'witness', 'claim', 'gm', 'wrap'] as const;
 export type TermKey = (typeof TERM_KEYS)[number];
-/** The required nouns, plus what packs with checkins call one (default "check-in"). */
-export type Terms = Record<TermKey, Noun> & { checkin?: Noun };
+/**
+ * The required nouns, plus optional ones with engine defaults: what packs with checkins call one (default
+ * "check-in"), the two standings (default "trusted confidant" and "person of interest") and a police check-in.
+ */
+export type Terms = Record<TermKey, Noun> & { checkin?: Noun; confidant?: Noun; poi?: Noun; policeCall?: Noun };
 
 /** Optional parts of the game. Witnessed claims, the feed, the GM and the wrap are always on. */
 export const FEATURES = ['guesses', 'sideQuests', 'map'] as const;
 export type Feature = (typeof FEATURES)[number];
 
 /** Extra parts only some packs use; off unless a pack turns them on. */
-export const EXTRA_FEATURES = ['rewardChoice', 'characters', 'stops', 'checkins'] as const;
+export const EXTRA_FEATURES = ['rewardChoice', 'characters', 'stops', 'checkins', 'police'] as const;
 export type ExtraFeature = (typeof EXTRA_FEATURES)[number];
 
 /**
@@ -38,6 +41,8 @@ export type ExtraFeature = (typeof EXTRA_FEATURES)[number];
  * - rewardChoice: completing a personal quest earns a choice: points to yourself, or framing another player (anonymous)
  * - characters: each player has a character (public) and a secret motive, set by the GM
  * - stops: the GM sets a route of stops (name, place, optional arrival and leave times) and reveals them one by one; the map shows them in order with a now/next strip
+ * - checkins: periodic missions everyone answers with a photo or a comment
+ * - police: police check-ins answered in the app, for persons of interest and on a trusted confidant's tip
  */
 export type Features = Record<Feature, boolean> & Partial<Record<ExtraFeature, boolean>>;
 
@@ -57,9 +62,31 @@ export interface CatalogueQuest {
   windowMin?: number | null;
 }
 
+/**
+ * A story mission (catalogue.story): a side quest the GM fires in the pack's order, judged by a vote or by
+ * submission. Ids start `s-`. Anything left out falls back to the settings when it is fired.
+ */
+export interface StoryQuest {
+  id: string;
+  title: string;
+  description: string;
+  /** How it is judged unless the GM picks otherwise when firing it. */
+  judging: 'vote' | 'submit';
+  /** Minutes open; missing → settings.globalWindowMin. */
+  windowMin?: number | null;
+  /** Vote: to the winner; submit: to everyone who enters. Missing → settings.sideQuestPoints. */
+  points?: number | null;
+  /** Extra for the fastest entry; missing → 0. */
+  fastestBonus?: number | null;
+  /** Fine for not entering; missing → settings.sideQuestSkipPenalty. */
+  penalty?: number | null;
+}
+
 export interface Catalogue {
   personal: CatalogueQuest[];
   global: CatalogueQuest[];
+  /** Story missions, in the order the GM fires them (packs with side quests). */
+  story?: StoryQuest[];
 }
 
 /** Where the map opens and what "nearby" means. Only for packs with the map feature. */
@@ -74,6 +101,11 @@ export interface MapConfig {
   credit: { label: string; url: string } | null;
   /** Packs with stops: how the route is drawn between stops. Default 'line' (a dashed line). */
   routeStyle?: 'line' | 'footprints';
+  /**
+   * Packs with stops: the area the GM's bar search covers besides the few km round the last stop, e.g. a whole city,
+   * as a box in degrees. `name` is how the search names it ("Bars in Manchester").
+   */
+  barSearch?: { name: string; south: number; west: number; north: number; east: number };
 }
 
 export interface GamePack {

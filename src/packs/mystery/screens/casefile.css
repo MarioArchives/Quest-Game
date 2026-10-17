@@ -15,6 +15,9 @@
   background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
 }
 .cf-clip { position: absolute; right: 16px; top: -14px; }
+/* A clip over the tab instead: it holds the tab's top edge, at its right end. */
+.cf-folder__tab--clip { position: relative; padding-right: 34px; }
+.cf-folder__tab--clip .cf-clip { right: 10px; top: -18px; }
 .cf-meta { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
 .cf-title { font-family: var(--display); font-size: 22px; line-height: 1.08; text-transform: none; overflow-wrap: anywhere; color: var(--manila-ink); }
 

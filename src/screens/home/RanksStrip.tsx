@@ -4,6 +4,7 @@ import { Avatar } from '../../components/Avatar';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
 import { firstName, formatPoints, playerLabel, splitStandings, tiedRanks } from '../../lib/standings';
 import { useSession } from '../../session/SessionProvider';
+import { StandingBadge } from './StandingBadge';
 import './ranks.css';
 
 const SPOT_CLASS = { 1: 'rk-podium__spot--left', 2: 'rk-podium__spot--centre', 3: 'rk-podium__spot--right' } as const;
@@ -44,6 +45,7 @@ export function Podium({
                 {full ? <Avatar name={p.displayName} src={p.photoURL} size={44} you={you} uid={p.id} /> : null}
                 <span className="rk-pod__name">{you ? 'You' : firstName(p.displayName)}</span>
                 {p.left ? <span className="rk-pod__left">Left</span> : null}
+                <StandingBadge points={p.points} />
                 <span className="rk-pod__pts">{formatPoints(p.points)}</span>
               </span>
               <span className={`rk-pod__block rk-pod__block--${step}`}>{p.rank}</span>
@@ -98,6 +100,7 @@ export function RanksStrip({ onSelect }: { onSelect(uid: string): void }) {
                       {p.left ? null : <span>{p.rank} ·</span>}
                       <span className="rk-wb__name">{you ? 'You' : firstName(p.displayName)}</span>
                       {p.left ? <span>· Left</span> : null}
+                      <StandingBadge points={p.points} />
                     </span>
                     <span className="rk-wb__pts">{formatPoints(p.points)}</span>
                   </button>

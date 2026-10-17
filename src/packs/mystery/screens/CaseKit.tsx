@@ -7,13 +7,34 @@ import './casefile.css';
 
 export type StampTone = 'plain' | 'good' | 'bad' | 'warm' | 'active' | 'filed';
 
-/** A manila folder: an optional tab above, a paperclip on the top edge, whatever goes inside. */
-export function Folder({ tab, children, clip = true, className, label }: { tab?: ReactNode; children: ReactNode; clip?: boolean; className?: string; label?: string }) {
+/**
+ * A manila folder: an optional tab above, a paperclip on the top edge (or, with `clip="tab"`, clipped over the tab),
+ * whatever goes inside.
+ */
+export function Folder({
+  tab,
+  children,
+  clip = true,
+  className,
+  label,
+}: {
+  tab?: ReactNode;
+  children: ReactNode;
+  clip?: boolean | 'tab';
+  className?: string;
+  label?: string;
+}) {
+  const onTab = clip === 'tab' && !!tab;
   return (
     <section className={`cf-folder${className ? ` ${className}` : ''}`} aria-label={label}>
-      {tab ? <span className="cf-folder__tab">{tab}</span> : null}
+      {tab ? (
+        <span className={`cf-folder__tab${onTab ? ' cf-folder__tab--clip' : ''}`}>
+          {tab}
+          {onTab ? <Paperclip /> : null}
+        </span>
+      ) : null}
       <div className="cf-folder__body">
-        {clip ? <Paperclip /> : null}
+        {clip === true ? <Paperclip /> : null}
         {children}
       </div>
     </section>

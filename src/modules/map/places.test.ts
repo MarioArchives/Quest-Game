@@ -1,15 +1,35 @@
 import { describe, expect, it, vi } from 'vitest';
-import { addressOf, barsNear, barsQuery, directionsUrl, filterPlaces, nominatimUrl, parseNominatim, parseOverpass, placeUrl, type Place } from './places';
+import {
+  addressOf,
+  barsNear,
+  barsQuery,
+  directionsUrl,
+  filterPlaces,
+  nominatimSearchUrl,
+  nominatimUrl,
+  parseNominatim,
+  parseOverpass,
+  placeUrl,
+  searchBars,
+  type Place,
+} from './places';
 
 const DIDSBURY = { lat: 53.4145, lng: -2.2312 };
+const MANCHESTER = { south: 53.34, west: -2.32, north: 53.545, east: -2.146 };
 
 describe('barsQuery', () => {
-  it('asks for named pubs, bars and beer gardens around the point', () => {
+  it('asks for named pubs, bars and beer gardens around the point, with no cap on how many', () => {
     const q = barsQuery(DIDSBURY, 2500.4);
     expect(q).toContain('around:2500,53.41450,-2.23120');
     expect(q).toContain('"amenity"~"^(pub|bar|biergarten)$"');
     expect(q).toContain('["name"]');
-    expect(q).toContain('out center tags');
+    expect(q).toMatch(/out center tags;$/);
+    expect(q).not.toContain('53.34000');
+  });
+  it('adds every bar in the search area (south, west, north, east) to the ones round the point', () => {
+    const q = barsQuery(DIDSBURY, 2500, MANCHESTER);
+    expect(q).toContain('nwr(53.34000,-2.32000,53.54500,-2.14600)["amenity"');
+    expect(q).toMatch(/^\[out:json\]\[timeout:25\];\(nwr\(around:.*;nwr\(53\.34000.*;\);out center tags;$/);
   });
 });
 
@@ -67,12 +87,14 @@ describe('barsNear', () => {
         { type: 'node', id: 2, lat: 53.4146, lon: -2.2312, tags: { name: 'Near' } },
       ] }), { status: 200 }),
     );
-    const out = await barsNear(DIDSBURY, 1000, fetchFn as unknown as typeof fetch);
-    expect(out.map((p) => p.name)).toEqual(['Near', 'Far']);
+    const out = await barsNear(DIDSBURY, { radiusM: 1000, box: MANCHESTER, fetchFn: fetchFn as unknown as typeof fetch });
+    expect(out.source).toBe('overpass');
+    expect(out.places.map((p) => p.name)).toEqual(['Near', 'Far']);
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://overpass-api.de/api/interpreter');
     expect(init.method).toBe('POST');
     expect(String(init.body)).toContain(encodeURIComponent('around:1000,'));
+    expect(String(init.body)).toContain(encodeURIComponent('nwr(53.34000,-2.32000,53.54500,-2.14600)'));
   });
   it('asks Nominatim for pubs then bars when Overpass is busy, dropping repeats', async () => {
     const pub = { osm_type: 'node', osm_id: 7, name: 'Fletcher Moss Pub', type: 'pub', lat: '53.4168', lon: '-2.2298', address: { house_number: '1', road: 'William Street', postcode: 'M20 6RQ' } };
@@ -81,14 +103,17 @@ describe('barsNear', () => {
       if (url.includes('overpass')) return new Response('busy', { status: 504 });
       return new Response(JSON.stringify(url.includes('%5Bpub%5D') ? [pub] : [bar, pub]), { status: 200 });
     });
-    const out = await barsNear(DIDSBURY, 1000, fetchFn as unknown as typeof fetch, 0);
-    expect(out.map((p) => p.name)).toEqual(['Fletcher Moss Pub', 'Volta']);
-    expect(out[0]!.address).toBe('1 William Street, M20 6RQ');
+    const out = await barsNear(DIDSBURY, { radiusM: 1000, fetchFn: fetchFn as unknown as typeof fetch, pauseMs: 0 });
+    expect(out.source).toBe('nominatim');
+    expect(out.places.map((p) => p.name)).toEqual(['Fletcher Moss Pub', 'Volta']);
+    expect(out.places[0]!.address).toBe('1 William Street, M20 6RQ');
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
   it('throws when both say no', async () => {
     const fetchFn = vi.fn(async () => new Response('busy', { status: 429 }));
-    await expect(barsNear(DIDSBURY, 1000, fetchFn as unknown as typeof fetch, 0)).rejects.toThrow(/Overpass answered 429; Nominatim answered 429/);
+    await expect(barsNear(DIDSBURY, { radiusM: 1000, fetchFn: fetchFn as unknown as typeof fetch, pauseMs: 0 })).rejects.toThrow(
+      /Overpass answered 429; Nominatim answered 429/,
+    );
   });
 });
 
@@ -111,6 +136,26 @@ describe('Nominatim', () => {
       ]),
     ).toEqual([{ ref: 'osm:way/2', name: 'The Crown', lat: 53.41571, lng: -2.23219, address: 'Elm Grove, Manchester', kind: 'pub' }]);
     expect(parseNominatim({ error: 'no' })).toEqual([]);
+  });
+  it('searches a name across the area, keeping only pubs, bars and beer gardens', async () => {
+    expect(nominatimSearchUrl('crown inn', MANCHESTER)).toBe(
+      'https://nominatim.openstreetmap.org/search?q=crown%20inn&format=jsonv2&addressdetails=1&limit=40&bounded=1&viewbox=-2.32000,53.54500,-2.14600,53.34000',
+    );
+    const fetchFn = vi.fn(async () =>
+      new Response(
+        JSON.stringify([
+          { osm_type: 'node', osm_id: 1, name: 'The Crown Inn', category: 'amenity', type: 'pub', lat: '53.48', lon: '-2.24' },
+          { osm_type: 'way', osm_id: 2, name: 'Crown Street', category: 'highway', type: 'residential', lat: '53.47', lon: '-2.25' },
+          { osm_type: 'node', osm_id: 3, name: 'Crown Café', category: 'amenity', type: 'cafe', lat: '53.47', lon: '-2.25' },
+          { osm_type: 'node', osm_id: 4, name: 'Crown Bar', category: 'amenity', type: 'bar', lat: '53.47', lon: '-2.25' },
+        ]),
+        { status: 200 },
+      ),
+    );
+    expect((await searchBars('crown inn', MANCHESTER, fetchFn as unknown as typeof fetch)).map((p) => p.name)).toEqual(['The Crown Inn', 'Crown Bar']);
+    expect(String((fetchFn.mock.calls[0] as unknown as [string])[0])).toContain('q=crown%20inn%20pub&');
+    await searchBars('Crown bar', MANCHESTER, fetchFn as unknown as typeof fetch);
+    expect(String((fetchFn.mock.calls[1] as unknown as [string])[0])).toContain('q=Crown%20bar&');
   });
 });
 

@@ -15,8 +15,19 @@ export type ScoreEvent =
   | { kind: 'guessWrong'; guesser: string; target: string }
   /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints. */
   | { kind: 'sideQuestWon'; uid: string; bonus: number; votes: number }
-  /** A player who could have entered a side quest and didn't, when its vote closes. */
-  | { kind: 'sideQuestSkipped'; uid: string }
+  /**
+   * A player who could have entered a side quest and didn't, when it closes; `penalty` is the fine it opened with
+   * (missing → settings.sideQuestSkipPenalty).
+   */
+  | { kind: 'sideQuestSkipped'; uid: string; penalty?: number }
+  /** A side quest judged by submission was scored: `points` for this entrant. */
+  | { kind: 'sideQuestEntered'; uid: string; points: number }
+  /** The fastest entry of a side quest still standing when it was scored. */
+  | { kind: 'sideQuestFastest'; uid: string; bonus: number }
+  /** A police check-in answered right; `points` is what it opened with. */
+  | { kind: 'policePassed'; uid: string; points: number }
+  /** A police check-in answered wrong, or (`missed`) not answered in time; `penalty` is what it opened with. */
+  | { kind: 'policeFailed'; uid: string; penalty: number; missed: boolean }
   /** Reward choice: the owner clears their name. */
   | { kind: 'rewardClean'; uid: string }
   /** Reward choice: the owner (`uid`) frames `target`. Only the target's points should change. */

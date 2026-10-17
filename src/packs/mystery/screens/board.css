@@ -24,22 +24,25 @@
 .bd-panel--bleed { margin: 0 calc(-1 * var(--page-x)) -32px; }
 
 /*
- * Standings: one row per player on a squared grid, + to the left (in the clear) and − to the right (under suspicion).
+ * Standings: one row per player on a squared grid, − to the left (under suspicion) and + to the right (in the clear).
  * A bar is as thick as the face, and the face sits centred on the score, so it caps the bar like a rounded end;
  * 0 sits on the zero line. --x / --f are shares of the half-width: the face's centre stops a face-radius from the edge.
  */
 .st {
+  /* One player's row: a face and a little air, stacked from the top; the paper runs on below the last one. The board
+     sets both from the room there is (58/40 px up to half as big again); these are the smallest. */
   --st-face: 40px;
-  /* One player's row: a face and a little air, stacked from the top; the paper runs on below the last one. */
   --st-row: 58px;
+  --st-row-min: 58px;
   --st-half: calc(50% - var(--st-face) / 2 - 4px);
   position: relative;
   flex: 1;
   display: flex; flex-direction: column;
   container-type: inline-size;
-  min-height: calc(var(--rows, 1) * var(--st-row) + 96px);
+  /* From the smallest row, so a bigger row never makes the sheet (and so its rows) bigger still. */
+  min-height: calc(var(--rows, 1) * var(--st-row-min) + 96px);
   background:
-    linear-gradient(90deg, rgba(31, 138, 133, 0.13) 50%, rgba(163, 52, 42, 0.12) 50%),
+    linear-gradient(90deg, rgba(163, 52, 42, 0.12) 50%, rgba(31, 138, 133, 0.13) 50%),
     var(--chart-paper);
 }
 /* Squares: vertical lines at every step, horizontal lines the same distance apart. */
@@ -49,22 +52,23 @@
   --st-cell: calc((50cqw - var(--st-face) / 2 - 4px) / var(--squares, 5));
   background-image: repeating-linear-gradient(180deg, transparent 0 calc(var(--st-cell) - 1px), rgba(91, 74, 51, 0.16) calc(var(--st-cell) - 1px) var(--st-cell));
 }
-.st__line { position: absolute; top: 0; bottom: 0; width: 1px; left: calc(50% - var(--x) * var(--st-half)); background: rgba(91, 74, 51, 0.18); }
+.st__line { position: absolute; top: 0; bottom: 0; width: 1px; left: calc(50% + var(--x) * var(--st-half)); background: rgba(91, 74, 51, 0.18); }
 .st__line--zero { width: 2px; margin-left: -1px; background: var(--manila-ink); }
 
 /* The sheet's head (labels and scale) is plain chart paper, part of the file's tab; the halves' tints start under it. */
 .st__top { position: relative; background: var(--chart-paper); border-bottom: 1px solid rgba(91, 74, 51, 0.28); }
 .st__heads { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr 1fr; padding: 14px 12px 2px; }
 .st__head { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-.st__head--clear { color: var(--teal-deep); }
-.st__head--suspect { color: var(--suspect-deep); text-align: right; }
+.st__head--clear { color: var(--teal-deep); text-align: right; }
+.st__head--suspect { color: var(--suspect-deep); }
 .st__axis { position: relative; z-index: 2; height: 22px; overflow: hidden; }
 .st__tick {
-  position: absolute; top: 4px; left: calc(50% - var(--x) * var(--st-half)); transform: translateX(-50%);
+  position: absolute; top: 4px; left: calc(50% + var(--x) * var(--st-half)); transform: translateX(-50%);
   font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--manila-sub); white-space: nowrap;
 }
 
-.st__rows { position: relative; flex: 1; display: flex; flex-direction: column; }
+/* Sized by the room there is, never by its rows (they're sized from it), so it can shrink as well as grow. */
+.st__rows { position: relative; flex: 1; min-height: 0; contain: size; display: flex; flex-direction: column; }
 .st__li { flex: none; display: flex; height: var(--st-row); }
 /* A row sliding to its new place lifts above the grid lines (its transform would otherwise drop it under them). */
 .st__li.is-moving { position: relative; z-index: 2; }
@@ -75,11 +79,11 @@
   position: absolute; z-index: 2; top: 50%; height: var(--st-face); margin-top: calc(var(--st-face) / -2);
   width: calc(var(--f) * var(--st-half));
 }
-.st__row--plus .st__bar { right: 50%; background: var(--accent); }
-.st__row--minus .st__bar { left: 50%; background: var(--warn); }
+.st__row--plus .st__bar { left: 50%; background: var(--accent); }
+.st__row--minus .st__bar { right: 50%; background: var(--warn); }
 .st__face { position: absolute; top: 50%; margin-top: calc(var(--st-face) / -2); display: flex; z-index: 3; }
-.st__row--plus .st__face { left: calc(50% - var(--f) * var(--st-half) - var(--st-face) / 2); }
-.st__row--minus .st__face { left: calc(50% + var(--f) * var(--st-half) - var(--st-face) / 2); }
+.st__row--plus .st__face { left: calc(50% + var(--f) * var(--st-half) - var(--st-face) / 2); }
+.st__row--minus .st__face { left: calc(50% - var(--f) * var(--st-half) - var(--st-face) / 2); }
 .st__row--zero .st__face { left: calc(50% - var(--st-face) / 2); }
 .st__icon.avatar { border-width: 3px; }
 .st__icon--plus.avatar { border-color: var(--accent); }
@@ -91,9 +95,9 @@
 /* Name and score sit on the empty side, next to the zero line, and always clear of the face (a small score on a
    wide grid puts the face across the line). */
 .st__label { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 14px; }
-.st__row--plus .st__label { left: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
-.st__row--minus .st__label { right: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
-.st__row--zero .st__label { left: calc(50% + var(--st-face) / 2 + 8px); }
+.st__row--plus .st__label { right: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
+.st__row--minus .st__label { left: calc(50% + max(8px, var(--st-face) / 2 + 8px - var(--f) * var(--st-half))); }
+.st__row--zero .st__label { right: calc(50% + var(--st-face) / 2 + 8px); }
 .st__name { font-weight: 600; color: var(--manila-ink); }
 .st__name--me { font-weight: 800; }
 .st__score { font-family: var(--mono); font-size: 13px; font-weight: 700; }
@@ -104,8 +108,8 @@
 
 /*
  * What changed since you last looked: a chip that pops in, stays a moment and fades. It hangs off the label's outer
- * end (after the score on the clear side, before the name on the suspicion side), out of the text's flow, so the
- * name and score never move when it comes and goes.
+ * end (before the name for a + score, after the score for a − one), out of the text's flow, so the name and score
+ * never move when it comes and goes.
  */
 .st { overflow-x: clip; }
 .st__delta {
@@ -113,8 +117,8 @@
   font-family: var(--mono); font-size: 11px; font-weight: 700; color: #fff;
   animation: st-delta 4.5s ease-out both;
 }
-.st__row--plus .st__delta, .st__row--zero .st__delta { left: 100%; margin-left: 6px; }
-.st__row--minus .st__delta { right: 100%; margin-right: 6px; }
+.st__row--plus .st__delta, .st__row--zero .st__delta { right: 100%; margin-right: 6px; }
+.st__row--minus .st__delta { left: 100%; margin-left: 6px; }
 .st__delta--up { background: var(--accent); }
 .st__delta--down { background: var(--warn); }
 @keyframes st-delta {
@@ -127,3 +131,5 @@
   .st__delta { animation: st-delta-fade 4.5s linear both; }
   @keyframes st-delta-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 }
+
+.st__standing { margin-left: 4px; vertical-align: middle; }

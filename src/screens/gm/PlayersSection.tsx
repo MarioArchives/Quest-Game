@@ -14,6 +14,7 @@ import { features, pack, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import { rerollAllowance, rerollsLeft, type LedgerEntry, type Motive } from '../../shared';
 import { characterLine } from '../player/PlayerTicket';
+import { standingOf } from '../../../functions/src/shared/standing.ts';
 import { LEDGER_REASONS } from './common';
 
 /** The quick buttons' step: the pack's own, else 10. */
@@ -24,7 +25,7 @@ const LEFT_LABEL = { frozen: 'left · frozen · ', out: 'out of the game · ' } 
 
 export function PlayersSection() {
   // Everyone, out ones last, so they can be brought back.
-  const { allPlayers: players, activePlayers } = useGame();
+  const { allPlayers: players, activePlayers, settings } = useGame();
   const { user } = useSession();
   const [selected, setSelected] = useState<string | null>(null);
   const chosen = selected ? players.find((p) => p.id === selected) : undefined;
@@ -56,6 +57,7 @@ export function PlayersSection() {
                   <span className="gm-player__sub">
                     {features.characters && p.character ? `${characterLine(p.character)} · ` : ''}
                     {p.id === user?.uid ? 'you · ' : ''}
+                    {!p.left && standingOf(p.points, settings) ? `${standingOf(p.points, settings) === 'confidant' ? t.confidant.one : t.poi.one} · ` : ''}
                     {p.left ? LEFT_LABEL[p.left] : ''}
                     {p.questsCompleted ?? 0} {(p.questsCompleted ?? 0) === 1 ? t.quest.one : t.quest.many} done
                   </span>

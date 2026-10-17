@@ -7,6 +7,7 @@ import { useSession } from '../session/SessionProvider';
 import { FeedPost } from './home/FeedPost';
 import { RanksStrip } from './home/RanksStrip';
 import { CheckinCards } from './home/CheckinCard';
+import { PoliceCallCard } from './home/PoliceCallCard';
 import { SideQuestCards } from './home/SideQuestCard';
 import './home/home.css';
 import { features, t } from '../pack';
@@ -25,6 +26,7 @@ export default function Dashboard() {
 
       <HomeBanners />
 
+      {features.police ? <PoliceCallCard /> : null}
       {features.checkins ? <CheckinCards /> : null}
       {features.sideQuests ? <SideQuestCards /> : null}
 

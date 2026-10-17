@@ -1,7 +1,7 @@
 // Mystery Pub Crawl: a murder-mystery crawl where everyone tampers with the evidence. Tampering missions are
 // witnessed, group missions are photo challenges, and every confirmed mission ends in destroying evidence or
 // framing a fellow suspect. Each player has a character with a secret motive. Venues come later.
-import type { GamePack } from '../types.ts';
+import type { Catalogue, GamePack } from '../types.ts';
 import quests from './quests.json' with { type: 'json' };
 
 export const mystery: GamePack = {
@@ -17,7 +17,7 @@ export const mystery: GamePack = {
     wrap: { one: 'case file', many: 'case files' },
     checkin: { one: 'periodic mission', many: 'periodic missions' },
   },
-  features: { guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true },
+  features: { guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true, police: true },
   timeZone: 'Europe/London',
   locale: 'en-GB',
   scoring: 'classic',
@@ -35,6 +35,15 @@ export const mystery: GamePack = {
     cleanPoints: 5,
     framePoints: 5,
     pointsFloorZero: false,
+    // Standings and police check-ins: above 10 a trusted confidant, below -10 a person of interest.
+    confidantAbove: 10,
+    poiBelow: -10,
+    policeEveryMin: 30,
+    policeTipEveryMin: 60,
+    policeWindowMin: 5,
+    policePassPoints: 5,
+    policeFailPenalty: 5,
+    autoSideQuests: true,
   },
   gmQuickPoints: 1,
   // The periodic mission a seed starts with: a roll call four times a night, an hour apart, 15 minutes to answer
@@ -72,8 +81,19 @@ export const mystery: GamePack = {
     gambler: { title: 'Cold Case Shuffler', description: 'Swapped the most missions' },
     'good-sport': { title: 'Innocent Bystander', description: 'Nothing to see here, officer' },
   },
-  catalogue: quests,
-  map: { centre: { lat: 53.4145, lng: -2.2312 }, zoom: 16, placeName: 'Didsbury', nearbyKm: 2, credit: null, routeStyle: 'footprints' },
+  // The Lancaster festival's missions (68 tampering, 20 group), copied so the two catalogues can drift apart.
+  // (the JSON types 'judging' as plain text)
+  catalogue: quests as Catalogue,
+  map: {
+    centre: { lat: 53.4145, lng: -2.2312 },
+    zoom: 16,
+    placeName: 'Didsbury',
+    nearbyKm: 2,
+    credit: null,
+    routeStyle: 'footprints',
+    // The GM's bar search covers all of Manchester (the city's bounding box), not just round the last stop.
+    barSearch: { name: 'Manchester', south: 53.34, west: -2.32, north: 53.545, east: -2.146 },
+  },
   venues: [],
   // The starting route through Didsbury (OpenStreetMap places and addresses). The GM can edit, reorder and reveal it in
   // the app, or swap a stop for another bar from the map's bar search.

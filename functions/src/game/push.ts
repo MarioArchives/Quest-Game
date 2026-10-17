@@ -70,6 +70,17 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, 
       return { to: 'players', message: { title: 'Voting is open', body: `Vote now: ${quest}`, link: HOME } };
     case 'global-won':
       return { to: 'players', message: { title: `${t.sideQuest.One} won`, body: post.text, link: HOME } };
+    case 'global-scored':
+      // A mission judged by submission was scored: the post sums up who entered and who was fastest.
+      return { to: 'players', message: { title: `${t.sideQuest.One} scored`, body: post.text, link: HOME } };
+    case 'standing':
+      if (!post.uid) return null;
+      return { to: [post.uid], message: { title: 'Your standing changed', body: post.text, link: HOME } };
+    case 'police-call':
+    case 'police-tip':
+      // Only the player being checked hears about it; the answer box is on Home.
+      if (!post.uid) return null;
+      return { to: [post.uid], message: { title: `${t.policeCall.One}: answer now`, body: post.text, link: HOME } };
     case 'announcement':
       return { to: 'players', message: { title: 'Announcement', body: post.text, link: HOME } };
     case 'stop-revealed':

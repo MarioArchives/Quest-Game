@@ -5,6 +5,7 @@ import type { Services } from './callables.js';
 import type { Db } from './context.js';
 import { handleAdminCreated, handleJoinRequestCreated } from './join.js';
 import { planForFeed } from './push.js';
+import { handlePlayerWritten } from './standing.js';
 import { recountReactions } from './reactions.js';
 import { handleSubmissionCreated } from './submissions.js';
 
@@ -62,6 +63,16 @@ export const TRIGGERS: readonly TriggerDef[] = [
     async run(db, params, env) {
       const plan = await handleJoinRequestCreated(db, params.uid);
       if (plan) await env.services.sendPush(plan);
+    },
+  },
+  // Keeps each player's standing (and, with police, their watch check-in) in step with their points. Loop-safe: it
+  // writes only when the standing changes.
+  {
+    name: 'onPlayerWritten',
+    pattern: 'players/{uid}',
+    on: 'write',
+    async run(db, params, env) {
+      await handlePlayerWritten(db, params.uid, env.now, env.rng, env.pack);
     },
   },
   // Reactions are set, changed and removed by players; keep the post's reactionCount in step.

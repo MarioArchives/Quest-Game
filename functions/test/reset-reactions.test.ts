@@ -93,6 +93,13 @@ describe('resetGame', () => {
     });
   });
 
+  it('keeps which game the data is for, so the "wrong game" check still works after a reset', async () => {
+    await fullGame();
+    await db().doc('game/state').update({ pack: 'mystery' });
+    await resetGame(db(), ctx('gm'), { confirm: 'RESET' });
+    expect(await getData(db(), 'game/state')).toMatchObject({ status: 'lobby', startedAt: null, pack: 'mystery' });
+  });
+
   it('requires the explicit confirmation and deletes nothing without it', async () => {
     await fullGame();
     await expectCode(resetGame(db(), ctx('gm'), {}), 'invalid-argument');

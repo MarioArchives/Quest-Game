@@ -6,6 +6,7 @@ import { addEvidence } from './evidence.js';
 import { fireGlobalQuest } from './globals.js';
 import { setCharacter } from './characters.js';
 import { answerCheckin, managePeriodic } from './checkins.js';
+import { answerPoliceCall, tipOffPolice } from './police.js';
 import { guessQuest } from './guesses.js';
 import { requestJoin, reviewJoinRequest } from './join.js';
 import { setPlayerLeft } from './left.js';
@@ -74,6 +75,8 @@ export const CALLABLES: Readonly<Record<string, CallableDef>> = {
   setCharacter: { run: plain(setCharacter) },
   answerCheckin: { run: plain(answerCheckin) },
   managePeriodic: { run: plain(managePeriodic) },
+  answerPoliceCall: { run: plain(answerPoliceCall) },
+  tipOffPolice: { run: plain(tipOffPolice) },
   endGame: { run: (db, ctx) => endGame(db, ctx), timeoutSeconds: 120 },
   resetGame: {
     run: async (db, ctx, data, services) => {

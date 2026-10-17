@@ -19,6 +19,7 @@ import { HouseRules } from './account/HouseRules';
 import { LocationCard } from './account/LocationCard';
 import { NotificationsCard } from './account/NotificationsCard';
 import { PointsSummary } from './account/PointsSummary';
+import { StandingBadge } from './home/StandingBadge';
 import { SideQuestEntries } from './account/SideQuestEntries';
 import { WitnessRequests } from './account/WitnessRequests';
 import './account/account.css';
@@ -67,6 +68,7 @@ export default function AccountScreen() {
           <p className="me__tags">
             <span className="tag tag--ink">{player ? (isAdmin ? `Player + ${t.gm.One}` : 'Player') : t.gm.One}</span>
             <span className="tag">{STATUS_LABEL[state.status]}</span>
+            {player ? <StandingBadge points={player.points} /> : null}
           </p>
           {user?.email ? <p className="me__email">{user.email}</p> : null}
         </div>

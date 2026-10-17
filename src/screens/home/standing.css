@@ -1,0 +1,18 @@
+/* ---------- standing badges and the police cards ---------- */
+.pl-ticket__standing { margin-left: 8px; align-self: center; }
+.standing {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; line-height: 1.4; text-transform: uppercase;
+  white-space: nowrap;
+  border: var(--hairline);
+}
+.standing--confidant { background: var(--ink); color: var(--on-ink); }
+.standing--poi { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+.police { display: flex; flex-direction: column; gap: 10px; }
+.police__form { display: flex; flex-direction: column; gap: 8px; }
+.police__q { font-family: var(--display); font-size: 26px; line-height: 1.05; text-transform: uppercase; }
+.police__result { font-size: 18px; font-weight: 800; }
+
+.tipoff__note { font-size: 13px; color: var(--muted); }

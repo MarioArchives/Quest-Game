@@ -64,6 +64,11 @@ const TAG: Record<FeedType, Label & { red?: boolean }> = {
   'checkin-open': { text: t.checkin.One, icon: 'clock', red: true },
   'checkin-answer': { text: t.checkin.One, icon: 'check' },
   'checkin-closed': { text: `${t.checkin.One} closed`, icon: 'clock' },
+  'global-scored': { text: `${t.sideQuest.One} scored`, icon: 'trophy' },
+  standing: { text: 'Standing', icon: 'eye', red: true },
+  'police-call': { text: t.policeCall.One, icon: 'clock', red: true },
+  'police-tip': { text: 'Tip-off', icon: 'megaphone', red: true },
+  'police-result': { text: `${t.policeCall.One} result`, icon: 'check' },
 };
 
 /** What the stub shows when there are no points to print on it. */
@@ -86,6 +91,11 @@ const MARK: Record<FeedType, Label> = {
   'checkin-open': { text: 'Answer', icon: 'clock' },
   'checkin-answer': { text: 'Here', icon: 'check' },
   'checkin-closed': { text: 'Closed', icon: 'clock' },
+  'global-scored': { text: 'Scored', icon: 'trophy' },
+  standing: { text: 'Standing', icon: 'eye' },
+  'police-call': { text: 'Called', icon: 'clock' },
+  'police-tip': { text: 'Tip-off', icon: 'megaphone' },
+  'police-result': { text: 'Result', icon: 'check' },
 };
 
 /** Types shown as a quiet one-liner rather than a ticket. */

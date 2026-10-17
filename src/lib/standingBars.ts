@@ -93,3 +93,24 @@ export function scaleTicks(scale: StandingScale): ScaleTick[] {
   }
   return ticks;
 }
+
+export interface RowSize {
+  /** A player's row, in px. */
+  row: number;
+  /** The face and the bar's thickness, in px. */
+  face: number;
+}
+
+/** The smallest row (and its face); rows grow from it to `ROW_GROW` times as big. */
+const ROW_MIN: RowSize = { row: 58, face: 40 };
+const ROW_GROW = 1.5;
+
+/**
+ * Rows sharing `space` px between `rows` players, so a few players fill the sheet: never smaller than `min` (the
+ * sheet scrolls instead) and never more than `grow` times as big. The face keeps its share of the row.
+ */
+export function standingRowSize(space: number, rows: number, min: RowSize = ROW_MIN, grow = ROW_GROW): RowSize {
+  if (!(space > 0) || rows <= 0) return min;
+  const row = Math.min(Math.round(min.row * grow), Math.max(min.row, Math.floor(space / rows)));
+  return { row, face: Math.round((row * min.face) / min.row) };
+}

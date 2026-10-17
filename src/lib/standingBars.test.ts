@@ -1,7 +1,7 @@
 // Mystery plan edge case 19, revised: standings as bars from zero on a ±25 grid that widens when needed.
 import { describe, expect, it } from 'vitest';
 import type { Doc, Player } from '../shared';
-import { scaleTicks, standingBars, standingScale } from './standingBars';
+import { scaleTicks, standingBars, standingRowSize, standingScale } from './standingBars';
 
 const p = (id: string, points: number, extra: Partial<Player> = {}): Doc<Player> =>
   ({ id, displayName: id.charAt(0).toUpperCase() + id.slice(1), photoURL: `https://example.com/${id}.jpg`, points, ...extra }) as Doc<Player>;
@@ -85,5 +85,33 @@ describe('scaleTicks', () => {
     const ticks = scaleTicks({ max: 50, step: 5, squares: 10 });
     expect(ticks).toHaveLength(21);
     expect(ticks.filter((t) => t.label).map((t) => t.label)).toEqual(['+50', '+40', '+30', '+20', '+10', '0', '−10', '−20', '−30', '−40', '−50']);
+  });
+});
+
+describe('standingRowSize', () => {
+  it('shares the space between the rows', () => {
+    expect(standingRowSize(640, 10)).toEqual({ row: 64, face: 44 });
+    expect(standingRowSize(700, 10)).toEqual({ row: 70, face: 48 });
+  });
+
+  it('never goes below the smallest row, so a long list scrolls', () => {
+    expect(standingRowSize(400, 12)).toEqual({ row: 58, face: 40 });
+    expect(standingRowSize(580, 10)).toEqual({ row: 58, face: 40 });
+  });
+
+  it('grows to half as big again at most, for a few players', () => {
+    expect(standingRowSize(450, 3)).toEqual({ row: 87, face: 60 });
+    expect(standingRowSize(870, 10)).toEqual({ row: 87, face: 60 });
+  });
+
+  it('starts at the smallest row before the sheet is measured, or with nobody on it', () => {
+    expect(standingRowSize(0, 4)).toEqual({ row: 58, face: 40 });
+    expect(standingRowSize(Number.NaN, 4)).toEqual({ row: 58, face: 40 });
+    expect(standingRowSize(500, 0)).toEqual({ row: 58, face: 40 });
+  });
+
+  it('takes another smallest row and growth', () => {
+    expect(standingRowSize(1000, 2, { row: 50, face: 30 }, 2)).toEqual({ row: 100, face: 60 });
+    expect(standingRowSize(150, 2, { row: 50, face: 30 }, 2)).toEqual({ row: 75, face: 45 });
   });
 });

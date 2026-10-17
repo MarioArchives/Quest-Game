@@ -9,6 +9,7 @@ import {
   type Guess,
   type Motive,
   type Player,
+  type PoliceCall,
   type QuestTemplate,
   type Reward,
   type Settings,
@@ -66,6 +67,8 @@ export interface GameValue {
   myRewards: Doc<Reward>[];
   /** The signed-in player's secret motive (packs with characters), or null. */
   myMotive: Doc<Motive> | null;
+  /** The signed-in player's open police check-in (packs with police), or null. */
+  myPoliceCall: Doc<PoliceCall> | null;
 }
 
 /** How many of the newest feed posts the app keeps live. */
@@ -102,6 +105,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Only I can read my rewards and motive (security rules), so the queries are mine alone.
   const rewardsQ = useQuery<Reward>(
     features.rewardChoice && uid && isPlayer ? { path: 'rewards', where: [['uid', '==', uid], ['status', '==', 'pending']] } : null,
+  );
+  // Only my own open calls are readable by a player, so the query pins both fields.
+  const policeQ = useQuery<PoliceCall>(
+    features.police && uid && isPlayer ? { path: 'policeCalls', where: [['uid', '==', uid], ['status', '==', 'open']] } : null,
   );
   const motiveDoc = useDocument<Motive>(features.characters && uid && isPlayer ? `motives/${uid}` : null);
 
@@ -142,6 +149,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       witnessRequests: [...witnessQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
       myRewards: [...rewardsQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
       myMotive: motiveDoc.data,
+      myPoliceCall: [...policeQ.data].sort((a, b) => tsMs(a.startsAt) - tsMs(b.startsAt))[0] ?? null,
     };
   }, [
     stateDoc.data,
@@ -157,6 +165,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     witnessQ.data,
     rewardsQ.data,
     motiveDoc.data,
+    policeQ.data,
     feedQ.data,
     feedQ.loading,
     feedQ.error,

@@ -520,3 +520,43 @@ describe('C2. a missed check-in, in every rule set', () => {
     expect(rows(id, ALL)).not.toMatch(/check-in/i);
   });
 });
+
+describe('Story missions and police check-ins, in every rule set (plan edge case 37)', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  // Late in the game, so countdown would show any decay it wrongly applied.
+  const run = (rules: ScoringRules, e: ScoreEvent, settings: Partial<Settings> = {}) =>
+    scoreEvent(rules, e, sctx(rules, { settings: { ...SETTINGS, sideQuestSkipPenalty: 7, ...settings }, startedAt: START, now: at(30) }));
+
+  it.each(ids)('%s pays each entrant of a mission judged by submission its points', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'sideQuestEntered', uid: 'alice', points: 5 })).toEqual([pts('alice', 5, 'global-entry')]);
+    expect(run(RULESETS[id]!, { kind: 'sideQuestEntered', uid: 'alice', points: 0 })).toEqual([]);
+  });
+
+  it.each(ids)('%s pays the fastest entry its bonus', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'sideQuestFastest', uid: 'bob', bonus: 3 })).toEqual([pts('bob', 3, 'fastest')]);
+    expect(run(RULESETS[id]!, { kind: 'sideQuestFastest', uid: 'bob', bonus: 0 })).toEqual([]);
+  });
+
+  it.each(ids)("%s charges a skip the mission's own fine when it has one, else the setting", (id) => {
+    expect(run(RULESETS[id]!, { kind: 'sideQuestSkipped', uid: 'carol', penalty: 4 })).toEqual([pts('carol', -4, 'skipped')]);
+    expect(run(RULESETS[id]!, { kind: 'sideQuestSkipped', uid: 'carol', penalty: 0 })).toEqual([]);
+    expect(run(RULESETS[id]!, { kind: 'sideQuestSkipped', uid: 'carol' })).toEqual([pts('carol', -7, 'skipped')]);
+  });
+
+  it.each(ids)('%s pays a passed police check-in the points it opened with', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'policePassed', uid: 'alice', points: 3 })).toEqual([pts('alice', 3, 'police-pass')]);
+  });
+
+  it.each(ids)('%s charges a failed or missed police check-in the fine it opened with', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'policeFailed', uid: 'alice', penalty: 2, missed: false })).toEqual([pts('alice', -2, 'police-fail')]);
+    expect(run(RULESETS[id]!, { kind: 'policeFailed', uid: 'alice', penalty: 2, missed: true })).toEqual([pts('alice', -2, 'police-missed')]);
+    expect(run(RULESETS[id]!, { kind: 'policeFailed', uid: 'alice', penalty: 0, missed: true })).toEqual([]);
+  });
+
+  it('each names only its own player', () => {
+    expect(participants({ kind: 'sideQuestEntered', uid: 'alice', points: 5 })).toEqual(['alice']);
+    expect(participants({ kind: 'sideQuestFastest', uid: 'bob', bonus: 3 })).toEqual(['bob']);
+    expect(participants({ kind: 'policePassed', uid: 'carol', points: 3 })).toEqual(['carol']);
+    expect(participants({ kind: 'policeFailed', uid: 'carol', penalty: 2, missed: true })).toEqual(['carol']);
+  });
+});
