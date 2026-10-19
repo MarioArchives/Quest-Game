@@ -23,6 +23,11 @@ service firebase.storage {
       return request.resource.size < maxBytes && request.resource.contentType.matches('image/.*');
     }
 
+    // A video entry (mp4, mov or webm), larger than a photo may be.
+    function isVideo(maxBytes) {
+      return request.resource.size < maxBytes && request.resource.contentType.matches('video/(mp4|quicktime|webm)');
+    }
+
     // Avatars may be uploaded before joining (so the GM can see who is asking in).
     match /avatars/{uid}/{file} {
       allow get: if signedIn() && (request.auth.uid == uid || isPlayer() || isGM());
@@ -31,7 +36,7 @@ service firebase.storage {
 
     match /submissions/{uid}/{file} {
       allow get: if isPlayer() || isGM();
-      allow create: if isNew() && isPlayer() && request.auth.uid == uid && isImage(5 * 1024 * 1024);
+      allow create: if isNew() && isPlayer() && request.auth.uid == uid && (isImage(5 * 1024 * 1024) || isVideo(50 * 1024 * 1024));
     }
   }
 }

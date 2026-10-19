@@ -6,7 +6,7 @@ import { termForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
 import { tallyVotes } from '../shared/votes.js';
 import type { ScoreEvent } from '../shared/scoring/types.js';
-import type { GlobalQuest, GlobalQuestStatus, Player, Settings, Submission, Vote } from '../shared/types.js';
+import type { FactEntry, GlobalQuest, GlobalQuestStatus, Player, Settings, Submission, Vote } from '../shared/types.js';
 import type { Db } from './context.js';
 import { addFeed } from './feed.js';
 import { isPlaying, loadSettings, loadState } from './guards.js';
@@ -120,6 +120,8 @@ export function revealEntries(tx: Txn, entries: Entry[]): void {
         imagePath: entry.data.imagePath ?? null,
         thumbPath: entry.data.thumbPath ?? null,
         caption: entry.data.caption ?? null,
+        videoPath: entry.data.videoPath ?? null,
+        taggedUid: entry.data.taggedUid ?? null,
       });
     }
   }
@@ -166,6 +168,16 @@ export function moveOn(
   data: MoveOnData,
   by: string | null = null,
 ): GlobalQuestStatus {
+  if (q.gq.longRun) {
+    // A long-running mission's entries close and it waits for its vote (a GM opens it, or an announcement does).
+    const entries = data.entries.get(q.id) ?? [];
+    if (entries.length === 0) {
+      closeUnentered(tx, db, now, scoring, q, data.players);
+      return 'closed';
+    }
+    startChecking(tx, db, now, pack, q, by);
+    return 'checking';
+  }
   if (!isUnchecked(q.gq)) {
     startChecking(tx, db, now, pack, q, by);
     return 'checking';
@@ -184,8 +196,22 @@ export function moveOn(
  * takes them back), everyone who could have entered and didn't pays the fine, and one summary goes in the feed.
  * Call once, as it closes. `entries` come from readEntries (thrown-out ones are not there), oldest first.
  */
+/**
+ * A mission that writes motives (entry.writesMotive): each entry's text becomes the motive of the player it is about,
+ * signed by its writer. A player nobody wrote about keeps the motive they had.
+ */
+function recordMotives(tx: Txn, db: Db, now: Date, q: Quest, entries: Entry[]): void {
+  if (!q.gq.entry?.writesMotive) return;
+  for (const entry of entries) {
+    const { taggedUid, caption, uid } = entry.data;
+    if (!taggedUid || !caption) continue;
+    tx.set(db.doc(`motives/${taggedUid}`), { text: caption, updatedAt: toTs(now), byUid: uid, globalQuestId: q.id });
+  }
+}
+
 export function scoreSubmitted(tx: Txn, db: Db, now: Date, scoring: Scoring, q: Quest, entries: Entry[], players: Map<string, Player>): void {
   revealEntries(tx, entries);
+  recordMotives(tx, db, now, q, entries);
   const balances = balancesOf(players);
   const awards = new Map<string, number>();
   const meta = (entry: Entry) => ({ ref: entry.id, by: 'system' });
@@ -269,7 +295,9 @@ export function startChecking(tx: Txn, db: Db, now: Date, pack: GamePack, q: Que
   tx.update(q.ref, { status: 'checking' });
   addFeed(tx, db, now, {
     type: 'checking',
-    text: `Time's up: ${q.gq.title}. Late entries still count until the ${termForms(pack.terms).gm.one} opens voting`,
+    text: q.gq.longRun
+      ? `Entries are closed: ${q.gq.title}. The vote opens later`
+      : `Time's up: ${q.gq.title}. Late entries still count until the ${termForms(pack.terms).gm.one} opens voting`,
     uid: null,
     ref: q.id,
     actorUid: by,
@@ -292,12 +320,60 @@ export function finishChecking(
   players: Map<string, Player>,
 ): 'voting' | 'closed' {
   if (entries.length === 0) {
-    closeWithoutWinner(tx, q);
-    penaliseSkippers(tx, db, now, scoring, q, [], players);
+    closeUnentered(tx, db, now, scoring, q, players);
     return 'closed';
   }
   startVoting(tx, db, now, settings, q, entries);
   return 'voting';
+}
+
+/** Closes a side quest nobody entered: no winners, a fact it records is left unknown, and everyone who could have entered is fined. */
+export function closeUnentered(tx: Txn, db: Db, now: Date, scoring: Scoring, q: Quest, players: Map<string, Player>): void {
+  closeWithoutWinner(tx, q);
+  recordFact(tx, db, now, q, [], {}, players);
+  penaliseSkippers(tx, db, now, scoring, q, [], players);
+}
+
+/**
+ * Ends a live or checking side quest's entries and goes straight to the result, whatever its deadline (an announcement that
+ * opens its vote): nobody entered means closed and fines; a submission mission is scored; otherwise the vote opens.
+ * Call attachPosts on `entries` first.
+ */
+export function openVoteNow(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  settings: Settings,
+  scoring: Scoring,
+  q: Quest,
+  entries: Entry[],
+  players: Map<string, Player>,
+): GlobalQuestStatus {
+  if (q.gq.judging === 'submit') {
+    scoreSubmitted(tx, db, now, scoring, q, entries, players);
+    return 'closed';
+  }
+  return finishChecking(tx, db, now, settings, scoring, q, entries, players);
+}
+
+/**
+ * Writes the fact a mission with `records` settles when it closes: its winning entries (every tied one, with their votes), or
+ * none when nobody won. Replaces any earlier run's. Does nothing for a mission that records nothing.
+ */
+export function recordFact(tx: Txn, db: Db, now: Date, q: Quest, winners: Entry[], counts: Record<string, number>, players: Map<string, Player>): void {
+  const records = q.gq.records;
+  if (!records) return;
+  const entries: FactEntry[] = winners.map((e) => ({
+    submissionId: e.id,
+    uid: e.data.uid,
+    displayName: nameOf(players, e.data.uid),
+    caption: e.data.caption ?? null,
+    imagePath: e.data.imagePath ?? null,
+    thumbPath: e.data.thumbPath ?? null,
+    videoPath: e.data.videoPath ?? null,
+    votes: counts[e.id] ?? 0,
+  }));
+  tx.set(db.doc(`facts/${records.key}`), { key: records.key, label: records.label, value: null, entries, storyId: q.gq.storyId ?? null, at: toTs(now) });
 }
 
 /** Close a side quest nobody entered (or one ended early): no winners. */
@@ -354,22 +430,36 @@ export function closeWithTally(
   const t = termForms(pack.terms);
   // Only revealed entries can be voted for or win.
   entries = revealedEntries(entries);
+  recordMotives(tx, db, now, q, entries);
   const { counts, winners } = tallyVotes([...votes.values()], entries.map((e) => e.id));
   const winnerUids: string[] = [];
   const winningSubmissionIds: string[] = [];
   const balances = balancesOf(players);
   const awards = new Map<string, number>();
 
+  // A mission that pays for each vote pays every entry that got one, winner or not.
+  const perVote = q.gq.votePoints ?? 0;
+  if (perVote > 0) {
+    for (const entry of entries.filter((e) => counts[e.id] > 0)) {
+      const paid = payOut(tx, db, now, scoring, { kind: 'sideQuestVotes', uid: entry.data.uid, votes: counts[entry.id], perVote }, balances, { ref: entry.id, by: 'system' });
+      awards.set(entry.id, paid);
+    }
+  }
+  // Several tied at the top each get the tie bonus when the mission has one, else the full points.
+  const bonus = winners.length > 1 ? (q.gq.tieBonus ?? q.gq.bonusPoints) : q.gq.bonusPoints;
+  const won: Entry[] = [];
   for (const entry of entries.filter((e) => winners.includes(e.id))) {
     const uid = entry.data.uid;
     const player = players.get(uid);
     winnerUids.push(uid);
     winningSubmissionIds.push(entry.id);
+    won.push(entry);
     // The rule set decides the bonus; a winner who has no player doc gets nothing (applyScore skips them).
-    const applied = payOut(tx, db, now, scoring, { kind: 'sideQuestWon', uid, bonus: q.gq.bonusPoints, votes: counts[entry.id] }, balances, {
+    const winApplied = payOut(tx, db, now, scoring, { kind: 'sideQuestWon', uid, bonus, votes: counts[entry.id] }, balances, {
       ref: entry.id,
       by: 'system',
     });
+    const applied = winApplied + (awards.get(entry.id) ?? 0);
     awards.set(entry.id, applied);
     addFeed(tx, db, now, {
       type: 'global-won',
@@ -382,9 +472,11 @@ export function closeWithTally(
       photoURL: player?.photoURL ?? null,
       imagePath: entry.data.imagePath ?? null,
       thumbPath: entry.data.thumbPath ?? null,
+      videoPath: entry.data.videoPath ?? null,
       caption: entry.data.caption ?? null,
     });
   }
+  recordFact(tx, db, now, q, won, counts, players);
 
   // A story mission also pays its fastest entry, who need not be a winner.
   const unchecked = isUnchecked(q.gq);

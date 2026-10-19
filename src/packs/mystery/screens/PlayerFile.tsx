@@ -1,7 +1,8 @@
-// Another player's file at /player/:uid, in the case-file look (E4·1): their suspect folder (mugshot, case number,
-// character, stats, an ACTIVE or LEFT stamp and their typed record), the guess as a strung "accusation" tag, and the
-// exhibits and points-history folders. None of the private parts (motive, missions).
-import { useEffect, useId, useState } from 'react';
+// Another player's file at /player/:uid, in the case-file look (E4·1): their suspect folder (a classification band
+// for their standing, mugshot, case number, character, stats, their particulars from the booking desk, an ACTIVE or
+// LEFT stamp and their typed record), the guess as a strung accusation tag that opens the charge sheet (Form 3), and
+// the exhibits and points-history folders. None of the private parts (motive, missions, their police check-ins).
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { formatDelta } from '../../../components/PointsChip';
 import { Icon } from '../../../components/Icon';
@@ -12,13 +13,13 @@ import { exhibitsFor } from '../../../lib/exhibits';
 import { formatAgo } from '../../../lib/time';
 import { features, t } from '../../../pack';
 import { dayTime, firstName, LEDGER_LABELS } from '../../../screens/player/format';
-import { GuessPanel } from '../../../screens/player/GuessPanel';
 import { characterLine } from '../../../screens/player/PlayerTicket';
 import { usePlayerData, type PlayerData } from '../../../screens/player/usePlayerData';
 import { useSession } from '../../../session/SessionProvider';
+import { ChargeTag } from './ChargeSheet';
 import { Folder, Stamp, Strung, Tag, TagTop } from './CaseKit';
 import { TipOff, useTipOffApplies } from '../../../screens/home/TipOff';
-import { ExhibitsFolder, StandingStamp, Stat, SuspectHead } from './FileParts';
+import { ExhibitsFolder, MotivesFolder, ParticularsSlip, StandingBand, Stat, SuspectHead } from './FileParts';
 import '../../../screens/player/player.css';
 import './playerfile.css';
 
@@ -91,6 +92,7 @@ function Pass({ player }: { player: RankedPlayer }) {
     <div className="mf">
       <BackLink />
       <Folder tab={`Suspect file · ${firstName(name)}`} clip="tab" label={`${name}'s profile`} className="mf-suspect">
+        <StandingBand points={player.points} left={!!player.left} />
         <SuspectHead
           photo={player.photoURL ?? null}
           name={charName}
@@ -98,7 +100,6 @@ function Pass({ player }: { player: RankedPlayer }) {
           uid={player.id}
           line={character ? `${characterLine({ name: character.name, role: character.role })} · played by ${firstName(name)}` : name}
         >
-          <StandingStamp points={player.points} />
           {player.left ? <p className="pf-status">{out ? 'Out of the game' : 'Left · score frozen'}</p> : null}
         </SuspectHead>
         <dl className="mf-stats">
@@ -111,6 +112,7 @@ function Pass({ player }: { player: RankedPlayer }) {
           </Stat>
           <Stat label="Done">{data.record.completed}</Stat>
         </dl>
+        <ParticularsSlip uid={player.id} particulars={player.particulars} />
         <RecordRows data={data} stamp={player.left ? (out ? 'Out' : 'Left') : 'Active'} />
       </Folder>
 
@@ -121,12 +123,13 @@ function Pass({ player }: { player: RankedPlayer }) {
             {name} has left the game, so their {t.quest.many} can&apos;t be guessed.
           </p>
         ) : (
-          <GuessCard target={player} />
+          <ChargeTag target={player} />
         )
       ) : null}
 
       <TipOffTag target={player} />
 
+      <MotivesFolder uid={player.id} />
       <ExhibitsFolder exhibits={exhibits} empty={`No exhibits yet. Photos from ${t.sideQuest.many} they enter are filed here.`} />
       <Statement player={player} data={data} />
     </div>
@@ -142,40 +145,6 @@ function TipOffTag({ target }: { target: RankedPlayer }) {
       <Tag>
         <TagTop left="Tip-off · Form 7" />
         <TipOff target={target} />
-      </Tag>
-    </Strung>
-  );
-}
-
-/** The guess as a strung accusation form: folded until the player opens it, then the engine's guess panel. */
-function GuessCard({ target }: { target: RankedPlayer }) {
-  const { settings, myGuesses } = useGame();
-  const [open, setOpen] = useState(false);
-  const bodyId = useId();
-  const first = firstName(target.displayName);
-  const cap = settings.guessLimit;
-  const left = cap > 0 ? Math.max(0, cap - myGuesses.length) : null;
-  return (
-    <Strung className="pf-accuse" label={`Guess ${first}'s ${t.quest.one}`}>
-      <Tag>
-        <TagTop left="Accusation · Form 3" right={left !== null ? `${left} of ${cap} left` : undefined} />
-        <Stamp tone="bad">
-          Guess {first}&apos;s {t.quest.one}
-        </Stamp>
-        <button type="button" className="pf-guess__toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
-          <span>{open ? 'Fold the form away' : 'Fill in the form'}</span>
-          <Icon name="chevronDown" size={20} strokeWidth={2.4} className={`pf-guess__chev${open ? ' is-open' : ''}`} />
-        </button>
-        <div id={bodyId} className="pf-guess__body">
-          {open ? (
-            <GuessPanel target={target} headed={false} />
-          ) : (
-            <p className="cf-text pf-guess__teaser">
-              Pick the {t.quest.one} you think {first} holds from the whole list. Right: {first} −{settings.exposePenalty}, you +{settings.correctGuessReward} · Wrong: you −
-              {settings.wrongGuessCost}
-            </p>
-          )}
-        </div>
       </Tag>
     </Strung>
   );
@@ -239,7 +208,9 @@ function Statement({ player, data }: { player: RankedPlayer; data: PlayerData })
       {data.ledgerError ? (
         <p className="mf-muted">Couldn&apos;t load the points history.</p>
       ) : data.ledgerLoading ? (
-        <p className="mf-muted">Loading the points history…</p>
+        <p className="mf-muted">
+          <Loader inline size={20} label="Loading the points history" caption="Loading the points history…" />
+        </p>
       ) : data.ledger.length === 0 ? (
         <p className="mf-muted">No points yet.</p>
       ) : (

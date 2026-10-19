@@ -371,6 +371,29 @@
 .gm-setting__input.is-invalid { border-color: var(--accent); background: var(--accent-tint); }
 .gm-quiet { display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; border-bottom: var(--hairline); }
 .gm-quiet > .gm-setting { border-bottom: 0; }
+/* Folded (a pack's own GM screen): each group a row with a summary that opens it, one at a time. */
+.gm-settings--folds { gap: 0; }
+.gm-settings--folds > .gm-hint { margin-bottom: 6px; }
+.gm-settings--folds > .note, .gm-settings--folds > .btn { margin-top: var(--gap); }
+.gm-settings--folds > .note + .btn, .gm-settings--folds > .btn + .btn { margin-top: 8px; }
+.gm-fold { border-top: var(--hairline); }
+.gm-fold.is-open { border-top: var(--line); border-bottom: var(--line); }
+.gm-fold__h { margin: 0; font: inherit; }
+.gm-fold__btn {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.gm-fold__btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.gm-fold__title { font-family: var(--display); font-size: 16px; line-height: 1.2; }
+.gm-fold__sum { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-fold__sum.is-flagged { color: var(--accent); font-weight: 800; }
+.gm-fold.is-open .gm-fold__sum { color: var(--accent); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+.gm-fold__chev { transition: transform 0.15s ease; }
+.gm-fold.is-open .gm-fold__chev { transform: rotate(180deg); }
+.gm-fold__body { display: flex; flex-direction: column; min-width: 0; margin: 0; padding: 0 0 8px; border: 0; }
+.gm-fold__body[hidden] { display: none; }
+.gm-fold__body > .gm-setting:last-child { border-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .gm-fold__chev { transition: none; } }
 
 /* half-width action pairs: keep labels on one line */
 .gm-row > .btn { padding: 0 8px; white-space: nowrap; }
@@ -395,3 +418,9 @@
 /* A hint inside the dark "open now" panel reads in the panel's own colour. */
 .gm-current .gm-hint { color: inherit; opacity: 0.8; }
 .gm-pm__open { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ---------- police switchboard (phone calls) ---------- */
+.switchboard .section-head { margin: 0; }
+.switchboard__actions { flex-wrap: wrap; }
+.switchboard__mine { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: var(--hairline); }
+.switchboard__line { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; }

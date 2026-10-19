@@ -3,7 +3,7 @@
 import type { DocRef, Txn } from '../shared/store/types.js';
 import type { GamePack } from '../shared/packs/types.js';
 import { termForms } from '../shared/packs/terms.js';
-import type { GlobalQuest, Player, Quest, Reward, Settings, Submission } from '../shared/types.js';
+import type { Fact, GlobalQuest, Player, Quest, Reward, Settings, Submission } from '../shared/types.js';
 import type { Db } from './context.js';
 import { dealReplacement, readDealing, type Dealing } from './deal.js';
 import { addFeed } from './feed.js';
@@ -36,6 +36,8 @@ export interface Loaded {
   rewardRef: DocRef;
   /** The player a used frame landed on, if they still have a player doc. */
   rewardTarget: Player | null;
+  /** The fact this entry's mission records, when it lists the entry (read for a fraud override). */
+  fact?: { ref: DocRef; data: Fact } | null;
 }
 
 export interface LoadOptions {
@@ -102,6 +104,13 @@ export async function loadReview(
     }
   }
 
+  let fact: Loaded['fact'] = null;
+  if (opts.posts && gq?.records) {
+    const ref = db.doc(`facts/${gq.records.key}`);
+    const snap = await tx.get(ref);
+    if (snap.exists && (snap.data() as Fact).entries?.some((e) => e.submissionId === id)) fact = { ref, data: snap.data() as Fact };
+  }
+
   return {
     id,
     subRef: db.doc(`submissions/${id}`),
@@ -120,6 +129,7 @@ export async function loadReview(
     reward,
     rewardRef: db.doc(`rewards/${id}`),
     rewardTarget,
+    fact,
   };
 }
 
@@ -317,6 +327,8 @@ export function overrideAsFraud(env: ReviewEnv, L: Loaded, note: string | null):
     });
   }
 
+  // A disqualified entry is no longer what the story settled.
+  if (L.fact) tx.update(L.fact.ref, { entries: L.fact.data.entries.filter((e) => e.submissionId !== L.id) });
   for (const ref of L.postRefs) tx.update(ref, { flagged: true });
   addFeed(tx, db, now, {
     type: 'fraud',

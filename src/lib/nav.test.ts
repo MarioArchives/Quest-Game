@@ -1,6 +1,6 @@
 // Engine plan edge cases 9-11 (app side): tabs and GM sections follow the pack's features.
 import { describe, expect, it } from 'vitest';
-import { gmSectionsFor, tabLabels, tabsFor } from './nav';
+import { gmSectionsFor, litTab, tabLabels, tabsFor } from './nav';
 
 const ALL_ON = { guesses: true, sideQuests: true, map: true };
 
@@ -16,6 +16,15 @@ describe('tabsFor', () => {
 
   it('has no Map tab when the map is off (E11)', () => {
     expect(tabsFor({ features: { ...ALL_ON, map: false }, isAdmin: true, ended: false })).toEqual(['home', 'account', 'gm']);
+  });
+
+  it('a pack with its own feed screen gets a Feed tab after Home', () => {
+    expect(tabsFor({ features: ALL_ON, isAdmin: false, ended: false, feed: true })).toEqual(['home', 'feed', 'map', 'account']);
+  });
+
+  it('no Map tab when the pack hosts the map in a screen of its own', () => {
+    expect(tabsFor({ features: ALL_ON, isAdmin: true, ended: false, feed: true, ownMap: true })).toEqual(['home', 'feed', 'account', 'gm']);
+    expect(tabsFor({ features: ALL_ON, isAdmin: false, ended: false, ownMap: false })).toEqual(['home', 'map', 'account']);
   });
 
   it('guesses and side quests do not change the tabs', () => {
@@ -65,12 +74,13 @@ describe('gmSectionsFor', () => {
 
 describe('tabLabels (mystery plan E22)', () => {
   it("without overrides: Home, Map, Account, and the pack's GM and wrap words", () => {
-    expect(tabLabels(undefined, { gm: 'Host', wrap: 'Recap' })).toEqual({ home: 'Home', map: 'Map', account: 'Account', gm: 'Host', wrap: 'Recap' });
+    expect(tabLabels(undefined, { gm: 'Host', wrap: 'Recap' })).toEqual({ home: 'Home', feed: 'Feed', map: 'Map', account: 'Account', gm: 'Host', wrap: 'Recap' });
   });
 
   it("a pack's own labels replace only the tabs it names", () => {
     expect(tabLabels({ home: 'Board', account: 'My file' }, { gm: 'GM', wrap: 'Case file' })).toEqual({
       home: 'Board',
+      feed: 'Feed',
       map: 'Map',
       account: 'My file',
       gm: 'GM',
@@ -80,5 +90,22 @@ describe('tabLabels (mystery plan E22)', () => {
 
   it('ignores blank labels', () => {
     expect(tabLabels({ home: '  ' }, { gm: 'GM', wrap: 'Wrap' }).home).toBe('Home');
+  });
+});
+
+describe('litTab', () => {
+  it("lights each tab on its own screen, and none on the others", () => {
+    expect(litTab('/')).toBe('home');
+    expect(litTab('/feed')).toBe('feed');
+    expect(litTab('/map')).toBe('map');
+    expect(litTab('/account')).toBe('account');
+    expect(litTab('/gm')).toBe('gm');
+    expect(litTab('/wrap')).toBe('wrap');
+    expect(litTab('/player/abc')).toBeNull();
+    expect(litTab('/standings')).toBeNull();
+  });
+
+  it('keeps Home lit on the map when the pack hosts the map in its Home screen', () => {
+    expect(litTab('/map', true)).toBe('home');
   });
 });

@@ -19,6 +19,7 @@ import { HouseRules } from './account/HouseRules';
 import { LocationCard } from './account/LocationCard';
 import { NotificationsCard } from './account/NotificationsCard';
 import { PointsSummary } from './account/PointsSummary';
+import { PoliceLineCard } from './account/PoliceLineCard';
 import { StandingBadge } from './home/StandingBadge';
 import { SideQuestEntries } from './account/SideQuestEntries';
 import { WitnessRequests } from './account/WitnessRequests';
@@ -119,6 +120,7 @@ export default function AccountScreen() {
           <ClaimHistory titleById={titleById} />
           {features.sideQuests ? <SideQuestEntries /> : null}
           {features.map ? <LocationCard /> : null}
+          {features.police ? <PoliceLineCard /> : null}
           <NotificationsCard />
           <PointsSummary entries={ledger.data} loading={ledger.loading} />
         </>

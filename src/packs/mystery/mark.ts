@@ -1,0 +1,53 @@
+import type { LoaderMark } from '../types.ts';
+
+// The Manchester worker bee (design/manchester-bee.svg, the master; a test keeps them in sync), after the "Made in
+// Manchester" mosaic and drawn like the Ashton Memorial: a three-ink plate under a 1.5px round-capped ink line, nudged
+// off-register by (+1, +0.4) (theme.css sets the offset). Plate inks (colours in theme.css): 1 the gold abdomen and
+// thorax, 2 the pale wings, 3 the black bands, head and wing veins. The line draws in five tiers: abdomen, thorax and
+// head, wings (a hind wing tucked under each fore wing), six jointed legs, elbowed feelers. Every piece is its own path,
+// so a tier's pieces draw together across its slot. The app's LoaderArt and the boot figure in index.html (brand.ts)
+// both draw this.
+export const mark: LoaderMark = {
+  strokeWidth: 1.5,
+  plate: [
+    { shape: 'path', ink: 2, attrs: { d: 'M38.1 28.5C42.3 27 46.3 26.9 50.8 28.1C53.8 29 54 33.2 50.7 34C46.9 34.4 41.4 32.5 37.9 29.8Z' } },
+    { shape: 'path', ink: 2, attrs: { d: 'M38.3 25.1C43.3 20.6 48.8 18.4 55.7 17.8C60.3 17.6 62.8 23.8 58.7 26.9C53.5 29.5 44.9 29.5 38.6 27.2Z' } },
+    { shape: 'path', ink: 2, attrs: { d: 'M25.9 28.5C21.7 27 17.7 26.9 13.2 28.1C10.2 29 10 33.2 13.3 34C17.1 34.4 22.6 32.5 26.1 29.8Z' } },
+    { shape: 'path', ink: 2, attrs: { d: 'M25.7 25.1C20.7 20.6 15.2 18.4 8.3 17.8C3.7 17.6 1.2 23.8 5.3 26.9C10.5 29.5 19.1 29.5 25.4 27.2Z' } },
+    { shape: 'path', ink: 1, attrs: { d: 'M32 35C39.1 34.7 41.6 37.1 41.5 43.1C41.5 50.7 36.7 55.1 32 59.5C27.3 55.1 22.5 50.7 22.5 43.1C22.4 37.1 24.9 34.7 32 35Z' } },
+    { shape: 'ellipse', ink: 1, attrs: { cx: 32, cy: 27, rx: 6.5, ry: 5.9 } },
+    { shape: 'path', ink: 3, attrs: { d: 'M22.7 40.6L41.3 40.6C41.4 41.4 41.5 42.2 41.5 43.1C41.5 44 41.4 44.9 41.3 45.7L22.7 45.7C22.6 44.9 22.5 44 22.5 43.1C22.5 42.2 22.6 41.4 22.7 40.6Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M24.2 50.3L39.8 50.3C39.2 51.5 38.5 52.6 37.7 53.6L26.3 53.6C25.5 52.6 24.8 51.5 24.2 50.3Z' } },
+    { shape: 'ellipse', ink: 3, attrs: { cx: 32, cy: 16.9, rx: 6.7, ry: 4.4 } },
+    { shape: 'path', ink: 3, attrs: { d: 'M41.2 25.6L44.2 25L47 24.3L49.6 23.8L52.1 23.5L54.4 23.5L56.6 23.3L56.6 23L54.4 22.5L52 22.6L49.5 22.8L46.8 23.3L44 24.1L41.1 25.3Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M46.3 23.8L47.5 24.9L48.8 25.5L50.1 26.1L51.4 26.5L52.6 26.8L53.9 26.8L54 26.5L52.8 25.9L51.6 25.6L50.4 25.2L49.2 24.7L47.9 24L46.5 23.5Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M40.1 29.8L41.9 30.6L43.7 31L45.3 31.3L46.9 31.5L48.3 31.6L49.6 31.4L49.6 31.1L48.4 30.7L47 30.5L45.5 30.3L43.9 30L42.1 29.7L40.2 29.5Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M22.8 25.6L19.8 25L17 24.3L14.4 23.8L11.9 23.5L9.6 23.5L7.4 23.3L7.4 23L9.6 22.5L12 22.6L14.5 22.8L17.2 23.3L20 24.1L22.9 25.3Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M17.7 23.8L16.5 24.9L15.2 25.5L13.9 26.1L12.6 26.5L11.4 26.8L10.1 26.8L10 26.5L11.2 25.9L12.4 25.6L13.6 25.2L14.8 24.7L16.1 24L17.5 23.5Z' } },
+    { shape: 'path', ink: 3, attrs: { d: 'M23.9 29.8L22.1 30.6L20.3 31L18.7 31.3L17.1 31.5L15.7 31.6L14.4 31.4L14.4 31.1L15.6 30.7L17 30.5L18.5 30.3L20.1 30L21.9 29.7L23.8 29.5Z' } },
+  ],
+  tiers: [
+    // 1 the abdomen
+    ['M32 59.5C36.7 55.1 41.5 50.7 41.5 43.1C41.6 37.1 39.1 34.7 32 35C24.9 34.7 22.4 37.1 22.5 43.1C22.5 50.7 27.3 55.1 32 59.5'],
+    // 2 the thorax and the head
+    ['M32 32.9a6.5 5.9 0 1 0 0-11.8a6.5 5.9 0 1 0 0 11.8', 'M32 21.3a6.7 4.4 0 1 0 0-8.8a6.7 4.4 0 1 0 0 8.8'],
+    // 3 the wings
+    [
+      'M37.9 29.8C41.4 32.5 46.9 34.4 50.7 34C53.5 33.3 53.8 30.2 51.9 28.7',
+      'M38.3 25.1C43.3 20.6 48.8 18.4 55.7 17.8C60.3 17.6 62.8 23.8 58.7 26.9C53.5 29.5 44.9 29.5 38.6 27.2',
+      'M26.1 29.8C22.6 32.5 17.1 34.4 13.3 34C10.5 33.3 10.2 30.2 12.1 28.7',
+      'M25.7 25.1C20.7 20.6 15.2 18.4 8.3 17.8C3.7 17.6 1.2 23.8 5.3 26.9C10.5 29.5 19.1 29.5 25.4 27.2',
+    ],
+    // 4 the legs
+    [
+      'M39.4 23.4L43.3 19L45.9 14.6L48.4 10.6',
+      'M24.7 23.4L20.7 19L18.1 14.6L15.6 10.6',
+      'M38.5 31.2L44.8 35L50.4 37.9L57.4 39.4',
+      'M25.5 31.2L19.2 35L13.6 37.9L6.6 39.4',
+      'M40.6 36.6L44.2 39.8L45.4 46.5L50.3 50.9L55.3 53',
+      'M23.4 36.6L19.8 39.8L18.6 46.5L13.7 50.9L8.7 53',
+    ],
+    // 5 the feelers
+    ['M34.3 13L38.3 8.1L46.5 4.5', 'M29.7 13L25.7 8.1L17.5 4.5'],
+  ],
+};

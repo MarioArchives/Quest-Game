@@ -1,4 +1,6 @@
-// The four demo players and what they did, plus the small deterministic helpers that deal their hands.
+// The four demo players and what they did, the newcomer who has only just been let in, plus the small deterministic
+// helpers that deal their hands.
+import type { Particulars } from '../types.ts';
 
 export interface Bot {
   uid: string;
@@ -13,6 +15,8 @@ export interface Bot {
   rerolls: number;
   /** Map pin offset from the pack's centre: [lat, lng]. */
   offset: [number, number];
+  /** What they told the onboarding (they're all through it). */
+  particulars: Particulars;
 }
 
 export const BOTS: Bot[] = [
@@ -26,6 +30,7 @@ export const BOTS: Bot[] = [
     ],
     rerolls: 0,
     offset: [0.0003, -0.0007],
+    particulars: { heightCm: 168, drink: 'Gin', marks: 'A laugh you can hear across the room' },
   },
   {
     uid: 'demo-sam',
@@ -36,6 +41,7 @@ export const BOTS: Bot[] = [
     ],
     rerolls: 1,
     offset: [-0.0004, 0.0005],
+    particulars: { heightCm: 183, drink: 'Pint', marks: 'Never without his green jacket' },
   },
   {
     uid: 'demo-priya',
@@ -47,6 +53,7 @@ export const BOTS: Bot[] = [
     submitted: { witness: 'demo-maya' },
     rerolls: 0,
     offset: [0.0008, 0.0004],
+    particulars: { heightCm: 160, drink: 'Cocktail', marks: null },
   },
   {
     uid: 'demo-jonah',
@@ -55,8 +62,15 @@ export const BOTS: Bot[] = [
     rejected: { witness: 'demo-sam', note: 'That was a different band. Try again!' },
     rerolls: 2,
     offset: [-0.0009, -0.0003],
+    particulars: { heightCm: 191, drink: 'Soft', marks: 'A scar through his left eyebrow' },
   },
 ];
+
+/**
+ * Let in a few minutes ago and not through the pack's onboarding yet (`bookedAt` null), with a fresh hand and nothing
+ * done: in the mock, sign in as them to try a pack's onboarding.
+ */
+export const NEWCOMER = { uid: 'demo-alex', name: 'Alex' } as const;
 
 /** Reactions on feed posts: post id -> [voter uid, emoji]. Only applied to posts that get created. */
 export const REACTIONS: Record<string, Array<[string, string]>> = {
@@ -67,6 +81,18 @@ export const REACTIONS: Record<string, Array<[string, string]>> = {
   'rejected-demo-jonah-rejected': [['demo-maya', '😮'], ['demo-priya', '😂']],
   'entry-demo-maya-side': [['demo-priya', '🔥'], ['demo-jonah', '🤘']],
   'entry-demo-sam-side': [['demo-maya', '👏']],
+};
+
+/**
+ * The same for packs with vote reactions (`reactions: 'votes'`): post id -> [voter uid, 1 (Credible) or -1 (Doubtful)].
+ * Only posts that take votes count (never the voter's own); some are left unvoted on purpose.
+ */
+export const VOTES: Record<string, Array<[string, 1 | -1]>> = {
+  'approved-demo-maya-1': [['demo-sam', 1], ['demo-priya', 1], ['demo-jonah', -1]],
+  'approved-demo-sam-1': [['demo-maya', 1], ['demo-jonah', 1], ['demo-priya', 1]],
+  'approved-demo-priya-1': [['demo-maya', -1]],
+  'entry-demo-maya-side': [['demo-priya', 1], ['demo-jonah', 1]],
+  'entry-demo-sam-side': [['demo-maya', -1], ['demo-priya', 1]],
 };
 
 /** Small deterministic PRNG so the bots always get the same hands. */

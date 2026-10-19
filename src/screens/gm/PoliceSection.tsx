@@ -1,13 +1,17 @@
-// GM: police check-ins (packs with police), read-only. Open ones first, then the most recent: who was checked, why
-// (watch, or a tip and who sent it), the question, how it went and when. The server runs them; nothing here changes them.
+// GM: police check-ins (packs with police). The switchboard first (phone calls: line health, the GM's hand on it),
+// then the log, read-only: open ones first, then the most recent: who was checked, why (watch, or a tip and who sent
+// it), the question, by phone or in the app and how that went, and when. The server runs them.
 import { useMemo } from 'react';
 import { Avatar } from '../../components/Avatar';
+import { Loader } from '../../components/Loader';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow, useQuery } from '../../data/hooks';
+import { callChannelLine } from '../../lib/policeLine';
 import { formatCountdown } from '../../lib/time';
 import { t } from '../../pack';
 import type { PoliceCall, PoliceCallStatus } from '../../shared';
 import { clockTime, dayAndTime } from './common';
+import { SwitchboardPanel } from './SwitchboardPanel';
 
 const LIMIT = 100;
 
@@ -30,6 +34,7 @@ export function PoliceSection() {
 
   return (
     <>
+      <SwitchboardPanel />
       <div className="section-head">
         <h2>{t.policeCall.Many}</h2>
         <span className="section-head__meta">
@@ -40,7 +45,9 @@ export function PoliceSection() {
         <p className="note note--error" role="alert">
           Couldn&apos;t load the {t.policeCall.many}.
         </p>
-      ) : calls.loading ? null : sorted.length === 0 ? (
+      ) : calls.loading ? (
+        <Loader size={48} />
+      ) : sorted.length === 0 ? (
         <div className="empty">
           <h3>None yet</h3>
           <p>
@@ -66,13 +73,14 @@ export function PoliceSection() {
                   <p className="gm-entry__meta">
                     {c.kind === 'tip' ? `Tip from ${nameOf(c.byUid)}${c.note ? `: “${c.note}”` : ''}` : `Watch ${t.policeCall.one}`}
                   </p>
+                  {c.phone || c.fallbackReason ? <p className="gm-entry__meta">{callChannelLine(c)}</p> : null}
                   <p className="gm-entry__meta">
                     {c.answer !== null ? `Answered “${c.answer}” (expected ${c.expected})` : c.status === 'open' ? `Expects ${c.expected}` : 'No answer'}
                     {' · '}+{c.passPoints} / −{c.failPenalty}
                   </p>
                   <p className="gm-entry__meta">
                     {starts ? dayAndTime(starts) : ''}
-                    {c.status === 'open' && ends ? ` · ${ends > now ? `${formatCountdown(ends, now)} left` : 'time is up'}, until ${clockTime(ends)}` : ''}
+                    {c.status === 'open' && c.channel !== 'phone' && ends ? ` · ${ends > now ? `${formatCountdown(ends, now)} left` : 'time is up'}, until ${clockTime(ends)}` : ''}
                     {c.answeredAt && tsMs(c.answeredAt) ? ` · answered ${clockTime(tsMs(c.answeredAt))}` : ''}
                   </p>
                 </div>

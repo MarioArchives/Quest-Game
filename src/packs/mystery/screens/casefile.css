@@ -63,16 +63,28 @@
 /* A photo on a tag or in a folder is a print: white border, a deeper bottom edge, slightly crooked. */
 .cf-print { border: 6px solid var(--print); border-bottom-width: 18px; transform: rotate(0.6deg); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); }
 
-/* Buttons on paper: teal for yes, an ink outline for the rest, red for the serious ones. */
+/* Buttons on paper (case brown): a brown key for yes, a brown rule for the rest, red for the serious ones. Pressed, a
+   ruled button inks solid; disabled is a dashed rule; busy keeps its colour and sits held down. */
 .cf-btn {
   display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; border-radius: 0; cursor: pointer;
   font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink);
+  background: var(--btn2-bg); color: var(--btn2-fg); border: 2px solid var(--btn2-edge);
 }
-.cf-btn:disabled { opacity: 0.45; cursor: default; }
-.cf-btn--go { background: var(--accent); color: #fff; border-color: var(--accent); }
-.cf-btn--dark { background: var(--manila-ink); color: var(--manila); border-color: var(--manila-ink); }
-.cf-btn--red { background: var(--warn); color: #fff; border-color: var(--warn); }
+.cf-btn:hover:not(:disabled) { background: var(--btn2-bg-hover); }
+.cf-btn:active:not(:disabled) { background: var(--btn2-bg-press); color: var(--btn2-fg-press); }
+.cf-btn:disabled:not([aria-busy='true']) { background: var(--btn-off-bg); color: var(--btn-off-fg); border: 2px dashed var(--btn-off-edge); box-shadow: none; cursor: not-allowed; }
+/* Working: the bee before the label, as on the engine's busy buttons. */
+.cf-btn[aria-busy='true'] { gap: 8px; cursor: progress; }
+.cf-btn--go, .cf-btn--dark { background: var(--btn-go-bg); color: var(--btn-go-fg); border-color: var(--btn-go-edge); box-shadow: var(--btn-shadow); }
+.cf-btn--go:hover:not(:disabled), .cf-btn--dark:hover:not(:disabled) { background: var(--btn-go-hover); }
+.cf-btn--go:active:not(:disabled), .cf-btn--dark:active:not(:disabled) { background: var(--btn-go-press); color: var(--btn-go-fg); transform: translateY(2px); box-shadow: var(--btn-shadow-press); }
+.cf-btn--go[aria-busy='true'], .cf-btn--dark[aria-busy='true'] { transform: translateY(3px); box-shadow: none; }
+.cf-btn--go .loader, .cf-btn--dark .loader { --loader-line: var(--btn-go-fg); color: var(--btn-go-fg); }
+.cf-btn--red { background: var(--btn-danger-bg); color: var(--btn-danger-fg); border-color: var(--btn-danger-edge); box-shadow: var(--btn-shadow); }
+.cf-btn--red:hover:not(:disabled) { background: var(--warn-text); }
+.cf-btn--red:active:not(:disabled) { background: var(--btn-danger-edge); color: var(--btn-danger-fg); transform: translateY(2px); box-shadow: var(--btn-shadow-press); }
+.cf-btn--red[aria-busy='true'] { transform: translateY(3px); box-shadow: none; }
+.cf-btn--red .loader { --loader-line: var(--btn-danger-fg); color: var(--btn-danger-fg); }
 .cf-btns { align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .cf-btns > * { min-width: 0; }
 

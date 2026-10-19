@@ -17,6 +17,9 @@ const StandingsScreen = lazy(() => import('./screens/StandingsScreen'));
 const PlayerScreen = look.screens?.player ?? lazy(() => import('./screens/PlayerScreen'));
 
 const HomeScreen = look.screens?.home;
+const FeedScreen = look.screens?.feed;
+// A pack may host the map in a screen of its own (e.g. a folder tab on its Home); /map then opens that.
+const MapHost = look.screens?.map ?? MapScreen;
 
 export const router = createHashRouter([
   {
@@ -25,9 +28,11 @@ export const router = createHashRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: HomeScreen ? <HomeScreen /> : <Dashboard /> },
+      // A pack's own feed screen, on its own tab (packs without one have the feed on Home).
+      { path: 'feed', element: FeedScreen ? <FeedScreen /> : <Navigate to="/" replace /> },
       { path: 'account', element: <AccountScreen /> },
       // The map only exists in packs that switch it on.
-      features.map ? { path: 'map', element: <MapScreen /> } : { path: 'map', element: <Navigate to="/" replace /> },
+      features.map ? { path: 'map', element: <MapHost /> } : { path: 'map', element: <Navigate to="/" replace /> },
       // The full leaderboard, and any player's record (photos, quests done and failed, points history).
       { path: 'standings', element: <StandingsScreen /> },
       { path: 'player/:uid', element: <PlayerScreen /> },

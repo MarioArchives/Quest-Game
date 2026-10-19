@@ -96,6 +96,23 @@
 .fqroute__stamp--now { color: var(--accent); }
 .fqroute__sub { font-size: 12px; color: var(--muted); }
 
+/* The route as a strip across the top of the map (MapScreen's routeCard 'strip'): Now, then Next on the right. */
+.fqstrip {
+  position: relative; z-index: 1; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--card); color: var(--ink); border-bottom: var(--line);
+}
+.fqstrip__now, .fqstrip__next {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; min-height: 56px; padding: 8px 12px 9px 16px;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left;
+}
+button.fqstrip__now, button.fqstrip__next { cursor: pointer; }
+.fqstrip__next { max-width: 170px; padding: 8px 16px 9px 14px; border-left: 2px dashed var(--muted); background: var(--paper); }
+.fqstrip b { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.fqstrip__next b { color: var(--muted); }
+.fqstrip__name { font-family: var(--display); font-size: 19px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fqstrip i { font-size: 11px; font-style: normal; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fqstrip__now:focus-visible, .fqstrip__next:focus-visible { outline-offset: -3px; }
+
 /* Short notices over the map */
 .fqnote {
   padding: 6px 8px;

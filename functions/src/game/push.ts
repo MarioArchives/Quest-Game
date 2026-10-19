@@ -3,11 +3,16 @@
 import { getPack } from '../shared/packs/index.js';
 import { sha256Hex } from '../shared/store/sha256.js';
 import { termForms } from '../shared/packs/terms.js';
-import type { GamePack } from '../shared/packs/types.js';
+import type { GamePack, PushKind } from '../shared/packs/types.js';
 import type { FeedItem, SubmissionKind } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { fail, isGM, requireUid } from './guards.js';
 import { toTs } from './util.js';
+
+/** Whether the pack sends this kind of push: every kind unless it lists the only ones it sends (`pushKinds`). */
+export function pushAllowed(pack: GamePack, kind: PushKind): boolean {
+  return !pack.pushKinds || pack.pushKinds.includes(kind);
+}
 
 /** What a notification says, and the in-app hash route a tap opens (e.g. '#/account'). */
 export interface PushMessage {
@@ -52,8 +57,24 @@ export function pushTokenId(token: string): string {
   return sha256Hex(token);
 }
 
+/** The push kind of a feed post: feed types map one to one, except a standing post (gained or lost). */
+function kindOfPost(post: FeedItem): PushKind | null {
+  switch (post.type) {
+    case 'standing':
+      return post.standing ? 'standing-gained' : 'standing-lost';
+    case 'global-open': case 'checkin-open': case 'checking': case 'voting-open': case 'global-won': case 'global-scored':
+    case 'police-call': case 'police-tip': case 'police-line': case 'announcement': case 'stop-revealed': case 'status':
+    case 'approved': case 'rejected': case 'fraud': case 'exposed': case 'framed': case 'adjust': case 'story-beat':
+      return post.type;
+    default:
+      return null;
+  }
+}
+
 /** Who hears about a feed post and what they read; null = no push. `submissionKind`: the post's submission's kind. */
 export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, pack: GamePack = getPack()): PushPlan | null {
+  const kind = kindOfPost(post);
+  if (kind && !pushAllowed(pack, kind)) return null;
   const t = termForms(pack.terms);
   const quest = post.questTitle ?? '';
   switch (post.type) {
@@ -75,12 +96,21 @@ export function pushFor(post: FeedItem, submissionKind?: SubmissionKind | null, 
       return { to: 'players', message: { title: `${t.sideQuest.One} scored`, body: post.text, link: HOME } };
     case 'standing':
       if (!post.uid) return null;
+      if (post.standing) {
+        const title = `You're now a ${(post.standing === 'poi' ? t.poi : t.confidant).one}`;
+        return { to: [post.uid], message: { title, body: post.text, link: HOME } };
+      }
       return { to: [post.uid], message: { title: 'Your standing changed', body: post.text, link: HOME } };
+    case 'story-beat':
+      return { to: 'players', message: { title: post.questTitle || pack.name, body: post.text, link: HOME } };
     case 'police-call':
     case 'police-tip':
       // Only the player being checked hears about it; the answer box is on Home.
       if (!post.uid) return null;
       return { to: [post.uid], message: { title: `${t.policeCall.One}: answer now`, body: post.text, link: HOME } };
+    case 'police-line':
+      // The phone lines went down or came back: players read it on the feed; the GMs get the one buzz.
+      return { to: 'gms', exclude: post.actorUid ?? null, message: { title: 'Switchboard', body: post.text, link: GM_CONSOLE } };
     case 'announcement':
       return { to: 'players', message: { title: 'Announcement', body: post.text, link: HOME } };
     case 'stop-revealed':

@@ -166,13 +166,17 @@ async function docs<T>(db: Db, path: string): Promise<Array<Doc<T>>> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }));
 }
 
-/** GM ends the game: freeze standings, close globals, delete locations, write every wrap (players put out get none). */
+/**
+ * GM ends the game: freeze standings, close globals, delete locations and phone numbers, write every wrap (players
+ * put out get none).
+ */
 export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {}): Promise<{ players: number }> {
   await requireGM(db, ctx);
   const state = await loadState(db);
   if (state.status === 'ended') fail('failed-precondition', 'The game has already ended.');
 
   // Without the map there are no venues to visit, count or award.
+  const votes = ctx.pack.reactions === 'votes';
   const venues = ctx.pack.features.map ? (opts.venues ?? ctx.pack.venues) : [];
   const settings = await loadSettings(db);
   const endedAt = Stamp.fromDate(ctx.now);
@@ -182,7 +186,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
   // Open police check-ins are called off, with no fine.
   if (ctx.pack.features.police) await cancelOpenPoliceCalls(db, ctx.now);
 
-  const [everyone, submissions, guesses, ledger, globals, templates, locations, feed] = await Promise.all([
+  const [everyone, submissions, guesses, ledger, globals, templates, locations, feed, phones] = await Promise.all([
     docs<Player>(db, 'players'),
     docs<Submission>(db, 'submissions'),
     docs<Guess>(db, 'guesses'),
@@ -191,6 +195,8 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     docs<QuestTemplate>(db, 'questTemplates'),
     db.collection('locations').listDocuments(),
     docs<FeedItem>(db, 'feed'),
+    // Players' phone numbers are only kept while the game runs.
+    db.collection('phones').listDocuments(),
   ]);
   // Players the GM put out of the game get no place in the standings and no wrap; frozen ones keep both.
   const players = everyone.filter((p) => p.left !== 'out');
@@ -260,7 +266,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     }));
 
     // The player's most-reacted approved post; ties go to the earliest.
-    let top: { sub: Doc<Submission>; reactionCount: number } | null = null;
+    let top: { sub: Doc<Submission>; reactionCount: number; score: number } | null = null;
     const posts = feed
       .filter((f) => f.type === 'approved' && f.uid === uid && f.submissionId)
       .sort(byTime);
@@ -268,7 +274,10 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
       const sub = submissionById.get(post.submissionId as string);
       if (!sub || sub.uid !== uid || sub.status !== 'approved') continue;
       const reactionCount = post.reactionCount ?? 0;
-      if (!top || reactionCount > top.reactionCount) top = { sub, reactionCount };
+      const score = post.score ?? 0;
+      // Vote packs rank by up minus down; emoji packs by how many reacted.
+      const better = votes ? score > (top?.score ?? 0) : reactionCount > (top?.reactionCount ?? 0);
+      if (!top || better) top = { sub, reactionCount, score };
     }
 
     const visited: Venue[] = [];
@@ -311,6 +320,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
         imagePath: top.sub.imagePath ?? null,
         caption: top.sub.caption ?? null,
         reactionCount: top.reactionCount,
+        ...(votes ? { score: top.score } : {}),
       },
       venues: visited.map((v) => ({ id: v.id, name: v.name })),
       rerollsUsed: player.rerollsUsed ?? 0,
@@ -327,7 +337,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     ops.push((b) => b.set(db.doc(`wraps/${uid}`), doc));
   }
   ops.push((b) => b.set(db.doc('game/final'), final));
-  for (const ref of locations) ops.push((b) => b.delete(ref));
+  for (const ref of [...locations, ...phones]) ops.push((b) => b.delete(ref));
   await commitInBatches(db, ops);
 
   // The state flip goes last so a failure part-way leaves the game un-ended and endGame can be retried.

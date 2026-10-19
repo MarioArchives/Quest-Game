@@ -6,9 +6,27 @@ import { currentPushSupport, enablePush, forgetThisDevice, isPushOn } from '../.
 import type { PushSupport } from '../../lib/push';
 import { pack, t } from '../../pack';
 
+type Kinds = NonNullable<typeof pack.pushKinds>;
+
+/** What a player hears about, in plain words, from the pack's `pushKinds` (everything, as before, when it lists none). */
+function playerHears(kinds: Kinds | undefined): string {
+  if (!kinds) return `${t.sideQuest.many}, votes, ${t.witness.one} requests and announcements`;
+  const has = (...k: Kinds) => k.some((x) => kinds.includes(x));
+  const list: string[] = [];
+  if (has('global-open')) list.push(`new ${t.sideQuest.many}`);
+  if (has('story-beat')) list.push('story updates');
+  if (has('voting-open')) list.push('voting opening');
+  if (has('witness')) list.push(`${t.witness.one} requests`);
+  if (has('standing-gained')) list.push('a new standing');
+  const other = has('checkin-open', 'global-won', 'global-scored', 'police-call', 'police-tip', 'announcement', 'stop-revealed', 'status', 'approved', 'rejected', 'fraud', 'exposed', 'framed', 'adjust');
+  if (other) list.push('game updates');
+  if (list.length === 0) return 'nothing';
+  return list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
 /**
  * Per-device switch for push notifications. The phone must allow it, and iPhones need the app on the Home Screen.
- * `gmOnly`: a ${t.gm.One} who isn't playing only hears about join requests.
+ * `gmOnly`: a ${t.gm.One} who isn't playing hears about the GM things only.
  */
 export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
   const toast = useToast();
@@ -46,8 +64,8 @@ export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
           ? "Notifications are blocked for this app. Allow them in your phone's settings."
           : on
             ? gmOnly
-              ? 'On. We will buzz this phone when someone asks to join.'
-              : `On. We will buzz this phone for ${t.sideQuest.many}, votes, ${t.witness.one} requests and announcements.`
+              ? 'On. We will buzz this phone for join requests, entries to check and switchboard alerts.'
+              : `On. We will buzz this phone for ${playerHears(pack.pushKinds)}.`
             : 'Off. Nothing is sent to this phone.';
 
   return (
@@ -59,7 +77,7 @@ export function NotificationsCard({ gmOnly = false }: { gmOnly?: boolean }) {
             Notifications
           </h2>
           <p id="notify-desc" className="locate__desc">
-            {gmOnly ? 'Join requests' : `${t.sideQuest.Many}, votes and requests`}
+            {gmOnly ? 'Join requests, entries to check and alerts' : playerHears(pack.pushKinds).replace(/^./, (c) => c.toUpperCase())}
           </p>
         </div>
         <button

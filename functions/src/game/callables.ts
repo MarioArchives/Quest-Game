@@ -2,11 +2,15 @@
 // the mock backend runs them directly. Names match src/api.ts.
 import type { Ctx, Db } from './context.js';
 import { endGame } from './endGame.js';
+import { bookIn } from './booking.js';
 import { addEvidence } from './evidence.js';
 import { fireGlobalQuest } from './globals.js';
 import { setCharacter } from './characters.js';
 import { answerCheckin, managePeriodic } from './checkins.js';
 import { answerPoliceCall, tipOffPolice } from './police.js';
+import type { PhoneLine } from './phoneLine.js';
+import { setPoliceLine, setSwitchboard, testPoliceLine } from './phones.js';
+import { simulateCall } from './simulatedLine.js';
 import { guessQuest } from './guesses.js';
 import { requestJoin, reviewJoinRequest } from './join.js';
 import { setPlayerLeft } from './left.js';
@@ -26,6 +30,11 @@ export interface Services {
   sendPush(plan: PushPlan): Promise<void>;
   /** Deletes every stored file under these path prefixes, best effort. */
   wipeFiles(prefixes: string[]): Promise<void>;
+  /**
+   * The police's phone line: Twilio's; the simulated one in the mock and the emulators (./simulatedLine.ts); or null
+   * where phone calls aren't set up (a deployment without POLICE_CALLER_ID).
+   */
+  phone(): PhoneLine | null;
 }
 
 export type CallableHandler = (db: Db, ctx: Ctx, data: unknown, services: Services) => Promise<unknown>;
@@ -34,6 +43,8 @@ export interface CallableDef {
   run: CallableHandler;
   /** Longer than the default (60 s) for the heavy ones. */
   timeoutSeconds?: number;
+  /** Uses the phone line, so the deployed function needs the Twilio secrets. */
+  phone?: boolean;
 }
 
 /** A plain action: the handler's own data type is what the client is trusted to send (each validates it). */
@@ -54,6 +65,7 @@ const withPush =
 export const CALLABLES: Readonly<Record<string, CallableDef>> = {
   requestJoin: { run: plain(requestJoin) },
   reviewJoinRequest: { run: plain(reviewJoinRequest) },
+  bookIn: { run: plain(bookIn) },
   rerollQuest: { run: plain(rerollQuest) },
   guessQuest: { run: plain(guessQuest) },
   reviewSubmission: { run: plain(reviewSubmission) },
@@ -77,6 +89,12 @@ export const CALLABLES: Readonly<Record<string, CallableDef>> = {
   managePeriodic: { run: plain(managePeriodic) },
   answerPoliceCall: { run: plain(answerPoliceCall) },
   tipOffPolice: { run: plain(tipOffPolice) },
+  // Notes the line's caller ID on a new number, for the police's contact card.
+  setPoliceLine: { run: (db, ctx, data, services) => setPoliceLine(db, ctx, data as { number?: unknown; appOnly?: unknown }, services.phone()), phone: true },
+  testPoliceLine: { run: (db, ctx, data, services) => testPoliceLine(db, ctx, data, services.phone()), phone: true },
+  setSwitchboard: { run: (db, ctx, data, services) => setSwitchboard(db, ctx, data as { action?: unknown }, services.phone()), phone: true },
+  // The mock and the emulators: the app plays the phone for a call on the simulated line (no Twilio, so no secrets).
+  simulateCall: { run: plain(simulateCall) },
   endGame: { run: (db, ctx) => endGame(db, ctx), timeoutSeconds: 120 },
   resetGame: {
     run: async (db, ctx, data, services) => {

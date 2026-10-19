@@ -212,6 +212,56 @@ describe('E2. validatePack', () => {
     });
   });
 
+  describe("an arc's new fields (plan \"Mystery pack: minimal notifications, Bob's story arc…\", edge case 10)", () => {
+    const photo = { id: 's-photo', title: 'Incriminating evidence', description: 'x', judging: 'vote' as const, longRun: true, windowMin: 720, entry: { tag: 'player' as const } };
+    const time = { id: 's-time', kind: 'announce' as const, title: 'Time of death', description: 'At 11:02 pm.', fact: { key: 'timeOfDeath', label: 'Time of death', value: '23:02' } };
+    const reveal = { id: 's-reveal', kind: 'announce' as const, title: 'Revealed', description: 'Vote now.', opensVoteOn: 's-photo' };
+    const weapon = {
+      id: 's-weapon', title: 'The weapon', description: 'x', judging: 'vote' as const, entry: { caption: 'required' as const },
+      votePoints: 2, tieBonus: 1, records: { key: 'weapon', label: 'The weapon' },
+    };
+    const withStory = (story: unknown[]) => {
+      const p = testPack();
+      return { ...p, catalogue: { ...p.catalogue, story: story as NonNullable<GamePack['catalogue']['story']> } };
+    };
+
+    it('accepts long-running missions up to 720 minutes, every kind of entry, vote points, tie bonuses, facts and announcements', () => {
+      expect(validatePack(withStory([photo, time, reveal, weapon]))).toEqual([]);
+      expect(validatePack(withStory([
+        { ...weapon, id: 's-a', entry: { media: 'video' }, votePoints: 0, tieBonus: 0, records: undefined },
+        { ...weapon, id: 's-b', entry: { media: 'text', tag: 'assigned' }, judging: 'submit', records: undefined },
+      ]))).toEqual([]);
+    });
+
+    const V = /vote points|votePoints|per vote/i;
+    const OPENS = /opensVoteOn|opens the vote|opens a vote|vote on/i;
+    it.each([
+      ['an announcement with a way of judging', [{ ...time, judging: 'vote' }], 's-time', /judg/i],
+      ['an announcement with points', [{ ...time, points: 3 }], 's-time', /points/i],
+      ['an announcement with a window', [{ ...time, windowMin: 20 }], 's-time', /window|minute/i],
+      ['an announcement with entry settings', [{ ...time, entry: { media: 'photo' } }], 's-time', /entry/i],
+      ['an announcement with vote points', [{ ...time, votePoints: 2 }], 's-time', V],
+      ['a mission with no way of judging', [{ ...weapon, judging: undefined }], 's-weapon', /judg/i],
+      ['an announcement opening the vote on a mission not in the story', [photo, { ...reveal, opensVoteOn: 's-nope' }], 's-reveal', OPENS],
+      ['an announcement opening the vote on another announcement', [time, { ...reveal, opensVoteOn: 's-time' }], 's-reveal', OPENS],
+      ['a mission (not an announcement) opening a vote', [photo, { ...weapon, opensVoteOn: 's-photo' }], 's-weapon', OPENS],
+      ['a fact with a blank key', [{ ...time, fact: { key: ' ', label: 'Time', value: '23:02' } }], 's-time', /fact|key/i],
+      ['a fact with a blank value', [{ ...time, fact: { key: 'timeOfDeath', label: 'Time', value: '' } }], 's-time', /fact|value/i],
+      ['a recorded fact with a blank label', [{ ...weapon, records: { key: 'weapon', label: '  ' } }], 's-weapon', /record|label|fact/i],
+      ['a long-running window of 721 minutes', [{ ...photo, windowMin: 721 }], 's-photo', /window|minute/i],
+      ['a 181-minute window on a mission that is not long-running', [{ ...weapon, windowMin: 181 }], 's-weapon', /window|minute/i],
+      ['negative vote points', [{ ...weapon, votePoints: -1 }], 's-weapon', V],
+      ['fractional vote points', [{ ...weapon, votePoints: 1.5 }], 's-weapon', V],
+      ['a negative tie bonus', [{ ...weapon, tieBonus: -1 }], 's-weapon', /tie/i],
+      ['an unknown kind of media', [{ ...weapon, entry: { media: 'audio' } }], 's-weapon', /media/i],
+      ['an unknown kind of tag', [{ ...weapon, entry: { tag: 'team' } }], 's-weapon', /tag/i],
+      ['an unknown kind', [{ ...weapon, kind: 'interlude' }], 's-weapon', /kind/i],
+    ])('rejects %s, naming the mission and what is wrong', (_label, story, id, what) => {
+      const problems = validatePack(withStory(story));
+      expect(problems.some((line) => line.includes(id) && what.test(line)), problems.join('\n')).toBe(true);
+    });
+  });
+
   describe('the optional standings and police words', () => {
     it('reject a blank one', () => {
       const p = getPack('lancaster');
@@ -294,7 +344,7 @@ describe('M18. the mystery pack', () => {
     expect(p.scoring).toBe('classic');
   });
 
-  it('speaks of tampering missions, group missions, submissions, case files and periodic missions', () => {
+  it('speaks of tampering missions, group missions, submissions, case files, periodic missions and a log book', () => {
     const p = getPack('mystery');
     expect(p.terms).toEqual({
       quest: { one: 'tampering mission', many: 'tampering missions' },
@@ -304,6 +354,7 @@ describe('M18. the mystery pack', () => {
       gm: { one: 'GM', many: 'GMs' },
       wrap: { one: 'case file', many: 'case files' },
       checkin: { one: 'periodic mission', many: 'periodic missions' },
+      feed: { one: 'log book', many: 'log books' },
     });
   });
 
@@ -350,21 +401,20 @@ describe('M18. the mystery pack', () => {
     expect(p.catalogue.global.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('opens on Didsbury with a seven-pub route and footprints between stops', () => {
+  it('opens on Manchester city centre with a six-bar route and footprints between stops', () => {
     const p = getPack('mystery');
-    expect(p.map).toMatchObject({ centre: { lat: 53.4145, lng: -2.2312 }, zoom: 16, placeName: 'Didsbury', routeStyle: 'footprints' });
+    expect(p.map).toMatchObject({ centre: { lat: 53.4791, lng: -2.2359 }, zoom: 15, placeName: 'Manchester city centre', routeStyle: 'footprints' });
     expect(p.map?.barSearch).toMatchObject({ name: 'Manchester' });
-    expect(p.route?.map((s) => s.name)).toEqual([
-      'The Didsbury',
-      'Ye Olde Cock Inn',
-      'The Crown',
-      'The Royal Oak',
-      'Fletcher Moss Pub',
-      'Dog and Partridge',
-      'Head of Steam',
-    ]);
-    expect(p.route?.[2]).toEqual({ name: 'The Crown', lat: 53.41571, lng: -2.23219, address: '770 Wilmslow Road, M20 2DR', placeRef: 'osm:node/27465378' });
-    expect(p.route?.every((s) => s.address && s.placeRef?.startsWith('osm:'))).toBe(true);
+    expect(p.route?.map((s) => s.name)).toEqual(['The Badger', 'Flok', 'The Mother of Invention', 'Terrace NQ', 'Cane and Grain', 'YES']);
+    expect(p.route?.[1]).toEqual({ name: 'Flok', lat: 53.48276, lng: -2.23372, address: '5 Stevenson Square, M1 1DN', placeRef: 'osm:node/6358776626' });
+    // Every stop has an address; all but The Mother of Invention (newer than the map) come from OpenStreetMap.
+    expect(p.route?.every((s) => s.address)).toBe(true);
+    expect(p.route?.filter((s) => !s.placeRef?.startsWith('osm:')).map((s) => s.name)).toEqual(['The Mother of Invention']);
+    // All in the city centre, within the bar search's box and about a kilometre of the map's centre.
+    for (const s of p.route ?? []) {
+      expect(Math.abs(s.lat - p.map!.centre.lat), s.name).toBeLessThan(0.01);
+      expect(Math.abs(s.lng - p.map!.centre.lng), s.name).toBeLessThan(0.01);
+    }
   });
 
   it('has a character and a motive for each demo player', () => {
@@ -388,11 +438,13 @@ describe('M18. the mystery pack', () => {
     }
   });
 
-  it('has a story to fire in order: s- ids, both ways of judging, every one valid', () => {
+  it('has a story to fire in order: s- ids, missions judged both ways, announcements judged neither way, every one valid', () => {
     const story = getPack('mystery').catalogue.story ?? [];
     expect(story.length).toBeGreaterThanOrEqual(5);
     expect(story.every((q) => q.id.startsWith('s-') && q.title.trim() && q.description.trim())).toBe(true);
-    expect(new Set(story.map((q) => q.judging))).toEqual(new Set(['vote', 'submit']));
+    const missions = story.filter((q) => (q.kind ?? 'mission') === 'mission');
+    expect(new Set(missions.map((q) => q.judging))).toEqual(new Set(['vote', 'submit']));
+    expect(story.filter((q) => q.kind === 'announce').every((q) => q.judging === undefined)).toBe(true);
     expect(new Set(story.map((q) => q.id)).size).toBe(story.length);
   });
 
@@ -490,6 +542,12 @@ describe('E5. noun forms', () => {
     expect(t.confidant).toEqual({ one: 'trusted confidant', One: 'Trusted confidant', many: 'trusted confidants', Many: 'Trusted confidants' });
     expect(t.poi).toEqual({ one: 'person of interest', One: 'Person of interest', many: 'persons of interest', Many: 'Persons of interest' });
     expect(t.policeCall).toEqual({ one: 'police check-in', One: 'Police check-in', many: 'police check-ins', Many: 'Police check-ins' });
+  });
+
+  it('calls the feed a feed unless the pack says otherwise (the mystery pack: a log book)', () => {
+    expect(termForms(DARE_TERMS).feed.one).toBe('feed');
+    expect(termForms(getPack('lancaster').terms).feed.One).toBe('Feed');
+    expect(termForms(getPack('mystery').terms).feed).toEqual({ one: 'log book', One: 'Log book', many: 'log books', Many: 'Log books' });
   });
 
   it("takes the pack's own words for them", () => {

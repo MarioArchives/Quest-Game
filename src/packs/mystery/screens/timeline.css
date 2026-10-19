@@ -23,6 +23,38 @@
 .tl .cf-foot .reactions { margin: 0; }
 .tl .cf-pts.is-struck { text-decoration: line-through; text-decoration-color: var(--stamp-bad); }
 
+/* The open stop's older posts wait behind "+ N more at …". */
+.tl__more {
+  align-self: flex-start; min-height: 32px; margin: -6px 0 0 22px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--chart);
+}
+.tl__more:hover { color: var(--walltext); }
+/* A mission's post links to it on the Missions tab. */
+.tl__link {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-plain);
+}
+.tl__link:hover { text-decoration: underline; }
+
+/* An earlier stop, folded shut: a kraft file with its tab, its name and a line; it opens in place. */
+.tl__shut { align-items: flex-start; }
+.tl__shut .cf-folder__tab { background: var(--kraft); }
+.tl__shutbar {
+  align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; padding: 10px 14px 12px;
+  border: 0; background: var(--kraft); color: var(--manila-ink); box-shadow: var(--shadow); text-align: left; cursor: pointer;
+}
+.tl__shut--alt .cf-folder__tab, .tl__shut--alt .tl__shutbar { background: var(--twine); }
+.tl__shutbar > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tl__shutbar b { font-family: var(--display); font-weight: 400; font-size: 17px; line-height: 1.1; overflow-wrap: anywhere; }
+.tl__shutbar span span { font-family: var(--mono); font-size: 10px; line-height: 1.2; letter-spacing: 0.6px; text-transform: uppercase; color: var(--manila-sub); }
+.tl__shutbar:focus-visible { --ring: var(--manila-ink); outline-offset: -3px; }
+.tl__shutchev { flex: none; transition: transform 150ms ease-out; }
+.tl__shut.is-open .tl__shutchev { transform: rotate(180deg); }
+.tl__shut > div { align-self: stretch; }
+@media (prefers-reduced-motion: reduce) {
+  .tl__shutchev { transition: none; }
+}
+
 /* ---------- between stops ---------- */
 .tl__walk { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0 14px; }
 .tl__walk span { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--chart); }
@@ -60,5 +92,111 @@
 .tl .hero__desc, .tl .hero__rule, .tl .hero__left, .tl .hero__entries, .tl .hero__blocked { color: var(--manila-sub); }
 .tl .hero .pip, .tl .hero .pip--on { background: var(--manila-ink); }
 .tl .hero__who-item { background: rgba(255, 255, 255, 0.4); color: var(--manila-ink); }
-.tl .hero__cta { --btn-bg: var(--accent); --btn-fg: #fff; }
 .tl .hero__mine { background: rgba(255, 255, 255, 0.35); color: var(--manila-ink); }
+
+/* ---------- the Log book: stamps, the top card, the nudges, the catch-up pile ---------- */
+.lb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--rule); }
+.lb-head h2 { font-family: var(--display); font-weight: 400; font-size: 20px; line-height: 1.1; color: var(--walltext); }
+.lb-head span { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--chart); }
+
+/* two rubber stamps under an entry that takes votes; yours is inked */
+.lb-stamps { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lb-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 2px solid currentColor; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; transform: rotate(-1.5deg);
+}
+.lb-btn b { font-family: var(--display); font-weight: 400; font-size: 13px; letter-spacing: 0; }
+.lb-btn--good { color: var(--stamp-plain); }
+.lb-btn--bad { color: var(--stamp-bad); transform: rotate(1deg); }
+.lb-btn.is-on { color: var(--on-accent); }
+.lb-btn--good.is-on { background: var(--stamp-plain); border-color: var(--stamp-plain); }
+.lb-btn--bad.is-on { background: var(--stamp-bad); border-color: var(--stamp-bad); }
+.lb-btn:disabled { opacity: 0.5; cursor: default; }
+.lb-btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+/* "stamp me": an entry you haven't judged yet has an empty stamp outline after the buttons */
+.lb-stamps.is-wait::after { content: ''; flex: none; width: 34px; height: 24px; border: 2px dashed var(--kraft-line); border-radius: 3px; transform: rotate(-8deg); }
+.lb-own { font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); }
+.tl .cf-foot { flex-wrap: wrap; }
+/* the ink your stamp leaves on the tag: at the end of the stamp row, where the empty outline waited, clear of the words */
+.lb-imp {
+  flex: none; margin-left: 2px; display: flex; flex-direction: column; align-items: center; padding: 2px 7px 3px;
+  border: 2.5px solid currentColor; border-radius: 4px; font-family: var(--display); font-size: 14px; line-height: 1; letter-spacing: 1px; text-transform: uppercase;
+  transform: rotate(-11deg); opacity: 0.82; mix-blend-mode: multiply; pointer-events: none; animation: lb-ink 160ms ease-out;
+}
+.lb-imp i { margin-top: 2px; font-family: var(--mono); font-size: 8.5px; font-style: normal; font-weight: 700; letter-spacing: 1px; }
+.lb-imp--good { color: var(--stamp-plain); }
+.lb-imp--bad { color: var(--stamp-bad); }
+@keyframes lb-ink { from { transform: rotate(-11deg) scale(1.5); opacity: 0; } to { transform: rotate(-11deg) scale(1); opacity: 0.82; } }
+.lb-found .cf-tagwrap { outline: 3px solid var(--bee-gold); outline-offset: 3px; }
+
+/* the most credible entry: an index card pinned to the wall */
+.lb-top { position: relative; padding-top: 6px; }
+.lb-top--swap { margin-bottom: 20px; }
+.lb-top--quiet p { padding: 8px 12px; border: 2px dashed var(--chart); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--chart); text-align: center; }
+.lb-card {
+  position: relative; z-index: 2; display: flex; flex-direction: column; gap: 7px; width: 100%; padding: 10px 12px; border: 0; border-top: 3px solid var(--warn); text-align: left;
+  background: var(--index-card); color: var(--ink); box-shadow: var(--shadow); transform: rotate(-0.6deg);
+  background-image: repeating-linear-gradient(180deg, transparent 0 21px, var(--grid-ink) 21px 22px); background-position: 0 30px;
+}
+.lb-card--tap { cursor: pointer; }
+.lb-card--tap:focus-visible { outline: 3px solid var(--bee-gold); outline-offset: 3px; }
+.lb-pin { position: absolute; z-index: 4; left: 50%; top: -9px; margin-left: -13px; }
+.lb-pin__head { fill: var(--pen-red); }
+.lb-pin__hi { fill: var(--glass-60); }
+.lb-pin__sh { fill: var(--sh-tag); }
+.lb-pin__needle { stroke: var(--eyelet-edge); stroke-width: 2; }
+.lb-card__h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.2; letter-spacing: 1.2px; text-transform: uppercase; color: var(--warn-text); }
+.lb-card__h b { font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: 0; color: var(--stamp-plain); }
+.lb-card__b { display: flex; gap: 10px; align-items: flex-start; }
+.lb-card__txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.lb-card__t { font-family: var(--mono); font-size: 13.5px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.lb-card__by { font-family: var(--mono); font-size: 10.5px; line-height: 1.3; color: var(--muted); }
+.lb-card__f { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.2; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.lb-card__f span:last-child:not(.lb-cnt--good):not(.lb-cnt--bad) { margin-left: auto; }
+.lb-cnt--good { color: var(--stamp-plain); }
+.lb-cnt--bad { color: var(--stamp-bad); }
+.lb-thumb { flex: none; display: flex; align-items: center; justify-content: center; width: 96px; height: 70px; border: 4px solid var(--print); border-bottom-width: 10px; background: var(--print); color: var(--muted); box-shadow: 0 1px 2px var(--sh-tag); transform: rotate(-2deg); overflow: hidden; }
+.lb-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lb-thumb--wide { align-self: stretch; width: auto; height: 150px; }
+/* the card it replaced, still pinned underneath, with its hours */
+.lb-under {
+  position: absolute; z-index: 1; left: 10px; right: -4px; bottom: -22px; height: 60px; padding: 0 10px 5px; display: flex; align-items: flex-end;
+  background: var(--index-card); box-shadow: 0 3px 0 var(--wall-shadow); transform: rotate(2.4deg);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; line-height: 1.2; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted);
+}
+.lb-under s { text-decoration-color: var(--pen-red); text-decoration-thickness: 2px; overflow-wrap: anywhere; }
+
+/* read-back nudges */
+.lb-left { font-style: normal; color: var(--stamp-bad); }
+.tl__shut { position: relative; }
+.lb-chip {
+  display: inline-flex; align-items: center; padding: 2px 7px; border: 2px solid var(--stamp-bad); color: var(--stamp-bad);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap; transform: rotate(-2deg);
+}
+.lb-chip--done { border-color: var(--stamp-plain); color: var(--stamp-plain); }
+/* the chip is a second tab on the folder, at its right end */
+.lb-chip--tab { position: absolute; z-index: 1; right: 12px; top: 0; padding: 6px 10px 4px; border: 0; border-radius: 6px 6px 0 0; background: var(--kraft); transform: none; }
+.tl__shut--alt .lb-chip--tab { background: var(--twine); }
+.lb-pick { font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 0.4px; text-transform: none; color: var(--manila-ink); overflow-wrap: anywhere; }
+.tl__shutbar span.lb-pick { color: var(--manila-ink); text-transform: none; font-size: 11px; }
+.lb-pill { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; white-space: nowrap; position: sticky; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 10px); z-index: 5; align-self: center; box-shadow: var(--btn-shadow), 0 0 0 3px var(--wall-shadow); }
+
+/* the catch-up pile */
+.lb-pile { display: flex; flex-direction: column; gap: 14px; }
+.lb-pile__stack { position: relative; padding: 0 6px 14px 0; }
+.lb-pile__back { position: absolute; left: 22px; right: 2px; top: 12px; bottom: 4px; background: var(--kraft-back); transform: rotate(2.5deg); box-shadow: 0 3px 0 var(--sh-tag); }
+.lb-pile__back--2 { top: 18px; bottom: 0; transform: rotate(-2deg); background: var(--twine-dark); }
+.lb-pile__card { position: relative; touch-action: pan-y; cursor: grab; user-select: none; transition: transform 160ms ease-out; background: var(--kraft); color: var(--manila-ink); box-shadow: 0 3px 0 var(--sh-tag); }
+.lb-pile__card.is-good { outline: 3px solid var(--stamp-plain); }
+.lb-pile__card.is-bad { outline: 3px solid var(--stamp-bad); }
+.lb-pile__tag { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.lb-pile__top { display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.lb-pile__text { font-family: var(--mono); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.lb-pile__by { font-family: var(--mono); font-size: 10.5px; color: var(--manila-sub); }
+.lb-pile__btns { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }
+.lb-pile__hint, .lb-pile__done { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-sub); }
+.lb-pile__done { padding: 24px 0; text-align: center; font-size: 13px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .lb-pile__card { transition: none; }
+  .lb-imp { animation: none; }
+}

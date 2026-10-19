@@ -98,6 +98,11 @@
 .locate__desc { font-size: 13px; color: var(--muted); }
 .locate__fine { font-size: 13px; line-height: 1.4; color: var(--muted); }
 
+/* ---------- police line (phone calls) ---------- */
+.policeline__number { font-size: 18px; font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.policeline__form { display: flex; flex-direction: column; gap: 8px; }
+.policeline__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* ---------- points history ---------- */
 .pts { display: flex; align-items: baseline; gap: 12px; padding: 12px 0 4px; }
 .pts__big { font-family: var(--display); font-size: 56px; line-height: 1; }

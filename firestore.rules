@@ -33,6 +33,13 @@ service cloud.firestore {
         && w != ownerUid
         && exists(/databases/$(db)/documents/players/$(w));
     }
+    // A feed post that takes votes: a votable type, about a player, and neither about nor by the voter.
+    function votable(post, voter) {
+      return post.type in ['approved', 'checkin-answer', 'framed', 'exposed', 'global-won', 'police-tip']
+        && post.uid is string
+        && post.uid != voter
+        && post.get('actorUid', null) != voter;
+    }
     // ---------- game docs ----------
     // game/state and game/settings: players + GM read, GM writes.
     // game/final: players + GM read, nobody writes from the client (a function writes it at game end).
@@ -46,6 +53,15 @@ service cloud.firestore {
     }
     match /game/final {
       allow read: if isPlayerOrGM();
+    }
+    // The pinned log-book entry (vote packs): players + GM read; the reaction trigger writes it.
+    match /game/top {
+      allow read: if isPlayerOrGM();
+    }
+    // The police switchboard (phone calls on): line health, the last error, phone or app. The GM reads it; only
+    // functions write it (setSwitchboard, the voice webhook, the timer).
+    match /game/switchboard {
+      allow read: if isGM();
     }
 
     // Periodic missions (the series) are the GM's plans: the GM reads them, only functions write (managePeriodic,
@@ -65,6 +81,12 @@ service cloud.firestore {
     // all; only functions write them.
     match /policeCalls/{id} {
       allow read: if isGM() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // A player's police line (phone calls on): their number, whether it is verified, and its test call. That player
+    // and the GM read it; only functions write it (setPoliceLine, testPoliceLine, the voice webhook).
+    match /phones/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isGM());
     }
 
     // ---------- identity ----------
@@ -164,9 +186,12 @@ service cloud.firestore {
       allow read: if isPlayerOrGM();
       allow create: if isGM();
 
-      // One emoji reaction per player per post: the doc id is the reactor's uid. No comments on posts.
-      // Any emoji from the keyboard: 1 to 16 code points and no ASCII, so no plain text (the app checks
+      // One reaction per player per post: the doc id is the reactor's uid. No comments on posts.
+      // Emoji packs: any emoji from the keyboard: 1 to 16 code points and no ASCII, so no plain text (the app checks
       // it is exactly one emoji; src/lib/emoji.ts has the same cap).
+      // Vote packs: `vote` is 1 (Credible) or -1 (Doubtful), only on a post of a votable type that is about a player
+      // and not about (or by) the voter. The list mirrors VOTABLE_FEED_TYPES (functions/src/shared/feedVotes.ts);
+      // a test checks the two agree. The trigger turns votes into counts on the post and keeps game/top.
       match /reactions/{reactorUid} {
         allow read: if isPlayerOrGM();
         allow create, update: if isPlayer()
@@ -176,6 +201,14 @@ service cloud.firestore {
           && request.resource.data.emoji is string
           && request.resource.data.emoji.matches('[^\\x00-\\x7F]{1,16}')
           && request.resource.data.createdAt == request.time;
+        allow create, update: if isPlayer()
+          && request.auth.uid == reactorUid
+          && request.resource.data.keys().hasOnly(['vote', 'createdAt'])
+          && request.resource.data.keys().hasAll(['vote', 'createdAt'])
+          && request.resource.data.vote is int
+          && request.resource.data.vote in [1, -1]
+          && request.resource.data.createdAt == request.time
+          && votable(get(/databases/$(db)/documents/feed/$(id)).data, request.auth.uid);
         allow delete: if isPlayer() && request.auth.uid == reactorUid;
       }
     }
@@ -200,6 +233,19 @@ service cloud.firestore {
     // A player's secret motive (packs with characters): that player and the GM read it; only functions write it.
     match /motives/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isGM());
+    }
+
+    // What the story has settled (a weapon, the time of death): every player and the GM read it; only functions write it.
+    match /facts/{key} {
+      allow read: if isPlayerOrGM();
+    }
+
+    // Who a player was dealt for a mission that deals players to each other (id: <globalQuestId>_<uid>): the GM and that
+    // player read it, so the one dealt cannot find out who has them. A get of your own (possibly missing) id works; a
+    // list must be a query on your uid. Only functions write it.
+    match /assignments/{id} {
+      allow get: if isGM() || (signedIn() && id.matches('.*_' + request.auth.uid));
+      allow list: if isGM() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 
     // ---------- route stops (packs with stops) ----------

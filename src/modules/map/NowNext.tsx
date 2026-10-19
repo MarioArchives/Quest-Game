@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Icon } from '../../components/Icon';
+import { Loader } from '../../components/Loader';
 import { SOON_WINDOW_MS } from './schedule';
 import type { ScheduleEvent } from '../../shared';
 import { clock, dayName, endMs, startMs, type EventsState, type VenueSchedule } from './events';
@@ -63,8 +64,8 @@ export function NowNext({
     [schedules],
   );
 
-  let empty: string | null = null;
-  if (events.status === 'loading') empty = 'Loading the line-up…';
+  let empty: ReactNode = null;
+  if (events.status === 'loading') empty = <Loader inline size={24} label="Loading the line-up" caption="Loading the line-up…" />;
   else if (events.status === 'error') empty = "Couldn't load the line-up. The pins still show where venues are.";
   else if (rows.length === 0) empty = "That's the end of the line-up.";
   else if (fallback) empty = "Nothing is on or starting within two hours. Here's what's coming up first.";

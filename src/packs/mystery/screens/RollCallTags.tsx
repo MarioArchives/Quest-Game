@@ -1,6 +1,7 @@
 // Open periodic missions on the Board as big kraft tags strung under the folder tabs (E4·1): name and number, the
 // fine, an ANSWER NOW stamp, the prompt, a big clock, fingerprints for who has answered, who it is still waiting on,
 // and Answer (a photo or a comment, once).
+// Off screen while the Missions tab is option E's stack (MissionStack.tsx draws open periodic missions there).
 import { useState } from 'react';
 import { EvidenceSheet } from '../../../components/EvidenceSheet';
 import { useGame } from '../../../data/GameProvider';

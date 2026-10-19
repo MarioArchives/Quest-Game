@@ -10,6 +10,7 @@ export function ledgerLabels(t: TermForms, voice: LedgerVoice): Record<LedgerRea
   return {
     quest: `${t.quest.One} approved`,
     'global-win': `Won a ${t.sideQuest.one}`,
+    'global-votes': { you: 'Votes you received', them: 'Votes they received', gm: 'Votes received' }[voice],
     'global-entry': `Entered a ${t.sideQuest.one}`,
     exposed: exposed[voice],
     'guess-correct': 'Guessed right',

@@ -153,7 +153,7 @@ function PeriodicCard({ periodic: p, open, onEdit }: { periodic: Doc<Periodic>; 
             await managePeriodic({ action: 'delete', id: p.id });
           }}
         >
-          <p>No more of these go out. The ones already sent stay in the feed, with their fines.</p>
+          <p>No more of these go out. The ones already sent stay in the {t.feed.one}, with their fines.</p>
         </ConfirmSheet>
       ) : null}
     </>
@@ -214,8 +214,8 @@ function EndSheet({ checkin, waiting, onClose }: { checkin: Doc<Checkin>; waitin
   );
 }
 
-/** Send the series' next one now, with one of its prompts (reshuffle) or your own words. */
-function FireSheet({ periodic: p, onClose }: { periodic: Doc<Periodic>; onClose(): void }) {
+/** Send the series' next one now, with one of its prompts (reshuffle) or your own words. A pack's GM screen can use it. */
+export function FireSheet({ periodic: p, onClose }: { periodic: Doc<Periodic>; onClose(): void }) {
   const toast = useToast();
   const pick = (avoid?: string) => {
     const list = p.prompts.filter((x) => x !== avoid);
@@ -352,7 +352,7 @@ function PeriodicSheet({ periodic, onClose }: { periodic: Doc<Periodic> | null; 
             Name
           </label>
           <input id="pm-name" className="input" value={draft.name} maxLength={L.nameMax} placeholder="Roll call" disabled={busy} onChange={set('name')} />
-          <span className="field__hint">Shown on the card and in the feed</span>
+          <span className="field__hint">Shown on the card and in the {t.feed.one}</span>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="pm-prompts">

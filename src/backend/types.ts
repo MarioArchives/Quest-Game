@@ -9,11 +9,11 @@ export interface BackendUser {
   photoURL: string | null;
 }
 
-/** Mock only: someone you can sign in as. */
+/** Mock only: someone you can sign in as: the GM, a demo player, or a guest who isn't in the game yet (to try joining). */
 export interface MockAccount {
   uid: string;
   label: string;
-  role: 'gm' | 'player';
+  role: 'gm' | 'player' | 'guest';
 }
 
 export interface AuthApi {

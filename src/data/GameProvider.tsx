@@ -90,7 +90,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const settingsDoc = useDocument<Partial<Settings>>('game/settings');
   const playersQ = useQuery<Player>({ path: 'players' });
   const templatesQ = useQuery<QuestTemplate>({ path: 'questTemplates' });
-  const globalQ = useQuery<GlobalQuest>({ path: 'globalQuests', orderBy: ['startsAt', 'desc'], limit: 12 });
+  // Enough for a long night's every side quest (a pack's Board can list them all).
+  const globalQ = useQuery<GlobalQuest>({ path: 'globalQuests', orderBy: ['startsAt', 'desc'], limit: 50 });
   // Players must filter on status == approved (security rules); sort on the client so no composite index is needed.
   const approvedQ = useQuery<Submission>({ path: 'submissions', where: [['status', '==', 'approved']] });
   const sealedQ = useQuery<Submission>(isAdmin ? { path: 'submissions', where: [['status', '==', 'sealed']] } : null);

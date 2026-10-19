@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { Loader } from '../../components/Loader';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow, useQuery } from '../../data/hooks';
@@ -19,6 +20,7 @@ import { buildRows, NowNext } from './NowNext';
 import { PlaceSearchSheet } from './PlacePicker';
 import type { StopState } from './markers';
 import { RouteFolder } from './RouteFolder';
+import { RouteStrip } from './RouteStrip';
 import { RouteSheet } from './RouteSheet';
 import { hideStop, moveStopBy, revealNext, revealStop } from './routeActions';
 import { StopFormSheet, StopViewSheet, type StopDraft } from './StopSheet';
@@ -44,13 +46,19 @@ function formatAccuracy(metres: number): string {
   return `±${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
 }
 
-export default function MapScreen() {
+/**
+ * Where the route's Now / Next goes: a folder at the foot of the map (the default), or a strip across its top (a pack
+ * hosting the map in a folder of its own, e.g. under its folder tabs).
+ */
+export type RouteCard = 'folder' | 'strip';
+
+export default function MapScreen({ routeCard = 'folder' }: { routeCard?: RouteCard }) {
   const map = pack.map;
   if (!map) return null; // the route only exists for packs with a map
-  return <MapBody map={map} />;
+  return <MapBody map={map} routeCard={routeCard} />;
 }
 
-function MapBody({ map }: { map: NonNullable<typeof pack.map> }) {
+function MapBody({ map, routeCard }: { map: NonNullable<typeof pack.map>; routeCard: RouteCard }) {
   const { player, user, isAdmin } = useSession();
   const { state, playersById, activePlayers } = useGame();
   const { sharing, position, problem, supported, setSharing, takeFirstFix } = useLocationSharing();
@@ -203,8 +211,11 @@ function MapBody({ map }: { map: NonNullable<typeof pack.map> }) {
   const viewing = stopSheet?.kind === 'view' ? stops.find((s) => s.id === stopSheet.id) : undefined;
   const liveVenues = venues.length > 0 ? buildRows(schedules, now).rows.filter((r) => r.kind === 'now').length : 0;
 
+  const strip = routeCard === 'strip' && stops.length > 0;
+
   return (
-    <div className={`fqmapscreen${venues.length > 0 ? ' has-panel' : ''}`}>
+    <div className={`fqmapscreen${venues.length > 0 ? ' has-panel' : ''}${strip ? ' has-strip' : ''}`}>
+      {strip ? <RouteStrip route={route} nowMs={now} isAdmin={isAdmin} onOpen={onSelectStop} /> : null}
       <MapView
         centre={[map.centre.lat, map.centre.lng]}
         zoom={map.zoom}
@@ -300,8 +311,8 @@ function MapBody({ map }: { map: NonNullable<typeof pack.map> }) {
                   <span className="visually-hidden"> accuracy of your location</span>
                 </p>
               ) : findingYou ? (
-                <p className="fqmap__acc" role="status">
-                  Finding you…
+                <p className="fqmap__acc">
+                  <Loader inline size={16} label="Finding you" caption="Finding you…" />
                 </p>
               ) : null}
             </div>
@@ -323,7 +334,7 @@ function MapBody({ map }: { map: NonNullable<typeof pack.map> }) {
           </div>
         </div>
 
-        {stops.length > 0 && !pick ? (
+        {stops.length > 0 && !pick && !strip ? (
           <RouteFolder
             route={route}
             nowMs={now}

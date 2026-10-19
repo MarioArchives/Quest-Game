@@ -1,7 +1,8 @@
 /*
  * Loading mark, "Screenprint" (the pack draws the art, see PackLook.LoaderArt), 2.8 s loop:
  *   0 -> 54 %   the five ink tiers draw bottom-to-top, staggered
- *   50 -> 64 %  the red plate prints in, sliding from (0,0) onto its off-register spot (+1.6, +1.4)
+ *   50 -> 64 %  the plate prints in (all its inks at once), sliding from (0,0) onto its off-register spot:
+ *               (--loader-offset-x, --loader-offset-y), (+1.6, +1.4) unless the pack sets them
  *   64 -> 88 %  hold
  *   88 -> 96 %  everything clears, then a short blank before the loop restarts
  */
@@ -30,15 +31,22 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* In a line of text: the drawing beside its caption, which takes the type and colour around it. */
+.loader--inline { flex-direction: row; gap: 8px; vertical-align: middle; color: inherit; line-height: inherit; }
+.loader--inline .loader__caption { font: inherit; letter-spacing: inherit; text-transform: inherit; }
 
 .loader__svg { width: var(--loader-size); height: var(--loader-size); overflow: visible; }
 
 .loader__plate {
   fill: var(--loader-plate);
   opacity: 0;
-  transform: translate(1.6px, 1.4px);
+  transform: translate(var(--loader-offset-x, 1.6px), var(--loader-offset-y, 1.4px));
   animation: loader-plate 2.8s ease-out infinite;
 }
+/* Optional extra inks on the same plate (they print with it): shapes marked loader__plate--2 / --3 take
+   --loader-plate-2 / --loader-plate-3, and the plate's own colour while those are unset. */
+.loader__plate--2 { fill: var(--loader-plate-2, var(--loader-plate)); }
+.loader__plate--3 { fill: var(--loader-plate-3, var(--loader-plate)); }
 
 .loader__tier {
   stroke: var(--loader-line);
@@ -90,11 +98,12 @@
 }
 @keyframes loader-plate {
   0%, 50% { opacity: 0; transform: translate(0, 0); }
-  64%, 88% { opacity: 1; transform: translate(1.6px, 1.4px); }
-  96%, 100% { opacity: 0; transform: translate(1.6px, 1.4px); }
+  64%, 88% { opacity: 1; transform: translate(var(--loader-offset-x, 1.6px), var(--loader-offset-y, 1.4px)); }
+  96%, 100% { opacity: 0; transform: translate(var(--loader-offset-x, 1.6px), var(--loader-offset-y, 1.4px)); }
 }
 
-/* Reduced motion: a still mark (everything printed); the red plate pulses gently so it still reads as "working". */
+/* Reduced motion: a still mark (everything printed); the plate pulses gently so it still reads as "working", down to
+   --loader-pulse-low (0.55 unless the pack sets it). */
 @media (prefers-reduced-motion: reduce) {
   .loader__tier {
     animation: none;
@@ -107,6 +116,6 @@
   }
 }
 @keyframes loader-pulse {
-  0%, 100% { opacity: 0.55; }
+  0%, 100% { opacity: var(--loader-pulse-low, 0.55); }
   50% { opacity: 1; }
 }

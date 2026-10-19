@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { adjustPoints, friendlyError, grantRerolls, setCharacter, setPlayerLeft } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
+import { Loader } from '../../components/Loader';
 import { Button } from '../../components/Button';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { PointsChip } from '../../components/PointsChip';
@@ -257,7 +258,9 @@ function PlayerSheet({ player, onClose }: { player: RankedPlayer; onClose(): voi
           </h3>
           <span className="section-head__meta">{entries.length} entries</span>
         </div>
-        {ledger.loading ? null : entries.length === 0 ? (
+        {ledger.loading ? (
+          <Loader size={48} />
+        ) : entries.length === 0 ? (
           <p className="gm-hint">No points moved yet.</p>
         ) : (
           <ul className="gm-ledger">

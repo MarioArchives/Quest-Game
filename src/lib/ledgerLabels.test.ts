@@ -64,4 +64,10 @@ describe('ledgerLabels', () => {
     expect(labels.witness).toBe('Judge reward');
     for (const label of Object.values(labels)) expect(label).not.toMatch(/quest|witness|\bGM\b|claim/i);
   });
+
+  it('labels votes received (plan "Mystery pack: minimal notifications, Bob\'s story arc…", edge case 30)', () => {
+    const t = termForms(getPack('mystery').terms);
+    expect((ledgerLabels(t, 'you') as Record<string, string>)['global-votes']).toMatch(/votes?/i);
+    expect((ledgerLabels(t, 'gm') as Record<string, string>)['global-votes']).toMatch(/votes?/i);
+  });
 });

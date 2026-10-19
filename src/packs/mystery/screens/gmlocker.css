@@ -1,105 +1,151 @@
 /*
- * The GM console as case files (E4·1) on the wall: the incident room's folder, "needs your signature" on ruled index
- * cards, the evidence as kraft tags on twine (the kit's Strung + Tag), and folders for the group mission, periodic
- * missions, frames, suspects and the bulletin. The engine's sections shown here are restyled for paper below.
+ * The GM console as case files (E4·1) on the wall, in four manila folder tabs (option A): the tabs across the top,
+ * Tonight's case strip and its jobs as kraft tags on twine (the kit's Strung + Tag), and folders for the group mission,
+ * the story, periodic missions, suspects, police check-ins, frames, settings and the rest. The engine's sections shown
+ * here are restyled for paper below.
  */
 .gl { display: flex; flex-direction: column; min-width: 0; }
-.gl-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--walltext); padding: 6px 0 12px; }
-.gl-badge { padding: 4px 8px; border: 1.5px solid var(--walltext); color: var(--walltext); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+/* ---------- the folder tabs across the top ---------- */
+/* Each tab is a 44px button; its kraft tab is drawn behind the label, the open one taller and in the folder's colour,
+   standing on the folder edge that runs under the row. */
+.gl-tabs { display: flex; align-items: flex-end; gap: 3px; margin: 0 -6px; padding: 0 2px; border-bottom: 5px solid var(--manila-tab); }
+.gl-tabs__tab {
+  position: relative; z-index: 0; flex: 1 1 0; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 8px 2px 0; background: none; border: 0; cursor: pointer; color: var(--manila-ink);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; white-space: nowrap;
+}
+.gl-tabs__tab::before {
+  content: ''; position: absolute; z-index: -1; inset: 8px 0 0; border-radius: 6px 6px 0 0;
+  background: var(--kraft); box-shadow: inset 0 -7px 7px -7px var(--sh-tab);
+}
+.gl-tabs__tab[aria-selected='true'] { min-height: 50px; padding-top: 6px; }
+.gl-tabs__tab[aria-selected='true']::before { inset: 0; background: var(--manila-tab); box-shadow: none; }
+.gl-tabs__tab:hover:not([aria-selected='true'])::before { background: var(--twine); }
+.gl-tabs__tab:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.gl-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--warn); color: var(--on-accent);
+  font-family: var(--mono); font-size: 10.5px; font-style: normal; font-weight: 700; letter-spacing: 0; line-height: 1;
+}
+.gl-panel { display: flex; flex-direction: column; min-width: 0; padding-top: 14px; }
 
 /* ---------- folders ---------- */
 .gl-folder { margin-top: 22px; }
-.gl-folder:first-of-type { margin-top: 6px; }
+.gl-panel > .gl-folder:first-child { margin-top: 0; }
+/* The paperclips are drawn on; a tap goes through them to the button underneath. */
+.gl .cf-clip { pointer-events: none; }
 .gl-folder__row { align-self: stretch; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 /* Keep a stamp clear of the paperclip in the top right corner. */
 .gl-folder__row > .cf-stamp { margin-right: 26px; }
-.gl-plate__sub { font-family: var(--mono); font-size: 12px; color: var(--manila-sub); }
-.gl-casebtns { margin-top: 4px; }
-.gl-casebtns .gl-btn { min-width: 0; }
-/* Reset: a quiet red link under the case buttons, so it is there without competing with them. */
+.gl-fd__h { font-family: var(--display); font-size: 19px; line-height: 1.1; color: var(--manila-ink); }
+.gl-hint { font-size: 13px; line-height: 1.4; color: var(--manila-sub); }
+.gl-open {
+  align-self: flex-start; min-height: 44px; min-width: 44px; padding: 0; background: none; border: 0; cursor: pointer; text-align: left;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--stamp-plain);
+}
+.gl-open:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+/* Reset: a quiet red link, so it is there without shouting. */
 .gl-reset {
-  align-self: center; min-height: 44px; padding: 0 8px; background: none; border: 0; cursor: pointer;
+  align-self: flex-start; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer;
   font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   color: var(--stamp-bad); text-decoration: underline; text-underline-offset: 3px;
 }
 .gl-reset:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
 
-/* ---------- needs your signature: index cards that filter the tags ---------- */
-.gl-section { margin: 22px 0 8px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--walltext); }
-.gl-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.gl .gl-tile {
-  min-height: 96px; margin: 0; border: 0; border-top: 2px solid var(--warn); border-radius: 0; text-align: left; cursor: pointer;
-  font: inherit; color: var(--ink); transform: rotate(-0.8deg);
+/* ---------- Tonight: the case strip ---------- */
+.gl-cs {
+  display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 12px; min-width: 0;
+  background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
 }
-.gl .gl-tile:nth-child(even) { transform: rotate(0.7deg); }
-.gl .gl-tile:hover { filter: brightness(0.97); }
-.gl .gl-tile:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
-.gl .gl-tile[aria-pressed='true'] { box-shadow: inset 0 0 0 3px var(--accent), var(--shadow); }
-.gl-tile__n { font-family: var(--display); font-size: 32px; line-height: 1; margin-top: 4px; }
-.gl-tile.is-zero .gl-tile__n { color: var(--muted); }
-.gl-tile__label { order: -1; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-.gl-tile__sub { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gl-tile__flag { position: absolute; top: 6px; right: 6px; padding: 1px 5px; background: var(--warn); color: #fff; font-family: var(--mono); font-size: 10px; font-weight: 700; }
-.gl-showing { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-.gl-showing__all { min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--walltext); font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.gl-cs__t { flex: 1; min-width: 0; }
+.gl-cs__t b { display: block; font-family: var(--display); font-weight: 400; font-size: 17px; line-height: 1.15; }
+.gl-cs__t i {
+  display: block; font-family: var(--mono); font-size: 10px; font-style: normal; font-weight: 700; letter-spacing: 0.4px; line-height: 1.35;
+  text-transform: uppercase; color: var(--manila-sub);
+}
 
-/* ---------- the evidence, strung ---------- */
-.gl-tags { margin-top: 8px; }
-.gl-more {
-  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; margin-top: 12px;
-  border: 2px dashed var(--walltext); color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
-}
-.gl-more:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
-.gl-tag__text { font-family: var(--mono); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
-.gl-tag__sub { font-size: 13px; color: var(--manila-sub); line-height: 1.35; }
+/* ---------- Tonight: needs you, the jobs on the twine ---------- */
+.gl-wl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 20px 0 4px; color: var(--walltext); }
+.gl-wl__h { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--walltext); }
+.gl-wl__sub { font-family: var(--mono); font-size: 11px; color: var(--rule); }
+.gl-clear { margin-top: 6px; padding: 12px 14px; border: 2px dashed var(--rule); color: var(--walltext); font-size: 14px; line-height: 1.4; }
+.gl-jobs { gap: 10px; margin-top: 2px; }
+.gl .gl-job { gap: 5px; padding: 10px 12px 11px 44px; }
+/* The phone lines: a red edge on the far end of the tag. */
+.gl .gl-job--hot { background: var(--kraft) linear-gradient(90deg, transparent 0 calc(100% - 7px), var(--warn) calc(100% - 7px)); padding-right: 16px; }
+.gl-job--row { flex-direction: row; align-items: center; gap: 8px; }
+.gl-job__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.gl-job__line { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gl-job__t { min-width: 0; font-family: var(--mono); font-size: 14px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.gl-job__s { font-size: 13px; line-height: 1.35; color: var(--manila-sub); }
+.gl-job__btns { flex: none; display: flex; gap: 5px; }
+.gl-pair { align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 2px; }
+.gl .gl-pair .gl-btn { min-width: 0; padding: 0 6px; font-size: 11px; letter-spacing: 0.5px; }
 .gl-actions { align-self: stretch; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.gl-actions > .gl-btn { flex: 1 1 0; }
 .gl-actions--end > .gl-btn { flex: 0 0 auto; }
 .gl-grow { flex: 1; }
 .gl-pts { font-family: var(--display); font-size: 16px; color: var(--stamp-good); }
+/* Confirmed statements, folded under one dashed line. */
+.gl-more {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-top: 14px; padding: 0 10px;
+  border: 2px dashed var(--rule); color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+}
+.gl-more:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.gl-more__chev { flex: none; transition: transform 0.15s ease; }
+.gl-more[aria-expanded='true'] .gl-more__chev { transform: rotate(180deg); }
+#gl-confirmed > .gl-jobs { margin-top: 10px; }
 
 /* ---------- buttons on paper ---------- */
 .gl .gl-btn {
   min-height: 44px; padding: 0 12px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); box-shadow: none; border-radius: 0;
+  background: var(--btn2-bg); color: var(--btn2-fg); border: 2px solid var(--btn2-edge); box-shadow: none; border-radius: 0;
 }
-.gl .gl-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
-.gl .gl-btn:active:not(:disabled) { transform: none; box-shadow: none; }
-.gl .gl-btn:disabled { opacity: 0.45; }
-.gl .gl-btn--ink { background: var(--manila-ink); color: var(--manila); border-color: var(--manila-ink); }
-.gl .gl-btn--ink:hover:not(:disabled) { background: #3a2e1c; }
-.gl .gl-btn--teal { background: var(--accent); color: #fff; border-color: var(--accent); }
-.gl .gl-btn--teal:hover:not(:disabled) { background: var(--accent-hover); }
-.gl .gl-btn--warn { border-color: var(--warn); color: var(--stamp-bad); }
-.gl .gl-btn--red { background: var(--warn); color: #fff; border-color: var(--warn); }
+.gl .gl-btn:hover:not(:disabled) { background: var(--btn2-bg-hover); }
+.gl .gl-btn:active:not(:disabled) { background: var(--btn2-bg-press); color: var(--btn2-fg-press); transform: none; box-shadow: none; }
+/* Disabled: a dashed rule and no fill. Busy keeps its colour (the bee on a held-down key). */
+.gl .gl-btn:disabled:not([aria-busy='true']) { opacity: 1; background: var(--btn-off-bg); color: var(--btn-off-fg); border: 2px dashed var(--btn-off-edge); box-shadow: none; }
+.gl .gl-btn:disabled[aria-busy='true'] { opacity: 1; }
+/* The case-brown key: Fire, Let in, Confirm, Enter. */
+.gl .gl-btn--ink, .gl .gl-btn--teal { background: var(--btn-go-bg); color: var(--btn-go-fg); border-color: var(--btn-go-edge); box-shadow: var(--btn-shadow); }
+.gl .gl-btn--ink:hover:not(:disabled), .gl .gl-btn--teal:hover:not(:disabled) { background: var(--btn-go-hover); }
+.gl .gl-btn--ink:active:not(:disabled), .gl .gl-btn--teal:active:not(:disabled) { background: var(--btn-go-press); color: var(--btn-go-fg); transform: translateY(2px); box-shadow: var(--btn-shadow-press); }
+.gl .gl-btn--ink[aria-busy='true'], .gl .gl-btn--teal[aria-busy='true'] { transform: translateY(3px); box-shadow: none; }
+.gl .gl-btn--ink .loader, .gl .gl-btn--teal .loader { --loader-line: var(--btn-go-fg); color: var(--btn-go-fg); }
+/* Destructive (Close, Overrule, Reject): a dark red rule; solid red only where it confirms. */
+.gl .gl-btn--warn { border-color: var(--btn-x-edge); color: var(--btn-x-fg); }
+.gl .gl-btn--warn:active:not(:disabled) { background: var(--btn-x-edge); color: var(--btn-danger-fg); }
+.gl .gl-btn--red { background: var(--btn-danger-bg); color: var(--btn-danger-fg); border-color: var(--btn-danger-edge); box-shadow: var(--btn-shadow); }
 .gl .gl-btn--red:hover:not(:disabled) { background: var(--warn-text); }
+.gl .gl-btn--red:active:not(:disabled) { background: var(--btn-danger-edge); color: var(--btn-danger-fg); transform: translateY(2px); box-shadow: var(--btn-shadow-press); }
 .gl .gl-btn--wide { width: 100%; min-height: 48px; font-size: 13px; }
-.gl .gl-btn--sm { flex: none; min-height: 40px; min-width: 40px; padding: 0 6px; font-size: 12px; }
+.gl .gl-btn--sm { flex: none; min-height: 40px; min-width: 40px; padding: 0 10px; font-size: 11.5px; letter-spacing: 0.8px; }
+.gl .gl-btn--sq { flex: none; min-height: 40px; min-width: 40px; padding: 0 4px; font-size: 12px; letter-spacing: 0; }
+.gl .gl-btn--ic { padding: 0; }
 
-.gl-quiet { margin-top: 16px; font-family: var(--mono); font-size: 12px; color: var(--chart); }
+.gl-quiet { margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--chart); }
 .gl-quiet--paper { margin-top: 0; color: var(--manila-sub); }
-.gl-empty { margin-top: 16px; padding: 16px; background: var(--manila); color: var(--manila-ink); box-shadow: var(--shadow); }
-.gl-empty h3 { font-size: 18px; }
-.gl-empty p { margin-top: 4px; font-size: 14px; color: var(--manila-sub); }
 
 /* ---------- the group mission ---------- */
-.gl-mission__head { align-self: stretch; display: flex; flex-direction: column; gap: 4px; }
-.gl-live { flex: none; margin-right: 26px; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--stamp-bad); }
-.gl-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.gl-mc__meta {
+  align-self: stretch; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-right: 26px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.gl-mc__title { font-family: var(--display); font-size: 24px; line-height: 1.05; color: var(--manila-ink); overflow-wrap: anywhere; }
+.gl-mc__row { align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.gl-mc__clock { display: flex; align-items: baseline; gap: 6px; }
+.gl-mc__clock b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.gl-mc__clock i, .gl-mc__n {
+  font-family: var(--mono); font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub);
+}
 .gl-card__btns { align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .gl-card__btns .gl-btn { min-width: 0; padding: 6px 8px; line-height: 1.2; white-space: normal; }
 .gl-card__desc { font-size: 13px; color: var(--manila-sub); line-height: 1.4; }
-.gl-clockrow { align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.gl-bigclock { font-family: var(--display); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
-.gl-prints { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
-.gl-prints__n { font-family: var(--mono); font-size: 11px; font-weight: 700; }
-.gl .pip, .gl .pip--on { background: var(--manila-ink); }
 
 .gl-bags { align-self: stretch; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .gl-bagcell { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .gl-bag {
   all: unset; box-sizing: border-box; position: relative; display: flex; align-items: flex-end; justify-content: center; height: 96px; overflow: hidden; cursor: pointer;
-  background: repeating-linear-gradient(135deg, #d5d8d8 0 6px, #cbcfcf 6px 12px); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  background: repeating-linear-gradient(135deg, var(--bag) 0 6px, var(--bag-dark) 6px 12px); box-shadow: inset 0 0 0 2px var(--glass-60);
 }
 div.gl-bag { cursor: default; }
 .gl-bag:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
@@ -114,6 +160,47 @@ div.gl-bag { cursor: default; }
 .gl-bag__pick .gl-stamp { min-width: 0; }
 .gl-stamp--ok { border-color: var(--stamp-good); color: var(--stamp-good); }
 
+/* ---------- the story, in order ---------- */
+.gl-sr { align-self: stretch; display: flex; flex-direction: column; }
+.gl-sr__row {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; padding: 2px 0;
+  border-top: 1px dashed var(--twine-dark); font-size: 14px;
+}
+.gl-sr__row:first-child { border-top: 0; }
+.gl-sr__row > b { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--manila-sub); }
+.gl-sr__name {
+  min-width: 0; min-height: 40px; display: flex; align-items: center; padding: 0; background: none; border: 0; color: var(--manila-ink); cursor: pointer;
+  font-family: var(--body); font-size: 14px; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+span.gl-sr__name { cursor: default; }
+button.gl-sr__name:disabled { cursor: default; }
+button.gl-sr__name:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.gl-sr__name:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 1px; }
+.gl-sr__row.is-done .gl-sr__name { color: var(--manila-sub); font-weight: 500; }
+.gl-sr__row.is-next { margin: 0 -6px; padding: 2px 6px; background: var(--glass-40); border-top: 2px solid var(--manila-ink); }
+.gl-sr__row.is-next + .gl-sr__row { border-top-color: var(--manila-ink); border-top-style: solid; }
+.gl-sr__row.is-next .gl-sr__name { font-weight: 800; }
+.gl-sr__row > em { font-family: var(--mono); font-size: 10.5px; font-style: normal; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--manila-sub); }
+.gl-sr__row .cf-stamp { transform: rotate(-2deg); }
+/* Random drops: the way into the pool, and the switch. */
+.gl-tgl { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 2px solid var(--manila-ink); }
+.gl-tgl__text {
+  flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0;
+  background: none; border: 0; color: var(--manila-ink); text-align: left; cursor: pointer;
+}
+.gl-tgl__text b { font-size: 15px; font-weight: 700; }
+.gl-tgl__text i { font-family: var(--mono); font-size: 11px; font-style: normal; color: var(--manila-sub); }
+.gl-tgl__text:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.gl-tgl .switch { flex: none; }
+
+/* ---------- periodic missions, a line each ---------- */
+.gl-pm__list { align-self: stretch; display: flex; flex-direction: column; }
+.gl-pm__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--twine-dark); }
+.gl-pm__row:first-child { border-top: 0; padding-top: 0; }
+.gl-pm__txt { min-width: 0; }
+.gl-pm__txt b { display: block; font-family: var(--display); font-weight: 400; font-size: 17px; line-height: 1.2; }
+.gl-pm__txt i { display: block; font-family: var(--mono); font-size: 11px; font-style: normal; line-height: 1.4; color: var(--manila-sub); }
+
 /* ---------- frames on file (GM eyes only) ---------- */
 .gl-frames__lead { font-size: 13px; color: var(--manila-sub); }
 .gl-frames__sum { font-size: 13px; color: var(--manila-sub); }
@@ -123,61 +210,91 @@ div.gl-bag { cursor: default; }
 .gl-frames__rows b { font-weight: 700; color: var(--manila-sub); }
 .gl-frames__rows .is-neg { color: var(--stamp-bad); }
 .gl-frames__rows .is-pos { color: var(--stamp-good); }
-.gl-open { align-self: flex-start; min-height: 44px; min-width: 44px; padding: 0; background: none; border: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--stamp-plain); }
 
 /* ---------- suspects, with the quick nudges ---------- */
 .gl-sus__list { align-self: stretch; display: flex; flex-direction: column; }
-.gl-sus__row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--twine-dark); }
+.gl-sus__row { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-top: 1px dashed var(--twine-dark); }
+.gl-sus__row:first-child { border-top: 0; padding-top: 0; }
 .gl-sus__icon.avatar { border: 2px solid var(--accent); }
 .gl-sus__icon.is-neg.avatar { border-color: var(--warn); }
 .gl-sus__who { flex: 1; min-width: 0; }
-.gl-sus__name { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gl-sus__left { font-weight: 400; color: var(--manila-sub); }
-.gl-sus__role { font-family: var(--mono); font-size: 10px; color: var(--manila-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gl-sus__pts { font-family: var(--display); font-size: 17px; color: var(--stamp-good); }
+.gl-sus__name { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 14px; font-weight: 700; }
+.gl-sus__nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-sus__left { flex: none; font-weight: 400; color: var(--manila-sub); }
+.gl-sus__role { font-family: var(--mono); font-size: 10.5px; color: var(--manila-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-sus__pts { flex: none; min-width: 28px; text-align: right; font-family: var(--display); font-size: 17px; color: var(--stamp-good); }
 .gl-sus__pts.is-neg { color: var(--stamp-bad); }
+/* A standing as a small round mark after the name: a phone for a trusted confidant, an eye for a person of interest. */
+.gl-mk { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--on-accent); }
+.gl-mk--confidant { background: var(--accent); }
+.gl-mk--poi { background: var(--warn); }
 
 /* ---------- the engine's parts inside a folder: flat on the manila ---------- */
 .gl-folder .gm-card { padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--manila-ink); }
 .gl-folder .gm-h { font-family: var(--display); font-size: 18px; color: var(--manila-ink); }
 .gl-folder .gm-hint, .gl-folder .gm-intro { color: var(--manila-sub); }
 .gl-folder .gm-current { background: var(--manila-ink); color: var(--manila); }
-.gl-folder .btn { box-shadow: none; border-radius: 0; }
-.gl-folder .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger) { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); }
-.gl-folder .btn--primary { --btn-bg: var(--accent); --btn-fg: #fff; border-color: var(--accent); }
-.gl-folder .btn--ghost { color: var(--manila-ink); }
+/* (The locker's own .gl-btn buttons keep their looks.) */
+.gl-folder .btn:not(.gl-btn) { border-radius: 0; }
 .gl-folder .gm-current .btn:not(.btn--primary) { background: var(--manila); color: var(--manila-ink); border-color: var(--manila); }
-.gl-folder .textarea, .gl-folder .input { background: #fbf8ef; }
-
-/* Periodic missions: each series a section of the folder, divided by a dashed rule. */
-.gl-periodics .gm-list--cards { align-self: stretch; gap: 0; }
-.gl-periodics .gm-list--cards > li.gm-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px dashed var(--twine-dark); }
-.gl-periodics .gm-list--cards > li.gm-card:first-child { border-top: 0; padding-top: 0; }
-.gl-periodics .gm-pm__head { margin-right: 26px; }
-.gl-periodics .gm-count {
-  padding: 1px 6px; border: 2px solid var(--manila-sub); background: transparent; color: var(--manila-sub); transform: rotate(-4deg);
-  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px;
-}
-.gl-periodics .gm-count--on { border-color: var(--stamp-plain); color: var(--stamp-plain); background: transparent; }
+.gl-folder .textarea, .gl-folder .input { background: var(--form); }
 
 /* The bulletin: the announcement form, its own heading folded into the tab. */
 .gl-engine .gm-card > .gm-h { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
 
-/* ---------- the sub-pages (suspects, settings, …): on a manila sheet ---------- */
+/* ---------- Setup: the settings as folds on the manila ---------- */
+/* Its heading is the folder's tab; the saved stamp stays, stamped in the top corner beside the clip. */
+.gl-settings .gm-settings > .section-head { justify-content: flex-end; min-height: 0; margin: -4px 30px 2px 0; padding: 0; border: 0; }
+.gl-settings .gm-settings > .section-head h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.gl-settings .gm-settings > .gm-hint { font-size: 13px; }
+.gl-settings .gm-count {
+  padding: 1px 6px; border: 2px solid var(--manila-sub); border-radius: 0; background: transparent; color: var(--manila-sub); transform: rotate(-3deg);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+}
+.gl-settings .gm-count--on { border-color: var(--stamp-bad); color: var(--stamp-bad); }
+.gl-settings .gm-fold { border-top: 1px dashed var(--twine-dark); }
+.gl-settings .gm-fold.is-open { margin: 0 -14px; padding: 0 14px; border-top: 2px solid var(--manila-ink); border-bottom: 2px solid var(--manila-ink); background: var(--glass-40); }
+.gl-settings .gm-fold.is-open + .gm-fold { border-top-color: transparent; }
+/* The group's name keeps its line; a long summary gives way. */
+.gl-settings .gm-fold__btn { grid-template-columns: auto minmax(0, 1fr) 16px; }
+.gl-settings .gm-fold__title { font-size: 15px; white-space: nowrap; color: var(--manila-ink); }
+.gl-settings .gm-fold__sum { font-family: var(--mono); font-size: 10.5px; text-align: right; color: var(--manila-sub); }
+.gl-settings .gm-fold.is-open .gm-fold__sum, .gl-settings .gm-fold__sum.is-flagged { color: var(--stamp-plain); font-weight: 700; letter-spacing: 1px; }
+.gl-settings .gm-fold__sum.is-flagged { color: var(--stamp-bad); text-transform: uppercase; }
+.gl-settings .gm-err { color: var(--stamp-bad); }
+.gl-settings .gm-setting__input.is-invalid { border-color: var(--warn); background: var(--suspect-half); }
+.gl-settings .gm-fold__btn { color: var(--manila-ink); }
+.gl-settings .gm-fold__btn:focus-visible { outline-color: var(--manila-ink); }
+.gl-settings .gm-setting { gap: 10px; padding: 7px 0; border-bottom: 0; border-top: 1px dashed var(--twine-dark); }
+.gl-settings .gm-fold__body > .gm-setting:first-of-type { border-top: 0; }
+.gl-settings .gm-setting__label { font-size: 14px; font-weight: 700; }
+.gl-settings .gm-setting__hint { font-size: 12px; color: var(--manila-sub); }
+.gl-settings .gm-setting__input {
+  width: 64px; min-height: 40px; padding: 4px 6px; text-align: center; border: 2px solid var(--manila-ink); border-radius: 0; background: var(--form); color: var(--manila-ink);
+  font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: 0;
+}
+.gl-settings .gm-quiet { border-bottom: 0; border-top: 1px dashed var(--twine-dark); padding: 0 0 6px; }
+.gl-settings .gm-choice__opt { border-radius: 0; background: transparent; border-color: var(--manila-ink); color: var(--manila-ink); }
+.gl-settings .gm-choice__opt.is-selected { background: var(--manila-ink); color: var(--manila); }
+.gl-settings .gm-choice__opt.is-selected .gm-setting__hint { color: var(--manila); }
+
+/* ---------- the engine's full sections: on a manila sheet ---------- */
 .gl-sub { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
 .gl-back { align-self: flex-start; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.gl-back:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
 .gl-sub__body {
   display: flex; flex-direction: column; gap: var(--gap); min-width: 0; padding: 14px 16px 18px;
   background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
 }
 /*
- * The engine's sections on the sub-pages, drawn on the manila sheet: the tokens are re-scoped so their lists, fields
- * and buttons turn manila/ink; cards lose their white paper and become folder sections divided by dashed rules;
- * card lists (periodic missions, templates) become kraft tags; counts become stamps; the dark "open now" panel stays.
+ * The engine's sections drawn on manila (the full sections, and the settings in their folder): the tokens are
+ * re-scoped so their lists, fields and buttons turn manila/ink; cards lose their white paper and become folder sections
+ * divided by dashed rules; card lists (periodic missions, templates) become kraft tags; counts become stamps; the dark
+ * "open now" panel stays.
  */
-.gl-sub__body {
+.gl-sub__body, .gl-settings {
   --paper: var(--manila);
-  --card: #fbf8ef;
+  --card: var(--form);
   --ink: var(--manila-ink);
   --muted: var(--manila-sub);
   --line: 2px solid var(--manila-ink);
@@ -203,25 +320,20 @@ div.gl-bag { cursor: default; }
   font-weight: 700; text-align: center;
 }
 .gl-sub .gm-count--on { border-color: var(--stamp-plain); color: var(--stamp-plain); background: transparent; }
-/* Buttons: ink outline on manila; primary teal, danger red, ghost an underlined link. */
-.gl-sub .btn { box-shadow: none; border-radius: 0; }
-.gl-sub .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger) { background: transparent; color: var(--manila-ink); border: 2px solid var(--manila-ink); }
-.gl-sub .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger):hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
-.gl-sub .btn--primary { --btn-bg: var(--accent); --btn-fg: #fff; border-color: var(--accent); }
-.gl-sub .btn--danger { border-color: var(--warn); }
-.gl-sub .btn--ghost { color: var(--manila-ink); }
+/* Buttons: ink outline on manila; primary case brown, danger a red rule, ghost an underlined link. */
+.gl-sub .btn { border-radius: 0; }
 .gl-sub .btn-icon { background: transparent; border: 2px solid var(--manila-ink); color: var(--manila-ink); }
-.gl-sub .input, .gl-sub .textarea { background: #fbf8ef; border-color: var(--manila-ink); color: var(--manila-ink); }
+.gl-sub .input, .gl-sub .textarea { background: var(--form); border-color: var(--manila-ink); color: var(--manila-ink); }
 .gl-sub .gm-current { background: var(--manila-ink); color: var(--manila); }
 .gl-sub .gm-current .gm-hint { color: inherit; }
 .gl-sub .gm-current .btn:not(.btn--primary) { background: var(--manila); color: var(--manila-ink); border-color: var(--manila); }
 .gl-sub .gm-seg { background: transparent; }
-.gl-sub .gm-seg__btn[aria-pressed='true'] { background: var(--manila-ink); color: var(--manila); }
-/* Card lists (periodic missions, quest templates): kraft tags with an eyelet, the list casting their shadow. */
-.gl-sub .gm-list--cards { gap: 12px; filter: drop-shadow(0 3px 0 rgba(42, 33, 22, 0.35)); }
+.gl-sub .gm-seg__btn[aria-pressed='true'] { background: var(--btn-on-bg); color: var(--btn-on-fg); }
+/* Card lists (periodic missions, quest templates, the story): kraft tags with an eyelet, the list casting their shadow. */
+.gl-sub .gm-list--cards { gap: 12px; filter: drop-shadow(0 3px 0 var(--sh-tag)); }
 .gl-sub .gm-list--cards > li.gm-card {
   position: relative; padding: 12px 14px 14px 44px; border: 0; color: var(--manila-ink);
-  background: var(--kraft); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.05));
+  background: var(--kraft); background-image: linear-gradient(180deg, var(--glass-12), var(--dim-5));
   clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
 }
 .gl-sub .gm-list--cards > li.gm-card::before {
@@ -230,6 +342,6 @@ div.gl-bag { cursor: default; }
 }
 .gl-sub .gm-list--cards > li.gm-card .gm-h { font-size: 18px; }
 
-/* The burger: the engine's square ink button, sitting on the wall. */
-.gl-burger { border-color: var(--walltext); }
-.gl-burger .gm-burger__dot { border-color: var(--wall); }
+@media (prefers-reduced-motion: reduce) {
+  .gl-more__chev { transition: none; }
+}

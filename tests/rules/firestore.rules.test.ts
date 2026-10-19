@@ -172,6 +172,10 @@ describe('3. player profiles', () => {
     ['when they were last checked by the police', { lastCheckedAt: T }],
     ['when they last tipped off the police', { lastSnitchedAt: null }],
     ['a police field alongside their photo', { photoURL: 'https://x/z.jpg', lastSnitchedAt: null }],
+    // The onboarding is done only through bookIn, which checks the particulars.
+    ['when they were booked in', { bookedAt: T }],
+    ['their particulars', { particulars: { heightCm: 180, drink: 'Gin', marks: null } }],
+    ['their particulars alongside their photo', { photoURL: 'https://x/z.jpg', particulars: { heightCm: 180, drink: 'Gin', marks: null } }],
   ])('cannot change %s', async (_label, data) => {
     await assertFails(updateDoc(doc(as('alice'), 'players/alice'), data));
   });
@@ -797,6 +801,194 @@ describe('Police check-ins are private to the player being checked and the GM (p
       await assertFails(setDoc(doc(as(uid), 'policeCalls/pc2'), { uid, kind: 'watch', status: 'open' }));
       await assertFails(updateDoc(doc(as(uid), 'policeCalls/pc1'), { status: 'passed', answer: '15' }));
       await assertFails(deleteDoc(doc(as(uid), 'policeCalls/pc1')));
+    }
+  });
+});
+
+describe('Police phone lines and the switchboard (phone calls on)', () => {
+  async function seedLines() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      const phone = (number: string) => ({
+        number, status: 'verified', verifiedAt: T, failures: 0, reason: null, callerId: '+447700900000', test: null, updatedAt: T,
+      });
+      await setDoc(doc(db, 'phones/alice'), phone('+447700900001'));
+      await setDoc(doc(db, 'phones/bob'), phone('+447700900002'));
+      await setDoc(doc(db, 'game/switchboard'), {
+        mode: 'app', manual: false, since: T, streak: 3, streakUids: ['alice', 'bob'], trialCallId: null, lastError: { code: '20003', message: 'x', at: T }, health: null,
+      });
+    });
+  }
+
+  it('a player reads their own line only; the GM reads every line', async () => {
+    await seedLines();
+    await assertSucceeds(getDoc(doc(as('alice'), 'phones/alice')));
+    await assertSucceeds(getDoc(doc(as('gm'), 'phones/alice')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'phones')));
+    await assertFails(getDoc(doc(as('bob'), 'phones/alice')));
+    await assertFails(getDocs(collection(as('alice'), 'phones')));
+    await assertFails(getDoc(doc(as('pending'), 'phones/alice')));
+    await assertFails(getDoc(doc(anon(), 'phones/alice')));
+  });
+
+  it('a signed-in player with no line yet can still look for their own (missing) doc', async () => {
+    await seedLines();
+    await assertSucceeds(getDoc(doc(as('carol'), 'phones/carol')));
+  });
+
+  it('no client writes a line, not its player or the GM (setPoliceLine and the voice webhook do)', async () => {
+    await seedLines();
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), `phones/${uid}`), { number: '+447700900099', status: 'verified' }));
+      await assertFails(updateDoc(doc(as(uid), 'phones/alice'), { status: 'verified', number: '+447700900099' }));
+      await assertFails(deleteDoc(doc(as(uid), 'phones/alice')));
+    }
+  });
+
+  it('only the GM reads the switchboard, and nobody writes it from the app', async () => {
+    await seedLines();
+    await assertSucceeds(getDoc(doc(as('gm'), 'game/switchboard')));
+    for (const uid of ['alice', 'pending']) await assertFails(getDoc(doc(as(uid), 'game/switchboard')));
+    await assertFails(getDoc(doc(anon(), 'game/switchboard')));
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), 'game/switchboard'), { mode: 'phone' }));
+      await assertFails(updateDoc(doc(as(uid), 'game/switchboard'), { mode: 'phone', manual: false }));
+      await assertFails(deleteDoc(doc(as(uid), 'game/switchboard')));
+    }
+  });
+});
+
+describe("Story facts and dealt players (plan \"Mystery pack: minimal notifications, Bob's story arc…\", edge case 24)", () => {
+  async function seedStory() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'facts/timeOfDeath'), { key: 'timeOfDeath', label: 'Time of death', value: '23:02', entries: [], storyId: 's-time', at: T });
+      await setDoc(doc(db, 'assignments/gq1_alice'), { globalQuestId: 'gq1', uid: 'alice', targetUid: 'bob', createdAt: T });
+      await setDoc(doc(db, 'assignments/gq1_bob'), { globalQuestId: 'gq1', uid: 'bob', targetUid: 'alice', createdAt: T });
+    });
+  }
+
+  it('players and the GM read the facts; signed-out users and people not in the game cannot', async () => {
+    await seedStory();
+    for (const uid of ['alice', 'gm']) {
+      await assertSucceeds(getDoc(doc(as(uid), 'facts/timeOfDeath')));
+      await assertSucceeds(getDocs(collection(as(uid), 'facts')));
+    }
+    await assertFails(getDoc(doc(as('pending'), 'facts/timeOfDeath')));
+    await assertFails(getDoc(doc(anon(), 'facts/timeOfDeath')));
+  });
+
+  it('no client writes a fact, not a player or the GM', async () => {
+    await seedStory();
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), 'facts/weapon'), { key: 'weapon', label: 'Weapon', value: 'A spoon', entries: [], storyId: null, at: serverTimestamp() }));
+      await assertFails(updateDoc(doc(as(uid), 'facts/timeOfDeath'), { value: '21:00' }));
+      await assertFails(deleteDoc(doc(as(uid), 'facts/timeOfDeath')));
+    }
+  });
+
+  it('a dealt player is read by the player it was dealt to (also by query on their uid) and the GM, nobody else', async () => {
+    await seedStory();
+    await assertSucceeds(getDoc(doc(as('alice'), 'assignments/gq1_alice')));
+    await assertSucceeds(getDocs(query(collection(as('alice'), 'assignments'), where('uid', '==', 'alice'))));
+    await assertSucceeds(getDoc(doc(as('gm'), 'assignments/gq1_alice')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'assignments')));
+    // bob is the one alice was dealt: he must not find out who is writing about him.
+    await assertFails(getDoc(doc(as('bob'), 'assignments/gq1_alice')));
+    await assertFails(getDocs(collection(as('bob'), 'assignments')));
+    await assertFails(getDocs(query(collection(as('bob'), 'assignments'), where('targetUid', '==', 'bob'))));
+    await assertFails(getDoc(doc(as('carol'), 'assignments/gq1_alice')));
+    await assertFails(getDoc(doc(anon(), 'assignments/gq1_alice')));
+  });
+
+  it('a player who was dealt nobody can still look for their own (missing) one', async () => {
+    await seedStory();
+    await assertSucceeds(getDoc(doc(as('carol'), 'assignments/gq1_carol')));
+  });
+
+  it('no client writes a dealt player, not its player or the GM', async () => {
+    await seedStory();
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(updateDoc(doc(as(uid), 'assignments/gq1_alice'), { targetUid: 'carol' }));
+      await assertFails(setDoc(doc(as(uid), 'assignments/gq1_carol'), { globalQuestId: 'gq1', uid: 'carol', targetUid: 'alice', createdAt: serverTimestamp() }));
+      await assertFails(deleteDoc(doc(as(uid), 'assignments/gq1_alice')));
+    }
+  });
+});
+
+describe('vote reactions (packs with reactions: votes)', () => {
+  const vote = (v: unknown) => ({ vote: v, createdAt: serverTimestamp() });
+  const post = (id: string, data: Record<string, unknown>) =>
+    env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), `feed/${id}`), { text: 'x', ref: null, createdAt: T, ...data });
+    });
+  const path = (id: string, uid: string) => `feed/${id}/reactions/${uid}`;
+
+  beforeEach(async () => {
+    await post('v1', { type: 'approved', uid: 'alice' });
+    await post('ex', { type: 'exposed', uid: 'alice', actorUid: 'bob' });
+  });
+
+  it('a player votes 1 and -1 on another player\'s post, switches, and takes it back', async () => {
+    await assertSucceeds(setDoc(doc(as('bob'), path('v1', 'bob')), vote(1)));
+    await assertSucceeds(setDoc(doc(as('bob'), path('v1', 'bob')), vote(-1)));
+    await assertSucceeds(setDoc(doc(as('carol'), path('v1', 'carol')), vote(1)));
+    await assertSucceeds(deleteDoc(doc(as('bob'), path('v1', 'bob'))));
+  });
+
+  it.each([
+    ['zero', 0],
+    ['two', 2],
+    ['a string', '1'],
+    ['a fraction', 1.5],
+  ])('refuses %s as the vote', async (_l, v) => {
+    await assertFails(setDoc(doc(as('bob'), path('v1', 'bob')), vote(v)));
+  });
+
+  it('refuses extra keys, a missing createdAt and a client time', async () => {
+    await assertFails(setDoc(doc(as('bob'), path('v1', 'bob')), { ...vote(1), emoji: '🔥' }));
+    await assertFails(setDoc(doc(as('bob'), path('v1', 'bob')), { vote: 1 }));
+    await assertFails(setDoc(doc(as('bob'), path('v1', 'bob')), { vote: 1, createdAt: T }));
+  });
+
+  it("refuses another player's doc, your own post, and a GM with no player doc", async () => {
+    await assertFails(setDoc(doc(as('bob'), path('v1', 'carol')), vote(1)));
+    await assertFails(setDoc(doc(as('alice'), path('v1', 'alice')), vote(1)));
+    await assertFails(setDoc(doc(as('gm'), path('v1', 'gm')), vote(1)));
+  });
+
+  it('refuses a post that is not votable, or does not exist', async () => {
+    await post('std', { type: 'standing', uid: 'alice' });
+    await post('beat', { type: 'story-beat', uid: 'alice' });
+    await post('open', { type: 'global-open', uid: null });
+    await post('nouid', { type: 'approved', uid: null });
+    for (const id of ['std', 'beat', 'open', 'nouid', 'missing']) {
+      await assertFails(setDoc(doc(as('bob'), path(id, 'bob')), vote(1)));
+    }
+  });
+
+  it("an exposed post takes a vote from others but not from the one who exposed (actorUid)", async () => {
+    await assertFails(setDoc(doc(as('bob'), path('ex', 'bob')), vote(1)));
+    await assertSucceeds(setDoc(doc(as('carol'), path('ex', 'carol')), vote(-1)));
+  });
+
+  it('emoji reactions still pass exactly as before, notices included', async () => {
+    await assertSucceeds(setDoc(doc(as('bob'), path('v1', 'bob')), { emoji: '🔥', createdAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(as('carol'), 'feed/f1/reactions/carol'), { emoji: '😂', createdAt: serverTimestamp() }));
+  });
+
+  it('game/top is read by players and the GM, and written by nobody', async () => {
+    const top = { feedId: 'v1', score: 1, up: 1, down: 0, since: T, previousFeedId: null, previousSince: null };
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'game/top'), top);
+    });
+    await assertSucceeds(getDoc(doc(as('bob'), 'game/top')));
+    await assertSucceeds(getDoc(doc(as('gm'), 'game/top')));
+    await assertFails(getDoc(doc(as('pending'), 'game/top')));
+    for (const who of ['bob', 'gm']) {
+      await assertFails(setDoc(doc(as(who), 'game/top'), top));
+      await assertFails(updateDoc(doc(as(who), 'game/top'), { score: 9 }));
+      await assertFails(deleteDoc(doc(as(who), 'game/top')));
     }
   });
 });

@@ -12,6 +12,7 @@ import { addFeed } from './feed.js';
 import { isQuietHours } from './globals.js';
 import { loadSettings, loadState } from './guards.js';
 import { openPoliceCall } from './police.js';
+import { flushLines, noLines, readLineBook } from './policeLines.js';
 import { millis } from './util.js';
 
 /** The standing a player should have: none once they have left. */
@@ -27,7 +28,7 @@ function writeStanding(tx: Txn, db: Db, now: Date, t: TermForms, uid: string, pl
   const noun = (s: PlayerStanding) => (s === 'poi' ? t.poi.one : t.confidant.one);
   // Moving straight from one standing to the other posts only the new one.
   const text = next ? `${name} is now a ${noun(next)}` : `${name} is no longer a ${noun(prev!)}`;
-  addFeed(tx, db, now, { type: 'standing', text, uid, ref: null, photoURL: player.photoURL ?? null });
+  addFeed(tx, db, now, { type: 'standing', text, uid, ref: null, standing: next, photoURL: player.photoURL ?? null });
 }
 
 /** The players/{uid} write trigger: sync this player's standing (and, with police, their watch check-in). */
@@ -51,9 +52,14 @@ export async function handlePlayerWritten(db: Db, uid: string, now: Date, rng: (
       !isQuietHours(now, settings.quietHours, pack.timeZone) &&
       cooldownLeftMs(player.lastCheckedAt ? millis(player.lastCheckedAt) : null, settings.policeEveryMin, now.getTime()) === 0;
     const busy = watch ? (await tx.get(db.collection('policeCalls').where('uid', '==', uid))).docs.some((d) => d.get('status') === 'open') : true;
+    // With phone calls on, the call rings their line when it can.
+    const book = watch && !busy ? await readLineBook(tx, db, settings, [uid]) : noLines();
 
     writeStanding(tx, db, now, t, uid, player, next);
-    if (watch && !busy) openPoliceCall(tx, db, now, rng, t, settings, { uid, name: player.displayName, kind: 'watch' });
+    if (watch && !busy) {
+      openPoliceCall(tx, db, now, rng, t, settings, { uid, name: player.displayName, kind: 'watch' }, book);
+      flushLines(tx, db, now, t, book);
+    }
   });
 }
 

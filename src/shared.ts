@@ -2,9 +2,13 @@
 // functions and security-rule tests can import them too).
 export type {
   Admin,
+  Assignment,
+  Fact,
+  FactEntry,
   Award,
   FeedItem,
   FeedType,
+  TopPost,
   ScheduleEvent,
   FinalStandings,
   GameState,
@@ -18,12 +22,23 @@ export type {
   Judging,
   LedgerEntry,
   LedgerReason,
+  Particulars,
   Player,
   PlayerLocation,
   PlayerStanding,
   PoliceCall,
   PoliceCallKind,
+  PoliceCallPhone,
   PoliceCallStatus,
+  PoliceChannel,
+  PoliceFallbackReason,
+  PhoneCallResult,
+  PhoneStatus,
+  PhoneTest,
+  PhoneTestResult,
+  PlayerPhone,
+  Switchboard,
+  SwitchMode,
   Quest,
   QuestStatus,
   QuestTemplate,
@@ -50,9 +65,13 @@ export { LEDGER_REASON_LIST, REACTION_EMOJI } from '../functions/src/shared/type
 export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/settings';
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
+export { VOTABLE_FEED_TYPES, canHoldTop, takesVote } from '../functions/src/shared/feedVotes';
 export { tallyVotes } from '../functions/src/shared/votes';
 export { drawTemplate } from '../functions/src/shared/draw';
 export { PERIODIC_LIMITS, periodicDone, periodicProblems } from '../functions/src/shared/periodics';
+export { describePhoneError, describeTestResult, formatPhone, isSimulatedSid, normalisePhone, policeVCard } from '../functions/src/shared/phone';
+export type { SimulatedAction, SimulatedTurn } from '../functions/src/shared/phone';
+export { DRINK_MAX, HEIGHT_MAX_CM, HEIGHT_MIN_CM, MARKS_MAX, needsBooking } from '../functions/src/shared/booking';
 
 /** A Firestore document with its id. */
 export type Doc<T> = T & { id: string };

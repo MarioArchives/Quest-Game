@@ -14,5 +14,7 @@
 .police__form { display: flex; flex-direction: column; gap: 8px; }
 .police__q { font-family: var(--display); font-size: 26px; line-height: 1.05; text-transform: uppercase; }
 .police__result { font-size: 18px; font-weight: 800; }
+/* Why a check-in is in the app (the phone didn't connect, or the lines are down). */
+.police__slip { align-self: flex-start; padding: 4px 8px; font-size: 13px; font-weight: 700; background: var(--card); color: var(--ink); border: var(--line); }
 
 .tipoff__note { font-size: 13px; color: var(--muted); }

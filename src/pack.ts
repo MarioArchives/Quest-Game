@@ -10,6 +10,8 @@ export const pack = getPack(import.meta.env.VITE_GAME_PACK);
 /** The pack's nouns in every form: t.quest.One, t.sideQuest.many, … */
 export const t = termForms(pack.terms);
 export const features = pack.features;
+/** What players put on feed posts: 'emoji' reactions, or 'votes' (Credible / Doubtful, with a top entry). */
+export const reactionStyle: 'emoji' | 'votes' = pack.reactions ?? 'emoji';
 export const zone: Zone = { timeZone: pack.timeZone, locale: pack.locale };
 /** The pack's brand data (tab labels, avatar placeholder…); an empty brand for a pack that has none. */
 export const brand: PackBrand = brands[pack.id] ?? { themeColor: '', backgroundColor: '' };

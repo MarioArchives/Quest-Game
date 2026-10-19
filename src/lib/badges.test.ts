@@ -21,7 +21,7 @@ function input(over: Partial<BadgeInput> = {}): BadgeInput {
   };
 }
 
-const none = { home: false, account: false, gm: false, wrap: false };
+const none = { home: false, feed: false, account: false, gm: false, wrap: false };
 
 describe('tabBadges', () => {
   it('shows nothing when nothing has happened', () => {
@@ -94,6 +94,40 @@ describe('tabBadges', () => {
 
     it('never lights up for someone who is not a GM', () => {
       expect(tabBadges(input({ isGM: false, pendingJoins: 3, sideQuests: [{ status: 'live', endsAt: NOW - MIN, votingEndsAt: null }] })).gm).toBe(false);
+    });
+  });
+
+  describe('with a feed tab (a pack with its own Feed screen)', () => {
+    const tab = (over: Partial<BadgeInput> = {}) => tabBadges(input({ feedTab: true, playing: true, ...over }));
+    const live = { id: 'g1', status: 'live' as const, endsAt: NOW + 10 * MIN, votingEndsAt: null };
+
+    it('new posts light Feed, never Home', () => {
+      const feed = [{ uid: 'sam', createdAt: NOW - 2 * MIN }];
+      expect(tab({ feed, lastSeen: { feed: NOW - 5 * MIN } })).toMatchObject({ home: false, feed: true });
+      expect(tab({ feed, lastSeen: { feed: NOW - MIN, home: 0 } })).toMatchObject({ home: false, feed: false });
+    });
+
+    it('Home lights for a live side quest you have not entered, while the game runs', () => {
+      expect(tab({ sideQuests: [live] }).home).toBe(true);
+      expect(tab({ sideQuests: [live], gameStatus: 'paused' }).home).toBe(false);
+      expect(tab({ sideQuests: [{ ...live, endsAt: NOW - MIN }] }).home).toBe(false);
+      const entry = { kind: 'global' as const, questId: 'g1', status: 'sealed' as const, reviewedAt: null, hasEvidence: true };
+      expect(tab({ sideQuests: [live], myClaims: [entry] }).home).toBe(false);
+      // A thrown-out entry leaves you free to enter again.
+      expect(tab({ sideQuests: [live], myClaims: [{ ...entry, status: 'rejected' }] }).home).toBe(true);
+    });
+
+    it('Home lights for a check-in in the feed that has neither closed nor had your answer', () => {
+      const open = { uid: null, createdAt: NOW - 3 * MIN, type: 'checkin-open', ref: 'c1' };
+      expect(tab({ feed: [open] }).home).toBe(true);
+      expect(tab({ feed: [{ uid: 'me', createdAt: NOW - MIN, type: 'checkin-answer', ref: 'c1' }, open] }).home).toBe(false);
+      expect(tab({ feed: [{ uid: 'sam', createdAt: NOW - MIN, type: 'checkin-answer', ref: 'c1' }, open] }).home).toBe(true);
+      expect(tab({ feed: [{ uid: null, createdAt: NOW - MIN, type: 'checkin-closed', ref: 'c1' }, open] }).home).toBe(false);
+    });
+
+    it('never for a GM who only runs the game, or once the game is over', () => {
+      expect(tab({ sideQuests: [live], playing: false }).home).toBe(false);
+      expect(tab({ feed: [{ uid: null, createdAt: NOW - MIN, type: 'checkin-open', ref: 'c1' }], gameStatus: 'ended' }).home).toBe(false);
     });
   });
 

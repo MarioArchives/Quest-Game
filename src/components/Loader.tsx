@@ -12,6 +12,11 @@ export interface LoaderProps {
   /** Fill the viewport and centre on paper (app boot / auth resolving). */
   fullScreen?: boolean;
   /**
+   * In a line of text (a list or a lookup still loading): the drawing beside the caption, which takes the type around
+   * it. Renders a span, so it can sit in a paragraph.
+   */
+  inline?: boolean;
+  /**
    * What the mark sits on: 'paper' (default: ink line, accent plate), 'red' (on an accent surface; the plate turns paper so it
    * still shows), 'ink' (the line turns paper).
    */
@@ -19,13 +24,14 @@ export interface LoaderProps {
   className?: string;
 }
 
-export function Loader({ size = 72, label = 'Loading', caption, fullScreen = false, on = 'paper', className }: LoaderProps) {
+export function Loader({ size = 72, label = 'Loading', caption, fullScreen = false, inline = false, on = 'paper', className }: LoaderProps) {
   const style = { '--loader-size': `${size}px` } as CSSProperties;
-  const classes = ['loader', on !== 'paper' ? `loader--on-${on}` : '', fullScreen ? 'loader--screen' : '', className ?? '']
+  const classes = ['loader', on !== 'paper' ? `loader--on-${on}` : '', fullScreen ? 'loader--screen' : '', inline ? 'loader--inline' : '', className ?? '']
     .filter(Boolean)
     .join(' ');
+  const Root = inline ? 'span' : 'div';
   return (
-    <div className={classes} role="status" style={style}>
+    <Root className={classes} role="status" style={style}>
       <svg
         className="loader__svg"
         viewBox="0 0 64 64"
@@ -42,6 +48,6 @@ export function Loader({ size = 72, label = 'Loading', caption, fullScreen = fal
           {caption}
         </span>
       ) : null}
-    </div>
+    </Root>
   );
 }

@@ -4,7 +4,7 @@ import type { Player, PlayerLeft, Submission } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { fail, loadState, requireGM } from './guards.js';
-import type { PushPlan } from './push.js';
+import { pushAllowed, type PushPlan } from './push.js';
 import { asId, toTs } from './util.js';
 
 const OPEN_QUEST = new Set(['live', 'checking', 'voting']);
@@ -72,7 +72,7 @@ export async function setPlayerLeft(
 
     const claimants = [...new Set(waiting.map((d) => d.get('uid') as string))];
     const push: PushPlan | null =
-      claimants.length > 0
+      claimants.length > 0 && pushAllowed(ctx.pack, 'witness-left')
         ? {
             to: claimants,
             message: {

@@ -4,10 +4,11 @@ import type { GamePack } from '../shared/packs/types.js';
 import type { Services } from './callables.js';
 import type { Db } from './context.js';
 import { handleAdminCreated, handleJoinRequestCreated } from './join.js';
+import { dialPoliceCall } from './policePhone.js';
 import { planForFeed } from './push.js';
 import { handlePlayerWritten } from './standing.js';
-import { recountReactions } from './reactions.js';
-import { handleSubmissionCreated } from './submissions.js';
+import { handleReactionWritten } from './reactions.js';
+import { handleSubmissionCreated, handleSubmissionWritten } from './submissions.js';
 
 export interface TriggerEnv {
   now: Date;
@@ -23,6 +24,8 @@ export interface TriggerDef {
   pattern: string;
   /** 'create': only new documents; 'write': any create, update or delete. */
   on: 'create' | 'write';
+  /** Uses the phone line, so the deployed function needs the Twilio secrets. */
+  phone?: boolean;
   run(db: Db, params: Record<string, string>, env: TriggerEnv): Promise<void>;
 }
 
@@ -33,6 +36,16 @@ export const TRIGGERS: readonly TriggerDef[] = [
     on: 'create',
     async run(db, params, env) {
       const plan = await handleSubmissionCreated(db, params.submissionId, env.now, env.rng, env.pack);
+      if (plan) await env.services.sendPush(plan);
+    },
+  },
+  // The claimant asks someone else to witness a pending claim: the new witness hears about it.
+  {
+    name: 'onSubmissionWritten',
+    pattern: 'submissions/{submissionId}',
+    on: 'write',
+    async run(db, params, env) {
+      const plan = await handleSubmissionWritten(db, params.submissionId, env.now, env.rng, env.pack);
       if (plan) await env.services.sendPush(plan);
     },
   },
@@ -61,7 +74,7 @@ export const TRIGGERS: readonly TriggerDef[] = [
     pattern: 'joinRequests/{uid}',
     on: 'create',
     async run(db, params, env) {
-      const plan = await handleJoinRequestCreated(db, params.uid);
+      const plan = await handleJoinRequestCreated(db, params.uid, env.pack);
       if (plan) await env.services.sendPush(plan);
     },
   },
@@ -75,13 +88,23 @@ export const TRIGGERS: readonly TriggerDef[] = [
       await handlePlayerWritten(db, params.uid, env.now, env.rng, env.pack);
     },
   },
-  // Reactions are set, changed and removed by players; keep the post's reactionCount in step.
+  // A police check-in opened on the phone channel rings the player (packs with police, phone calls on). Dialled once.
+  {
+    name: 'onPoliceCallCreated',
+    pattern: 'policeCalls/{callId}',
+    on: 'create',
+    phone: true,
+    async run(db, params, env) {
+      await dialPoliceCall(db, params.callId, env.now, env.pack, env.services.phone());
+    },
+  },
+  // Reactions are set, changed and removed by players; keep the post's reactionCount (and, in a votes pack, its vote counts and game/top) in step.
   {
     name: 'onFeedReactionWritten',
     pattern: 'feed/{feedId}/reactions/{uid}',
     on: 'write',
-    async run(db, params) {
-      await recountReactions(db, params.feedId);
+    async run(db, params, env) {
+      await handleReactionWritten(db, params.feedId, env.now, env.pack);
     },
   },
 ];

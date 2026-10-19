@@ -1,7 +1,8 @@
 // A game pack: everything that makes one game different from another while the engine stays the same.
 // This is the rules half (wording, features, catalogue, defaults), shared by the functions, the app and the
 // scripts. The look half (theme, art, long copy, public files) lives in src/packs/<id>/.
-import type { AwardKey, Settings, Venue } from '../types.ts';
+import type { VoiceLineKey } from '../phone.ts';
+import type { AwardKey, Settings, StoryEntry, Venue } from '../types.ts';
 
 /** A periodic mission a pack starts with: a path-safe id and what the GM would set on it. */
 export interface PeriodicSeed {
@@ -14,6 +15,16 @@ export interface PeriodicSeed {
   count: number;
 }
 
+/** Packs with police: how the police sound on a phone call (settings.policePhone). */
+export interface PoliceVoice {
+  /** Twilio's <Say> voice and language; default Polly.Brian in en-GB. */
+  voice?: { voice: string; language: string };
+  /** Lines reworded for the pack: {caller} (settings.policeCallerName), {name} (the player's first name), {check} (a police check-in). */
+  lines?: Partial<Record<VoiceLineKey, string>>;
+  /** Lines the GM recorded as src/packs/<id>/public/audio/police/<line>.mp3, played instead of read out. */
+  recordings?: VoiceLineKey[];
+}
+
 /** A noun as the game says it, lower case unless it is an acronym ("GM"). Plurals are spelled out. */
 export interface Noun {
   one: string;
@@ -24,9 +35,9 @@ export const TERM_KEYS = ['quest', 'sideQuest', 'witness', 'claim', 'gm', 'wrap'
 export type TermKey = (typeof TERM_KEYS)[number];
 /**
  * The required nouns, plus optional ones with engine defaults: what packs with checkins call one (default
- * "check-in"), the two standings (default "trusted confidant" and "person of interest") and a police check-in.
+ * "check-in"), the two standings (default "trusted confidant" and "person of interest") a police check-in and the feed (default "feed"; a pack may call it a "log book").
  */
-export type Terms = Record<TermKey, Noun> & { checkin?: Noun; confidant?: Noun; poi?: Noun; policeCall?: Noun };
+export type Terms = Record<TermKey, Noun> & { checkin?: Noun; confidant?: Noun; poi?: Noun; policeCall?: Noun; feed?: Noun };
 
 /** Optional parts of the game. Witnessed claims, the feed, the GM and the wrap are always on. */
 export const FEATURES = ['guesses', 'sideQuests', 'map'] as const;
@@ -70,8 +81,24 @@ export interface StoryQuest {
   id: string;
   title: string;
   description: string;
-  /** How it is judged unless the GM picks otherwise when firing it. */
-  judging: 'vote' | 'submit';
+  /** How it is judged unless the GM picks otherwise when firing it. Required for missions; announcements have none. */
+  judging?: 'vote' | 'submit';
+  /** Missing = 'mission'. An announcement takes no entries: firing it posts its description as a story beat. */
+  kind?: 'mission' | 'announce';
+  /** Open alongside the other missions until its deadline (a window up to 720 min); its vote opens when the GM opens it or an announcement names it. */
+  longRun?: boolean;
+  /** What an entry must be (media, a required caption, a player it names). */
+  entry?: StoryEntry;
+  /** Points for every vote an entry gets; missing = none. */
+  votePoints?: number | null;
+  /** What each of several tied top entries gets; missing = the full points. */
+  tieBonus?: number | null;
+  /** When it closes, its winning entries are recorded as this fact (facts/{key}). */
+  records?: { key: string; label: string };
+  /** Announcements: the fact recorded when it fires. */
+  fact?: { key: string; label: string; value: string };
+  /** Announcements: the story mission (an id in this story) whose vote it opens. */
+  opensVoteOn?: string;
   /** Minutes open; missing → settings.globalWindowMin. */
   windowMin?: number | null;
   /** Vote: to the winner; submit: to everyone who enters. Missing → settings.sideQuestPoints. */
@@ -144,4 +171,38 @@ export interface GamePack {
   gmQuickPoints?: number;
   /** Packs with checkins: the periodic missions a seed starts the GM with (created once; the GM edits them after). */
   periodics?: PeriodicSeed[];
+  /** Packs with police: the voice on phone calls (engine wording and a Polly voice when left out). */
+  policeVoice?: PoliceVoice;
+  /** The only pushes this pack sends (see push.ts `pushAllowed`); missing = every kind. */
+  pushKinds?: PushKind[];
+  /** What players put on feed posts: emoji (default) or one Credible / Doubtful vote each, with a top entry. */
+  reactions?: 'emoji' | 'votes';
 }
+
+/** Every kind of push the game can send: the feed-driven ones (standing split into gained and lost) and the rest. */
+export type PushKind =
+  | 'global-open'
+  | 'checkin-open'
+  | 'checking'
+  | 'voting-open'
+  | 'global-won'
+  | 'global-scored'
+  | 'standing-gained'
+  | 'standing-lost'
+  | 'police-call'
+  | 'police-tip'
+  | 'police-line'
+  | 'announcement'
+  | 'stop-revealed'
+  | 'status'
+  | 'approved'
+  | 'rejected'
+  | 'fraud'
+  | 'exposed'
+  | 'framed'
+  | 'adjust'
+  | 'story-beat'
+  | 'witness'
+  | 'witness-left'
+  | 'entry-rejected'
+  | 'join';

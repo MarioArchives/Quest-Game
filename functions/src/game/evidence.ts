@@ -10,7 +10,15 @@ export const CAPTION_MAX = 280;
 export interface Evidence {
   imagePath?: string;
   thumbPath?: string;
+  /** A video entry's file (its thumbPath is the poster frame, if any). */
+  videoPath?: string;
   caption?: string;
+}
+
+/** What a story mission asks of an entry (see StoryEntry); anything else takes a photo and/or a caption. */
+export interface EvidenceRules {
+  media?: 'photo' | 'video' | 'text';
+  captionRequired?: boolean;
 }
 
 const isOwnPhotoPath = (uid: string, path: unknown): path is string => {
@@ -22,16 +30,30 @@ const isOwnPhotoPath = (uid: string, path: unknown): path is string => {
 
 /**
  * Validates client-supplied evidence: a photo (image + thumbnail together, both in the owner's
- * folder) and/or a caption of 1 to 280 characters. At least one is required.
+ * folder) and/or a caption of 1 to 280 characters. At least one is required. A mission's `rules` can ask for more:
+ * 'video' needs a video in the owner's folder (a poster thumbnail may come alone), 'text' needs a caption, and
+ * `captionRequired` refuses a photo on its own. Only a video mission takes a video.
  */
 export function parseEvidence(
   uid: string,
-  data: { imagePath?: unknown; thumbPath?: unknown; caption?: unknown },
+  data: { imagePath?: unknown; thumbPath?: unknown; videoPath?: unknown; caption?: unknown },
+  rules: EvidenceRules = {},
 ): Evidence {
   const out: Evidence = {};
   const hasImage = data.imagePath !== undefined && data.imagePath !== null;
   const hasThumb = data.thumbPath !== undefined && data.thumbPath !== null;
-  if (hasImage !== hasThumb) fail('invalid-argument', 'Send the photo and its thumbnail together.');
+  const hasVideo = data.videoPath !== undefined && data.videoPath !== null;
+  const video = rules.media === 'video';
+  if (hasVideo && !video) fail('invalid-argument', 'This does not take a video.');
+  if (video) {
+    if (!hasVideo || !isOwnPhotoPath(uid, data.videoPath)) fail('invalid-argument', 'Upload a video to your own folder.');
+    out.videoPath = data.videoPath as string;
+    if (hasImage) fail('invalid-argument', 'Send a video, not a photo.');
+    if (hasThumb) {
+      if (!isOwnPhotoPath(uid, data.thumbPath)) fail('invalid-argument', 'Photos must be uploaded to your own folder.');
+      out.thumbPath = data.thumbPath as string;
+    }
+  } else if (hasImage !== hasThumb) fail('invalid-argument', 'Send the photo and its thumbnail together.');
   if (hasImage) {
     if (!isOwnPhotoPath(uid, data.imagePath) || !isOwnPhotoPath(uid, data.thumbPath)) {
       fail('invalid-argument', 'Photos must be uploaded to your own folder.');
@@ -46,7 +68,9 @@ export function parseEvidence(
     }
     out.caption = caption;
   }
-  if (!hasImage && out.caption === undefined) fail('invalid-argument', 'Add a photo or a caption.');
+  if (!hasImage && !video && out.caption === undefined) fail('invalid-argument', 'Add a photo or a caption.');
+  if (rules.media === 'text' && out.caption === undefined) fail('invalid-argument', 'Write something: this takes a caption.');
+  if (rules.captionRequired && out.caption === undefined) fail('invalid-argument', 'Add a caption.');
   return out;
 }
 

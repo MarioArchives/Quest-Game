@@ -15,7 +15,8 @@ import {
 } from './approval.js';
 import type { Ctx, Db } from './context.js';
 import { scoringFor } from './ledger.js';
-import type { PushPlan } from './push.js';
+import { recomputeTop } from './reactions.js';
+import { pushAllowed, type PushPlan } from './push.js';
 import { fail, isGM, loadSettings, loadState, requireUid } from './guards.js';
 import { asId, isId, toTs } from './util.js';
 
@@ -84,8 +85,46 @@ export async function handleSubmissionCreated(
       processedAt,
       claimTitle: loaded.quest!.title ?? null,
       claimDescription: loaded.quest!.description ?? null,
+      witnessNotifiedUid: sub.witnessUid,
     });
     // Only the witness hears about it, by name: the secret ${t.quest.one} itself stays hidden.
+    if (!pushAllowed(pack, 'witness')) return;
+    plan = {
+      to: [sub.witnessUid as string],
+      message: { title: `${t.witness.One} needed`, body: `${claimantName ?? 'A player'} needs you as a ${t.witness.one}`, link: '#/account' },
+    };
+  });
+  return plan;
+}
+
+/**
+ * Firestore onWrite for submissions/{id}: when the claimant asks someone else to witness a pending claim, the new
+ * witness hears about it. Compares witnessUid with witnessNotifiedUid (set here and by the create trigger), so it
+ * fires once per change and never on its own write.
+ */
+export async function handleSubmissionWritten(
+  db: Db,
+  submissionId: string,
+  _now: Date,
+  _rng?: () => number,
+  pack: GamePack = getPack(),
+): Promise<PushPlan | null> {
+  const t = termForms(pack.terms);
+  let plan: PushPlan | null = null;
+  await db.runTransaction(async (tx) => {
+    plan = null;
+    const subRef = db.doc(`submissions/${submissionId}`);
+    const snap = await tx.get(subRef);
+    if (!snap.exists) return;
+    const sub = snap.data() as Submission;
+    // The create trigger tells the first witness; until it has processed the claim there is nothing to compare.
+    if (!sub.processedAt || sub.kind !== 'personal' || sub.status !== 'pending' || !isId(sub.witnessUid)) return;
+    if (sub.witnessNotifiedUid === sub.witnessUid) return;
+    const announce = !!sub.witnessNotifiedUid && pushAllowed(pack, 'witness');
+    const claimantName = announce ? ((await tx.get(db.doc(`players/${sub.uid}`))).get('displayName') as string | undefined) : undefined;
+    tx.update(subRef, { witnessNotifiedUid: sub.witnessUid });
+    // A claim from before this field existed: record its witness, but don't announce it again.
+    if (!announce) return;
     plan = {
       to: [sub.witnessUid as string],
       message: { title: `${t.witness.One} needed`, body: `${claimantName ?? 'A player'} needs you as a ${t.witness.one}`, link: '#/account' },
@@ -106,7 +145,9 @@ export async function reviewSubmission(
 ): Promise<{ status: SubmissionStatus }> {
   const rng = ctx.rng ?? Math.random;
   const t = termForms(ctx.pack.terms);
-  return db.runTransaction(async (tx) => {
+  let overridden = false;
+  const result = await db.runTransaction(async (tx) => {
+    overridden = false;
     const by = requireUid(ctx);
     const id = asId(data.submissionId, 'submissionId');
     if (typeof data.approve !== 'boolean') fail('invalid-argument', 'approve must be true or false.');
@@ -151,6 +192,7 @@ export async function reviewSubmission(
       if (!gm) fail('permission-denied', `Only a ${t.gm.one} can overturn an approval.`);
       const loaded = await loadReview(tx, db, id, sub, settings, { reviewer: by, dealing: sub.kind === 'personal', posts: true, reward: true });
       tx.update(subRef, overrideAsFraud(env, loaded, note));
+      overridden = true;
       return { status: 'rejected' as const };
     }
     if (sub.kind !== 'personal') {
@@ -161,4 +203,7 @@ export async function reviewSubmission(
     tx.update(subRef, rejectClaim(env, loaded, note));
     return { status: 'rejected' as const };
   });
+  // The override flagged the entry's posts: a flagged post loses the pinned top entry (votes packs).
+  if (overridden && ctx.pack.reactions === 'votes') await recomputeTop(db, ctx.now);
+  return result;
 }

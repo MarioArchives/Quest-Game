@@ -479,7 +479,7 @@ describe('packs without police, and the game around them (edge cases 33–34)', 
     await setPoints('alice', -15);
     await trigger('alice', T0, lancaster());
     expect((await player('alice')).standing).toBe('poi');
-    expect(await runPolice(db(), addMin(T0, 31), constRng(0), lancaster())).toEqual({ opened: [], missed: [], cancelled: [] });
+    expect(await runPolice(db(), addMin(T0, 31), constRng(0), lancaster())).toEqual({ opened: [], missed: [], cancelled: [], resent: [] });
     expect(await calls()).toEqual([]);
   });
 

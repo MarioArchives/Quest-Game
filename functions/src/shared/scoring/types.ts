@@ -13,8 +13,10 @@ export type ScoreEvent =
   | { kind: 'fraudFine'; uid: string }
   | { kind: 'guessRight'; guesser: string; target: string }
   | { kind: 'guessWrong'; guesser: string; target: string }
-  /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints. */
+  /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints (or its tieBonus when tied). */
   | { kind: 'sideQuestWon'; uid: string; bonus: number; votes: number }
+  /** The votes an entry got, on a side quest that pays for each one (`perVote`, its votePoints). */
+  | { kind: 'sideQuestVotes'; uid: string; votes: number; perVote: number }
   /**
    * A player who could have entered a side quest and didn't, when it closes; `penalty` is the fine it opened with
    * (missing → settings.sideQuestSkipPenalty).

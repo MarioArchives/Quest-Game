@@ -1,0 +1,125 @@
+/* ---------- the tip line: a phone joined to the points chip (AppFrame) ---------- */
+.tipline {
+  --tipline-glow: color-mix(in srgb, var(--accent) 60%, transparent);
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: var(--ink);
+  color: var(--muted-soft);
+  touch-action: manipulation;
+}
+/* A 44px tall target without a bigger chip. */
+.tipline::before { content: ''; position: absolute; inset: -8px -2px; }
+.tipline__icon { position: relative; z-index: 1; }
+
+/* Ready: lit, with a glow round it; it pulses for ~10 s when the line opens (TipLine adds --pulse). */
+.tipline--ready { background: var(--accent); color: var(--on-accent); }
+.tipline--ready::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  box-shadow: 0 0 14px 5px var(--tipline-glow);
+  pointer-events: none;
+}
+.tipline--pulse::after { animation: tipline-glow 1.4s ease-in-out 7 alternate both; }
+@keyframes tipline-glow { from { opacity: 0.35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .tipline--pulse::after { animation: none; }
+}
+
+/* Cooldown: dark, with what is left of the wait as a ring round the phone. */
+.tipline__ring {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 28px; height: 28px;
+  margin: -14px 0 0 -14px;
+  fill: none;
+  stroke-width: 2.5;
+}
+.tipline__track { stroke: var(--ink-hover); }
+.tipline__left { stroke: var(--accent-tint); stroke-linecap: round; }
+
+/* Locked: unlit, the handset dashed. */
+.tipline--locked .tipline__icon path { stroke-dasharray: 3 2.4; }
+
+/* The toggletip under the app bar (positioned against .appbar). */
+.tipline-live { flex: none; width: 0; }
+.tipline-pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 4px);
+  right: var(--page-x);
+  width: min(280px, calc(100% - 2 * var(--page-x)));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--card);
+  color: var(--ink);
+  border: var(--line);
+  box-shadow: var(--shadow);
+}
+.tipline-pop::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  right: calc(var(--tipline-arrow, 60px) - 9px);
+  border: 9px solid transparent;
+  border-top: 0;
+  border-bottom-color: var(--ink);
+}
+.tipline-pop__stamp {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border: 2px solid currentColor;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tipline-pop__text { font-size: 14px; line-height: 1.45; }
+.tipline-pop__text b { font-weight: 800; }
+.tipline-pop__fine { font-size: 12px; line-height: 1.4; color: var(--muted); }
+
+/* ---------- the tip-off sheet (TipOffSheet): who, then the note ---------- */
+.tipoff-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tipoff-pick__who {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px 8px;
+  border: var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.tipoff-pick__who:hover { background: var(--accent-tint); }
+.tipoff-pick__who.is-picked { box-shadow: 0 0 0 3px var(--accent); }
+.tipoff-pick__name { max-width: 100%; font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tipoff-pick__score { font-size: 12px; color: var(--muted); }
+
+.tipoff-who { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: var(--line); background: var(--card); }
+.tipoff-who__name { min-width: 0; flex: 1; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tipoff-who__name small { font-size: 13px; font-weight: 700; color: var(--muted); }
+.tipoff-who__change {
+  flex: none;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tipoff__fine { font-size: 13px; color: var(--muted); }

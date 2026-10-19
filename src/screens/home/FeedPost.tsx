@@ -6,6 +6,7 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useStorageUrl } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
 import type { Doc, FeedItem, FeedType } from '../../shared';
+import { EntryVideo, TaggedLine } from '../../components/EntryVideo';
 import { ReactionsBar } from './ReactionsBar';
 import './feed.css';
 import { t } from '../../pack';
@@ -65,10 +66,12 @@ const TAG: Record<FeedType, Label & { red?: boolean }> = {
   'checkin-answer': { text: t.checkin.One, icon: 'check' },
   'checkin-closed': { text: `${t.checkin.One} closed`, icon: 'clock' },
   'global-scored': { text: `${t.sideQuest.One} scored`, icon: 'trophy' },
+  'story-beat': { text: 'Story', icon: 'megaphone', red: true },
   standing: { text: 'Standing', icon: 'eye', red: true },
   'police-call': { text: t.policeCall.One, icon: 'clock', red: true },
   'police-tip': { text: 'Tip-off', icon: 'megaphone', red: true },
   'police-result': { text: `${t.policeCall.One} result`, icon: 'check' },
+  'police-line': { text: 'Phone lines', icon: 'phone', red: true },
 };
 
 /** What the stub shows when there are no points to print on it. */
@@ -92,10 +95,12 @@ const MARK: Record<FeedType, Label> = {
   'checkin-answer': { text: 'Here', icon: 'check' },
   'checkin-closed': { text: 'Closed', icon: 'clock' },
   'global-scored': { text: 'Scored', icon: 'trophy' },
+  'story-beat': { text: 'Story', icon: 'megaphone' },
   standing: { text: 'Standing', icon: 'eye' },
   'police-call': { text: 'Called', icon: 'clock' },
   'police-tip': { text: 'Tip-off', icon: 'megaphone' },
   'police-result': { text: 'Result', icon: 'check' },
+  'police-line': { text: 'Lines', icon: 'phone' },
 };
 
 /** Types shown as a quiet one-liner rather than a ticket. */
@@ -224,7 +229,8 @@ export function FeedPost({ item, now }: { item: Doc<FeedItem>; now: number }) {
             Fraud
           </span>
         ) : null}
-        {hasPhoto ? <PostPhoto item={item} label={`Open photo${who ? ` from ${who.displayName}` : ''}`} /> : null}
+        {item.videoPath ? <EntryVideo videoPath={item.videoPath} thumbPath={item.thumbPath} label={`Video${who ? ` from ${who.displayName}` : ''}`} /> : hasPhoto ? <PostPhoto item={item} label={`Open photo${who ? ` from ${who.displayName}` : ''}`} /> : null}
+        <TaggedLine uid={item.taggedUid} />
         {item.caption ? <p className="tk__caption">{item.caption}</p> : null}
         {showNote ? (
           <blockquote className="tk__note">

@@ -1,0 +1,136 @@
+/*
+ * Save our number (the UI mocks' calling card), in the booking desk's dark room: a letterpress calling card on the desk
+ * with the police's number, and the actions to save it under the card.
+ */
+.ph {
+  --ph-glow: #5fe0d6;
+  --ph-ink: #1e2330;
+  --ph-pen: #233072;
+  --ph-stock: #f2e9d0;
+  --ph-cork: #a67a4b;
+  /* Paper fibre: brown speckle, faint, tiled over cards and notices. */
+  --ph-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.32 0 0 0 0 0.24 0 0 0 0 0.12 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+  --room: #0d0e0f;
+  --room-text: #efe9d6;
+  --room-sub: #b8b4a6;
+  --room-faint: #8d8a80;
+  position: relative; isolation: isolate; overflow: clip; display: flex; flex-direction: column;
+  max-width: var(--app-max); min-height: 100dvh; margin: 0 auto; padding: calc(var(--safe-top) + 52px) 16px calc(24px + var(--safe-bottom));
+  background: var(--room); color: var(--room-text); font-family: var(--body); line-height: normal;
+}
+.ph__beam {
+  position: absolute; z-index: -1; left: -25%; right: -25%; top: 40px; height: 640px; pointer-events: none;
+  background: radial-gradient(50% 46% at 50% 45%, rgba(233, 226, 200, 0.2) 0%, rgba(233, 226, 200, 0.09) 40%, rgba(233, 226, 200, 0.02) 64%, transparent 76%);
+  animation: ph-torch 9s ease-in-out infinite alternate;
+}
+@keyframes ph-torch {
+  from { transform: translate(-12px, 0) rotate(-1.5deg); }
+  to { transform: translate(12px, 12px) rotate(1.5deg); }
+}
+@keyframes ph-rise { from { opacity: 0; transform: translateY(14px); } }
+
+/* ---------- shared: the heading, the two actions, the way on ---------- */
+.ph-head { display: flex; flex-direction: column; gap: 8px; animation: ph-rise 0.4s ease-out both; }
+.ph-head__kicker { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--manila-tab); }
+.ph-head__title { font-family: var(--display); font-size: clamp(25px, 7.5vw, 32px); font-weight: 400; line-height: 1.05; letter-spacing: 0; text-transform: none; text-wrap: balance; }
+.ph-head__copy { font-size: 15px; line-height: 1.45; color: var(--room-sub); text-wrap: pretty; }
+
+.ph-icon { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.ph-actions { display: flex; flex-direction: column; gap: 10px; animation: ph-rise 0.4s ease-out 0.35s both; }
+/* The big go button, as at the booking desk: case brown with a kraft rim and a hard shadow. */
+.ph-go {
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; margin: 0; padding: 0 16px;
+  border: 2px solid var(--kraft); border-radius: 4px; background: var(--btn-go-bg); color: var(--btn-go-fg); cursor: pointer; box-shadow: 0 4px 0 var(--btn-go-press);
+  font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.ph-go:hover { background: var(--btn-go-hover); }
+.ph-go:active { background: var(--btn-go-press); transform: translateY(3px); box-shadow: 0 1px 0 var(--btn-go-press); }
+.ph-go:focus-visible, .ph-copy:focus-visible, .ph-next:focus-visible { outline: 3px solid var(--room-text); outline-offset: 3px; }
+.ph-copy {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; margin: 0; padding: 0 16px;
+  border: 1.5px solid rgba(239, 233, 214, 0.32); border-radius: 4px; background: rgba(255, 255, 255, 0.03); color: var(--room-text); cursor: pointer;
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  transition: border-color 0.2s, color 0.2s;
+}
+.ph-copy:active { background: rgba(255, 255, 255, 0.08); }
+.ph-copy.is-copied { border-color: var(--ph-glow); color: var(--ph-glow); }
+.ph-said { min-height: 1.45em; font-size: 13px; line-height: 1.45; text-align: center; color: var(--room-faint); text-wrap: pretty; }
+
+/* The way on sits at the foot of the screen: an outline until they've saved the number, then manila. */
+.ph-foot { margin-top: auto; padding-top: 20px; animation: ph-rise 0.4s ease-out 0.45s both; }
+.ph-next {
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; margin: 0; padding: 0 16px;
+  border: 1.5px solid rgba(239, 233, 214, 0.5); border-radius: 4px; background: transparent; color: var(--room-text); cursor: pointer;
+  font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  transition: background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+.ph-next:active { transform: translateY(3px); }
+.ph-next.is-ready { border-color: var(--manila); background: var(--manila); color: var(--manila-ink); box-shadow: 0 4px 0 var(--kraft-line); }
+.ph-next.is-ready:active { box-shadow: 0 1px 0 var(--kraft-line); }
+
+/* ---------- 1 · the calling card: letterpress on cream stock, on a dark desk ---------- */
+.ph--desk {
+  background-color: #100d0a;
+  background-image:
+    repeating-linear-gradient(91deg, rgba(255, 236, 200, 0.018) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(89deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 41px);
+}
+.ph--desk .ph__beam { top: 110px; }
+.ph-desk { position: relative; display: grid; place-items: center; padding: 32px 0 34px; }
+/* An old coffee ring, half under the card. */
+.ph-desk__ring {
+  position: absolute; right: -6px; top: 6px; width: 132px; height: 132px; border-radius: 50%;
+  background: radial-gradient(circle, transparent 55%, rgba(176, 124, 72, 0.2) 58%, rgba(176, 124, 72, 0.07) 63%, transparent 67%);
+}
+.ph-card {
+  position: relative; width: min(100% - 14px, 350px); aspect-ratio: 85 / 55; container-type: inline-size; border-radius: 3px;
+  background-color: var(--ph-stock); color: var(--ph-ink);
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 45%, rgba(60, 40, 10, 0.07)), var(--ph-grain);
+  /* Thick stock: a pale edge under the face, then its shadow on the desk. */
+  box-shadow: 0 1px 0 #d6c9a8, 0 2px 0 #b3a27c, 0 16px 26px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  transform: rotate(-3.5deg); animation: ph-deal 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.05) 0.15s both;
+}
+@keyframes ph-deal { from { opacity: 0; transform: translate(34px, -70px) rotate(-17deg) scale(1.08); } }
+/* Everything on the card scales with it (cqw), and is pressed in: a highlight under each stroke. */
+.ph-card__face {
+  position: absolute; inset: 0; display: flex; flex-direction: column; padding: 6cqw 6cqw 4.4cqw;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.ph-card__head { display: flex; align-items: center; gap: 3.6cqw; }
+/* The force's honeycomb stamp for a crest, in its purple ink, pressed a little crooked like a real stamp. */
+.ph-card__stamp {
+  flex: none; display: block; width: 19cqw; height: auto; aspect-ratio: 100 / 88; margin: -1.5cqw 0;
+  color: #5f2d95; opacity: 0.9; mix-blend-mode: multiply; transform: rotate(-6deg);
+}
+.ph-card__org { display: flex; flex-direction: column; gap: 1.3cqw; min-width: 0; }
+.ph-card__name { font-family: var(--display); font-size: 4.8cqw; font-weight: 400; line-height: 1.04; letter-spacing: 0.02em; text-transform: uppercase; }
+.ph-card__name span { display: block; }
+.ph-card__dept { font-family: var(--mono); font-size: 2.6cqw; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal-deep); }
+.ph-card__num { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6cqw; margin: auto 0; }
+.ph-card__tel { font-family: var(--mono); font-size: 2.4cqw; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--manila-sub); }
+.ph-card__digits { position: relative; font-family: var(--mono); font-size: 8.8cqw; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+/* No number yet: it comes with the first call. */
+.ph-card__digits--tbc { font-size: 7cqw; letter-spacing: 0.08em; text-transform: uppercase; color: var(--manila-sub); }
+.ph-card__pen { position: absolute; left: -2%; bottom: -0.36em; width: 104%; height: 0.42em; overflow: visible; }
+.ph-card__pen path {
+  fill: none; stroke: var(--ph-pen); stroke-width: 2; stroke-linecap: round; opacity: 0.85; vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1; stroke-dashoffset: 1; animation: ph-pen 0.35s ease-in-out 0.95s forwards;
+}
+.ph-card__pen path + path { animation-delay: 1.25s; }
+@keyframes ph-pen { to { stroke-dashoffset: 0; } }
+.ph-card__foot {
+  display: flex; justify-content: space-between; gap: 2cqw; padding-top: 1.6cqw; border-top: 0.35cqw solid rgba(30, 35, 48, 0.75);
+  font-family: var(--mono); font-size: 2.4cqw; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--manila-sub);
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .ph *, .ph *::before, .ph *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+  .ph__beam { animation: none; }
+}
+
+/* The police on Telegram: the question over the two answers, the store link as the go button, its lead line. */
+.ph-ask { margin: 0 0 2px; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-align: center; text-transform: uppercase; color: var(--room-text); }
+a.ph-go { text-decoration: none; }
+.ph-said--lead { color: var(--room-sub); }

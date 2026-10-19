@@ -1,12 +1,24 @@
 import { backend } from '../../backend';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { friendlyError } from '../../api';
 import { Button } from '../../components/Button';
+import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { features, t, zone } from '../../pack';
 import { RULESETS } from '../../shared';
-import { fromSettings, rulesFor, toSettings, validateSettingsForm, type FlagKey, type NumKey, type SettingsForm, type StandingKey } from './settingsForm';
+import {
+  foldSummary,
+  fromSettings,
+  rulesFor,
+  toSettings,
+  validateSettingsForm,
+  type FlagKey,
+  type FoldId,
+  type NumKey,
+  type SettingsForm,
+  type StandingKey,
+} from './settingsForm';
 
 interface NumField {
   key: NumKey;
@@ -111,7 +123,23 @@ const STANDING_FIELDS: { key: StandingKey; label: string; hint: string }[] = [
 /** The form as compared for unsaved changes: the random-drop switch is edited elsewhere and doesn't count. */
 const comparable = (f: SettingsForm, auto: boolean) => JSON.stringify({ ...f, autoSideQuests: auto });
 
-export function SettingsSection() {
+/** The fold a field's error belongs to (the errors are keyed as in validateSettingsForm). */
+function foldOf(key: string): FoldId {
+  if (key.startsWith('param:')) return 'scoring';
+  if (key === 'confidantAbove' || key === 'poiBelow') return 'standings';
+  if (key === 'quietStart' || key === 'quietEnd') return 'sideQuests';
+  if (key === 'callerName' || key === 'policeBreakerAt') return 'police';
+  return GROUPS.find((g) => g.fields.some((f) => f.key === key))?.id ?? 'hands';
+}
+
+/** The folds in the order they are shown. */
+const FOLD_ORDER: FoldId[] = [...GROUPS.filter((g) => g.on).map((g) => g.id), 'standings', 'scoring', 'rules'];
+
+/**
+ * The GM's settings form. `folds` (a pack's own GM screen) shows each group as a fold with a one-line summary, one
+ * open at a time; without it every group is laid out in full.
+ */
+export function SettingsSection({ folds = false }: { folds?: boolean } = {}) {
   const { settings } = useGame();
   const toast = useToast();
   const settingsKey = JSON.stringify(settings);
@@ -121,6 +149,7 @@ export function SettingsSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastBaseline = useRef(JSON.stringify(baseline));
+  const [openFold, setOpenFold] = useState<FoldId | null>(null);
 
   // A change made elsewhere (another GM) flows in unless this form has unsaved edits.
   useEffect(() => {
@@ -147,12 +176,19 @@ export function SettingsSection() {
     return tried || changed ? errors[key] : undefined;
   };
   const rules = rulesFor(form.scoring);
+  // The in-browser demo never rings anyone.
+  const phoneCallsHere = backend().kind !== 'mock';
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setTried(true);
     if (errorCount > 0) {
       setError('Fix the highlighted fields first.');
+      // Folded, open the first group with a problem so it can be seen.
+      if (folds) {
+        const flagged = new Set(Object.keys(errors).map(foldOf));
+        setOpenFold(FOLD_ORDER.find((id) => flagged.has(id)) ?? null);
+      }
       return;
     }
     setBusy(true);
@@ -169,8 +205,19 @@ export function SettingsSection() {
     }
   };
 
+  // A fold is flagged when one of its fields shows an error.
+  const flaggedFolds = new Set(Object.keys(errors).filter((key) => showError(key)).map(foldOf));
+  const fold = (id: FoldId) => ({
+    id,
+    folds,
+    open: openFold === id,
+    summary: foldSummary(id, form),
+    flagged: flaggedFolds.has(id),
+    onToggle: () => setOpenFold((current) => (current === id ? null : id)),
+  });
+
   return (
-    <form onSubmit={(event) => void save(event)} noValidate className="gm-settings">
+    <form onSubmit={(event) => void save(event)} noValidate className={`gm-settings${folds ? ' gm-settings--folds' : ''}`}>
       <div className="section-head">
         <h2>Settings</h2>
         <span className={`gm-count${dirty ? ' gm-count--on' : ''}`}>{dirty ? 'Unsaved changes' : 'Saved'}</span>
@@ -178,8 +225,7 @@ export function SettingsSection() {
       <p className="gm-hint">Every number here applies to the live game straight away.</p>
 
       {GROUPS.filter((group) => group.on).map((group) => (
-        <fieldset key={group.id} className="gm-fields">
-          <legend className="gm-h">{group.title}</legend>
+        <Fold key={group.id} title={group.title} {...fold(group.id)}>
           {group.fields.map((f) => {
             const err = showError(f.key);
             const id = `set-${f.key}`;
@@ -238,11 +284,110 @@ export function SettingsSection() {
               ) : null}
             </div>
           ) : null}
-        </fieldset>
+          {group.id === 'police' ? (
+            <div className="gm-quiet">
+              <div className="gm-setting">
+                <label className="gm-setting__text" htmlFor="set-police-phone">
+                  <span className="gm-setting__label">Ring their phones</span>
+                  <span className="gm-setting__hint">
+                    {phoneCallsHere
+                      ? `Players with a tested number get a call and answer on the keypad; everyone else answers in the app`
+                      : 'Not in this demo: phone calls need Twilio and the live game'}
+                  </span>
+                </label>
+                <button
+                  id="set-police-phone"
+                  type="button"
+                  role="switch"
+                  className="switch"
+                  aria-checked={form.policePhone}
+                  disabled={busy || !phoneCallsHere}
+                  onClick={() => setForm((f) => ({ ...f, policePhone: !f.policePhone }))}
+                />
+              </div>
+              {form.policePhone ? (
+                <>
+                  <div className="gm-setting">
+                    <label className="gm-setting__text" htmlFor="set-policeBreakerAt">
+                      <span className="gm-setting__label">Switch to the app after</span>
+                      <span className="gm-setting__hint">
+                        {showError('policeBreakerAt') ? <strong className="gm-err">{showError('policeBreakerAt')}</strong> : 'Calls in a row that never connect (to 2+ players)'}
+                      </span>
+                    </label>
+                    <input
+                      id="set-policeBreakerAt"
+                      className={`input gm-setting__input${showError('policeBreakerAt') ? ' is-invalid' : ''}`}
+                      inputMode="numeric"
+                      value={form.numbers.policeBreakerAt}
+                      disabled={busy}
+                      onChange={(e) => setNumber('policeBreakerAt', e.target.value)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field__label" htmlFor="set-caller-name">
+                      Calls come from
+                    </label>
+                    <input
+                      id="set-caller-name"
+                      className={`input${errors.callerName ? ' is-invalid' : ''}`}
+                      value={form.callerName}
+                      maxLength={60}
+                      disabled={busy}
+                      onChange={(e) => setForm((f) => ({ ...f, callerName: e.target.value }))}
+                    />
+                    {errors.callerName ? <span className="gm-err">{errors.callerName}</span> : <span className="gm-setting__hint">Said on every call, and the name on the players&apos; contact card</span>}
+                  </div>
+                </>
+              ) : null}
+              <div className="field">
+                <label className="field__label" htmlFor="set-telegram">
+                  Police on Telegram
+                </label>
+                <input
+                  id="set-telegram"
+                  className={`input${errors.telegram ? ' is-invalid' : ''}`}
+                  value={form.telegram}
+                  placeholder="@username"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={80}
+                  disabled={busy}
+                  onChange={(e) => setForm((f) => ({ ...f, telegram: e.target.value }))}
+                />
+                {errors.telegram ? (
+                  <span className="gm-err">{errors.telegram}</span>
+                ) : (
+                  <span className="gm-setting__hint">The @username of the account that rings players on Telegram; joining players are sent to it. Blank if it has none</span>
+                )}
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="set-telegram-number">
+                  Its phone number
+                </label>
+                <input
+                  id="set-telegram-number"
+                  className={`input${errors.telegramNumber ? ' is-invalid' : ''}`}
+                  type="tel"
+                  inputMode="tel"
+                  value={form.telegramNumber}
+                  placeholder="+44 7700 900123"
+                  maxLength={40}
+                  disabled={busy}
+                  onChange={(e) => setForm((f) => ({ ...f, telegramNumber: e.target.value }))}
+                />
+                {errors.telegramNumber ? (
+                  <span className="gm-err">{errors.telegramNumber}</span>
+                ) : (
+                  <span className="gm-setting__hint">The police on Telegram by number, for an account without a username; and on the contact card players save. Blank for none</span>
+              )}
+              </div>
+            </div>
+          ) : null}
+        </Fold>
       ))}
 
-      <fieldset className="gm-fields">
-        <legend className="gm-h">Standings</legend>
+      <Fold title="Standings" {...fold('standings')}>
         {STANDING_FIELDS.map((f) => {
           const err = showError(f.key) ? errors[f.key] : undefined;
           const id = `set-${f.key}`;
@@ -265,10 +410,9 @@ export function SettingsSection() {
             </div>
           );
         })}
-      </fieldset>
+      </Fold>
 
-      <fieldset className="gm-fields">
-        <legend className="gm-h">Scoring</legend>
+      <Fold title="Scoring" {...fold('scoring')}>
         <div className="gm-choice" role="radiogroup" aria-label="Scoring rule set">
           {RULESET_LIST.map((rs) => (
             <label key={rs.id} className={`gm-choice__opt${form.scoring === rs.id ? ' is-selected' : ''}`}>
@@ -307,10 +451,9 @@ export function SettingsSection() {
             </div>
           );
         })}
-      </fieldset>
+      </Fold>
 
-      <fieldset className="gm-fields">
-        <legend className="gm-h">Rules</legend>
+      <Fold title="Rules" {...fold('rules')}>
         {FLAGS.map((f) => (
           <div key={f.key} className="gm-setting">
             <label className="gm-setting__text" htmlFor={`set-${f.key}`}>
@@ -328,7 +471,7 @@ export function SettingsSection() {
             />
           </div>
         ))}
-      </fieldset>
+      </Fold>
 
       {error ? (
         <p className="note note--error" role="alert">
@@ -353,5 +496,54 @@ export function SettingsSection() {
         </Button>
       ) : null}
     </form>
+  );
+}
+
+/**
+ * One group of the form: a fieldset with its legend, or (folds) a heading whose button opens it, showing a summary of
+ * what is in it while it is shut. The fields stay mounted (hidden) while shut, so nothing typed is lost.
+ */
+function Fold({
+  id,
+  title,
+  folds,
+  open,
+  summary,
+  flagged,
+  onToggle,
+  children,
+}: {
+  id: FoldId;
+  title: string;
+  folds: boolean;
+  open: boolean;
+  summary: string;
+  flagged: boolean;
+  onToggle(): void;
+  children: ReactNode;
+}) {
+  if (!folds) {
+    return (
+      <fieldset className="gm-fields">
+        <legend className="gm-h">{title}</legend>
+        {children}
+      </fieldset>
+    );
+  }
+  const bodyId = `gm-fold-${id}`;
+  return (
+    <div className={`gm-fold${open ? ' is-open' : ''}`}>
+      <h3 className="gm-fold__h">
+        <button type="button" className="gm-fold__btn" aria-expanded={open} aria-controls={bodyId} onClick={onToggle}>
+          <span className="gm-fold__title">{title}</span>
+          <span className={`gm-fold__sum${flagged ? ' is-flagged' : ''}`}>{open ? 'Open' : flagged ? 'Needs fixing' : summary}</span>
+          <Icon name="chevronDown" size={16} strokeWidth={2.4} className="gm-fold__chev" />
+        </button>
+      </h3>
+      <fieldset id={bodyId} className="gm-fold__body" hidden={!open}>
+        <legend className="visually-hidden">{title}</legend>
+        {children}
+      </fieldset>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import { formatAgo } from '../lib/time';
 import type { Submission } from '../shared';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { Loader } from './Loader';
 import { useModal } from './useModal';
 import './PhotoViewer.css';
 import { t } from '../pack';
@@ -139,8 +140,8 @@ function PhotoViewer({ target, onClose }: { target: ViewerTarget; onClose(): voi
 
         <div className="viewer__scroll">
           {loading ? (
-            <p className="empty" role="status">
-              Loading photo…
+            <p className="empty">
+              <Loader inline size={32} label="Loading photo" caption="Loading photo…" />
             </p>
           ) : !photo ? (
             <p className="empty" role="alert">

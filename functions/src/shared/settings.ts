@@ -33,6 +33,12 @@ export const DEFAULT_SETTINGS: Settings = {
   policeWindowMin: 5,
   policePassPoints: 5,
   policeFailPenalty: 5,
+  /** Phone calls (Twilio) are off until the GM switches them on, with the setup in design/twilio-setup.md done. */
+  policePhone: false,
+  policeBreakerAt: 3,
+  policeCallerName: 'Police',
+  policeTelegram: '',
+  policeTelegramNumber: '',
   scoring: 'classic',
   scoringParams: {},
 };

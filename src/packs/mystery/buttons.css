@@ -1,0 +1,5 @@
+/* The bee on a button: its line takes the letters, on a filled button and on a ruled one (manila or kraft on the wall). */
+.btn:where(:not(.btn--primary)) .loader { --loader-line: var(--btn2-fg); color: var(--btn2-fg); }
+.btn--danger .loader { --loader-line: var(--btn-x-fg); color: var(--btn-x-fg); }
+.btn--primary .loader, .sheet .btn--danger .loader { --loader-line: var(--btn-go-fg); color: var(--btn-go-fg); }
+.sheet .btn--danger .loader { --loader-line: var(--btn-danger-fg); color: var(--btn-danger-fg); }

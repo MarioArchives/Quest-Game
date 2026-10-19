@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { castVote, friendlyError } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
@@ -11,6 +11,7 @@ import { tsMs, useNow } from '../../data/hooks';
 import { gmChecks, judgingOf, submitRule, voteReward } from '../../lib/judging';
 import { formatCountdown } from '../../lib/time';
 import { useSession } from '../../session/SessionProvider';
+import { EntryVideo, TaggedLine } from '../../components/EntryVideo';
 import type { Doc, GlobalQuest, Submission } from '../../shared';
 import { t } from '../../pack';
 
@@ -80,14 +81,14 @@ export function SideQuestCards() {
   );
 }
 
-function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
-  const { player } = useSession();
-  const { state, activePlayers, playersById, approved, mySubmissions, feed } = useGame();
-  const [sheet, setSheet] = useState<EvidenceTarget | null>(null);
-
+/**
+ * A side quest's entries so far: who is in (uids), and your own entry still in play. Entries are sealed until voting,
+ * and other players can't read sealed submissions, so "who is in" comes from the feed: each entry puts a bare post
+ * (type approved, no points) naming this side quest on it.
+ */
+export function useEntered(quest: Doc<GlobalQuest>): { entered: Set<string>; mine: Doc<Submission> | undefined } {
+  const { approved, mySubmissions, feed } = useGame();
   const mine = mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id && s.status !== 'rejected');
-  // Entries are sealed until voting, and other players can't read sealed submissions, so "who is in" comes from the
-  // feed: each entry puts a bare post (type approved, no points) naming this side quest on it.
   const entered = useMemo(() => {
     const started = tsMs(quest.startsAt);
     const set = new Set<string>();
@@ -100,6 +101,18 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
     if (mine) set.add(mine.uid);
     return set;
   }, [feed, approved, mine, quest.id, quest.title, quest.startsAt]);
+  return { entered, mine };
+}
+
+/**
+ * The cards below each take an optional `eyebrow` (the line above the title, e.g. a pack's "No. 4 · Story mission");
+ * without one they say what they always have.
+ */
+export function LiveCard({ quest, eyebrow }: { quest: Doc<GlobalQuest>; eyebrow?: ReactNode }) {
+  const { player } = useSession();
+  const { state, activePlayers, playersById } = useGame();
+  const [sheet, setSheet] = useState<EvidenceTarget | null>(null);
+  const { entered, mine } = useEntered(quest);
   const active = state.status === 'active';
   const names = [...entered].map((uid) => playersById.get(uid)).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
@@ -107,7 +120,7 @@ function LiveCard({ quest }: { quest: Doc<GlobalQuest> }) {
     <>
       <section className="hero halftone" aria-label={`Live ${t.sideQuest.one}`}>
         <span className="sticker hero__sticker">Live now</span>
-        <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; everyone plays</p>
+        <p className="hero__eyebrow eyebrow">{eyebrow ?? <>{t.sideQuest.One} &middot; everyone plays</>}</p>
         <h2 className="hero__title">{quest.title}</h2>
         {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
         <p className="hero__rule">
@@ -191,7 +204,7 @@ function LiveRule({ quest }: { quest: Doc<GlobalQuest> }) {
 }
 
 /** Time is up and the GM is checking the entries; late entries still count until the GM starts the vote. */
-function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
+export function CheckingCard({ quest, eyebrow }: { quest: Doc<GlobalQuest>; eyebrow?: ReactNode }) {
   const { player } = useSession();
   const { mySubmissions, state } = useGame();
   const [entering, setEntering] = useState(false);
@@ -201,16 +214,18 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
     mySubmissions.find((s) => s.kind === 'global' && s.questId === quest.id);
   const rejected = mine?.status === 'rejected';
   // Not accepted at the check: they can try again. Disqualified as fraud: no second go.
-  const canEnter = Boolean(player) && !player?.left && (!mine || (rejected && mine.checked === 'rejected'));
+  // A long-running mission's entries are closed for good: it waits for its vote.
+  const waiting = quest.longRun === true;
+  const canEnter = !waiting && Boolean(player) && !player?.left && (!mine || (rejected && mine.checked === 'rejected'));
 
   return (
     <section className="hero halftone" aria-label={`${t.sideQuest.One} entries being checked`}>
-      <span className="sticker hero__sticker">Time&apos;s up</span>
-      <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; checking</p>
+      <span className="sticker hero__sticker">{waiting ? 'Entries closed' : 'Time’s up'}</span>
+      <p className="hero__eyebrow eyebrow">{eyebrow ?? <>{t.sideQuest.One} &middot; {waiting ? 'vote later' : 'checking'}</>}</p>
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
       <p className="hero__rule">
-        The {t.gm.One} is checking the entries and starts the vote when ready. Late entries still count until then &middot; {voteReward(quest)}
+        {waiting ? <>Entries are closed. The vote opens later &middot; {voteReward(quest)}</> : <>The {t.gm.One} is checking the entries and starts the vote when ready. Late entries still count until then &middot; {voteReward(quest)}</>}
       </p>
       {mine ? (
         <div className="hero__mine">
@@ -243,7 +258,8 @@ function CheckingCard({ quest }: { quest: Doc<GlobalQuest> }) {
 
 const voteKey = (uid: string, questId: string) => `fq:vote:${uid}:${questId}`;
 
-function readVote(uid: string | null, questId: string): string | null {
+/** The entry this player voted for in that side quest, as remembered on this device (votes are secret on the server). */
+export function readVote(uid: string | null, questId: string): string | null {
   if (!uid) return null;
   try {
     return localStorage.getItem(voteKey(uid, questId));
@@ -252,7 +268,8 @@ function readVote(uid: string | null, questId: string): string | null {
   }
 }
 
-function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
+/** `onVote` hears of each vote counted from this card (e.g. so a pack's tab can stop asking for one). */
+export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>; eyebrow?: ReactNode; onVote?: (submissionId: string) => void }) {
   const toast = useToast();
   const { user, player } = useSession();
   const { approved, playersById } = useGame();
@@ -281,7 +298,8 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
       } catch {
         /* the pick just won't survive a reload */
       }
-      toast(closed ? "That was the last vote. The result is in the feed." : 'Vote counted. You can change it until voting ends.', 'success');
+      onVote?.(entry.id);
+      toast(closed ? `That was the last vote. The result is in the ${t.feed.one}.` : 'Vote counted. You can change it until voting ends.', 'success');
     } catch (err) {
       toast(friendlyError(err), 'error');
     } finally {
@@ -292,7 +310,7 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
   return (
     <section className="hero halftone" aria-label={`${t.sideQuest.One} voting`}>
       <span className="sticker hero__sticker">Vote now</span>
-      <p className="hero__eyebrow eyebrow">{t.sideQuest.One} &middot; secret ballot</p>
+      <p className="hero__eyebrow eyebrow">{eyebrow ?? <>{t.sideQuest.One} &middot; secret ballot</>}</p>
       <h2 className="hero__title">{quest.title}</h2>
       {quest.description ? <p className="hero__desc">{quest.description}</p> : null}
       <div className="hero__row">
@@ -315,7 +333,9 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
             const name = who?.displayName ?? 'A player';
             return (
               <li key={entry.id} className={`entry${picked ? ' is-picked' : ''}`}>
-                {entry.thumbPath ? (
+                {entry.videoPath ? (
+                  <EntryVideo videoPath={entry.videoPath} thumbPath={entry.thumbPath} label={`${name}'s video`} />
+                ) : entry.thumbPath ? (
                   <PhotoThumb submissionId={entry.id} thumbPath={entry.thumbPath} fill label={`Open ${name}'s entry`} />
                 ) : (
                   <p className="entry__words">{entry.caption}</p>
@@ -324,7 +344,8 @@ function VotingCard({ quest }: { quest: Doc<GlobalQuest> }) {
                   <Avatar name={name} src={who?.photoURL} size={22} uid={who?.id} />
                   <span>{own ? 'You' : name}</span>
                 </p>
-                {entry.thumbPath && entry.caption ? <p className="entry__caption">{entry.caption}</p> : null}
+                {(entry.thumbPath || entry.videoPath) && entry.caption ? <p className="entry__caption">{entry.caption}</p> : null}
+                <TaggedLine uid={entry.taggedUid} />
                 {player ? (
                   <Button
                     small

@@ -1,20 +1,30 @@
-// The Board: two tabs. Feed is the engine's home (group missions and game updates, minus its ranks strip),
-// Standings is bars from zero on a squared grid (±25 in squares of 5, wider when someone goes past it), filed under
-// its own tab. The standings move: scores glide from what you last saw to where they are, rows slide to their new
-// places, and each change since then shows as a "+5" / "−5" chip for a few seconds.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { useNavigate } from 'react-router';
+// The Missions folder (option E): a manila folder with the folder tabs Missions, Map and Standings; the open tab and
+// its page are one sheet (manila, chart paper for Standings). Missions is the stack of open missions over the night's
+// three kinds (MissionsTab); Map is the case map inside the folder, at /map (deep links and the GM's "Open the Map"
+// land on it); Standings is bars from zero on a squared grid (±25 in squares of 5, wider when someone goes past it).
+// The standings move: scores glide from what you last saw to where they are, rows slide to their new places, and
+// each change since then shows as a "+5" / "−5" chip for a few seconds. A trusted confidant's face wears a phone pin
+// and a person of interest's an eye, explained by the key at the foot.
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { standingOf } from '../../../../functions/src/shared/standing.ts';
 import { Avatar } from '../../../components/Avatar';
 import { Loader } from '../../../components/Loader';
 import { useGame } from '../../../data/GameProvider';
 import { scaleTicks, signed, standingBars, standingRowSize, standingScale } from '../../../lib/standingBars';
 import { easeOutCubic, parseSeen, pointDeltas, rankUids, tweenPoints, type PointsByUid } from '../../../lib/standingsMotion';
+import { features } from '../../../pack';
 import { useSession } from '../../../session/SessionProvider';
-import { StandingBadge } from '../../../screens/home/StandingBadge';
-import { TimelineFeed } from './TimelineFeed';
+import { MissionsTab, type MissionsLinkState } from './MissionsTab';
+import { StandingKey, StandingPin, standingNoun } from './StandingPin';
+import { standingKeyLines } from './standingKey';
+import { useMissionDeck } from './useMissionDeck';
 import './board.css';
 
-type BoardTab = 'feed' | 'standings';
+// The map (and Leaflet) loads only when its tab opens.
+const MapScreen = lazy(() => import('../../../modules/map/MapScreen'));
+
+type BoardTab = 'missions' | 'map' | 'standings';
 const STORAGE_KEY = 'board-tab';
 /** The scores this viewer last saw on the standings (this device only). */
 const SEEN_KEY = 'board-standings-seen';
@@ -22,41 +32,79 @@ const GLIDE_MS = 1200;
 /** The grid's edge rides along with the scores under a key no player id can have. */
 const EDGE = ' edge';
 
-function savedTab(): BoardTab {
+const LABELS: Record<BoardTab, string> = { missions: 'Missions', map: 'Map', standings: 'Standings' };
+
+/** The tab this tab session last had open off the map (Missions the first time). */
+function savedTab(): Exclude<BoardTab, 'map'> {
   try {
-    return sessionStorage.getItem(STORAGE_KEY) === 'standings' ? 'standings' : 'feed';
+    return sessionStorage.getItem(STORAGE_KEY) === 'standings' ? 'standings' : 'missions';
   } catch {
-    return 'feed';
+    return 'missions';
   }
 }
 
 export default function Board() {
-  const [tab, setTab] = useState<BoardTab>(savedTab);
+  const { pathname, state } = useLocation();
+  const navigate = useNavigate();
+  const deck = useMissionDeck();
+  const onMap = pathname === '/map';
+  // A link to a mission (a feed post's "Open in Missions") opens the Missions tab, whatever was open last.
+  const linked = Boolean((state as MissionsLinkState | null)?.mission);
+  const [picked, setPicked] = useState<Exclude<BoardTab, 'map'>>(() => (linked ? 'missions' : savedTab()));
+  useEffect(() => {
+    if (linked) setPicked('missions');
+  }, [linked]);
+  const tab: BoardTab = onMap ? 'map' : picked;
+  const tabs: BoardTab[] = features.map ? ['missions', 'map', 'standings'] : ['missions', 'standings'];
+
+  // The map has its own address, so a link or a reload opens the folder on it; the other two are remembered here.
   const choose = (next: BoardTab) => {
-    setTab(next);
+    if (next === 'map') {
+      if (!onMap) void navigate('/map');
+      return;
+    }
+    setPicked(next);
     try {
       sessionStorage.setItem(STORAGE_KEY, next);
     } catch {
       /* no storage: the tab just isn't remembered */
     }
+    if (onMap) void navigate('/');
   };
+  const dot = tab !== 'missions' && deck.needsYou;
+
   return (
-    <>
-      <div className={`bd-tabs${tab === 'standings' ? ' bd-tabs--file' : ''}`} role="tablist" aria-label="Board">
-        {(['feed', 'standings'] as const).map((id) => (
-          <button key={id} type="button" role="tab" id={`bd-tab-${id}`} aria-selected={tab === id} aria-controls="bd-panel" className="bd-tab" onClick={() => choose(id)}>
-            {id === 'feed' ? 'Feed' : 'Standings'}
+    <div className={`bd bd--${tab}`}>
+      <div className="bd-tabs" role="tablist" aria-label="Missions folder">
+        {tabs.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`bd-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls="bd-panel"
+            aria-label={id === 'missions' && dot ? 'Missions, something needs you' : undefined}
+            className="bd-tab"
+            onClick={() => choose(id)}
+          >
+            {LABELS[id]}
+            {id === 'missions' && dot ? <i className="bd-tab__dot" aria-hidden="true" /> : null}
           </button>
         ))}
       </div>
-      <div id="bd-panel" role="tabpanel" aria-labelledby={`bd-tab-${tab}`} className={`bd-panel${tab === 'standings' ? ' bd-panel--bleed' : ''}`}>
-        {tab === 'feed' ? (
-          <TimelineFeed />
+      <div id="bd-panel" role="tabpanel" aria-labelledby={`bd-tab-${tab}`} className="bd-body">
+        {tab === 'missions' ? (
+          <MissionsTab deck={deck} />
+        ) : tab === 'map' ? (
+          <Suspense fallback={<Loader className="app__loader" caption="Loading" />}>
+            <MapScreen routeCard="strip" />
+          </Suspense>
         ) : (
           <Standings />
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -172,7 +220,7 @@ function useRowSize(list: RefObject<HTMLOListElement | null>, rows: number, moun
 
 function Standings() {
   const { user } = useSession();
-  const { ready, players } = useGame();
+  const { ready, players, settings } = useGame();
   const navigate = useNavigate();
 
   const bars = standingBars(players, user?.uid ?? null);
@@ -188,6 +236,7 @@ function Standings() {
     before,
   );
   const size = useRowSize(list, bars.length, ready && bars.length > 0);
+  const key = standingKeyLines(settings, Boolean(features.police));
 
   if (!ready) return <Loader className="app__loader" caption="Loading" />;
   if (bars.length === 0) {
@@ -207,7 +256,7 @@ function Standings() {
     <section
       className="st"
       aria-label="Standings"
-      style={vars({ '--rows': bars.length, '--squares': edge / scale.step, '--st-row': `${size.row}px`, '--st-face': `${size.face}px` })}
+      style={vars({ '--rows': bars.length, '--keys': key.length, '--squares': edge / scale.step, '--st-row': `${size.row}px`, '--st-face': `${size.face}px` })}
     >
       <div className="st__grid" aria-hidden="true">
         {scaleTicks(scale).map((tick) => (
@@ -234,21 +283,23 @@ function Standings() {
           const now = Math.round(shown[b.uid] ?? b.points);
           const side = now > 0 ? 'plus' : now < 0 ? 'minus' : 'zero';
           const delta = change.deltas[b.uid];
+          const standing = standingOf(b.points, settings);
           return (
             <li key={b.uid} className="st__li" data-uid={b.uid}>
               <button
                 type="button"
                 className={`st__row st__row--${side}${b.me ? ' st__row--me' : ''}`}
                 style={vars({ '--f': Math.abs(at(shown[b.uid] ?? b.points)) })}
-                aria-label={`${b.me ? 'You' : b.name}, ${b.label}`}
+                aria-label={`${b.me ? 'You' : b.name}, ${b.label}${standing ? `, ${standingNoun(standing).one}` : ''}`}
                 onClick={() => navigate(`/player/${b.uid}`)}
               >
                 {side !== 'zero' ? <span className="st__bar" /> : null}
                 <span className="st__face">
                   <Avatar name={b.name} src={b.photoURL} size={size.face} uid={b.uid} className={`st__icon st__icon--${side}`} />
                 </span>
+                {standing ? <StandingPin standing={standing} /> : null}
                 <span className="st__label" aria-hidden="true">
-                  <span className={`st__name${b.me ? ' st__name--me' : ''}`}>{b.me ? 'You' : b.name}</span> <span className="st__score">{signed(now)}</span> <StandingBadge points={b.points} className="st__standing" />
+                  <span className={`st__name${b.me ? ' st__name--me' : ''}`}>{b.me ? 'You' : b.name}</span> <span className="st__score">{signed(now)}</span>
                   {delta ? (
                     <span key={change.id} className={`st__delta st__delta--${delta > 0 ? 'up' : 'down'}`}>
                       {signed(delta)}
@@ -260,6 +311,7 @@ function Standings() {
           );
         })}
       </ol>
+      <StandingKey lines={key} />
       <p className="st__key">1 square = {scale.step} points</p>
     </section>
   );

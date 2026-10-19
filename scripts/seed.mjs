@@ -6,7 +6,7 @@
 //   npm run seed -- --switch-pack     allow game/state to move to another pack (otherwise a pack switch is refused)
 //   npm run seed -- --demo            ... plus 4 demo bot players: hands, witnessed quests, a rejection, reactions,
 //                                     placeholder photos, and, when the pack has them, a live side quest with two
-//                                     entries and map pins
+//                                     entries and map pins; and a newcomer (Alex) not through the onboarding yet
 //   npm run seed -- --reset-demo      delete the demo players and everything they own, then seed them again
 //   npm run seed -- --reset-settings  overwrite game/settings with the defaults (discards GM edits)
 //   npm run seed -- --wait            poll until the emulators answer (up to 2 min) before seeding;
@@ -242,6 +242,7 @@ async function resetDemo() {
   const sideFeed = await db.collection('feed').where('ref', '==', DEMO_SIDE_QUEST).get();
   for (const doc of sideFeed.docs) await db.recursiveDelete(doc.ref);
   await db.recursiveDelete(db.doc(`globalQuests/${DEMO_SIDE_QUEST}`));
+  await db.doc('game/top').delete(); // the pinned log-book entry (votes packs) points at a demo post
   for (const d of buildDemo({ pack: PACK, settings: DEFAULT_SETTINGS, nowMs: Date.now() }).docs) {
     if (d.path.startsWith('stops/')) await db.doc(d.path).delete();
   }

@@ -15,10 +15,10 @@ describe('buildDemo', () => {
     expect(JSON.stringify(demo())).toBe(JSON.stringify(demo()));
   });
 
-  it('has the four demo players with hands, claims, a ledger, a feed with reactions', () => {
+  it('has the four demo players and the newcomer, with hands, claims, a ledger, a feed with reactions', () => {
     const d = demo();
     const paths = d.docs.map((x) => x.path);
-    expect(d.players.map((p) => p.uid)).toEqual(['demo-maya', 'demo-sam', 'demo-priya', 'demo-jonah']);
+    expect(d.players.map((p) => p.uid)).toEqual(['demo-maya', 'demo-sam', 'demo-priya', 'demo-jonah', 'demo-alex']);
     for (const { uid } of d.players) {
       expect(paths).toContain(`players/${uid}`);
       expect(under(paths, `players/${uid}/quests/`).length).toBeGreaterThanOrEqual(5);
@@ -27,6 +27,42 @@ describe('buildDemo', () => {
     expect(under(paths, 'pointsLedger/').length).toBeGreaterThan(0);
     expect(under(paths, 'feed/').filter((p) => !p.includes('/reactions/')).length).toBeGreaterThan(0);
     expect(paths.some((p) => /^feed\/[^/]+\/reactions\/[^/]+$/.test(p))).toBe(true);
+  });
+
+  it('a votes pack gets vote docs, counts that match them and a top entry; an emoji pack gets neither', () => {
+    const d = demo(getPack('mystery'));
+    const byPath = new Map(d.docs.map((x) => [x.path, x.data]));
+    const voteDocs = d.docs.filter((x) => /^feed\/[^/]+\/reactions\/[^/]+$/.test(x.path));
+    expect(voteDocs.length).toBeGreaterThan(0);
+    expect(voteDocs.every((x) => x.data.vote === 1 || x.data.vote === -1)).toBe(true);
+    for (const [path, data] of byPath) {
+      if (!/^feed\/[^/]+$/.test(path) || data.score === undefined) continue;
+      const mine = voteDocs.filter((v) => v.path.startsWith(`${path}/`));
+      expect(data.up - data.down).toBe(data.score);
+      expect(Object.keys(data.votes).sort()).toEqual(mine.map((v) => v.path.split('/')[3]).sort());
+      expect(mine.map((v) => v.path.split('/')[3])).not.toContain(data.uid);
+    }
+    const t = byPath.get('game/top')!;
+    expect(t.feedId).toBeTruthy();
+    expect(byPath.get(`feed/${t.feedId}`)!.score).toBe(t.score);
+    // Some entries are left without votes.
+    expect(d.docs.filter((x) => /^feed\/[^/]+$/.test(x.path) && x.data.score === undefined).length).toBeGreaterThan(0);
+    const lan = demo().docs;
+    expect(lan.some((x) => x.path === 'game/top')).toBe(false);
+    expect(lan.filter((x) => /\/reactions\//.test(x.path)).every((x) => typeof x.data.emoji === 'string')).toBe(true);
+  });
+
+  it('the four are booked in with their particulars; the newcomer is fresh, with a hand, and still to do the onboarding', () => {
+    const d = demo();
+    const player = (uid: string) => d.docs.find((x) => x.path === `players/${uid}`)!.data;
+    for (const uid of ['demo-maya', 'demo-sam', 'demo-priya', 'demo-jonah']) {
+      expect(player(uid).bookedAt, uid).toBeInstanceOf(Stamp);
+      expect(player(uid).particulars, uid).toMatchObject({ heightCm: expect.any(Number) });
+    }
+    expect(player('demo-alex')).toMatchObject({ displayName: 'Alex', points: 0, questsCompleted: 0, rerollsUsed: 0, bookedAt: null });
+    expect(d.docs.filter((x) => x.path.startsWith('players/demo-alex/quests/')).map((x) => x.data.status)).toEqual(Array(5).fill('active'));
+    expect(d.docs.some((x) => x.path === 'feed/join-demo-alex')).toBe(true);
+    expect(d.docs.some((x) => x.path === 'locations/demo-alex')).toBe(false);
   });
 
   it('every document path is a document (even number of segments) and appears once', () => {
@@ -181,10 +217,10 @@ describe('demo route stops', () => {
     expect(stops(demo(getPack('starter')))).toEqual([]);
   });
 
-  it('the mystery pack’s demo is its Didsbury route: seven stops, three revealed', () => {
+  it('the mystery pack’s demo is its city-centre route: six stops, three revealed', () => {
     const list = stops(demo(getPack('mystery')));
-    expect(list.length).toBe(7);
+    expect(list.length).toBe(6);
     expect(list.filter((x) => x.data.revealed).length).toBe(3);
-    expect(list[0].data.name).toBe('The Didsbury');
+    expect(list[0].data.name).toBe('The Badger');
   });
 });

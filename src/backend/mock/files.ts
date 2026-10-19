@@ -21,7 +21,9 @@ export function createMockFiles(): MockFiles {
   const files = new Map<string, { contentType: string; url: string }>();
   return {
     async upload(path, blob, metadata, onProgress) {
-      files.set(path, { contentType: metadata.contentType, url: await toDataUrl(blob, metadata.contentType) });
+      // Videos stay as object URLs (a data URL of a clip would be huge); everything else is a data URL.
+      const url = metadata.contentType.startsWith('video/') ? URL.createObjectURL(blob) : await toDataUrl(blob, metadata.contentType);
+      files.set(path, { contentType: metadata.contentType, url });
       onProgress?.(blob.size, blob.size);
     },
     async url(path) {

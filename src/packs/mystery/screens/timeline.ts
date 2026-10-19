@@ -125,9 +125,44 @@ export function kicker(type: FeedType, opts: { entry?: boolean; witness?: string
     case 'checkin-answer': return 'PRESENT';
     case 'checkin-closed': return "TIME'S UP";
     case 'global-scored': return 'GROUP MISSION SCORED';
+    case 'story-beat': return 'NEW EVIDENCE';
     case 'standing': return 'STANDING CHANGED';
     case 'police-call': return 'POLICE ON THE LINE';
     case 'police-tip': return 'TIP-OFF FILED';
     case 'police-result': return 'POLICE REPORT';
+    case 'police-line': return 'SWITCHBOARD';
   }
 }
+
+/** The posts that open (or move on) a mission: a group or story mission (`ref` its id) and a periodic one (a check-in). */
+const MISSION_POSTS = new Set<string>(['global-open', 'checking', 'voting-open', 'checkin-open']);
+
+/** The mission a post links to in the Missions tab ("Open in Missions"), or null. */
+export function missionRef(post: { type: string; ref?: string | null }): string | null {
+  return MISSION_POSTS.has(post.type) && post.ref ? post.ref : null;
+}
+
+/** How many posts a chapter holds, and how many of them carry a photo. */
+export function chapterCounts(posts: Array<{ photo: boolean }>): { entries: number; photos: number } {
+  return { entries: posts.length, photos: posts.filter((p) => p.photo).length };
+}
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * A stop's line, given its times as clock labels: the open one's "Since 21:20 · 11 entries", a folded one's
+ * "20:25–21:20 · 14 entries · 3 photos" (no photos, no photo count; no times, just the counts).
+ */
+export function chapterLine(
+  times: { from: string | null; to: string | null },
+  counts: { entries: number; photos: number },
+  open: boolean,
+): string {
+  const entries = count(counts.entries, 'entry', 'entries');
+  if (open) return [times.from ? `Since ${times.from}` : null, entries].filter(Boolean).join(' · ');
+  const span = times.from ? (times.to ? `${times.from}–${times.to}` : `from ${times.from}`) : null;
+  return [span, entries, counts.photos > 0 ? count(counts.photos, 'photo', 'photos') : null].filter(Boolean).join(' · ');
+}
+
+/** Posts the open stop shows before "+ N more at …". */
+export const OPEN_STOP_POSTS = 5;

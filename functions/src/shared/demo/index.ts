@@ -1,13 +1,14 @@
 // The demo game, as plain data: four players with hands, claims, reactions, a feed and (when the pack has them)
-// a live side quest and map pins. The seed script writes it to Firestore; the mock backend loads it into memory.
+// a live side quest and map pins, plus a newcomer who has only just been let in. The seed script writes it to Firestore; the mock backend loads it into memory.
 // Pure and deterministic: same pack, settings and nowMs give the same output. No Node APIs, no clock, no Math.random.
 import type { CatalogueQuest, GamePack } from '../packs/types.ts';
 import { termForms } from '../packs/terms.ts';
+import { takesVote } from '../feedVotes.ts';
 import { routeSeedStops } from '../route.ts';
 import { Stamp } from '../store/stamp.ts';
 import type { DocData } from '../store/types.ts';
 import type { Settings } from '../types.ts';
-import { BOTS, hashString, mulberry32, REACTIONS, shuffled } from './bots.ts';
+import { BOTS, hashString, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES } from './bots.ts';
 import { posterSvg } from './poster.ts';
 
 export interface DemoFile {
@@ -67,9 +68,25 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
     files.push({ path: thumbPath, contentType: SVG, text: posterSvg({ title, who, width: 400, height: 300, name: pack.name }) });
   };
 
-  /** Feed post, with its reactions (reactionCount is kept in step with them). */
+  /** Posts that gathered votes (packs with vote reactions), for game/top. */
+  const voted: Array<{ id: string; score: number; up: number; down: number; at: number; last: number }> = [];
+
+  /** Feed post, with its reactions or votes (reactionCount and the vote counts are kept in step with them). */
   const pushPost = (id: string, createdAt: Stamp, fields: DocData) => {
     postIds.add(id);
+    if (pack.reactions === 'votes') {
+      const cast = (VOTES[id] ?? []).filter(([uid]) => takesVote({ type: fields.type, uid: fields.uid, actorUid: fields.actorUid }, uid));
+      const votes = Object.fromEntries(cast);
+      const up = cast.filter(([, v]) => v === 1).length;
+      const down = cast.length - up;
+      const counts = cast.length ? { up, down, score: up - down, votes } : {};
+      entries.push([`feed/${id}`, { ...fields, createdAt, reactionCount: cast.length, ...counts }]);
+      cast.forEach(([uid, vote], i) => {
+        entries.push([`feed/${id}/reactions/${uid}`, { vote, createdAt: Stamp.fromMillis(createdAt.toMillis() + (i + 1) * 90_000) }]);
+      });
+      if (cast.length) voted.push({ id, score: up - down, up, down, at: createdAt.toMillis(), last: createdAt.toMillis() + cast.length * 90_000 });
+      return;
+    }
     const reactions = REACTIONS[id] ?? [];
     entries.push([`feed/${id}`, { ...fields, createdAt, reactionCount: reactions.length }]);
     reactions.forEach(([uid, emoji]: [string, string], i: number) => {
@@ -115,6 +132,8 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         points: questPoints * bot.done.length - (bot.rejected ? rejectPenalty : 0),
         rerollsUsed: bot.rerolls,
         questsCompleted: bot.done.length,
+        bookedAt: at(238),
+        particulars: bot.particulars,
         ...(character ? { character: { name: character.name, role: character.role } } : {}),
       },
     ]);
@@ -260,6 +279,23 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
 
   }
 
+  // The newcomer: let in a few minutes ago with a fresh hand, nothing done, and the pack's onboarding still to do.
+  {
+    const deck = shuffled(personal, mulberry32(hashString(NEWCOMER.uid)));
+    if (deck.length < handSize) throw new Error(`Not enough personal ${T.quest.many} in the ${pack.id} catalogue for ${NEWCOMER.name}`);
+    entries.push([
+      `players/${NEWCOMER.uid}`,
+      { displayName: NEWCOMER.name, photoURL: null, joinedAt: at(4), points: 0, rerollsUsed: 0, questsCompleted: 0, bookedAt: null },
+    ]);
+    deck.slice(0, handSize).forEach((t: CatalogueQuest, i: number) => {
+      entries.push([
+        `players/${NEWCOMER.uid}/quests/q${i + 1}`,
+        { templateId: t.id, title: t.title, description: t.description, status: 'active', assignedAt: at(4), submissionId: null, completedAt: null, exposedBy: null, exposedAt: null },
+      ]);
+    });
+    pushPost(`join-${NEWCOMER.uid}`, at(4), { type: 'join', text: `${NEWCOMER.name} joined the game`, uid: NEWCOMER.uid, ref: null });
+  }
+
   // A live side quest with two entries (no witness: everyone votes once voting opens). Only when the pack has them.
   if (pack.features.sideQuests && sideQuests.length > 0) {
     const template = sideQuests.find((q) => q.id === 'g-album-cover') ?? sideQuests[0];
@@ -328,6 +364,12 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
     if (!postIds.has(id) && !(id.startsWith('entry-') && !pack.features.sideQuests)) throw new Error(`REACTIONS refers to a post that is not seeded: ${id}`);
   }
 
+  // The pinned entry of a votes pack: the best score (fewer downs, then the earlier post), as the trigger would set it.
+  const best = voted.filter((v) => v.score >= 1).sort((a, b) => b.score - a.score || a.down - b.down || a.at - b.at)[0];
+  if (best) {
+    entries.push(['game/top', { feedId: best.id, score: best.score, up: best.up, down: best.down, since: Stamp.fromMillis(best.last), previousFeedId: null, previousSince: null }]);
+  }
+
   // Map pins around the pack's centre, only for packs with a map.
   if (pack.features.map && pack.map) {
     const { lat, lng } = pack.map.centre;
@@ -360,6 +402,6 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
   return {
     docs: entries.map(([path, data]) => ({ path, data })),
     files,
-    players: BOTS.map((b) => ({ uid: b.uid, displayName: b.name })),
+    players: [...BOTS.map((b) => ({ uid: b.uid, displayName: b.name })), { uid: NEWCOMER.uid, displayName: NEWCOMER.name }],
   };
 }

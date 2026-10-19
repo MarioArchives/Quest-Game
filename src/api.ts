@@ -1,7 +1,7 @@
 // Typed wrappers around the server callables (functions region europe-west2).
 import { backend } from './backend';
 import { ApiError, toApiError } from './lib/apiError';
-import type { GameStatus, GlobalQuestStatus, Judging, SubmissionStatus } from './shared';
+import type { GameStatus, GlobalQuestStatus, Judging, Particulars, PhoneStatus, SimulatedAction, SimulatedTurn, SubmissionStatus, Switchboard, SwitchMode } from './shared';
 
 export { ApiError, toApiError };
 
@@ -26,6 +26,9 @@ export type JoinStatus = 'pending' | 'approved' | 'already-player';
 export const requestJoin = (data: { displayName: string; photoURL: string | null }) =>
   call<typeof data, { status: JoinStatus }>('requestJoin', data);
 
+/** Packs with an onboarding screen: my particulars (each optional), and the onboarding done (`bookedAt`). */
+export const bookIn = (data: { particulars: Particulars }) => call<typeof data, { booked: true }>('bookIn', data);
+
 export const rerollQuest = (data: { questId: string }) => call<typeof data, { questId: string }>('rerollQuest', data);
 
 export const guessQuest = (data: { targetUid: string; templateId: string }) =>
@@ -45,6 +48,10 @@ export interface EvidenceInput {
   imagePath?: string;
   thumbPath?: string;
   caption?: string;
+  /** A story mission's video entry (its poster frame goes in `thumbPath`). */
+  videoPath?: string;
+  /** The player a tag mission names ("assigned" missions fill it in on the server). */
+  taggedUid?: string;
 }
 
 /** Answer the open check-in with a photo and/or a comment (once, before its time is up). */
@@ -116,6 +123,21 @@ export const answerPoliceCall = (data: { callId: string; answer: string }) =>
 
 /** Packs with police: a trusted confidant tips off the police about another player. */
 export const tipOffPolice = (data: { targetUid: string; note: string }) => call<typeof data, { callId: string }>('tipOffPolice', data);
+
+/** Packs with police, phone calls on: save my number (unverified until tested), remove it (null), or pick the app or the phone. */
+export const setPoliceLine = (data: { number: string | null } | { appOnly: boolean }) =>
+  call<typeof data, { status: PhoneStatus | null }>('setPoliceLine', data);
+
+/** Ring my own line with a test call that reads out a code to key back (a GM tests their own phone the same way). */
+export const testPoliceLine = () => call<Record<string, never>, { testId: string; ringing: boolean; message: string | null }>('testPoliceLine', {});
+
+/** The mock and the emulators: my move on a call to me on the simulated line (my test call, or a check-in), as Twilio would report it. */
+export type SimulateCallInput = ({ test: string } | { call: string }) & { action: SimulatedAction; digits?: string; attempt?: number };
+export const simulateCall = (data: SimulateCallInput) => call<SimulateCallInput, SimulatedTurn>('simulateCall', data);
+
+/** GM: restore the phone lines, send every police check-in to the app, or look at the Twilio account now. */
+export const setSwitchboard = (data: { action: 'restore' | 'app' | 'check' }) =>
+  call<typeof data, { mode: SwitchMode; health: Switchboard['health'] }>('setSwitchboard', data);
 
 export const adjustPoints = (data: { uid: string; delta: number; reason: string }) =>
   call<typeof data, { points: number }>('adjustPoints', data);

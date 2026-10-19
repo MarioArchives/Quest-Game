@@ -1,8 +1,10 @@
+import { getPack } from '../shared/packs/index.js';
+import type { GamePack } from '../shared/packs/types.js';
 import type { JoinRequest, Settings } from '../shared/types.js';
 import { DISPLAY_NAME_MAX } from '../shared/settings.js';
 import type { Txn } from '../shared/store/types.js';
 import type { Ctx, Db } from './context.js';
-import { GM_CONSOLE, type PushPlan } from './push.js';
+import { GM_CONSOLE, pushAllowed, type PushPlan } from './push.js';
 import { dealFrom, readFreshTemplates, type FreshTemplate } from './deal.js';
 import { addFeed } from './feed.js';
 import { fail, isGM, loadSettings, loadState, requireGM, requireUid } from './guards.js';
@@ -43,6 +45,8 @@ function admitPlayer(
     points: 0,
     rerollsUsed: 0,
     questsCompleted: 0,
+    // Not through the pack's onboarding yet (packs without one never look).
+    bookedAt: null,
   });
   dealFrom(tx, db, now, rng, uid, admission.pool, admission.settings.starterQuestCount);
   addFeed(tx, db, now, {
@@ -190,8 +194,12 @@ export async function handleAdminCreated(
   });
 }
 
-/** Firestore onCreate for joinRequests/{uid}: a new pending request tells the GMs. Quiet for GMs (approved at once). */
-export async function handleJoinRequestCreated(db: Db, uid: string): Promise<PushPlan | null> {
+/**
+ * Firestore onCreate for joinRequests/{uid}: a new pending request tells the GMs. Quiet for GMs (approved at once), and
+ * for a pack that doesn't send 'join' pushes (`pack`, not yet applied).
+ */
+export async function handleJoinRequestCreated(db: Db, uid: string, pack: GamePack = getPack()): Promise<PushPlan | null> {
+  if (!pushAllowed(pack, 'join')) return null;
   const snap = await db.doc(`joinRequests/${uid}`).get();
   if (!snap.exists || snap.get('status') !== 'pending') return null;
   const name = (snap.get('displayName') as string | undefined) ?? 'Someone';

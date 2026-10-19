@@ -141,6 +141,8 @@ describe('reviewJoinRequest', () => {
       points: 0,
       rerollsUsed: 0,
       questsCompleted: 0,
+      // Not through the pack's onboarding yet.
+      bookedAt: null,
     });
     expect(player.joinedAt).toBeDefined();
 

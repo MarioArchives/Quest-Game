@@ -1,0 +1,136 @@
+/* Form 3, the charge sheet: the accusation tag on another player's file, and the full-height sheet it opens. */
+
+/* ---------- the typed form: label and value on a dotted line ---------- */
+.cs-form { align-self: stretch; display: flex; flex-direction: column; min-width: 0; margin: 0; }
+.cs-line {
+  position: relative; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; align-items: baseline;
+  padding: 6px 0 5px; border-bottom: 1.5px dotted var(--manila-sub);
+}
+.cs-line dt { font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.cs-line dd { min-width: 0; margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 700; line-height: 1.35; color: var(--manila-ink); overflow-wrap: anywhere; }
+.cs-line dd small { font-size: 11px; font-weight: 400; color: var(--manila-sub); }
+.cs-blank { font-weight: 400; color: var(--manila-sub); }
+.cs-blankbtn { display: block; width: 100%; min-height: 28px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: text; }
+.cs-caret { display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -0.18em; background: var(--manila-ink); }
+.cs-line s, .cs-strike { text-decoration: line-through; text-decoration-color: var(--pen-red); text-decoration-thickness: 2px; }
+.cs-onfile ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+/* A charge just filed stays on the line with a small stamp across its end. */
+.cs-line--charge dd:has(.cs-mini) { padding-right: 76px; }
+.cs-mini {
+  position: absolute; right: -4px; top: 50%; padding: 0 6px; border: 2.5px solid currentColor; background: var(--glass-12);
+  transform: translateY(-50%) rotate(-8deg); font-family: var(--display); font-size: 13px; font-weight: 400; line-height: 1.3; letter-spacing: 1.5px;
+}
+.cs-mini--bad { color: var(--stamp-bad); }
+.cs-mini--good { color: var(--stamp-good); }
+.cf-top .cs-hot { color: var(--stamp-bad); }
+
+.cs-btn { align-self: stretch; gap: 8px; }
+.cs-fine { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-sub); }
+
+/* ---------- the sheet: full height, the form held at the top and the rest scrolling under it ---------- */
+.sheet:has(.cs-sheet) { height: calc(100dvh - var(--safe-top) - 12px); max-height: none; }
+.sheet:has(.cs-sheet) .sheet__body { flex: 1; min-height: 0; gap: 0; padding: 0; overflow: hidden; }
+.cs-sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px var(--page-x) 0; }
+.cs-scroll {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 calc(-1 * var(--page-x)); padding: 2px var(--page-x) calc(30px + var(--safe-bottom));
+}
+.cs-sheet--sign .cs-scroll, .cs-sheet--upheld .cs-scroll { margin-top: -14px; padding-top: 14px; }
+
+.cs-form--big .cs-line { grid-template-columns: 78px minmax(0, 1fr); padding: 9px 0 8px; }
+.cs-form--big .cs-line dd { font-size: 15px; }
+.cs-form--big .cs-line:focus-within { border-bottom: 1.5px solid var(--manila-ink); }
+.cs-input {
+  width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--manila-ink); caret-color: var(--pen-red);
+  font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: 0.5px;
+}
+.cs-input::placeholder { font-size: 16px; font-weight: 400; letter-spacing: 0; color: var(--manila-sub); }
+.cs-input:focus { outline: none; }
+
+.cs-count {
+  display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.3;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.cs-hits { display: flex; flex-direction: column; flex: none; margin: 0; padding: 0; list-style: none; background: var(--form); border: 2px solid var(--manila-ink); box-shadow: 0 3px 0 var(--sh-tag); }
+.cs-hits li + li { border-top: 1px dashed var(--twine-dark); }
+.cs-hit {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 44px; padding: 8px 10px; border: 0; background: none;
+  color: var(--manila-ink); text-align: left; cursor: pointer;
+}
+.cs-hit b { font-family: var(--mono); font-size: 14px; font-weight: 700; line-height: 1.25; }
+.cs-hit span { font-family: var(--body); font-size: 12.5px; line-height: 1.35; color: var(--manila-sub); }
+.cs-hit:hover { background: var(--dim-5); }
+.cs-hit:active { background: var(--manila-ink); color: var(--manila); }
+.cs-hit:active span { color: var(--manila-tab); }
+.cs-hit:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: -3px; }
+.cs-hl { background: linear-gradient(transparent 52%, color-mix(in srgb, var(--pen-red) 22%, transparent) 52%); color: inherit; }
+
+.cs-like {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.3;
+  letter-spacing: 0.5px; text-transform: uppercase; color: var(--manila-sub);
+}
+.cs-like ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.cs-like button {
+  min-height: 32px; padding: 3px 8px; border: 1.5px solid var(--manila-ink); background: var(--glass-40); color: var(--manila-ink); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none;
+}
+.cs-like button b { font-weight: 400; color: var(--manila-sub); }
+.cs-like button:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+
+/* ---------- sign and file ---------- */
+.cs-chargehead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cs-title { font-family: var(--mono); font-weight: 700; text-transform: uppercase; overflow-wrap: anywhere; }
+.cs-title:focus, .cs-result:focus { outline: none; }
+.cs-change {
+  flex: none; min-height: 32px; padding: 0 2px; border: 0; background: none; color: var(--manila-ink); cursor: pointer;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px;
+}
+.cs-change:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.cs-desc { margin-top: 3px; font-family: var(--body); font-size: 12.5px; font-weight: 400; line-height: 1.4; color: var(--manila-ink); }
+
+.cs-terms { flex: none; gap: 5px; padding: 8px 10px 10px; }
+.cs-terms h4 { font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--warn); }
+.cs-terms dl { display: flex; flex-direction: column; gap: 5px; margin: 0; }
+.cs-terms dl > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px; font-family: var(--mono); font-size: 12px; line-height: 1.4; }
+.cs-terms dt { padding-top: 1px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.cs-terms dd { margin: 0; }
+.cs-ok { color: var(--stamp-good); }
+.cs-bad { color: var(--stamp-bad); }
+
+.cs-sign {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 5px; border-bottom: 1.5px solid var(--manila-ink);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.cs-sign em {
+  display: inline-block; min-width: 0; overflow-wrap: anywhere; transform: rotate(-3deg); font-family: var(--display); font-size: 19px; font-style: normal;
+  line-height: 1; letter-spacing: 0; text-transform: none; color: var(--stamp-plain);
+}
+
+/* Hold to file: a darker red fills the bar, and the ring closes, over HOLD_MS. */
+.cs-hold {
+  position: relative; flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 54px; padding: 0 14px;
+  border: 0; background: var(--warn); color: var(--on-accent); overflow: hidden; cursor: pointer;
+  font-family: var(--mono); font-size: 13px; font-weight: 700; line-height: 1.2; letter-spacing: 1px; text-transform: uppercase;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+}
+.cs-hold::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--warn-text); }
+.cs-hold > * { position: relative; }
+.cs-hold.is-holding::before { width: 100%; transition: width var(--hold-ms) linear; }
+.cs-hold.is-armed { box-shadow: inset 0 0 0 3px var(--on-accent); }
+.cs-hold:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.cs-hold:disabled { opacity: 0.6; cursor: default; }
+.cs-hold__ring { flex: none; width: 26px; height: 26px; }
+.cs-hold__track { fill: none; stroke: var(--glass-40); stroke-width: 3; }
+.cs-hold__arc { fill: none; stroke: var(--on-accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; visibility: hidden; }
+.cs-hold.is-holding .cs-hold__arc { visibility: visible; stroke-dashoffset: 0; transition: stroke-dashoffset var(--hold-ms) linear; }
+
+/* ---------- upheld ---------- */
+.cs-stampwrap { position: relative; flex: none; }
+.cs-bigstamp {
+  position: absolute; z-index: 3; right: 0; top: 34px; padding: 4px 12px; border-width: 4px; background: var(--glass-12); transform: rotate(-9deg);
+  font-family: var(--display); font-size: 30px; font-weight: 400; line-height: 1.1; letter-spacing: 2px;
+}
+.cs-result { display: flex; align-items: flex-end; gap: 10px; }
+.cs-result b { flex: none; font-family: var(--display); font-size: 46px; font-weight: 400; line-height: 0.9; color: var(--stamp-good); }
+.cs-result span { padding-bottom: 3px; font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1.35; letter-spacing: 0.5px; text-transform: uppercase; color: var(--manila-sub); }
+.cs-post { flex: none; margin: -14px 0 0; }

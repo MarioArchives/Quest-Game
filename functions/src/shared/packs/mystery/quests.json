@@ -143,7 +143,7 @@
     {
       "id": "p-fake-fact",
       "title": "Little-known fact",
-      "description": "Make up a fact about Didsbury and hear another player repeat it to someone else. Proof: the fact, and who passed it on."
+      "description": "Make up a fact about Manchester and hear another player repeat it to someone else. Proof: the fact, and who passed it on."
     },
     {
       "id": "p-not-my-birthday",
@@ -465,70 +465,107 @@
   ],
   "story": [
     {
-      "id": "s-body",
-      "title": "The body is found",
-      "description": "Lord Blackwood is dead. Whole group: a photo of you all frozen in shock, one of you playing the body.",
+      "id": "s-incriminating",
+      "title": "Incriminating evidence",
+      "description": "Catch another player in a compromising, incriminating moment, and tag who's in the photo. It stays open until the GM's deadline; the vote opens when new evidence is revealed.",
+      "judging": "vote",
+      "longRun": true,
+      "windowMin": 300,
+      "entry": {
+        "tag": "player"
+      },
+      "points": 2,
+      "votePoints": 2,
+      "tieBonus": 1,
+      "penalty": 2
+    },
+    {
+      "id": "s-motive",
+      "title": "Motive",
+      "description": "You have been secretly given another player. Write why they killed Bob.",
       "judging": "submit",
-      "windowMin": 15,
-      "points": 3,
-      "fastestBonus": 2,
-      "penalty": 3
+      "windowMin": 30,
+      "entry": {
+        "media": "text",
+        "tag": "assigned",
+        "writesMotive": true
+      },
+      "points": 2,
+      "penalty": 2
     },
     {
-      "id": "s-lineup",
-      "title": "The line-up",
-      "description": "The police want a word. Line your whole group up against a wall for a suspect photo, each holding a number.",
-      "judging": "submit",
-      "windowMin": 15,
-      "points": 3,
-      "fastestBonus": 2,
-      "penalty": 3
-    },
-    {
-      "id": "s-will",
-      "title": "The will",
-      "description": "Write the opening line of Lord Blackwood's missing will as a group, and photograph it on a napkin or beer mat. The best forgery wins.",
+      "id": "s-old-days",
+      "title": "The good old days",
+      "description": "A photo with your miniature Bob (everyone got one at the start of the night), capturing a fond memory with Bob.",
       "judging": "vote",
-      "windowMin": 20,
-      "points": 5,
-      "penalty": 3
+      "points": 2,
+      "votePoints": 2,
+      "penalty": 2
     },
     {
-      "id": "s-prints",
-      "title": "Dust for prints",
-      "description": "Dust a glass for fingerprints (flour, cocoa or just a good squint) and photograph the culprit's thumb. Most convincing wins.",
+      "id": "s-weapon",
+      "title": "Murder weapon",
+      "description": "Find an object, photograph it and explain how it killed Bob. The most voted becomes the murder weapon.",
       "judging": "vote",
-      "windowMin": 20,
-      "points": 5,
-      "fastestBonus": 1,
-      "penalty": 3
+      "entry": {
+        "caption": "required"
+      },
+      "points": 2,
+      "votePoints": 2,
+      "tieBonus": 1,
+      "penalty": 2,
+      "records": {
+        "key": "weapon",
+        "label": "Murder weapon"
+      }
     },
     {
-      "id": "s-reconstruction",
-      "title": "Reconstruction",
-      "description": "Reconstruct the murder as a group, in one photo, using only what is on your table. Most dramatic wins.",
-      "judging": "vote",
-      "windowMin": 25,
-      "points": 5,
-      "penalty": 3
+      "id": "s-time-of-death",
+      "title": "Time of death",
+      "description": "New evidence shows Bob was killed at 11:02 pm.",
+      "kind": "announce",
+      "fact": {
+        "key": "timeOfDeath",
+        "label": "Time of death",
+        "value": "23:02"
+      }
     },
     {
-      "id": "s-accuse",
-      "title": "Accuse someone",
-      "description": "Point at your prime suspect, group photo, and say why in a comment. The most convincing accusation wins.",
+      "id": "s-alibi",
+      "title": "Couldn't be me",
+      "description": "A video of someone, extra if they're a stranger, saying their name and backing your alibi for where you were at 11:02 pm.",
       "judging": "vote",
-      "windowMin": 20,
-      "points": 8,
-      "penalty": 5
+      "entry": {
+        "media": "video"
+      },
+      "points": 2,
+      "votePoints": 2,
+      "tieBonus": 1,
+      "penalty": 2
     },
     {
-      "id": "s-last-words",
-      "title": "Last words",
-      "description": "What were Lord Blackwood's last words? Write them in a comment, with a photo of the group delivering them dramatically. Best last words win.",
+      "id": "s-scene",
+      "title": "The room where it happened",
+      "description": "Photograph the place Bob was murdered and say why. The most voted becomes the scene of the crime.",
       "judging": "vote",
-      "windowMin": 20,
-      "points": 8,
-      "penalty": 5
+      "entry": {
+        "caption": "required"
+      },
+      "points": 2,
+      "votePoints": 2,
+      "tieBonus": 1,
+      "penalty": 2,
+      "records": {
+        "key": "scene",
+        "label": "Scene of the crime"
+      }
+    },
+    {
+      "id": "s-reveal",
+      "title": "New evidence is revealed!",
+      "description": "The incriminating photos are out. Vote for the most damning.",
+      "kind": "announce",
+      "opensVoteOn": "s-incriminating"
     }
   ]
 }

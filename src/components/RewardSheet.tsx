@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, Suspense, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import look from '@pack';
 import { friendlyError, resolveReward } from '../api';
 import { useGame } from '../data/GameProvider';
@@ -8,6 +8,7 @@ import type { Doc, Player, Reward } from '../shared';
 import { Avatar } from './Avatar';
 import { BottomSheet } from './BottomSheet';
 import { Icon } from './Icon';
+import { Loader } from './Loader';
 import { useToast } from './Toast';
 import './RewardSheet.css';
 
@@ -37,24 +38,56 @@ export function RewardSheetProvider({ children }: { children: ReactNode }) {
   const pending = features.rewardChoice ? pendingReward(myRewards) : null;
   // The reward the player closed the pop-up on this session.
   const [closedId, setClosedId] = useState<string | null>(null);
+  // A pack's frame picker keeps its reward on screen from sending the frame until it is closed, to show the result
+  // (the reward stops being pending the moment it is used).
+  const [held, setHeld] = useState<Doc<Reward> | null>(null);
   const open = useCallback(() => setClosedId(null), []);
   const api = useMemo(() => ({ pending, open }), [pending, open]);
+  const shown = held ?? (pending && pending.id !== closedId ? pending : null);
 
   return (
     <RewardSheetContext.Provider value={api}>
       {children}
-      {pending && pending.id !== closedId ? <RewardChoice key={pending.id} reward={pending} onClose={() => setClosedId(pending.id)} /> : null}
+      {shown ? (
+        <RewardChoice
+          key={shown.id}
+          reward={shown}
+          onHold={(on) => setHeld(on ? shown : null)}
+          onClose={() => {
+            setHeld(null);
+            setClosedId(shown.id);
+          }}
+        />
+      ) : null}
     </RewardSheetContext.Provider>
   );
 }
 
-function RewardChoice({ reward, onClose }: { reward: Doc<Reward>; onClose(): void }) {
+function RewardChoice({ reward, onHold, onClose }: { reward: Doc<Reward>; onHold(on: boolean): void; onClose(): void }) {
   const toast = useToast();
   const { settings, activePlayers, me } = useGame();
   const copy = look.reward;
+  const Picker = look.rewardFrame?.picker;
+  const Hint = look.rewardFrame?.hint;
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const targets = frameTargets(activePlayers, me?.id ?? '');
+
+  // The pack's picker frames through this, and the pop-up stays on it afterwards to show the result.
+  const frame = async (target: Doc<Player>): Promise<number | null> => {
+    setBusy(true);
+    onHold(true);
+    try {
+      const { points } = await resolveReward({ rewardId: reward.id, choice: 'frame', targetUid: target.id });
+      return points;
+    } catch (err) {
+      toast(friendlyError(err), 'error');
+      onHold(false);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const resolve = async (choice: 'clean' | 'frame', target?: Doc<Player>) => {
     setBusy(true);
@@ -72,7 +105,11 @@ function RewardChoice({ reward, onClose }: { reward: Doc<Reward>; onClose(): voi
   return (
     <BottomSheet title={picking ? (copy?.pickTitle ?? 'Pick a player') : (copy?.title ?? `${t.quest.One} done`)} onClose={onClose} locked={busy}>
       <div className="reward-sheet">
-        {picking ? (
+        {picking && Picker ? (
+          <Suspense fallback={<Loader size={48} />}>
+            <Picker targets={targets} busy={busy} frame={frame} back={() => setPicking(false)} close={onClose} />
+          </Suspense>
+        ) : picking ? (
           <>
             <button type="button" className="reward-sheet__back" disabled={busy} onClick={() => setPicking(false)}>
               <Icon name="chevronDown" size={18} strokeWidth={2.4} className="reward-sheet__back-icon" />
@@ -95,16 +132,23 @@ function RewardChoice({ reward, onClose }: { reward: Doc<Reward>; onClose(): voi
             )}
           </>
         ) : (
-          <div className="reward-sheet__choices">
-            <button type="button" className="reward-disc reward-disc--clean" disabled={busy} onClick={() => void resolve('clean')}>
-              <span className="reward-disc__label">{copy?.clean ?? 'Points for you'}</span>
-              <span className="reward-disc__points">+{settings.cleanPoints}</span>
-            </button>
-            <button type="button" className="reward-disc reward-disc--frame" disabled={busy} onClick={() => setPicking(true)}>
-              <span className="reward-disc__label">{copy?.frame ?? 'Points off someone'}</span>
-              <span className="reward-disc__points">&minus;{settings.framePoints}</span>
-            </button>
-          </div>
+          <>
+            <div className="reward-sheet__choices">
+              <button type="button" className="reward-disc reward-disc--clean" disabled={busy} onClick={() => void resolve('clean')}>
+                <span className="reward-disc__label">{copy?.clean ?? 'Points for you'}</span>
+                <span className="reward-disc__points">{busy ? <Loader inline size={24} label="Working" /> : `+${settings.cleanPoints}`}</span>
+              </button>
+              <button type="button" className="reward-disc reward-disc--frame" disabled={busy} onClick={() => setPicking(true)}>
+                <span className="reward-disc__label">{copy?.frame ?? 'Points off someone'}</span>
+                <span className="reward-disc__points">&minus;{settings.framePoints}</span>
+              </button>
+            </div>
+            {Hint ? (
+              <Suspense fallback={null}>
+                <Hint targets={targets} busy={busy} close={onClose} />
+              </Suspense>
+            ) : null}
+          </>
         )}
       </div>
     </BottomSheet>

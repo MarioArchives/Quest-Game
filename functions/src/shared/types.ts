@@ -60,6 +60,22 @@ export interface Settings {
   policePassPoints: number;
   /** Points lost for failing or missing a police check-in. */
   policeFailPenalty: number;
+  /**
+   * Police check-ins ring the player's phone (Twilio) when they have a verified line, and fall back to the app when
+   * they don't or the call never connects. Off: every check-in is answered in the app.
+   */
+  policePhone: boolean;
+  /** The switchboard sends everyone to the app after this many phone calls in a row never connect (to 2+ players). */
+  policeBreakerAt: number;
+  /** Who the police calls come from: spoken on the call and the name on the contact card. */
+  policeCallerName: string;
+  /**
+   * The police's Telegram account (its username, no @), when the police ring on Telegram instead (the line in
+   * services/telegram-police): the booking desk sends players there to say hello and expect its calls. Empty: none.
+   */
+  policeTelegram: string;
+  /** That account's phone number, on the contact card players save, so their Telegram knows who's calling. Empty: none. */
+  policeTelegramNumber: string;
   /** Scoring rule-set id (functions/src/shared/scoring); an unknown id falls back to the pack's default. */
   scoring: string;
   /** The rule sets' own numbers by param key (keys are unique across rule sets). */
@@ -121,6 +137,22 @@ export interface Player {
   lastCheckedAt?: TS | null;
   /** Packs with police: when this player last tipped off the police about someone else. */
   lastSnitchedAt?: TS | null;
+  /**
+   * When they finished the pack's onboarding (`bookIn`). Approval sets it to null, so a pack with an onboarding screen
+   * shows it until then; docs from before onboarding existed have no field and count as done.
+   */
+  bookedAt?: TS | null;
+  /** What they told the onboarding (packs with one): public, like the rest of the player doc. */
+  particulars?: Particulars | null;
+}
+
+/** A player's particulars from the onboarding, each optional (`bookIn` checks them; limits in shared/booking.ts). */
+export interface Particulars {
+  heightCm: number | null;
+  /** Their usual drink, in a word or two. */
+  drink: string | null;
+  /** Anything that would pick them out of a crowd. */
+  marks: string | null;
 }
 
 /** Above settings.confidantAbove: a trusted confidant; below settings.poiBelow: a person of interest. */
@@ -145,6 +177,10 @@ export interface Reward {
 export interface Motive {
   text: string;
   updatedAt: TS;
+  /** Written by another player in a mission with entry.writesMotive (missing or null: the GM's). */
+  byUid?: string | null;
+  /** That mission's side quest. */
+  globalQuestId?: string | null;
 }
 
 export type PlayerLeft = 'frozen' | 'out';
@@ -220,6 +256,62 @@ export interface GlobalQuest {
   fastestBonus?: number;
   /** Set when it is scored: the fastest entry, if one was paid the bonus or could have been. */
   fastestSubmissionId?: string | null;
+  /** Missing = 'mission'. An announcement takes no entries: it is closed as it fires. */
+  kind?: 'mission' | 'announce';
+  /** Open alongside the other missions until its deadline; its vote opens only when the GM opens it or an announcement names it. */
+  longRun?: boolean;
+  /** What an entry must be; missing = a photo and/or a caption, naming nobody. */
+  entry?: StoryEntry | null;
+  /** Points for every vote an entry gets; missing = none. */
+  votePoints?: number | null;
+  /** What each of several tied top entries gets; missing = the full bonusPoints. */
+  tieBonus?: number | null;
+  /** When it closes, its winning entries are recorded as this fact. */
+  records?: { key: string; label: string } | null;
+}
+
+/** What an entry to a story mission is: its media, whether the caption is required, and the player it names. */
+export interface StoryEntry {
+  /** Missing = 'photo' (a photo and/or a caption). 'video' needs a video; 'text' needs a caption. */
+  media?: 'photo' | 'video' | 'text';
+  caption?: 'required';
+  /** 'player': the entrant names another player; 'assigned': each player is dealt another player when it fires. */
+  tag?: 'player' | 'assigned';
+  /** With tag 'assigned': when it closes, each entry becomes the motive (motives/{uid}) of the player it is about. */
+  writesMotive?: boolean;
+}
+
+/** One winning entry recorded on a fact. */
+export interface FactEntry {
+  submissionId: string;
+  uid: string;
+  displayName: string;
+  caption: string | null;
+  imagePath: string | null;
+  thumbPath: string | null;
+  videoPath: string | null;
+  votes: number;
+}
+
+/**
+ * facts/{key}: something the story has settled, from an announcement (a `value`) or from a mission's winning entries
+ * (`entries`, several when tied, none when nobody won). Players and GMs read; only functions write.
+ */
+export interface Fact {
+  key: string;
+  label: string;
+  value: string | null;
+  entries: FactEntry[];
+  storyId: string | null;
+  at: TS;
+}
+
+/** assignments/{globalQuestId}_{uid}: the player `uid` was dealt for a mission with `entry.tag: 'assigned'`. Owner and GM read. */
+export interface Assignment {
+  globalQuestId: string;
+  uid: string;
+  targetUid: string;
+  createdAt: TS;
 }
 
 /** globalQuests/{id}/votes/{voterUid} — server only */
@@ -278,6 +370,12 @@ export interface Submission {
   refillQuestId?: string | null;
   /** Side-quest entries: the GM's check once entries close. 'rejected' = thrown out with no fine (not a disqualification). */
   checked?: 'accepted' | 'rejected' | null;
+  /** An entry that names a player (entry.tag 'player' or 'assigned'): who it is about. */
+  taggedUid?: string | null;
+  /** A video entry: the file under submissions/{uid}/ (thumbPath is its poster frame, if any). */
+  videoPath?: string | null;
+  /** The witness last told about this claim (the witness-change trigger compares it with witnessUid). */
+  witnessNotifiedUid?: string | null;
 }
 
 /** The quick picks in the reaction picker. Players can also react with any single emoji from their keyboard. */
@@ -291,10 +389,34 @@ export const REACTION_EMOJI = [
 export type ReactionEmoji = (typeof REACTION_EMOJI)[number];
 
 /** feed/{id}/reactions/{uid} — one per player per post (there are no comments) */
-export interface Reaction {
-  /** One emoji: from REACTION_EMOJI or typed from the keyboard (see src/lib/emoji.ts). */
-  emoji: string;
-  createdAt: TS;
+export type Reaction =
+  | {
+      /** One emoji: from REACTION_EMOJI or typed from the keyboard (see src/lib/emoji.ts). */
+      emoji: string;
+      createdAt: TS;
+    }
+  | {
+      /** Packs with `reactions: 'votes'`: 1 is Credible, -1 is Doubtful. */
+      vote: 1 | -1;
+      createdAt: TS;
+    };
+
+/**
+ * game/top — the one entry pinned at the top of the log book (packs with `reactions: 'votes'`): the best score
+ * (up minus down) among entries with a score of 1 or more. Written by the reaction trigger only when it changes.
+ */
+export interface TopPost {
+  /** The holder, or null when no entry qualifies (any more). */
+  feedId: string | null;
+  score: number;
+  up: number;
+  down: number;
+  /** When the holder took the top; kept while it holds. */
+  since: TS | null;
+  /** The entry that held it before the current one (or last, when feedId is null). */
+  previousFeedId: string | null;
+  /** When that previous holder took the top. */
+  previousSince: TS | null;
 }
 
 /** pushTokens/{sha256(token)} — a device that takes notifications. Server only. */
@@ -334,6 +456,7 @@ export interface PlayerLocation {
 export const LEDGER_REASON_LIST = [
   'quest',
   'global-win',
+  'global-votes',
   'global-entry',
   'exposed',
   'guess-correct',
@@ -395,6 +518,8 @@ export type FeedType =
   | 'checkin-closed'
   /** A side quest judged by submission was scored: who took part, who was fastest, who missed it. */
   | 'global-scored'
+  /** A story announcement fired (no entries): the text is its description, `ref` its side quest. */
+  | 'story-beat'
   /** A player became, or stopped being, a trusted confidant or a person of interest. `uid` is the player. */
   | 'standing'
   /** A watch police check-in opened for `uid` (packs with police); `ref` is the call. */
@@ -402,7 +527,9 @@ export type FeedType =
   /** A trusted confidant (`actorUid`) tipped off the police about `uid`, saying `note`; `ref` is the call. */
   | 'police-tip'
   /** A police check-in ended for `uid`: passed, failed or missed, with the points. */
-  | 'police-result';
+  | 'police-result'
+  /** The phone lines went down (check-ins open in the app) or came back (packs with police and phone calls). */
+  | 'police-line';
 
 export type PeriodicStatus = 'running' | 'stopped';
 
@@ -466,6 +593,35 @@ export interface CheckinAnswer {
 
 export type PoliceCallKind = 'watch' | 'tip';
 export type PoliceCallStatus = 'open' | 'passed' | 'failed' | 'missed' | 'cancelled';
+/** How a police check-in reaches the player: a phone call (Twilio) or the app. */
+export type PoliceChannel = 'phone' | 'app';
+/**
+ * Why a check-in is in the app although phone calls are on: the player has no verified line ('no-line'), the
+ * switchboard sent everyone to the app ('lines-down'), or the phone call never connected and was re-sent here.
+ */
+export type PoliceFallbackReason = 'no-line' | 'lines-down' | 'never-connected';
+/**
+ * How a phone call ended. 'never-connected' is the system's fault (never fined); the rest are the player's: it rang
+ * out, they declined it, voicemail took it, or they picked up and keyed nothing.
+ */
+export type PhoneCallResult = 'answered' | 'no-answer' | 'busy' | 'voicemail' | 'no-digits' | 'never-connected';
+
+/** The phone attempt on a police check-in. Kept after the check-in is re-sent to the app, for the GM's log. */
+export interface PoliceCallPhone {
+  /** Twilio's call id; null until Twilio has taken the call. */
+  sid: string | null;
+  /** 'pending' (waiting to be dialled), 'dialling' (asking Twilio), then Twilio's own CallStatus. */
+  status: string;
+  /** How it ended, once it has. */
+  result: PhoneCallResult | null;
+  /** Why it never connected: Twilio's error code ("21215") or our own ("no-status", "not-set-up", "network"). */
+  errorCode: string | null;
+  placedAt: TS;
+  /** When Twilio last told us anything about it; still null after 90 s means it never connected. */
+  heardAt: TS | null;
+  /** The switchboard's trial call while it is on probation. */
+  trial: boolean;
+}
 
 /**
  * policeCalls/{id} — a police check-in (packs with police): `uid` has until `endsAt` to answer `question`. 'watch'
@@ -488,6 +644,79 @@ export interface PoliceCall {
   /** The points it opened with. */
   passPoints: number;
   failPenalty: number;
+  /** Missing on calls opened before phone calls existed: 'app'. */
+  channel?: PoliceChannel;
+  /** Why it is in the app while phone calls are on; null when it rang, or phone calls are off. */
+  fallbackReason?: PoliceFallbackReason | null;
+  /** The phone call, if one was made. */
+  phone?: PoliceCallPhone | null;
+  /** When a phone call that never connected was re-sent to the app (with a fresh window to answer). */
+  resentAt?: TS | null;
+}
+
+/**
+ * A player's police line (phones/{uid}): 'unverified' until a test call proves it, 'verified' (check-ins ring it),
+ * 'failed' (the last test call didn't work), 'paused' (two check-in calls in a row never connected: the app until
+ * they test it again) or 'app-only' (they'd rather answer in the app).
+ */
+export type PhoneStatus = 'unverified' | 'verified' | 'failed' | 'paused' | 'app-only';
+/** How a test call ended: the code keyed back right, or what went wrong. */
+export type PhoneTestResult = 'passed' | 'wrong-code' | 'no-digits' | 'no-answer' | 'busy' | 'voicemail' | 'never-connected';
+
+/** A test call: it reads `code` out and the player keys it back. */
+export interface PhoneTest {
+  id: string;
+  code: string;
+  sid: string | null;
+  /** 'dialling', then Twilio's own CallStatus. */
+  status: string;
+  result: PhoneTestResult | null;
+  errorCode: string | null;
+  startedAt: TS;
+  heardAt: TS | null;
+}
+
+/**
+ * phones/{uid} — the number the police ring (packs with police, phone calls on). Read by that player and the GM;
+ * only functions write it (setPoliceLine, testPoliceLine, the voice webhook). Deleted on a reset and at game end.
+ */
+export interface PlayerPhone {
+  /** E.164, e.g. "+447700900123". */
+  number: string;
+  status: PhoneStatus;
+  verifiedAt: TS | null;
+  /** Check-in calls in a row that never connected; two pause the line. */
+  failures: number;
+  /** Why it failed or paused, in words for the player and the GM. */
+  reason: string | null;
+  /** The number the police ring from, noted when a number is saved or a call goes out (for the contact card). */
+  callerId: string | null;
+  /** The latest test call. */
+  test: PhoneTest | null;
+  updatedAt: TS;
+}
+
+/** 'phone': calls ring; 'app': everyone answers in the app; 'probation': the next due call is a trial by phone. */
+export type SwitchMode = 'phone' | 'app' | 'probation';
+
+/**
+ * game/switchboard — the game-wide breaker for police phone calls. Calls that never connect (three in a row, to at
+ * least two players) or one account error switch everyone to the app; a health check every 15 min moves it to
+ * probation and a trial call that connects restores it. The GM reads it; only functions write it.
+ */
+export interface Switchboard {
+  mode: SwitchMode;
+  /** The GM set this mode by hand: the health check leaves a hand-set 'app' alone. */
+  manual: boolean;
+  since: TS | null;
+  /** Check-in calls in a row that never connected, and who they went to. */
+  streak: number;
+  streakUids: string[];
+  /** Probation: the trial call in flight. */
+  trialCallId: string | null;
+  lastError: { code: string | null; message: string; at: TS } | null;
+  /** The last health check: a look at the Twilio account that rings nobody. */
+  health: { ok: boolean; message: string; balance: string | null; at: TS } | null;
 }
 
 /** feed/{id} — the Home feed. Everything that happens in the game posts here. */
@@ -515,6 +744,17 @@ export interface FeedItem {
   flagged?: boolean;
   /** Maintained by a trigger from feed/{id}/reactions. */
   reactionCount?: number;
+  /** Packs with vote reactions: Credible and Doubtful counts, up minus down, and who voted which way. Missing = 0 / {}. */
+  up?: number;
+  down?: number;
+  score?: number;
+  votes?: Record<string, 1 | -1>;
+  /** A 'standing' post: the standing the player now has (null: they lost it). Missing on posts from before. */
+  standing?: PlayerStanding | null;
+  /** A video entry's file, once revealed. */
+  videoPath?: string | null;
+  /** An entry that names a player, once revealed. */
+  taggedUid?: string | null;
 }
 
 export interface Standing {
@@ -564,8 +804,8 @@ export interface Wrap {
   hand: { templateId: string; title: string; description: string; status: QuestStatus }[];
   guessStats: { made: number; hits: number; pointsTaken: number };
   exposedBy: { uid: string; displayName: string; title: string }[];
-  /** The player's approved post with the most reactions (ties → earliest). */
-  topPhoto: { submissionId: string; thumbPath: string | null; imagePath: string | null; caption: string | null; reactionCount: number } | null;
+  /** The player's approved post with the most reactions (ties → earliest); in a votes pack, the highest score. */
+  topPhoto: { submissionId: string; thumbPath: string | null; imagePath: string | null; caption: string | null; reactionCount: number; score?: number } | null;
   venues: { id: string; name: string }[];
   rerollsUsed: number;
   /** settings.rerollLimit plus the player's GM extras when the game ended. Absent on older wraps. */

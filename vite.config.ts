@@ -1,11 +1,12 @@
 import react from '@vitejs/plugin-react';
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { brands } from './src/packs/brands.ts';
 import { getPack } from './functions/src/shared/packs/index.ts';
+import { bootScreen } from './src/lib/loaderMark.ts';
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -47,7 +48,12 @@ export default defineConfig(({ mode }) => {
             .replaceAll('%TITLE%', pack.name)
             .replaceAll('%DESCRIPTION%', pack.description)
             .replaceAll('%THEME_COLOR%', brand.themeColor)
-            .replaceAll('%BACKGROUND_COLOR%', brand.backgroundColor),
+            .replaceAll('%BACKGROUND_COLOR%', brand.backgroundColor)
+            // The pack's loading figure until React's first render replaces it (brand.boot), or nothing. Loader.css is
+            // read for every page, so in dev the figure keeps up with it.
+            .replace('%BOOT%', () =>
+              brand.boot ? bootScreen(brand.boot, { name: pack.name, loaderCss: readFileSync(join(root, 'src/components/Loader.css'), 'utf8') }) : '',
+            ),
       },
       VitePWA({
         registerType: 'autoUpdate',

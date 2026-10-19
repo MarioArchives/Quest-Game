@@ -1,0 +1,7 @@
+/* The print (booking desk and the player's file): teal light on the livescan, ink on paper. */
+.bk-print { --scan: #5fe0d6; --print-ink: #1d1b22; display: block; max-width: none; overflow: visible; }
+.bk-print__ghost { fill: rgba(95, 224, 214, 0.04); stroke: rgba(95, 224, 214, 0.3); stroke-width: 1.2; stroke-dasharray: 4 5; }
+.bk-print__ridges path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.bk-print--glow .bk-print__ridges path { stroke: var(--scan); stroke-width: 2.9; }
+.bk-print__scan { fill: #c6fffa; }
+.bk-print--ink .bk-print__ridges path { stroke: var(--print-ink); stroke-width: 3.3; }

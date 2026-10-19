@@ -3,13 +3,27 @@ import { drawTemplate } from '../shared/draw.js';
 import { getPack } from '../shared/packs/index.js';
 import { termForms } from '../shared/packs/terms.js';
 import type { GamePack, StoryQuest } from '../shared/packs/types.js';
-import type { GlobalQuest, GlobalQuestSource, Judging, QuietHours, Settings } from '../shared/types.js';
+import type { StoryEntry } from '../shared/types.js';
+import { derange } from '../shared/derange.js';
+import type { GlobalQuest, GlobalQuestSource, Judging, Player, QuietHours, Settings } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
-import { fail, loadSettings, loadState, requireGM } from './guards.js';
+import { fail, isPlaying, loadSettings, loadState, requireGM } from './guards.js';
 import { MIN_MS, millis, nextGlobalTime, toTs } from './util.js';
-import { scoringFor } from './ledger.js';
-import { closeWithTally, moveOn, readAllEntries, readMoveOn, readVotes, type Entry, type Quest } from './voting.js';
+import { scoringFor, type Scoring } from './ledger.js';
+import {
+  attachPosts,
+  closeWithTally,
+  moveOn,
+  openVoteNow,
+  readAllEntries,
+  readEntries,
+  readMoveOn,
+  readPlayers,
+  readVotes,
+  type Entry,
+  type Quest,
+} from './voting.js';
 
 function minutesOfDay(hhmm: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
@@ -69,7 +83,17 @@ interface OpenSpec {
   templateId: string | null;
   windowMin: number;
   /** A story mission's own fields (see GlobalQuest); a random or custom side quest leaves them out. */
-  story?: { storyId: string; judging: Judging; skipPenalty: number; fastestBonus: number };
+  story?: {
+    storyId: string;
+    judging: Judging;
+    skipPenalty: number;
+    fastestBonus: number;
+    longRun?: boolean;
+    entry?: StoryEntry;
+    votePoints?: number;
+    tieBonus?: number;
+    records?: { key: string; label: string };
+  };
 }
 
 /** Creates a live side quest, schedules the next timer quest and announces it. Returns the new id. */
@@ -142,7 +166,8 @@ export async function runTick(db: Db, now: Date, rng: () => number, pack: GamePa
     const quests = (await tx.get(db.collection('globalQuests'))).docs;
     const live = quests.filter((q) => q.get('status') === 'live');
     const expired = live.filter((q) => millis(q.get('endsAt')) <= nowMs);
-    const running = live.filter((q) => !expired.includes(q));
+    // A long-running mission is never moved on by another (it waits for its own deadline), and it does not hold back random drops.
+    const running = live.filter((q) => !expired.includes(q) && !q.get('longRun'));
     // Checking never runs out: only a GM opens the vote.
     const votingOver = quests.filter((q) => q.get('status') === 'voting' && q.get('votingEndsAt') && millis(q.get('votingEndsAt')) <= nowMs);
 
@@ -212,7 +237,7 @@ interface Fields {
  * The GM's title, description, window and points. In custom mode every field is required; with a `base` (the
  * template's own values) a field left out keeps the base value, and every field given is checked the same way.
  */
-function parseFields(data: Record<string, unknown>, base?: Fields): Fields {
+function parseFields(data: Record<string, unknown>, base?: Fields, maxWindow = 180): Fields {
   const bad = (message: string): never => fail('invalid-argument', message);
   const given = (key: keyof GmFields) => base === undefined || data[key] !== undefined;
   let title = base?.title ?? '';
@@ -229,7 +254,7 @@ function parseFields(data: Record<string, unknown>, base?: Fields): Fields {
   let windowMin = base?.windowMin ?? 0;
   if (given('windowMin')) {
     const w = data.windowMin;
-    if (typeof w !== 'number' || !Number.isInteger(w) || w < 5 || w > 180) bad('The window must be a whole number of minutes from 5 to 180.');
+    if (typeof w !== 'number' || !Number.isInteger(w) || w < 5 || w > maxWindow) bad(`The window must be a whole number of minutes from 5 to ${maxWindow}.`);
     windowMin = w as number;
   }
   let points = base?.points ?? 0;
@@ -250,12 +275,16 @@ function parseCount(value: unknown, what: string): number | undefined {
 
 /** The story mission's fields: the GM's changes over the story's own values over the settings. */
 function storySpec(input: Record<string, unknown>, story: StoryQuest, settings: Settings): OpenSpec {
-  const f = parseFields(input, {
-    title: story.title,
-    description: story.description,
-    windowMin: story.windowMin ?? settings.globalWindowMin,
-    points: story.points ?? settings.sideQuestPoints,
-  });
+  const f = parseFields(
+    input,
+    {
+      title: story.title,
+      description: story.description,
+      windowMin: story.windowMin ?? settings.globalWindowMin,
+      points: story.points ?? settings.sideQuestPoints,
+    },
+    story.longRun ? 720 : 180,
+  );
   const judging = input.judging ?? story.judging;
   if (judging !== 'vote' && judging !== 'submit') fail('invalid-argument', "Judging must be 'vote' or 'submit'.");
   const fastestBonus = parseCount(input.fastestBonus, 'The fastest bonus') ?? story.fastestBonus ?? 0;
@@ -267,7 +296,17 @@ function storySpec(input: Record<string, unknown>, story: StoryQuest, settings: 
     source: 'story',
     templateId: null,
     windowMin: f.windowMin,
-    story: { storyId: story.id, judging: judging as Judging, skipPenalty, fastestBonus },
+    story: {
+      storyId: story.id,
+      judging: judging as Judging,
+      skipPenalty,
+      fastestBonus,
+      ...(story.longRun ? { longRun: true } : {}),
+      ...(story.entry ? { entry: story.entry } : {}),
+      ...(story.votePoints != null ? { votePoints: story.votePoints } : {}),
+      ...(story.tieBonus != null ? { tieBonus: story.tieBonus } : {}),
+      ...(story.records ? { records: story.records } : {}),
+    },
   };
 }
 
@@ -306,15 +345,26 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
     const settings = await loadSettings(db, tx);
     const quests = (await tx.get(db.collection('globalQuests'))).docs;
     let spec: OpenSpec;
+    let announcement: StoryQuest | null = null;
+    let dealt: Record<string, string> | null = null;
     if (custom) {
       spec = custom;
     } else if (mode === 'story') {
       const story = (pack.catalogue.story ?? []).find((q) => q.id === storyId);
       if (!story) fail('not-found', `That story mission is not in this game.`);
-      if (quests.some((q) => q.get('storyId') === storyId && q.get('status') !== 'closed')) {
+      if (story!.kind === 'announce') {
+        announcement = story!;
+      } else if (quests.some((q) => q.get('storyId') === storyId && q.get('status') !== 'closed')) {
         fail('failed-precondition', `That story mission is already running.`);
       }
-      spec = storySpec(input, story!, settings);
+      spec = announcement ? ({} as OpenSpec) : storySpec(input, story!, settings);
+      if (story!.entry?.tag === 'assigned') {
+        // Everyone still playing is dealt another player to write about (or tag); it needs at least two.
+        const players = await readPlayers(tx, db);
+        const playing = [...players].filter(([, p]) => isPlaying(p)).map(([uid]) => uid);
+        if (playing.length < 2) fail('failed-precondition', `At least two players are needed to deal each one another.`);
+        dealt = derange(playing, rng);
+      }
     } else if (mode === 'template') {
       const doc = await tx.get(db.doc(`questTemplates/${templateId as string}`));
       if (!doc.exists) fail('not-found', `That ${t.sideQuest.one} is no longer in the templates.`);
@@ -333,12 +383,74 @@ export async function fireGlobalQuest(db: Db, ctx: Ctx, data: FireGlobalInput): 
       spec = fromTemplate(template, settings, 'gm-random');
     }
 
-    // Only one live quest at a time: the current one moves on first, by its own mode (a random one to checking,
-    // where late entries still count; a story vote to voting; a story submission is scored).
-    const live = quests.filter((q) => q.get('status') === 'live').map(asQuest);
-    const move = await readMoveOn(tx, db, live);
     const scoring = scoringFor(pack, settings, state, ctx.now);
+    if (announcement) return { globalQuestId: await fireAnnouncement(tx, db, ctx.now, settings, scoring, announcement, quests) };
+
+    // Only one live quest at a time: the current one moves on first, by its own mode (a random one to checking,
+    // where late entries still count; a story vote to voting; a story submission is scored). A long-running one stays.
+    const live = quests.filter((q) => q.get('status') === 'live' && !q.get('longRun')).map(asQuest);
+    const move = await readMoveOn(tx, db, live);
     for (const q of live) moveOn(tx, db, ctx.now, pack, settings, scoring, q, move, ctx.uid);
-    return { globalQuestId: openGlobalQuest(tx, db, ctx.now, rng, pack, settings, spec) };
+    const id = openGlobalQuest(tx, db, ctx.now, rng, pack, settings, spec);
+    for (const [uid, targetUid] of Object.entries(dealt ?? {})) {
+      tx.create(db.doc(`assignments/${id}_${uid}`), { globalQuestId: id, uid, targetUid, createdAt: toTs(ctx.now) });
+    }
+    return { globalQuestId: id };
   });
+}
+
+/**
+ * Fires an announcement: a closed side quest (so the story shows it done), a story-beat post, the fact it settles, and, if it
+ * names a mission, that mission's current run goes to its result now (entries close and its vote opens, or it closes with
+ * fines when nobody entered; one already voting or closed is left alone). It never moves the live mission on or fines anyone else.
+ */
+async function fireAnnouncement(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  settings: Settings,
+  scoring: Scoring,
+  story: StoryQuest,
+  quests: DocSnap[],
+): Promise<string> {
+  // Reads first: the run it opens the vote on.
+  const target = story.opensVoteOn
+    ? quests
+        .filter((q) => q.get('storyId') === story.opensVoteOn && (q.get('status') === 'live' || q.get('status') === 'checking'))
+        .sort((a, b) => millis(b.get('startsAt')) - millis(a.get('startsAt')))[0]
+    : undefined;
+  let entries: Entry[] = [];
+  let players = new Map<string, Player>();
+  if (target) {
+    entries = await readEntries(tx, db, target.id);
+    await attachPosts(tx, db, entries);
+    players = await readPlayers(tx, db);
+  }
+
+  const ref = db.collection('globalQuests').doc();
+  const quest: GlobalQuest = {
+    title: story.title,
+    description: story.description,
+    bonusPoints: 0,
+    source: 'story',
+    templateId: null,
+    startsAt: toTs(now),
+    endsAt: toTs(now),
+    status: 'closed',
+    votingEndsAt: null,
+    winnerUids: [],
+    winningSubmissionIds: [],
+    tally: null,
+    storyId: story.id,
+    kind: 'announce',
+    gmChecks: false,
+  };
+  tx.create(ref, quest);
+  addFeed(tx, db, now, { type: 'story-beat', text: story.description, uid: null, ref: ref.id, questTitle: story.title });
+  if (story.fact) {
+    const { key, label, value } = story.fact;
+    tx.set(db.doc(`facts/${key}`), { key, label, value, entries: [], storyId: story.id, at: toTs(now) });
+  }
+  if (target) openVoteNow(tx, db, now, settings, scoring, asQuest(target), entries, players);
+  return ref.id;
 }

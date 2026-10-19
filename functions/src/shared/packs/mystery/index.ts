@@ -7,7 +7,10 @@ import quests from './quests.json' with { type: 'json' };
 export const mystery: GamePack = {
   id: 'mystery',
   name: 'Mystery Pub Crawl',
-  description: 'A murder at Blackwood Manor, a pub crawl full of suspects, and evidence to tamper with.',
+  // Only what matters on the night; the GM also hears about join requests, entries to check and switchboard alerts.
+  pushKinds: ['global-open', 'story-beat', 'voting-open', 'witness', 'standing-gained', 'join', 'checking', 'police-line'],
+  reactions: 'votes',
+  description: 'The murder of Bob, a pub crawl full of suspects, and evidence to tamper with.',
   terms: {
     quest: { one: 'tampering mission', many: 'tampering missions' },
     sideQuest: { one: 'group mission', many: 'group missions' },
@@ -16,6 +19,7 @@ export const mystery: GamePack = {
     gm: { one: 'GM', many: 'GMs' },
     wrap: { one: 'case file', many: 'case files' },
     checkin: { one: 'periodic mission', many: 'periodic missions' },
+    feed: { one: 'log book', many: 'log books' },
   },
   features: { guesses: true, sideQuests: true, map: true, rewardChoice: true, characters: true, stops: true, checkins: true, police: true },
   timeZone: 'Europe/London',
@@ -43,9 +47,34 @@ export const mystery: GamePack = {
     policeWindowMin: 5,
     policePassPoints: 5,
     policeFailPenalty: 5,
+    // Police check-ins ring players' phones (the booking desk asks for a number and makes a test call). Without
+    // Twilio set up (design/twilio-setup.md) the test call says so and every check-in opens in the app.
+    policePhone: true,
+    // Who rings when phone calls are on (the name on the contact card too).
+    policeCallerName: 'Manchester Metropolitan Police',
     autoSideQuests: true,
   },
   gmQuickPoints: 1,
+  // The police on the phone (phone calls on): a desk sergeant's wording, read out by Polly until the GM records
+  // the lines into src/packs/mystery/public/audio/police/<line>.mp3 and lists them in `recordings`.
+  policeVoice: {
+    voice: { voice: 'Polly.Brian', language: 'en-GB' },
+    lines: {
+      'intro-watch': "Evening, {name}. {caller} here. You're a person of interest, so this is a quick sobriety check.",
+      'intro-tip': "{caller} here. We've had a tip-off about you, {name}. Let's see how sober you are.",
+      'key-in': 'Key in your answer, then press hash.',
+      again: "I didn't catch that. Once more.",
+      pass: 'Correct. Stay out of trouble. Goodbye.',
+      fail: "That's not right. We'll be making a note of that. Goodbye.",
+      'no-answer': "Nothing? I'll mark that as a missed check-in. Goodbye.",
+      closed: 'This check-in is closed. Goodbye.',
+      moved: "The line's bad, so your check-in is waiting in the app. Goodbye.",
+      'test-intro': '{caller}, testing your line. Your code is',
+      'test-pass': "Got it. We'll be in touch. Goodbye.",
+      'test-fail': "That's not the code. Try again from the app. Goodbye.",
+    },
+    recordings: [],
+  },
   // The periodic mission a seed starts with: a roll call four times a night, an hour apart, 15 minutes to answer
   // with a photo or a comment, 5 off for missing one. The GM edits it, stops it or adds more in the GM console.
   periodics: [
@@ -85,9 +114,10 @@ export const mystery: GamePack = {
   // (the JSON types 'judging' as plain text)
   catalogue: quests as Catalogue,
   map: {
-    centre: { lat: 53.4145, lng: -2.2312 },
-    zoom: 16,
-    placeName: 'Didsbury',
+    // Between the Northern Quarter and Charles Street, so the whole crawl (about a kilometre end to end) is in view.
+    centre: { lat: 53.4791, lng: -2.2359 },
+    zoom: 15,
+    placeName: 'Manchester city centre',
     nearbyKm: 2,
     credit: null,
     routeStyle: 'footprints',
@@ -95,22 +125,22 @@ export const mystery: GamePack = {
     barSearch: { name: 'Manchester', south: 53.34, west: -2.32, north: 53.545, east: -2.146 },
   },
   venues: [],
-  // The starting route through Didsbury (OpenStreetMap places and addresses). The GM can edit, reorder and reveal it in
-  // the app, or swap a stop for another bar from the map's bar search.
+  // The starting route through Manchester city centre (OpenStreetMap places and addresses; The Mother of Invention is
+  // newer than the map, so its position comes from Google Maps and it has no placeRef). The GM can edit, reorder and
+  // reveal it in the app, or swap a stop for another bar from the map's bar search.
   route: [
-    { name: 'The Didsbury', lat: 53.41027, lng: -2.23091, address: '852 Wilmslow Road, M20 2SG', placeRef: 'osm:node/27024692' },
-    { name: 'Ye Olde Cock Inn', lat: 53.41062, lng: -2.23106, address: '848 Wilmslow Road, M20 2RN', placeRef: 'osm:node/27024693' },
-    { name: 'The Crown', lat: 53.41571, lng: -2.23219, address: '770 Wilmslow Road, M20 2DR', placeRef: 'osm:node/27465378' },
-    { name: 'The Royal Oak', lat: 53.41636, lng: -2.23152, address: '729 Wilmslow Road, M20 6WF', placeRef: 'osm:node/27465379' },
-    { name: 'Fletcher Moss Pub', lat: 53.4168, lng: -2.22981, address: '1 William Street, M20 6RQ', placeRef: 'osm:node/4101417790' },
-    { name: 'Dog and Partridge', lat: 53.41796, lng: -2.23132, address: '665-667 Wilmslow Road, M20 6RA', placeRef: 'osm:node/29121339' },
-    { name: 'Head of Steam', lat: 53.41855, lng: -2.23147, address: '653 Wilmslow Road, M20 6QZ', placeRef: 'osm:node/8483605176' },
+    { name: 'The Badger', lat: 53.48162, lng: -2.23408, address: '24 Dale Street, M1 1FY', placeRef: 'osm:node/3114683531' },
+    { name: 'Flok', lat: 53.48276, lng: -2.23372, address: '5 Stevenson Square, M1 1DN', placeRef: 'osm:node/6358776626' },
+    { name: 'The Mother of Invention', lat: 53.48332, lng: -2.23481, address: 'Oldham Street, M4 1EB' },
+    { name: 'Terrace NQ', lat: 53.48412, lng: -2.23665, address: '43 Thomas Street, M4 1NA', placeRef: 'osm:node/1435542159' },
+    { name: 'Cane and Grain', lat: 53.48397, lng: -2.23645, address: '51 Thomas Street, M4 1NA', placeRef: 'osm:node/5892038085' },
+    { name: 'YES', lat: 53.47401, lng: -2.23816, address: '38 Charles Street, M1 7DB', placeRef: 'osm:node/9062401417' },
   ],
   demoCharacters: [
     {
       name: 'Lady Violet Ashcombe',
-      role: 'Niece of the deceased',
-      motive: 'Lord Blackwood was about to cut her out of his will, and she needs the new draft to go missing.',
+      role: 'Niece of Bob',
+      motive: 'Bob was about to cut her out of his will, and she needs the new draft to go missing.',
     },
     {
       name: 'Dr Rupert Fenwick',
@@ -119,13 +149,13 @@ export const mystery: GamePack = {
     },
     {
       name: 'Marguerite Delacroix',
-      role: 'Housekeeper of Blackwood Manor',
+      role: 'Housekeeper to Bob',
       motive: 'She knows what was in the study safe and has already taken the one thing that could name her.',
     },
     {
       name: 'Captain Alistair Thorne',
-      role: 'Old army friend of the deceased',
-      motive: 'He owed Lord Blackwood a fortune, and the only record of the debt was in the late lord\'s desk.',
+      role: 'Old army friend of Bob',
+      motive: 'He owed Bob a fortune, and the only record of the debt was in his desk.',
     },
   ],
 };

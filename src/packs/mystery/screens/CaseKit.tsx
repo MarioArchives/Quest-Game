@@ -70,9 +70,9 @@ export const tiltFor = (id: string): number => ((Number(tagNumber(id)) % 5) - 2)
  * A kraft tag on the line: the string runs behind the tag and through a real hole in its eyelet. `tilt` turns it
  * about the eyelet, so the string stays put.
  */
-export function Tag({ children, tilt = 0, className, rowClassName }: { children: ReactNode; tilt?: number; className?: string; rowClassName?: string }) {
+export function Tag({ children, tilt = 0, className, rowClassName, id }: { children: ReactNode; tilt?: number; className?: string; rowClassName?: string; id?: string }) {
   return (
-    <li className={`cf-row${rowClassName ? ` ${rowClassName}` : ''}`}>
+    <li id={id} className={`cf-row${rowClassName ? ` ${rowClassName}` : ''}`}>
       <svg className="cf-knot" width="52" height="24" viewBox="0 0 52 24" aria-hidden="true" focusable="false">
         <path d="M7.5 3 C 18 3, 28 8, 46 12" fill="none" stroke="var(--twine)" strokeWidth="2.6" strokeLinecap="round" />
       </svg>

@@ -30,6 +30,16 @@ describe('CALLABLES', () => {
     expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['answerPoliceCall', 'tipOffPolice']));
   });
 
+  it('includes the police phone line: my number, my test call and the GM switchboard, all three on the phone line', () => {
+    expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['setPoliceLine', 'testPoliceLine', 'setSwitchboard']));
+    // setPoliceLine only reads the caller ID off it (for the contact card); the other two ring.
+    expect(Object.entries(CALLABLES).filter(([, def]) => def.phone).map(([name]) => name).sort()).toEqual(['setPoliceLine', 'setSwitchboard', 'testPoliceLine']);
+  });
+
+  it('includes booking in (a pack’s onboarding)', () => {
+    expect(Object.keys(CALLABLES)).toContain('bookIn');
+  });
+
   it('every entry has a handler', () => {
     for (const [name, def] of Object.entries(CALLABLES)) expect(typeof def.run, name).toBe('function');
   });
@@ -41,22 +51,25 @@ describe('CALLABLES', () => {
 
   it('functions/src/index.ts exports one function per callable and per trigger', () => {
     const index = read('../src/index.ts');
-    for (const name of [...Object.keys(CALLABLES), ...TRIGGERS.map((t) => t.name), 'globalQuestTick']) {
+    for (const name of [...Object.keys(CALLABLES), ...TRIGGERS.map((t) => t.name), 'globalQuestTick', 'policeVoice']) {
       expect(index, name).toMatch(new RegExp(`export const ${name}\\b`));
     }
   });
 });
 
 describe('TRIGGERS', () => {
-  it('are the five document triggers on the same paths as before, plus every player write (standings)', () => {
+  it('are the five document triggers on the same paths as before, plus every player write (standings), new police calls and every submission write (a changed witness)', () => {
     expect(TRIGGERS.map((t) => [t.name, t.pattern, t.on]).sort()).toEqual([
       ['onAdminCreated', 'admins/{uid}', 'create'],
       ['onFeedCreated', 'feed/{feedId}', 'create'],
       ['onFeedReactionWritten', 'feed/{feedId}/reactions/{uid}', 'write'],
       ['onJoinRequestCreated', 'joinRequests/{uid}', 'create'],
       ['onPlayerWritten', 'players/{uid}', 'write'],
+      ['onPoliceCallCreated', 'policeCalls/{callId}', 'create'],
       ['onSubmissionCreated', 'submissions/{submissionId}', 'create'],
+      ['onSubmissionWritten', 'submissions/{submissionId}', 'write'],
     ]);
+    expect(TRIGGERS.filter((t) => t.phone).map((t) => t.name)).toEqual(['onPoliceCallCreated']);
   });
 
   it('every pattern alternates collection names and unique {params}', () => {

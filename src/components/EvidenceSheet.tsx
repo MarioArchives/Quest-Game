@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { addEvidence, answerCheckin, enterSideQuest, friendlyError, type EvidenceInput } from '../api';
 import { useGame } from '../data/GameProvider';
-import { useStorageUrl } from '../data/hooks';
-import { compressPhoto, uploadJpeg, type CompressedPhoto } from '../lib/upload';
-import { CAPTION_MAX, type Checkin, type Doc, type GlobalQuest, type Submission } from '../shared';
+import { useDocument, useStorageUrl } from '../data/hooks';
+import { compressPhoto, readVideoDuration, uploadJpeg, uploadVideo, videoExt, videoPoster, type CompressedPhoto } from '../lib/upload';
+import { checkVideo } from '../lib/video';
+import { CAPTION_MAX, type Assignment, type Checkin, type Doc, type GlobalQuest, type Submission } from '../shared';
 import { BottomSheet } from './BottomSheet';
 import { Button } from './Button';
 import { CameraSheet, prefersInAppCamera } from './CameraSheet';
 import { Icon } from './Icon';
+import { Loader } from './Loader';
 import { useToast } from './Toast';
 import './EvidenceSheet.css';
 import { t } from '../pack';
 import { backend } from '../backend';
+import { WitnessPicker } from './WitnessPicker';
 
 export type EvidenceTarget =
   /** Add (or replace) the photo and comment on an approved claim, or on a side-quest entry while it is still live. */
@@ -45,6 +48,17 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
   const [error, setError] = useState<string | null>(null);
   const [camera, setCamera] = useState(false);
 
+  // A story mission can ask for more than a photo: a video, a text only, a tagged player, a required comment.
+  const entry = target.mode === 'enter' ? (target.quest.entry ?? null) : null;
+  const media = entry?.media ?? 'photo';
+  const [video, setVideo] = useState<{ file: File; poster: Blob | null; preview: string | null; durationSec: number } | null>(null);
+  const [tagUid, setTagUid] = useState<string | null>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+  const videoUpload = useRef<{ id: string; stamp: number; video: boolean; poster: boolean } | null>(null);
+  const assignment = useDocument<Assignment>(entry?.tag === 'assigned' && target.mode === 'enter' ? `assignments/${target.quest.id}_${backend().auth.current()?.uid ?? ''}` : null);
+  const assignedTo = assignment.data?.targetUid ?? null;
+  const { playersById } = useGame();
+
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<string | null>(null);
@@ -64,7 +78,12 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
   const active = target.mode === 'enter' ? state.status === 'active' : target.mode === 'checkin' ? state.status === 'active' || state.status === 'paused' : !ended;
   const trimmed = caption.trim();
   const hasPhoto = photo !== null || keepExisting;
-  const canSave = active && !compressing && (photo !== null || trimmed.length > 0);
+  const needsCaption = entry?.caption === 'required' || media === 'text';
+  const hasMedia = media === 'video' ? video !== null : media === 'text' ? true : photo !== null;
+  const tagOk = entry?.tag === 'player' ? tagUid !== null : entry?.tag === 'assigned' ? assignedTo !== null : true;
+  const canSave = entry
+    ? active && !compressing && hasMedia && tagOk && (!needsCaption || trimmed.length > 0) && (media !== 'photo' || photo !== null || trimmed.length > 0)
+    : active && !compressing && (photo !== null || trimmed.length > 0);
 
   const acceptPhoto = async (file: Blob) => {
     setCompressing(true);
@@ -78,6 +97,28 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
       setPhoto({ compressed, preview });
     } catch {
       setError("That photo couldn't be read. Try taking it again.");
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  const onPickVideo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setCompressing(true);
+    setError(null);
+    try {
+      const durationSec = await readVideoDuration(file);
+      const problem = checkVideo({ type: file.type, size: file.size, durationSec });
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      const poster = await videoPoster(file);
+      if (video?.preview) URL.revokeObjectURL(video.preview);
+      videoUpload.current = null;
+      setVideo({ file, poster, preview: poster ? URL.createObjectURL(poster) : null, durationSec });
     } finally {
       setCompressing(false);
     }
@@ -106,6 +147,26 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
     try {
       const evidence: EvidenceInput = {};
       if (trimmed) evidence.caption = trimmed.slice(0, CAPTION_MAX);
+
+      if (entry?.tag === 'player' && tagUid) evidence.taggedUid = tagUid;
+      if (video) {
+        videoUpload.current ??= { id: backend().data.newId('submissions'), stamp: Date.now(), video: false, poster: false };
+        const u = videoUpload.current;
+        const videoPath = `submissions/${uid}/${u.id}-${u.stamp}.${videoExt(video.file.type)}`;
+        const posterPath = `submissions/${uid}/${u.id}-${u.stamp}_thumb.jpg`;
+        const total = video.file.size + (video.poster?.size ?? 0);
+        if (!u.video) {
+          await uploadVideo(videoPath, video.file, video.file.type, (done) => setProgress(done / total));
+          u.video = true;
+        }
+        if (video.poster && !u.poster) {
+          await uploadJpeg(posterPath, video.poster, (done) => setProgress((video.file.size + done) / total));
+          u.poster = true;
+        }
+        setProgress(1);
+        evidence.videoPath = videoPath;
+        if (video.poster) evidence.thumbPath = posterPath;
+      }
 
       if (photo) {
         upload.current ??= {
@@ -173,14 +234,52 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
         </p>
       ) : null}
       <p className="evidence__intro">
-        {entering
+        {entering && media === 'text'
+          ? 'Write it in the box. Entries stay hidden until they are revealed.'
+          : entering && media === 'video'
+            ? 'Record a short video, or pick one. Entries stay hidden until they are revealed.'
+            : entering
           ? `Show everyone your take: a photo, a comment, or both. When time is up the ${t.gm.One} checks the entries (late ones still count), then the group votes.`
           : answering
-            ? 'A photo, a comment, or both. It goes in the feed, and you can only answer once.'
-            : 'Add a photo, a comment, or both. It shows on your post in the feed.'}
+            ? `A photo, a comment, or both. It goes in the ${t.feed.one}, and you can only answer once.`
+            : `Add a photo, a comment, or both. It shows on your post in the ${t.feed.one}.`}
       </p>
 
-      {previewSrc || (keepExisting && !existingThumb) ? (
+      {entry?.tag === 'player' ? (
+        <WitnessPicker myUid={backend().auth.current()?.uid ?? ''} value={tagUid} onChange={setTagUid} disabled={busy} label="Who’s in the photo?" />
+      ) : null}
+      {entry?.tag === 'assigned' ? (
+        assignment.loading ? (
+          <p className="evidence__given">
+            <Loader inline size={20} label="Looking up your name" caption="Looking up your name…" />
+          </p>
+        ) : (
+          <p className="evidence__given" role="status">
+            {assignedTo ? <>You were given: <strong>{playersById.get(assignedTo)?.displayName ?? 'a player'}</strong></> : 'Nobody was dealt to you, so you can’t enter this one.'}
+          </p>
+        )
+      ) : null}
+
+      {media === 'video' ? (
+        video ? (
+          <figure className="photo-frame evidence__preview">
+            {video.preview ? <img src={video.preview} alt="Your video" /> : <Icon name="image" size={32} />}
+            <figcaption className="field__hint">{Math.round(video.durationSec)} s · {(video.file.size / 1024 / 1024).toFixed(1)} MB</figcaption>
+            <div className="evidence__preview-actions">
+              <Button small disabled={busy || compressing} onClick={() => videoRef.current?.click()}>
+                Choose another
+              </Button>
+            </div>
+          </figure>
+        ) : (
+          <div className="evidence__pick">
+            <Button variant="primary" block disabled={compressing || busy} busy={compressing} icon={<Icon name="camera" size={22} strokeWidth={2.2} />} onClick={() => videoRef.current?.click()}>
+              {compressing ? 'Checking…' : 'Record or choose a video'}
+            </Button>
+            <p className="field__hint">Up to 60 seconds and 50 MB (MP4, MOV or WebM).</p>
+          </div>
+        )
+      ) : media === 'text' ? null : previewSrc || (keepExisting && !existingThumb) ? (
         <figure className="photo-frame evidence__preview">
           {previewSrc ? <img src={previewSrc} alt="Your photo" /> : <Icon name="image" size={32} />}
           <div className="evidence__preview-actions">
@@ -211,6 +310,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
           </Button>
         </div>
       )}
+      <input ref={videoRef} type="file" accept="video/*" capture="user" className="visually-hidden" tabIndex={-1} aria-hidden aria-label="Record or choose a video" onChange={(e) => void onPickVideo(e)} />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="visually-hidden" tabIndex={-1} aria-hidden aria-label="Take a photo" onChange={onPick} />
       <input ref={libraryRef} type="file" accept="image/*" className="visually-hidden" tabIndex={-1} aria-hidden aria-label="Choose a photo from your library" onChange={onPick} />
       {camera ? (
@@ -231,7 +331,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
 
       <div className="field">
         <label className="field__label" htmlFor="evidence-caption">
-          Comment {hasPhoto ? '(optional)' : ''}
+          Comment {needsCaption ? '(required)' : hasPhoto || media === 'video' ? '(optional)' : ''}
         </label>
         <textarea
           id="evidence-caption"
@@ -239,7 +339,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
           value={caption}
           maxLength={CAPTION_MAX}
           disabled={busy}
-          placeholder={entering ? 'Tell the story' : 'What happened?'}
+          placeholder={entering ? (media === 'text' ? 'Write it here' : 'Tell the story') : 'What happened?'}
           onChange={(event) => setCaption(event.target.value)}
         />
         <span className="field__hint">{CAPTION_MAX - caption.length} characters left</span>
@@ -250,7 +350,7 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
           <div
             className="progress"
             role="progressbar"
-            aria-label={phase === 'saving' ? 'Saving' : 'Uploading photo'}
+            aria-label={phase === 'saving' ? 'Saving' : media === 'video' ? 'Uploading video' : 'Uploading photo'}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
@@ -272,7 +372,13 @@ export function EvidenceSheet({ target, onClose }: { target: EvidenceTarget; onC
       <Button variant="primary" block busy={busy} disabled={!canSave} onClick={() => void save()}>
         {saveLabel}
       </Button>
-      {photo === null && !trimmed ? (
+      {entry ? (
+        !canSave && active ? (
+          <p className="field__hint evidence__need" role="status">
+            {media === 'video' && !video ? 'Add a video to enter.' : entry.tag === 'player' && !tagUid ? 'Pick who is in it to enter.' : needsCaption && !trimmed ? 'A comment is required for this one.' : null}
+          </p>
+        ) : null
+      ) : photo === null && !trimmed ? (
         <p className="field__hint evidence__need" role="status">
           Add a photo or a comment to save.
         </p>

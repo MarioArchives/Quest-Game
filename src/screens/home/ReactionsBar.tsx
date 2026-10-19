@@ -11,6 +11,9 @@ import { orderReactions, singleEmoji } from '../../lib/emoji';
 import { useSession } from '../../session/SessionProvider';
 import { REACTION_EMOJI, type Reaction } from '../../shared';
 
+/** The emoji form of a reaction (vote docs only exist in packs with `reactions: 'votes'`). */
+type EmojiReaction = Extract<Reaction, { emoji: string }>;
+
 const PICKER_COLUMNS = 6;
 
 /**
@@ -27,7 +30,7 @@ export function ReactionsBar({ feedId, count }: { feedId: string; count: number 
   const uid = user?.uid ?? null;
   const [touched, setTouched] = useState(false);
   const [picking, setPicking] = useState(false);
-  const reactions = useQuery<Reaction>(count > 0 || touched ? { path: `feed/${feedId}/reactions` } : null);
+  const reactions = useQuery<EmojiReaction>(count > 0 || touched ? { path: `feed/${feedId}/reactions` } : null);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();

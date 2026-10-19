@@ -1,4 +1,5 @@
 import { Avatar } from '../../components/Avatar';
+import { Loader } from '../../components/Loader';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow, useQuery } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
@@ -26,7 +27,9 @@ export function GuessLogSection() {
         <p className="note note--error" role="alert">
           Couldn&apos;t load the guesses.
         </p>
-      ) : guesses.loading ? null : guesses.data.length === 0 ? (
+      ) : guesses.loading ? (
+        <Loader size={48} />
+      ) : guesses.data.length === 0 ? (
         <div className="empty">
           <h3>No guesses yet</h3>
           <p>Every guess, right or wrong, is listed here.</p>

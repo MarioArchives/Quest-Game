@@ -14,7 +14,9 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- The pack's loading figure sits in #root (vite.config.ts fills it in from brand.boot), so it shows with no JS
+         and goes when React first renders. -->
+    <div id="root">%BOOT%</div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

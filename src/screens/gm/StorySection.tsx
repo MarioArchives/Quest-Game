@@ -28,6 +28,12 @@ export function useStory() {
   }, [globalQuests]);
 }
 
+/** "180 min", or "up to 5 h" for a long-running mission. */
+export function storyWindowLabel(s: StoryQuest, fallbackMin: number): string {
+  const min = s.windowMin ?? fallbackMin;
+  return s.longRun ? `${min >= 60 ? `${Math.round((min / 60) * 10) / 10} h` : `${min} min`}, open all night` : `${min} min`;
+}
+
 const STATE_LABEL: Record<StoryState, string> = { done: 'Done', running: 'Running', 'not-yet': 'Not yet' };
 
 /** The form's text fields, as typed. */
@@ -46,7 +52,7 @@ function draftFor(story: StoryQuest, settings: Settings): FireDraft {
   return {
     title: story.title,
     description: story.description,
-    judging: story.judging,
+    judging: story.judging ?? 'vote',
     windowMin: String(story.windowMin ?? settings.globalWindowMin),
     points: String(story.points ?? settings.sideQuestPoints),
     fastestBonus: String(story.fastestBonus ?? 0),
@@ -55,12 +61,12 @@ function draftFor(story: StoryQuest, settings: Settings): FireDraft {
 }
 
 /** The first thing to fix, in the server's limits, or null when it can be sent. */
-function draftProblem(d: FireDraft): string | null {
+function draftProblem(d: FireDraft, maxWindow = 180): string | null {
   if (!d.title.trim()) return 'Give it a title.';
   if (d.title.trim().length > 80) return 'The title can be 80 characters at most.';
   if (d.description.length > 500) return 'The description can be 500 characters at most.';
   const w = Number(d.windowMin);
-  if (!/^\d+$/.test(d.windowMin.trim()) || w < 5 || w > 180) return 'The window is 5 to 180 minutes.';
+  if (!/^\d+$/.test(d.windowMin.trim()) || w < 5 || w > maxWindow) return maxWindow > 180 ? 'The deadline is 5 minutes to 12 hours.' : `The window is 5 to ${maxWindow} minutes.`;
   for (const [raw, what] of [[d.points, 'Points'], [d.fastestBonus, 'The fastest bonus'], [d.penalty, 'The fine']] as const) {
     if (!/^\d+$/.test(raw.trim())) return `${what} is a whole number, 0 or more.`;
   }
@@ -85,6 +91,32 @@ const JUDGING: { id: Judging; label: string }[] = [
   { id: 'submit', label: 'Submit' },
 ];
 
+/** Which mission's vote an announcement opens ("Opens the vote on Incriminating evidence"). */
+export function opensLine(story: StoryQuest): string {
+  const target = STORY.find((s) => s.id === story.opensVoteOn);
+  return target ? `Opens the vote on “${target.title}”.` : '';
+}
+
+/** The deadline of a long-running mission, as hours and minutes (5 minutes to 12 hours). */
+function LongWindow({ minutes, disabled, onChange }: { minutes: string; disabled: boolean; onChange(minutes: string): void }) {
+  const total = Number(minutes) || 0;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  const num = (raw: string) => (/^\d{0,3}$/.test(raw) ? Number(raw) : null);
+  return (
+    <>
+      <span className="field__label" id="story-long">
+        Open for
+      </span>
+      <div className="gm-grid2" role="group" aria-labelledby="story-long">
+        <input className="input" inputMode="numeric" aria-label="Hours" value={String(hours)} disabled={disabled} onChange={(e) => num(e.target.value) !== null && onChange(String(num(e.target.value)! * 60 + mins))} />
+        <input className="input" inputMode="numeric" aria-label="Minutes" value={String(mins)} disabled={disabled} onChange={(e) => num(e.target.value) !== null && onChange(String(hours * 60 + num(e.target.value)!))} />
+      </div>
+      <span className="field__hint">hours and minutes, up to 12 hours</span>
+    </>
+  );
+}
+
 /** Fire one story mission: look at it, change what you like, send it out. */
 export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQuest; liveTitle: string | null; onClose(): void }) {
   const { settings } = useGame();
@@ -93,10 +125,11 @@ export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQues
   const [draft, setDraft] = useState<FireDraft>(base);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const announce = story.kind === 'announce';
   const set = (key: keyof FireDraft) => (event: { target: { value: string } }) => setDraft((d) => ({ ...d, [key]: event.target.value }));
 
   const send = async () => {
-    const problem = draftProblem(draft);
+    const problem = story.kind === 'announce' ? null : draftProblem(draft, story.longRun ? 720 : 180);
     if (problem) {
       setError(problem);
       return;
@@ -104,8 +137,8 @@ export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQues
     setBusy(true);
     setError(null);
     try {
-      await fireGlobalQuest({ mode: 'story', storyId: story.id, ...changes(draft, base) });
-      toast(`${story.title} sent out.`, 'success');
+      await fireGlobalQuest({ mode: 'story', storyId: story.id, ...(announce ? {} : changes(draft, base)) });
+      toast(announce ? `${story.title} posted.` : `${story.title} sent out.`, 'success');
       onClose();
     } catch (err) {
       setError(friendlyError(err));
@@ -114,6 +147,27 @@ export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQues
   };
 
   const winner = draft.judging === 'vote' ? 'Winner gets' : 'Each entrant gets';
+  if (announce) {
+    return (
+      <BottomSheet title={story.title} subtitle="Posts to everyone right now" onClose={onClose} locked={busy}>
+        <div className="gm-form">
+          <p>{story.description}</p>
+          {story.opensVoteOn ? <p className="gm-hint">{opensLine(story)}</p> : null}
+          {error ? (
+            <p className="note note--error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button variant="primary" block busy={busy} icon={<Icon name="megaphone" size={20} />} onClick={() => void send()}>
+            Post it
+          </Button>
+          <Button block variant="ghost" disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </BottomSheet>
+    );
+  }
   return (
     <BottomSheet title={story.title} subtitle="Opens for everyone right now" onClose={onClose} locked={busy}>
       <div className="gm-form">
@@ -146,11 +200,17 @@ export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQues
         </div>
         <div className="gm-grid2">
           <div className="field">
-            <label className="field__label" htmlFor="story-window">
-              Open for (minutes)
-            </label>
-            <input id="story-window" className="input" inputMode="numeric" value={draft.windowMin} disabled={busy} onChange={set('windowMin')} />
-            <span className="field__hint">5 to 180</span>
+            {story.longRun ? (
+              <LongWindow minutes={draft.windowMin} disabled={busy} onChange={(v) => setDraft((d) => ({ ...d, windowMin: v }))} />
+            ) : (
+              <>
+                <label className="field__label" htmlFor="story-window">
+                  Open for (minutes)
+                </label>
+                <input id="story-window" className="input" inputMode="numeric" value={draft.windowMin} disabled={busy} onChange={set('windowMin')} />
+                <span className="field__hint">5 to 180</span>
+              </>
+            )}
           </div>
           <div className="field">
             <label className="field__label" htmlFor="story-points">
@@ -174,7 +234,7 @@ export function StoryFireSheet({ story, liveTitle, onClose }: { story: StoryQues
             <span className="field__hint">points; 0 = none</span>
           </div>
         </div>
-        {liveTitle ? <p className="gm-hint gm-hint--warn">Sending it moves &ldquo;{liveTitle}&rdquo; on. Only one takes entries at a time.</p> : null}
+        {liveTitle && !story.longRun ? <p className="gm-hint gm-hint--warn">Sending it moves &ldquo;{liveTitle}&rdquo; on. Only one takes entries at a time.</p> : null}
         {error ? (
           <p className="note note--error" role="alert">
             {error}
@@ -269,7 +329,7 @@ export function StorySection() {
   const { states, nextId } = useStory();
   const [firing, setFiring] = useState<StoryQuest | null>(null);
   const { busyKey, run } = useRunner();
-  const live = globalQuests.find((g) => g.status === 'live');
+  const live = globalQuests.find((g) => g.status === 'live' && !g.longRun);
   const gameOn = state.status === 'active';
 
   return (
@@ -291,7 +351,9 @@ export function StorySection() {
                 <span className={`gm-count${status === 'running' || upNext ? ' gm-count--on' : ''}`}>{upNext ? 'Up next' : STATE_LABEL[status]}</span>
               </div>
               <p className="gm-hint">
-                {s.judging === 'vote' ? 'Vote' : 'Submit'} · {s.windowMin ?? settings.globalWindowMin} min
+                {s.kind === 'announce'
+                  ? `Announcement${s.opensVoteOn ? ` · ${opensLine(s)}` : ''}`
+                  : `${s.judging === 'vote' ? 'Vote' : 'Submit'} · ${storyWindowLabel(s, settings.globalWindowMin)}`}
               </p>
               <div className="gm-row">
                 {upNext ? (
@@ -304,13 +366,13 @@ export function StorySection() {
                     title={gameOn ? undefined : 'Only while the game is running'}
                     onClick={() => void run(`fire:${s.id}`, () => fireGlobalQuest({ mode: 'story', storyId: s.id }), `${s.title} sent out.`)}
                   >
-                    Fire next
+                    {s.kind === 'announce' ? 'Post next' : 'Fire next'}
                   </Button>
                 ) : null}
                 {/* A running one can't be fired again until it closes. */}
                 {status === 'running' ? null : (
                   <Button small className="gm-flex1" disabled={!gameOn} onClick={() => setFiring(s)}>
-                    {upNext ? 'Change first' : status === 'not-yet' ? 'Open' : 'Fire again'}
+                    {s.kind === 'announce' ? (status === 'done' ? 'Post again' : 'Post') : upNext ? 'Change first' : status === 'not-yet' ? 'Open' : 'Fire again'}
                   </Button>
                 )}
               </div>

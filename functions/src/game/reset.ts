@@ -18,6 +18,11 @@ const WIPED_COLLECTIONS = [
   'motives',
   'checkins',
   'policeCalls',
+  // What the story settled and who was dealt whom belong to the round.
+  'facts',
+  'assignments',
+  // Phone numbers go with the round; players add them again for the next one.
+  'phones',
 ];
 
 /** GM wipes the game for a new round. Requires { confirm: 'RESET' }. Keeps templates, settings and admins. */
@@ -32,6 +37,10 @@ export async function resetGame(db: Db, ctx: Ctx, data: { confirm?: unknown }): 
     await db.recursiveDelete(db.collection(name));
   }
   await db.doc('game/final').delete();
+  // The police switchboard starts the new round with its lines up.
+  await db.doc('game/switchboard').delete();
+  // So does the pinned log-book entry.
+  await db.doc('game/top').delete();
 
   // Periodic missions are set-up, like the templates: a new round keeps them and starts their counts again.
   for (const p of (await db.collection('periodics').get()).docs) await p.ref.update({ sent: 0, nextAt: null });

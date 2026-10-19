@@ -1,6 +1,7 @@
 // The registry of game packs. A deployment picks one by id (VITE_GAME_PACK for the app, GAME_PACK for the
 // functions and scripts); both default to DEFAULT_PACK_ID.
 import { periodicProblems } from '../periodics.ts';
+import { isVoiceLine } from '../phone.ts';
 import type { Settings } from '../types.ts';
 import { DEFAULT_SETTINGS } from '../settings.ts';
 import { RULESETS } from '../scoring/index.ts';
@@ -95,6 +96,20 @@ export function validatePack(pack: GamePack): string[] {
     for (const problem of periodicProblems(p)) problems.push(`${label}: ${problem}`);
   }
   if (pack.periodics?.length && !pack.features.checkins) problems.push('The pack has periodic missions but the checkins feature is off.');
+  const voice = pack.policeVoice;
+  if (voice) {
+    if (!pack.features.police) problems.push('The pack has a police voice but the police feature is off.');
+    for (const key of [...Object.keys(voice.lines ?? {}), ...(voice.recordings ?? [])]) {
+      if (!isVoiceLine(key)) problems.push(`The police voice line "${key}" is not one the engine says.`);
+    }
+    for (const [key, text] of Object.entries(voice.lines ?? {})) {
+      if (typeof text !== 'string' || !text.trim()) problems.push(`The police voice line "${key}" is blank.`);
+    }
+    if (voice.voice && (!voice.voice.voice?.trim() || !voice.voice.language?.trim())) problems.push('The police voice needs a voice and a language.');
+  }
+  if (pack.reactions !== undefined && pack.reactions !== 'emoji' && pack.reactions !== 'votes') {
+    problems.push(`reactions is "${String(pack.reactions)}"; it must be "emoji" or "votes".`);
+  }
   if (pack.gmQuickPoints !== undefined && !(Number.isInteger(pack.gmQuickPoints) && pack.gmQuickPoints > 0)) {
     problems.push(`gmQuickPoints is ${pack.gmQuickPoints}; it must be a positive whole number.`);
   }
@@ -125,14 +140,55 @@ export function validatePack(pack: GamePack): string[] {
     seen.add(q.id);
     if (!q.id.startsWith('s-')) problems.push(`${label} must have the prefix s-.`);
     if (!q.title?.trim()) problems.push(`${label} needs a title.`);
-    if (q.judging !== 'vote' && q.judging !== 'submit') problems.push(`${label} must be judged by 'vote' or 'submit'.`);
-    if (q.windowMin != null && !(Number.isInteger(q.windowMin) && q.windowMin >= 5 && q.windowMin <= 180)) {
-      problems.push(`${label} has a window of ${q.windowMin}; it must be a whole number of minutes from 5 to 180.`);
-    }
+    const announce = q.kind === 'announce';
+    if (q.kind !== undefined && q.kind !== 'mission' && q.kind !== 'announce') problems.push(`${label} has kind "${String(q.kind)}"; the kind must be 'mission' or 'announce'.`);
     const whole = (n: number | null | undefined) => n == null || (Number.isInteger(n) && n >= 0);
+    if (announce) {
+      // An announcement is a note: it takes no entries, so none of a mission's settings make sense on it.
+      const extras: [string, unknown][] = [
+        ['judging', q.judging],
+        ['points', q.points],
+        ['window', q.windowMin],
+        ['entry', q.entry],
+        ['vote points', q.votePoints],
+        ['tie bonus', q.tieBonus],
+        ['fastest bonus', q.fastestBonus],
+        ['fine', q.penalty],
+        ['long-running setting', q.longRun],
+        ['record', q.records],
+      ];
+      for (const [what, value] of extras) if (value != null) problems.push(`${label} is an announcement, so it cannot have ${what}.`);
+      if (q.fact && (!q.fact.key?.trim() || !q.fact.label?.trim() || !q.fact.value?.trim())) {
+        problems.push(`${label} has a fact that needs a non-blank key, label and value.`);
+      }
+      if (q.opensVoteOn != null) {
+        const target = story.find((s) => s.id === q.opensVoteOn);
+        if (!target || target.kind === 'announce') problems.push(`${label} opens the vote on "${q.opensVoteOn}", which is not a story mission in this story.`);
+      }
+      continue;
+    }
+    if (q.judging !== 'vote' && q.judging !== 'submit') problems.push(`${label} must be judged by 'vote' or 'submit' (judging).`);
+    if (q.fact) problems.push(`${label} is a mission, so it cannot have a fact (only an announcement records one).`);
+    if (q.opensVoteOn != null) problems.push(`${label} is a mission, so it cannot open the vote on another (opensVoteOn is for announcements).`);
+    const maxWindow = q.longRun ? 720 : 180;
+    if (q.windowMin != null && !(Number.isInteger(q.windowMin) && q.windowMin >= 5 && q.windowMin <= maxWindow)) {
+      problems.push(`${label} has a window of ${q.windowMin}; it must be a whole number of minutes from 5 to ${maxWindow}.`);
+    }
     if (!whole(q.points)) problems.push(`${label} has points ${q.points}; points must be a whole number, 0 or more.`);
     if (!whole(q.fastestBonus)) problems.push(`${label} has a fastest bonus of ${q.fastestBonus}; it must be a whole number, 0 or more.`);
     if (!whole(q.penalty)) problems.push(`${label} has a fine of ${q.penalty}; the fine must be a whole number, 0 or more.`);
+    if (!whole(q.votePoints)) problems.push(`${label} has vote points of ${q.votePoints}; points per vote must be a whole number, 0 or more.`);
+    if (!whole(q.tieBonus)) problems.push(`${label} has a tie bonus of ${q.tieBonus}; it must be a whole number, 0 or more.`);
+    if (q.entry) {
+      const { media, tag } = q.entry;
+      if (media !== undefined && media !== 'photo' && media !== 'video' && media !== 'text') problems.push(`${label} has entry media "${String(media)}"; media must be photo, video or text.`);
+      if (tag !== undefined && tag !== 'player' && tag !== 'assigned') problems.push(`${label} has entry tag "${String(tag)}"; the tag must be player or assigned.`);
+      if (q.entry.caption !== undefined && q.entry.caption !== 'required') problems.push(`${label} has an entry caption setting that must be 'required'.`);
+      const writes = q.entry.writesMotive;
+      if (writes !== undefined && typeof writes !== 'boolean') problems.push(`${label} has an entry writesMotive setting that must be true or false.`);
+      if (writes === true && tag !== 'assigned') problems.push(`${label} writes motives, so its entry tag must be 'assigned' (each motive is about the player dealt).`);
+    }
+    if (q.records && (!q.records.key?.trim() || !q.records.label?.trim())) problems.push(`${label} records a fact that needs a non-blank key and label.`);
   }
   for (const id of dupes) problems.push(`The quest id "${id}" is a duplicate.`);
   for (const q of pack.catalogue.personal) {

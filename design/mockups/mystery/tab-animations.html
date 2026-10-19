@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tab Transitions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: the case room's wall. The live phone is pinned on the left; the bench (style picker, toggles, scrubber) and
+   the chosen style's file sit on the right; on a phone it all stacks: bench, phone, file. */
+:root {
+  color-scheme: dark;
+  /* the room (src/packs/mystery/theme.css) */
+  --wall: #3d4042; --wall-shadow: #26282a; --wall-deep: #1c1e1f; --walltext: #e9ebec; --chart: #a5aaad; --rule: #a9adaf;
+  --teal-deep: #0f5754; --warn: #a3342a; --warn-text: #8f2a22; --warn-on-dark: #e98679; --dot: #e2574c; --silhouette: #8d9294;
+  --suspect-deep: #7d241d;
+  /* case files */
+  --manila: #e6cf98; --manila-tab: #d9bd7e; --manila-ink: #2a2116; --manila-sub: #5b4a33;
+  --kraft: #c9a974; --kraft-line: #8e7550; --twine: #b59e78; --twine-dark: #a48c66; --eyelet: #9aa0a3; --eyelet-edge: #6f7477;
+  --stamp-good: #2f5a32; --stamp-bad: #8f2a22; --stamp-warm: #7a520a; --stamp-plain: #14544f;
+  --print: #f1f0ec; --chart-paper: #f4ecd5; --index-card: #fbfaf4; --pen-red: #c4302b; --form: #fbf8ef;
+  /* engine tokens */
+  --paper: #f1f0ec; --ink: #161718; --accent: #17736f; --accent-tint: #d8ebe8; --on-accent: #ffffff; --muted: #5a5f62;
+  /* avatar tints (brand.ts) */
+  --tint-1: #cfd8dc; --tint-2: #e3d5c8; --tint-3: #d6e4d9; --tint-4: #e6d3d8; --tint-5: #d9d6ea; --tint-6: #e8e2c9;
+  /* see-through inks and shadows */
+  --glass-40: rgba(255, 255, 255, 0.4); --glass-25: rgba(255, 255, 255, 0.25); --glass-12: rgba(255, 255, 255, 0.12); --me-row: rgba(255, 255, 255, 0.55);
+  --dim-5: rgba(0, 0, 0, 0.05); --grid-ink: rgba(91, 74, 51, 0.16); --grid-ink-2: rgba(91, 74, 51, 0.28); --ruled: rgba(31, 138, 133, 0.18);
+  --red-wash: rgba(163, 52, 42, 0.12); --teal-wash: rgba(31, 138, 133, 0.13); --pen-wash: rgba(196, 48, 43, 0.12);
+  --sh-tag: rgba(42, 33, 22, 0.35); --sh-soft: rgba(0, 0, 0, 0.25); --sh-tab: rgba(0, 0, 0, 0.35); --sh-deep: rgba(0, 0, 0, 0.45);
+  --mask: #000000; --code-wash: rgba(42, 33, 22, 0.09);
+  /* what the transitions draw with: the dark laid over a covered page, a turning page's shading, a lifted folder's shadow */
+  --fx-dim: rgba(14, 15, 16, 0.6);
+  --fx-shade: linear-gradient(90deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.5));
+  --lift-shadow: 0 -6px 18px rgba(0, 0, 0, 0.3), 0 20px 40px rgba(0, 0, 0, 0.5);
+  /* the phone */
+  --bezel: #0c0d0e; --bezel-edge: #2c2f31; --island: #000000;
+  /* the case map: a street plan inked on manila */
+  --map-land: #e9d6a3; --map-block: #dcc38b; --map-road: #f6ebcb; --map-edge: #c4a66c; --map-park: #d3c68c;
+  --map-water: #b7b493; --map-label: #6b5638; --map-past: #8a6f5a;
+
+  --shadow: 0 4px 0 var(--wall-shadow);
+  --display: 'Archivo Black', 'Arial Black', system-ui, sans-serif;
+  --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--wall-shadow); }
+body {
+  margin: 0; background: var(--wall-shadow); color: var(--walltext); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  background-image: radial-gradient(ellipse 1300px 1100px at 30% 0%, var(--wall) 0%, var(--wall-shadow) 100%); background-repeat: no-repeat;
+}
+p, h1, h2, h3, h4, ul, ol, dl, dd, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+button { font: inherit; }
+code { font-family: var(--mono); font-size: 0.86em; padding: 0 3px; background: var(--code-wash); border-radius: 2px; overflow-wrap: anywhere; }
+
+/* ---------- the page ---------- */
+.page {
+  max-width: 1280px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+@media (min-width: 900px) {
+  .page { padding-left: max(36px, env(safe-area-inset-left, 0px)); padding-right: max(36px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; }
+}
+.kicker { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--kraft); }
+.title { margin: 6px 0 10px; font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 44px); line-height: 1.02; text-wrap: balance; }
+.lede { max-width: 68ch; font-size: 15.5px; color: var(--walltext); }
+.lede b { color: var(--kraft); font-weight: 700; }
+.head { grid-area: head; min-width: 0; }
+
+.lab { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "bench" "phone" "file"; gap: 22px; }
+.lab__phone { grid-area: phone; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+.bench { grid-area: bench; min-width: 0; }
+.file { grid-area: file; min-width: 0; }
+@media (min-width: 900px) {
+  .lab { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "phone head" "phone bench" "phone file"; grid-template-rows: auto auto 1fr; column-gap: 44px; row-gap: 22px; align-items: start; }
+  .lab__phone { position: sticky; top: 20px; align-self: start; }
+}
+
+/* ---------- the bench: style picker, toggles, scrubber ---------- */
+.bench { display: flex; flex-direction: column; gap: 14px; padding: 16px 16px 14px; background: var(--wall-deep); border: 1px dashed var(--rule); }
+.bench__h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--kraft); }
+.bench__h span { color: var(--rule); font-weight: 400; letter-spacing: 0.5px; text-transform: none; }
+.styles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.sty { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 10px 4px 9px; cursor: pointer; background: var(--wall); color: var(--walltext); border-top: 3px solid transparent; box-shadow: 0 3px 0 var(--wall-shadow); }
+.sty input { position: absolute; opacity: 0; pointer-events: none; }
+.sty__l {
+  display: grid; place-items: center; width: 36px; height: 36px; border: 2.5px solid var(--kraft); color: var(--kraft);
+  border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%; transform: rotate(-8deg); font-family: var(--display); font-size: 18px; line-height: 1;
+}
+.sty__n { max-width: 100%; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; line-height: 1.15; text-align: center; text-transform: uppercase; }
+@media (max-width: 480px) { .sty__n { font-size: 9.5px; letter-spacing: 0; } .sty__l { width: 32px; height: 32px; font-size: 16px; } }
+.sty:hover { background: var(--wall-shadow); }
+.sty:has(input:checked) { background: var(--manila); color: var(--manila-ink); border-top-color: var(--manila-tab); }
+.sty:has(input:checked) .sty__l { border-color: var(--warn); color: var(--warn); }
+.sty:has(input:focus-visible) { outline: 3px solid var(--walltext); outline-offset: 2px; }
+
+.opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.sw { display: inline-flex; align-items: center; gap: 9px; min-height: 36px; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+.sw input { position: absolute; opacity: 0; pointer-events: none; }
+.sw__track { position: relative; flex: none; width: 40px; height: 22px; border-radius: 11px; background: var(--wall); box-shadow: inset 0 0 0 1.5px var(--rule); }
+.sw__track::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--rule); transition: transform 120ms ease-out; }
+.sw input:checked + .sw__track { background: var(--accent); box-shadow: none; }
+.sw input:checked + .sw__track::after { transform: translateX(18px); background: var(--paper); }
+.sw input:focus-visible + .sw__track { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; cursor: pointer;
+  background: var(--kraft); color: var(--manila-ink); border: 0; box-shadow: 0 3px 0 var(--wall-shadow);
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.btn:hover { background: var(--manila-tab); }
+.btn:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.opts .btn { margin-left: auto; }
+.scrub { display: grid; grid-template-columns: auto minmax(0, 1fr) 3.4em; align-items: center; gap: 10px; }
+.scrub label { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--rule); }
+.scrub output { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; color: var(--walltext); }
+.scrub input { width: 100%; min-width: 0; accent-color: var(--kraft); }
+.readout { display: flex; flex-direction: column; gap: 6px; }
+.readout p { min-height: 2.8em; font-family: var(--mono); font-size: 12px; line-height: 1.4; color: var(--walltext); overflow-wrap: anywhere; }
+.tl { position: relative; height: 4px; background: var(--wall); overflow: hidden; }
+.tl i { position: absolute; inset: 0; background: var(--kraft); transform-origin: 0 50%; transform: scaleX(0); }
+.os-note { font-size: 12.5px; color: var(--rule); }
+.try { font-size: 13px; line-height: 1.45; color: var(--rule); }
+.try b { color: var(--walltext); font-weight: 600; }
+
+/* ---------- the chosen style's file ---------- */
+.fold-file { display: flex; flex-direction: column; align-items: flex-start; }
+.fold-file__tab {
+  margin-left: 18px; padding: 7px 14px 5px; border-radius: 6px 6px 0 0; background: var(--manila-tab); color: var(--manila-ink);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.fold-file__body {
+  position: relative; align-self: stretch; display: flex; flex-direction: column; gap: 16px; padding: 18px 20px 20px;
+  background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
+}
+.ff-clip { position: absolute; right: 18px; top: -15px; width: 16px; height: 44px; }
+.ff-head { display: flex; align-items: center; gap: 14px; padding-right: 26px; }
+.ff-head .sty__l { flex: none; width: 46px; height: 46px; font-size: 24px; border-color: var(--warn); color: var(--warn); }
+.ff-name { font-family: var(--display); font-weight: 400; font-size: 28px; line-height: 1.05; text-wrap: balance; }
+.ff-tag { margin-top: 3px; font-family: var(--mono); font-size: 12.5px; line-height: 1.4; color: var(--manila-sub); }
+.ff-times { display: flex; flex-wrap: wrap; gap: 6px; }
+.ff-times span { padding: 3px 8px; border: 1.5px solid var(--manila-ink); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.ff-times span.is-on { background: var(--manila-ink); color: var(--manila); }
+.ff-spec { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 2.5px solid var(--manila-ink); }
+.ff-spec div { display: grid; grid-template-columns: 7.6em minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--twine-dark); }
+.ff-spec dt { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; line-height: 1.5; text-transform: uppercase; color: var(--manila-sub); }
+.ff-spec dd { font-size: 14px; line-height: 1.45; min-width: 0; }
+.ff-spec div.is-on { background: var(--glass-40); margin: 0 -8px; padding: 8px; }
+.ff-notes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 1180px) { .ff-notes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; } }
+.ff-notes p { font-size: 14px; line-height: 1.5; min-width: 0; }
+.ff-notes b { display: block; margin-bottom: 3px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--stamp-bad); }
+.ff-build {
+  position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px 14px 12px;
+  background: var(--index-card); color: var(--ink); border-top: 2px solid var(--warn); box-shadow: 0 3px 0 var(--sh-tag);
+  background-image: repeating-linear-gradient(180deg, transparent 0 23px, var(--ruled) 23px 24px); background-position: 0 32px;
+}
+.ff-build h3 { font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.ff-build p { font-size: 14px; line-height: 24px; }
+.ff-build .ff-cost { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--stamp-plain); }
+
+/* ---------- at a glance, the verdict, the wiring ---------- */
+.sec-h { margin: 46px 0 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.sec-h h2 { font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; }
+.sec-h p { font-family: var(--mono); font-size: 12px; color: var(--rule); }
+.glance { overflow-x: auto; background: var(--index-card); color: var(--ink); border-top: 2px solid var(--warn); box-shadow: var(--shadow); }
+.glance table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 13.5px; line-height: 1.4; }
+.glance th, .glance td { padding: 9px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--ruled); }
+.glance thead th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.glance tbody th { white-space: nowrap; font-weight: 700; }
+.glance tbody th span { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: 7px; border: 2px solid var(--pen-red); border-radius: 50%; color: var(--pen-red); font-family: var(--display); font-weight: 400; font-size: 12px; }
+.glance td.tm { font-family: var(--mono); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.glance tr.is-rec { background: var(--red-wash); }
+
+.verdict { position: relative; margin-top: 40px; padding: 20px 22px 22px; background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow); }
+.verdict h2 { padding-right: 30px; margin-bottom: 8px; font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.15; text-wrap: balance; }
+.verdict p { max-width: 82ch; font-size: 15px; line-height: 1.55; }
+.verdict p + p { margin-top: 8px; }
+
+.wiring { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 26px; }
+@media (min-width: 760px) { .wiring { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.wiring li { min-width: 0; padding-top: 8px; border-top: 1px solid var(--rule); font-size: 14px; line-height: 1.5; }
+.wiring li b { display: block; margin-bottom: 2px; font-family: var(--mono); font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--kraft); }
+.wiring code { background: var(--glass-12); }
+.foot { margin-top: 34px; font-family: var(--mono); font-size: 11.5px; color: var(--rule); }
+
+/* ---------- the phone ---------- */
+.pw { --s: 0.86; width: calc(412px * var(--s)); height: calc(866px * var(--s)); flex: none; }
+.shell { width: 412px; height: 866px; padding: 11px; background: var(--bezel); border-radius: 58px; box-shadow: 0 0 0 1.5px var(--bezel-edge), 0 24px 50px var(--sh-deep); transform: scale(var(--s)); transform-origin: 0 0; }
+.phone { position: relative; width: 390px; height: 844px; overflow: hidden; border-radius: 47px; background: var(--wall); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.3; isolation: isolate; }
+.phone-cap { font-family: var(--mono); font-size: 11.5px; color: var(--rule); text-align: center; }
+.island { position: absolute; z-index: 60; top: 11px; left: 50%; width: 122px; height: 35px; margin-left: -61px; border-radius: 20px; background: var(--island); }
+.sb { position: relative; z-index: 50; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 30px 0 44px; font: 600 16px/1 var(--body); color: var(--walltext); }
+.sb__r { display: flex; gap: 6px; align-items: center; }
+.sb svg { fill: currentColor; }
+.sb .sb__wifi { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.sb .sb__wifi circle { fill: currentColor; stroke: none; }
+.sb .sb__bat rect { fill: none; stroke: currentColor; opacity: 0.5; }
+.sb .sb__bat .sb__fill { fill: currentColor; stroke: none; opacity: 1; }
+.sb .sb__bat .sb__nub { fill: currentColor; stroke: none; }
+.ab { position: relative; z-index: 40; height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px 6px; background: var(--wall); }
+.ab__t { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--walltext); }
+.ab__tx { grid-area: 1 / 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab__r { display: flex; align-items: center; gap: 8px; flex: none; }
+.score { display: flex; height: 30px; }
+.tip { position: relative; width: 34px; display: inline-flex; align-items: center; justify-content: center; background: var(--ink); color: var(--chart); }
+.tip__ic { position: relative; z-index: 1; }
+.tip__ring { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; fill: none; stroke-width: 2.5; }
+.tip__track { stroke: var(--wall); }
+.tip__left { stroke: var(--kraft); stroke-linecap: round; }
+.pts { display: inline-flex; align-items: center; padding: 0 10px 0 9px; background: var(--wall-shadow); color: var(--walltext); font: 700 12px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+.ic { flex: none; }
+.av { --s: 22px; width: var(--s); height: var(--s); flex: none; display: inline-flex; align-items: flex-end; justify-content: center; overflow: hidden; border-radius: 50%; border: 2px solid var(--paper); background: var(--t, var(--tint-1)); }
+.av svg { width: 78%; height: 78%; fill: var(--silhouette); }
+.av--plus { border-color: var(--accent); }
+.av--minus { border-color: var(--warn); }
+
+/* The stage: what changes between the app bar and the tab bar. Screens and folder pages are layers in it. */
+.stage { position: absolute; z-index: 10; top: 110px; left: 0; right: 0; bottom: 88px; overflow: hidden; background: var(--wall-deep); }
+.scr { --bg: var(--wall); }
+/* A layer: a shadow under it, a clip box (the wipe's window) holding the page, and a sheet of dark or shading over it. */
+.layer { position: absolute; inset: 0; z-index: 0; isolation: isolate; }
+.layer__shadow { position: absolute; inset: 0; box-shadow: var(--lift-shadow); opacity: 0; pointer-events: none; }
+.layer__clip { position: absolute; inset: 0; overflow: hidden; }
+.layer__in { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+.layer__fx { position: absolute; inset: 0; z-index: 5; opacity: 0; pointer-events: none; }
+/* The typewriter's carriage: an ink bar that rides the wipe's edge (style E). */
+.carriage { position: absolute; z-index: 8; top: 0; bottom: 0; left: 0; width: 12px; opacity: 0; pointer-events: none; background: linear-gradient(90deg, var(--ink) 0 9px, var(--kraft) 9px 10px, var(--ink) 10px); box-shadow: 0 0 14px var(--sh-deep); }
+
+/* the bottom tabs */
+.tb { position: absolute; z-index: 30; left: 0; right: 0; bottom: 0; display: flex; padding: 8px 10px 30px; background: var(--ink); }
+.tb__t { flex: 1; min-width: 0; min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--rule); font: 700 12px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+.tb__t:hover { color: var(--walltext); }
+.tb__t[aria-current='page'] { color: var(--kraft); }
+.tb__t:focus-visible { outline: 2px solid var(--walltext); outline-offset: -2px; }
+.tb__i { position: relative; display: inline-flex; }
+.tb__dot { position: absolute; top: -3px; right: -7px; width: 12px; height: 12px; border-radius: 50%; background: var(--dot); border: 2px solid var(--ink); }
+/* The lit tab's kraft edge: one bar that moves between tabs. */
+.tb__ind { position: absolute; z-index: 1; left: 0; top: 8px; width: 92px; height: 3px; background: var(--kraft); transform-origin: 0 50%; pointer-events: none; }
+.homebar { position: absolute; z-index: 31; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--walltext); }
+
+/* folder tabs: kraft tabs drawn behind the labels; the open tab is one moving piece of the sheet's own paper */
+[role='tablist'] { position: relative; z-index: 3; isolation: isolate; }
+.ind { position: absolute; z-index: 1; left: 0; bottom: 0; width: 100px; border-radius: 6px 6px 0 0; transform-origin: 0 50%; pointer-events: none; overflow: hidden; }
+.ind__chart { position: absolute; inset: 0; background: var(--chart-paper); opacity: 0; }
+.tab__l { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 7px; }
+
+.bd { display: flex; flex-direction: column; height: 100%; padding-top: 8px; }
+.bd-tabs { display: flex; align-items: flex-end; gap: 3px; height: 42px; padding: 0 12px; flex: none; }
+.bd-tab {
+  position: relative; height: 42px; display: inline-flex; align-items: center; padding: 7px 13px 0; border: 0; background: none; cursor: pointer;
+  color: var(--manila-ink); font: 700 12px/1 var(--mono); letter-spacing: 2px; text-transform: uppercase;
+}
+.bd-tab::before { content: ''; position: absolute; z-index: 0; left: 0; right: 0; bottom: 0; height: 36px; border-radius: 6px 6px 0 0; background: var(--kraft); box-shadow: inset 0 -7px 7px -7px var(--sh-tab); }
+.bd-tab:hover::before { background: var(--manila-tab); }
+.bd-tab:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: -3px; }
+.ind--bd { height: 42px; background: var(--manila); }
+.bd-dot { position: absolute; z-index: 3; top: 2px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--dot); border: 2px solid var(--wall); }
+.smark { flex: none; overflow: visible; }
+.smark__bad { fill: var(--warn); opacity: 0.75; }
+.smark__good { fill: var(--accent); opacity: 0.75; }
+.smark__zero { stroke: var(--manila-ink); stroke-width: 1.6; }
+.smark__f { fill: var(--paper); stroke-width: 1.7; }
+.smark__f--bad { stroke: var(--warn); }
+.smark__f--good { stroke: var(--accent); }
+.sheet { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.sheet--bd { background: var(--manila-tab); }
+.sheet--gl { background: var(--wall-deep); }
+
+.gl { display: flex; flex-direction: column; height: 100%; padding-top: 8px; }
+.gl-tabs { display: flex; align-items: flex-end; gap: 3px; height: 50px; margin: 0 14px; flex: none; }
+.gl-tab {
+  position: relative; flex: 1 1 0; min-width: 0; height: 50px; display: flex; align-items: center; justify-content: center; padding: 8px 2px 0; border: 0; background: none; cursor: pointer;
+  color: var(--manila-ink); font: 700 10.5px/1 var(--mono); letter-spacing: 0.6px; text-transform: uppercase; white-space: nowrap;
+}
+.gl-tab .tab__l { gap: 4px; }
+.gl-tab::before { content: ''; position: absolute; z-index: 0; inset: 8px 0 0; border-radius: 6px 6px 0 0; background: var(--kraft); box-shadow: inset 0 -7px 7px -7px var(--sh-tab); }
+.gl-tab:hover::before { background: var(--twine); }
+.gl-tab:focus-visible { outline: 3px solid var(--walltext); outline-offset: 2px; }
+.ind--gl { height: 50px; background: var(--manila-tab); }
+.gl-count { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--warn); color: var(--on-accent); font-size: 10px; letter-spacing: 0; }
+.gl-edge { flex: none; height: 5px; margin: 0 14px; background: var(--manila-tab); }
+
+/* ---------- Missions › Missions: the stack and the dividers ---------- */
+.pad { display: flex; flex-direction: column; gap: 22px; padding: 14px 16px 0; }
+.pad > * { flex: none; }
+.e-stack { position: relative; height: 290px; margin: 0 -6px; }
+.e-f { position: absolute; left: 0; right: 0; bottom: 0; }
+.e-f--back { z-index: 1; }
+.e-f--mid { z-index: 2; }
+.e-f--front { z-index: 3; }
+.e-f::before { content: ''; position: absolute; left: 0; right: 0; top: 25px; bottom: 0; box-shadow: 0 2px 0 var(--sh-tag); }
+.e-f--back::before, .e-f--back .e-tab { background: var(--kraft); }
+.e-f--mid::before, .e-f--mid .e-tab { background: var(--manila-tab); }
+.e-f--front::before { display: none; }
+.e-tab { position: absolute; z-index: 1; top: 0; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 6px 6px 0 0; font: 700 10px/1 var(--mono); letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; color: var(--manila-ink); }
+.e-tab b { color: var(--warn); }
+.e-f--front .e-tab { z-index: 2; background: var(--manila); border: 1.5px solid var(--kraft-line); border-bottom: 0; height: 27px; }
+.e-f__b { position: absolute; left: 0; right: 0; top: 25px; bottom: 0; display: flex; flex-direction: column; padding: 12px 14px 14px; background: var(--manila); border: 1.5px solid var(--kraft-line); box-shadow: 0 3px 0 var(--sh-tag); color: var(--manila-ink); }
+.clip { position: absolute; z-index: 6; right: 14px; top: -14px; width: 16px; height: 44px; }
+.clip-p { fill: none; stroke: var(--eyelet); stroke-width: 2; }
+.e-k { display: flex; justify-content: space-between; gap: 8px; padding-right: 22px; font: 700 10px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.e-k em { font-style: normal; color: var(--warn); white-space: nowrap; }
+.e-t { margin-top: 6px; font-family: var(--display); font-weight: 400; font-size: 20px; line-height: 1.12; }
+.e-rule { margin-top: 6px; font-size: 12.5px; font-weight: 700; line-height: 1.35; color: var(--manila-sub); }
+.mc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: auto; }
+.clock { display: flex; align-items: baseline; gap: 6px; }
+.clock b { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; color: var(--manila-ink); font-variant-numeric: tabular-nums; }
+.clock i { font: 700 11px/1 var(--mono); font-style: normal; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.prints { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font: 700 10px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); white-space: nowrap; }
+.pips { display: flex; gap: 3px; }
+.pip { width: 15px; height: 19px; color: var(--manila-ink); opacity: 0.28; }
+.pip.on { opacity: 1; }
+.e-you { margin-top: 6px; font: 700 10.5px/1.3 var(--mono); letter-spacing: 0.4px; text-transform: uppercase; color: var(--warn); }
+.cta { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; min-height: 44px; background: var(--accent); color: var(--on-accent); border: 2px solid var(--ink); font: 700 14px/1 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 3px 0 var(--wall-shadow); }
+.e-hint { margin-top: -14px; text-align: center; font: 10px/1.2 var(--mono); color: var(--manila-sub); }
+.e-wrap { position: relative; display: flex; flex-direction: column; gap: 22px; padding-right: 30px; color: var(--manila-ink); }
+.e-thumb { position: absolute; z-index: 6; right: -16px; top: 0; display: flex; flex-direction: column; gap: 4px; }
+.e-thumb span { display: flex; align-items: center; justify-content: center; width: 26px; min-height: 84px; border-radius: 7px 0 0 7px; background: var(--kraft); color: var(--manila-ink); writing-mode: vertical-rl; font: 700 10px/1 var(--mono); letter-spacing: 1.4px; text-transform: uppercase; box-shadow: inset -6px 0 6px -6px var(--sh-tab), 0 2px 0 var(--sh-tag); }
+.e-thumb span.on { background: var(--manila-ink); color: var(--manila); }
+.sec-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 5px; border-bottom: 2.5px solid var(--manila-ink); }
+.sec-hd h3 { font-family: var(--display); font-weight: 400; font-size: 20px; line-height: 1.1; white-space: nowrap; }
+.sec-hd span { min-width: 0; font: 700 9.5px/1.2 var(--mono); letter-spacing: 0.7px; text-transform: uppercase; color: var(--manila-sub); text-align: right; }
+.e-rows { display: flex; flex-direction: column; }
+.e-r { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 46px; padding: 5px 0; border-bottom: 1px dashed var(--twine-dark); }
+.e-r > b { font: 700 10.5px/1.2 var(--mono); color: var(--manila-sub); }
+.e-r__m { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.e-r__m span { font-size: 14px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-r__m i { font: 10.5px/1.25 var(--mono); font-style: normal; color: var(--manila-sub); }
+.e-r.live > b, .e-r.live .e-r__m i { color: var(--warn); font-weight: 700; }
+.e-r.live .e-r__m i.ok { color: var(--teal-deep); }
+.e-r.dim .e-r__m span { color: var(--manila-sub); font-weight: 600; }
+.e-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 5px 5px 0 0; background: var(--manila-tab); border: 1.5px solid var(--kraft-line); border-bottom: 2.5px solid var(--manila-ink); font: 700 9.5px/1 var(--mono); letter-spacing: 0.6px; text-transform: uppercase; white-space: nowrap; }
+.e-filed { display: flex; align-items: center; gap: 8px; min-height: 34px; margin-top: 8px; padding: 0 8px; background: var(--manila-tab); box-shadow: 0 2px 0 var(--sh-tag); font: 700 10px/1.2 var(--mono); letter-spacing: 0.5px; text-transform: uppercase; }
+.e-filed span { flex: 1; min-width: 0; color: var(--manila-sub); }
+.waxes { display: inline-flex; gap: 5px; vertical-align: middle; }
+.wax { position: relative; display: inline-block; flex: none; width: 15px; height: 15px; border-radius: 50%; background: var(--warn); box-shadow: inset 0 0 0 2px var(--stamp-bad), 0 1px 0 var(--sh-tag); }
+
+/* ---------- Missions › Map ---------- */
+.marea { position: absolute; inset: 0; overflow: hidden; background: var(--map-land); }
+.mlayer { position: absolute; left: 0; top: -34px; width: 390px; height: 760px; }
+.mbase { position: absolute; inset: 0; width: 390px; height: 760px; }
+.m-land { fill: var(--map-land); }
+.m-block { fill: var(--map-block); }
+.m-park { fill: var(--map-park); }
+.m-water { fill: none; stroke: var(--map-water); stroke-width: 16; stroke-linecap: round; }
+.m-edge, .m-road { fill: none; stroke-linecap: round; }
+.m-edge { stroke: var(--map-edge); }
+.m-road { stroke: var(--map-road); }
+.m-edge.r-s { stroke-width: 7; } .m-road.r-s { stroke-width: 4.5; }
+.m-edge.r-m { stroke-width: 11; } .m-road.r-m { stroke-width: 8; }
+.m-edge.r-l { stroke-width: 17; } .m-road.r-l { stroke-width: 13; }
+.m-lab { font: 700 8px var(--mono); letter-spacing: 1.5px; fill: var(--map-label); }
+.m-lab--it { font-style: italic; font-weight: 400; letter-spacing: 2px; }
+.m-lab--big { font-size: 11px; letter-spacing: 4px; opacity: 0.7; }
+.m-route { fill: none; stroke: var(--pen-red); stroke-width: 2.4; stroke-dasharray: 2 6; stroke-linecap: round; }
+.m-compass path { fill: none; stroke: var(--pen-red); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.m-compass text { font: 700 12px var(--mono); fill: var(--pen-red); }
+.stop { position: absolute; z-index: 3; width: 0; height: 0; }
+.stop__no { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; display: grid; place-items: center; border: 2.5px solid var(--pen-red); border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%; color: var(--pen-red); font: 700 15px/1 var(--mono); transform: rotate(-8deg); background: var(--map-land); }
+.stop--now .stop__no { background: linear-gradient(var(--pen-wash), var(--pen-wash)), var(--map-land); border-width: 3px; color: var(--warn-text); }
+.stop--past .stop__no { color: var(--map-past); border-color: var(--map-past); }
+.stop__slip { position: absolute; top: -10px; left: 20px; padding: 2px 6px; white-space: nowrap; background: var(--print); color: var(--manila-ink); font: 700 9.5px/1.4 var(--mono); letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 1px 0 var(--sh-tab); transform: rotate(-2deg); }
+.mp { position: absolute; z-index: 4; transform: translate(-50%, -50%); display: flex; }
+.mp .av { box-shadow: 0 1px 0 var(--sh-tab); }
+.mp--me .av { border-color: var(--accent); }
+.pen-note { position: absolute; z-index: 3; font: 700 12px/1 var(--mono); color: var(--pen-red); transform: rotate(-12deg); white-space: nowrap; }
+.nowstrip { position: absolute; z-index: 6; top: 0; left: 0; right: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; background: var(--manila); color: var(--manila-ink); box-shadow: 0 3px 0 var(--sh-tab); }
+.ns__now { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 12px 9px 20px; }
+.ns__now b, .ns__next b { font: 700 10px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--warn); }
+.ns__now span, .ns__next span { font-family: var(--display); font-size: 19px; line-height: 1.1; }
+.ns__now i { font: 10.5px/1.2 var(--mono); font-style: normal; color: var(--manila-sub); }
+.ns__next { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 8px 20px 9px 14px; border-left: 2px dashed var(--twine-dark); background: var(--manila-tab); }
+.ns__next b, .ns__next span { color: var(--manila-sub); }
+.mtools { position: absolute; z-index: 5; top: 80px; left: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.mbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; background: var(--manila); color: var(--manila-ink); border: 2px solid var(--manila-ink); font: 700 10.5px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 2px 0 var(--sh-tab); }
+.mbtn--on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mcount { position: absolute; z-index: 5; top: 80px; right: 8px; padding: 4px 8px; background: var(--print); color: var(--manila-ink); font: 700 10px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 1px 0 var(--sh-tab); }
+
+/* ---------- Missions › Standings ---------- */
+.st { position: relative; width: 390px; background: linear-gradient(90deg, var(--red-wash) 50%, var(--teal-wash) 50%), var(--chart-paper); color: var(--manila-ink); }
+.st__top { position: relative; z-index: 2; background: var(--chart-paper); border-bottom: 1px solid var(--grid-ink-2); }
+.st__heads { display: flex; justify-content: space-between; padding: 12px 12px 2px; }
+.st__h { font: 700 10.5px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+.st__h--bad { color: var(--suspect-deep); }
+.st__h--good { color: var(--teal-deep); }
+.st__axis { position: relative; height: 20px; overflow: hidden; }
+.st__tick { position: absolute; top: 4px; transform: translateX(-50%); font: 700 9.5px/1 var(--mono); color: var(--manila-sub); white-space: nowrap; }
+.st__body { position: relative; }
+.st__grid { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; background-image: repeating-linear-gradient(180deg, transparent 0 33.4px, var(--grid-ink) 33.4px 34.4px); }
+.st__v { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grid-ink); }
+.st__v--zero { width: 2px; margin-left: -1px; background: var(--manila-ink); }
+.st__rows { position: relative; }
+.st__row { position: relative; height: 56px; }
+.st__row--me { background: var(--me-row); }
+.st__bar { position: absolute; z-index: 2; top: 9px; height: 38px; }
+.st__bar--plus { background: var(--accent); }
+.st__bar--minus { background: var(--warn); }
+.st__face { position: absolute; z-index: 3; top: 9px; display: flex; }
+.st__face .av { border-width: 3px; }
+.st__pin { position: absolute; z-index: 4; top: 3.7px; width: 20.9px; height: 20.9px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--paper); border-radius: 50%; color: var(--paper); box-shadow: 0 1px 0 1px var(--sh-soft); }
+.st__pin--conf { background: var(--accent); }
+.st__pin--poi { background: var(--warn); }
+.st__label { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 14px; }
+.st__name { font-weight: 600; }
+.st__name.me { font-weight: 800; }
+.st__score { font: 700 13px var(--mono); }
+.st__score--plus { color: var(--teal-deep); }
+.st__score--minus { color: var(--suspect-deep); }
+.st__legend { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 5px; padding: 8px 12px 3px; border-top: 1px solid var(--grid-ink-2); background: var(--chart-paper); }
+.st__lg { display: flex; align-items: center; gap: 7px; font: 10px/1.2 var(--mono); color: var(--manila-sub); }
+.st__lg b { letter-spacing: 0.5px; text-transform: uppercase; }
+.st__lg--conf b { color: var(--teal-deep); }
+.st__lg--poi b { color: var(--suspect-deep); }
+.st__lg .st__pin { position: static; width: 20px; height: 20px; flex: none; }
+.st__key { position: relative; z-index: 2; padding: 4px 12px 10px; text-align: center; font: 700 10px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); background: var(--chart-paper); }
+
+/* ---------- Feed and My file: case files on the wall ---------- */
+.wallpad { display: flex; flex-direction: column; gap: 14px; padding: 6px 20px 0; }
+.wallpad > * { flex: none; }
+.cf-folder { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.cf-folder__tab { position: relative; margin-left: 18px; padding: 6px 14px 4px; border-radius: 6px 6px 0 0; background: var(--manila-tab); color: var(--manila-ink); font: 700 11px/1.2 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+.cf-folder__body { position: relative; align-self: stretch; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px 14px; background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow); }
+.cf-meta { font: 700 11px/1.3 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); padding-right: 24px; }
+.cf-title { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.05; color: var(--manila-ink); }
+.tl-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.cf-stamp { display: inline-block; align-self: flex-start; flex: none; padding: 1px 6px; border: 2px solid currentColor; transform: rotate(-2deg); font: 700 11px/1.3 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-plain); white-space: nowrap; }
+.cf-stamp--good { color: var(--stamp-good); }
+.cf-stamp--bad { color: var(--stamp-bad); }
+.cf-stamp--active { align-self: center; padding: 1px 8px; border-width: 2.5px; transform: rotate(-6deg); font-family: var(--display); font-weight: 400; font-size: 12px; letter-spacing: 1.5px; color: var(--warn); }
+.cf-strung { position: relative; display: flex; flex-direction: column; gap: 14px; margin: -8px 0 0; padding: 24px 0 4px; }
+.cf-strung::before { content: ''; position: absolute; z-index: 0; left: 6px; top: 0; bottom: 24px; width: 3px; border-radius: 2px; background: var(--twine); box-shadow: 1px 0 0 var(--sh-soft); }
+.cf-row { position: relative; padding-left: 22px; }
+.cf-knot { position: absolute; z-index: 0; left: 0; top: 50%; margin-top: -12px; overflow: visible; }
+.cf-knot path { fill: none; stroke: var(--twine); stroke-width: 2.6; stroke-linecap: round; }
+.cf-tagwrap { position: relative; z-index: 1; transform-origin: 22px 50%; filter: drop-shadow(0 3px 0 var(--wall-shadow)); }
+.cf-tag {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 11px 14px 11px 46px;
+  background: var(--kraft); background-image: linear-gradient(180deg, var(--glass-25), transparent); color: var(--manila-ink);
+  clip-path: polygon(24px 0, 100% 0, 100% 100%, 24px 100%, 0 calc(100% - 24px), 0 24px);
+  -webkit-mask: radial-gradient(circle at 22px 50%, transparent 6px, var(--mask) 6.5px); mask: radial-gradient(circle at 22px 50%, transparent 6px, var(--mask) 6.5px);
+}
+.cf-eye { position: absolute; left: 13px; top: 50%; margin-top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--eyelet); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge); }
+.cf-top { align-self: stretch; display: flex; justify-content: space-between; gap: 8px; font: 700 10px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.cf-text { font: 400 13.5px/1.35 var(--mono); overflow-wrap: anywhere; }
+.cf-text b { font-family: var(--body); font-weight: 700; font-size: 14px; }
+.cf-foot { align-self: stretch; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cf-pts { margin-left: auto; font-family: var(--display); font-size: 18px; white-space: nowrap; }
+.cf-pts--pos { color: var(--stamp-good); }
+.cf-pts--neg { color: var(--stamp-bad); }
+.react { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1.5px solid var(--manila-ink); border-radius: 999px; font: 700 11px/1.3 var(--mono); }
+.react--none { border-style: dashed; color: var(--manila-sub); border-color: var(--manila-sub); }
+.tl-link { display: inline-flex; align-items: center; gap: 4px; font: 700 10.5px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-plain); }
+.feed-more { margin: -8px 0 -4px 22px; font: 700 10.5px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--chart); }
+.shut { position: relative; display: flex; flex-direction: column; align-items: flex-start; }
+.shut .cf-folder__tab { background: var(--kraft); }
+.shut__b { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px 12px; background: var(--kraft); color: var(--manila-ink); box-shadow: var(--shadow); }
+.shut__b > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.shut__b b { font-family: var(--display); font-weight: 400; font-size: 17px; line-height: 1.1; }
+.shut__b span { font: 10px/1.2 var(--mono); letter-spacing: 0.6px; text-transform: uppercase; color: var(--manila-sub); }
+
+.mf-top { display: flex; justify-content: space-between; align-items: center; color: var(--walltext); font-family: var(--mono); }
+.mf-top__room { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.mf-rec { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.mf-rec__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot); }
+.mf-suspect { margin-top: 26px; }
+.ixrow { align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; padding-right: 8px; }
+.ixrow .cf-folder__tab { padding-right: 34px; }
+.ixrow .clip { right: 10px; top: -18px; }
+.ix { position: relative; z-index: 3; display: flex; align-items: center; gap: 5px; margin-bottom: -3px; padding: 6px 10px 8px 8px; border-radius: 6px 6px 0 0; background: var(--accent); color: var(--on-accent); font: 700 10px/1.2 var(--mono); letter-spacing: 0.6px; text-transform: uppercase; white-space: nowrap; box-shadow: inset 0 -4px 0 var(--sh-soft); }
+.mf-head { display: flex; gap: 14px; align-items: center; padding-top: 6px; min-width: 0; }
+.mf-head__who { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.mf-head__name { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.05; color: var(--manila-ink); }
+.mf-head__line { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-ink); }
+.mf-link { font: 700 12px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-plain); text-decoration: underline; text-underline-offset: 3px; }
+.mf-stats { align-self: stretch; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mf-stat { padding: 6px 8px; border: 1.5px solid var(--manila-ink); background: var(--glass-25); }
+.mf-stat dt { font: 700 9px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.mf-stat dd { font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--manila-ink); }
+.mf-stat dd small { font-size: 14px; }
+.mf-stat--score dd { color: var(--stamp-good); }
+.mf-sealed { position: relative; align-self: stretch; margin-top: 10px; padding: 12px 14px; background: var(--chart-paper); border: 1px dashed var(--twine-dark); transform: rotate(-1deg); }
+.mf-wax { position: absolute; right: 12px; top: -12px; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, var(--warn), var(--stamp-bad) 70%); box-shadow: 0 2px 0 var(--sh-tab); }
+.mf-sealed__label { font: 700 9px/1.2 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--stamp-bad); }
+.mf-sealed__text { margin-top: 4px; font: 13px/1.5 var(--mono); color: var(--manila-ink); }
+.mf-desc { font: 12px/1.45 var(--mono); color: var(--manila-ink); }
+
+/* ---------- the GM console's folders ---------- */
+.gmpad { display: flex; flex-direction: column; gap: 14px; padding: 14px 20px 0; color: var(--manila-ink); }
+.gmpad > * { flex: none; }
+.fd { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.fd__tab { align-self: flex-start; margin-left: 16px; padding: 6px 12px 4px; border-radius: 6px 6px 0 0; background: var(--manila-tab); color: var(--manila-ink); font: 700 10.5px/1.2 var(--mono); letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
+.fd__body { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px 14px; background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow); }
+.fd__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-right: 22px; }
+.fd__h { font-family: var(--display); font-weight: 400; font-size: 19px; line-height: 1.1; }
+.hint { font-size: 12.5px; line-height: 1.38; color: var(--manila-sub); }
+.stp { display: inline-block; flex: none; padding: 0 5px; border: 2px solid currentColor; transform: rotate(-3deg); font: 700 10px/1.45 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-plain); white-space: nowrap; }
+.stp--good { color: var(--stamp-good); }
+.stp--bad { color: var(--stamp-bad); }
+.stp--warm { color: var(--stamp-warm); }
+.b { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 38px; padding: 0 10px; border: 2px solid var(--manila-ink); background: transparent; color: var(--manila-ink); font: 700 11px/1.1 var(--mono); letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap; }
+.b--go { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.b--ink { background: var(--manila-ink); color: var(--manila); }
+.b--warn { border-color: var(--warn); color: var(--stamp-bad); }
+.b--sm { min-height: 34px; padding: 0 9px; font-size: 10.5px; flex: none; }
+.b--sq { flex: none; min-width: 34px; min-height: 32px; padding: 0 4px; font-size: 12px; }
+.b--ic { padding: 0; min-width: 36px; }
+.bs { display: grid; gap: 6px; min-width: 0; }
+.bs--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bs--row { display: flex; gap: 5px; }
+.bs--row .b { min-height: 34px; }
+.cs { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 12px; background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow); }
+.cs__t { flex: 1; min-width: 0; }
+.cs__t b { display: block; font-family: var(--display); font-weight: 400; font-size: 16px; line-height: 1.1; }
+.cs__t i { display: block; font: 700 9.5px/1.3 var(--mono); font-style: normal; letter-spacing: 0.4px; text-transform: uppercase; color: var(--manila-sub); white-space: nowrap; }
+.wl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 700 11px/1 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--walltext); }
+.wl span:last-child { color: var(--rule); letter-spacing: 0.4px; font-weight: 400; text-transform: none; }
+.wl em { font-style: normal; display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 4px; border-radius: 9px; background: var(--warn); color: var(--on-accent); font-size: 10.5px; letter-spacing: 0; }
+.str { position: relative; display: flex; flex-direction: column; gap: 9px; margin: -6px 0 0; padding: 14px 0 2px; }
+.str::before { content: ''; position: absolute; z-index: 0; left: 6px; top: 0; bottom: 24px; width: 3px; border-radius: 2px; background: var(--twine); box-shadow: 1px 0 0 var(--sh-soft); }
+.tg { position: relative; padding-left: 20px; }
+.tg__knot { position: absolute; z-index: 0; left: 0; top: 50%; width: 52px; height: 24px; margin-top: -12px; overflow: visible; }
+.tg__knot path { fill: none; stroke: var(--twine); stroke-width: 2.6; stroke-linecap: round; }
+.tg__w { position: relative; z-index: 1; transform-origin: 20px 50%; filter: drop-shadow(0 3px 0 var(--wall-shadow)); }
+.tg__b {
+  position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 9px 12px 10px 40px;
+  background: var(--kraft); background-image: linear-gradient(180deg, var(--glass-12), var(--dim-5)); color: var(--manila-ink);
+  clip-path: polygon(20px 0, 100% 0, 100% 100%, 20px 100%, 0 calc(100% - 20px), 0 20px);
+  -webkit-mask: radial-gradient(circle at 20px 50%, transparent 5.5px, var(--mask) 6px); mask: radial-gradient(circle at 20px 50%, transparent 5.5px, var(--mask) 6px);
+}
+.tg--hot .tg__b { padding-right: 18px; background: var(--kraft) linear-gradient(90deg, transparent 0 calc(100% - 7px), var(--warn) calc(100% - 7px)); }
+.tg__eye { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; border: 3px solid var(--eyelet); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge); }
+.tg__top { display: flex; justify-content: space-between; gap: 8px; font: 700 9.5px/1.2 var(--mono); letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); }
+.tg__line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tg__t { min-width: 0; font: 700 13.5px/1.3 var(--mono); }
+.tg__s { font-size: 12px; line-height: 1.32; color: var(--manila-sub); }
+.tg__row { display: flex; align-items: center; gap: 8px; }
+.tg__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mc-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-right: 24px; font: 700 10px/1.3 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.mc-title { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.05; }
+.gm-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.gm-row .clock b { font-size: 30px; }
+.mc-n { font: 700 10.5px/1.2 var(--mono); letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); }
+.sr { display: flex; flex-direction: column; }
+.sr li { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 3px 0; border-top: 1px dashed var(--twine-dark); font-size: 13.5px; }
+.sr li b { font: 700 11px/1 var(--mono); color: var(--manila-sub); }
+.sr li span { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr li.dn span { color: var(--manila-sub); font-weight: 500; }
+.sr li.nx { background: var(--glass-40); margin: 0 -6px; padding: 3px 6px; border-top-style: solid; border-top-color: var(--manila-ink); }
+.sr li.nx span { font-weight: 800; }
+.sr li em { font: 700 10px/1 var(--mono); font-style: normal; letter-spacing: 0.5px; text-transform: uppercase; color: var(--manila-sub); opacity: 0.8; }
+.sr li .stp { transform: rotate(-2deg); }
+.tgl { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 2px solid var(--manila-ink); }
+.tgl b { display: block; font-size: 14px; }
+.tgl i { display: block; font: 400 11px/1.35 var(--mono); font-style: normal; color: var(--manila-sub); }
+.tog { position: relative; flex: none; width: 42px; height: 24px; border-radius: 12px; background: var(--accent); }
+.tog::after { content: ''; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); }
+.pm { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pm b { display: block; font-family: var(--display); font-weight: 400; font-size: 17px; }
+.pm i { display: block; font: 400 11px/1.4 var(--mono); font-style: normal; color: var(--manila-sub); }
+.acc li { display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; align-items: center; gap: 8px; min-height: 36px; border-top: 1px dashed var(--twine-dark); }
+.acc li span { font-family: var(--display); font-size: 15px; }
+.acc li i { font: 400 10.5px/1 var(--mono); font-style: normal; color: var(--manila-sub); white-space: nowrap; }
+.acc li.open { border-top: 2px solid var(--manila-ink); }
+.acc li.open i { color: var(--stamp-plain); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.acc__in { margin: -8px -14px 0; padding: 2px 14px 6px; background: var(--glass-40); border-bottom: 2px solid var(--manila-ink); }
+.fld { display: grid; grid-template-columns: minmax(0, 1fr) 56px; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--twine-dark); }
+.fld:first-child { border-top: 0; }
+.fld b { display: block; font-size: 13.5px; font-weight: 700; line-height: 1.2; }
+.fld i { display: block; font-size: 11.5px; font-style: normal; line-height: 1.3; color: var(--manila-sub); }
+.num { display: grid; place-items: center; min-height: 34px; background: var(--form); border: 2px solid var(--manila-ink); font: 700 14px/1 var(--mono); color: var(--manila-ink); }
+.su { display: flex; flex-direction: column; }
+.su > li { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-top: 1px dashed var(--twine-dark); }
+.su > li:first-child { border-top: 0; }
+.su__who { flex: 1; min-width: 0; }
+.su__who b { display: flex; align-items: center; gap: 4px; font-size: 13.5px; }
+.su__who i { display: block; font: 400 10px/1.3 var(--mono); font-style: normal; color: var(--manila-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.su__pts { flex: none; min-width: 28px; text-align: right; font-family: var(--display); font-size: 16px; color: var(--stamp-good); }
+.su__pts.is-neg { color: var(--stamp-bad); }
+.mk { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--on-accent); }
+.mk--phone { background: var(--accent); }
+.mk--eye { background: var(--warn); }
+.gm-more { font: 700 11px/1.3 var(--mono); letter-spacing: 0.5px; color: var(--stamp-plain); text-transform: uppercase; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sw__track::after { transition: none; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <pattern id="blocks" width="26" height="20" patternUnits="userSpaceOnUse"><rect class="m-block" x="2" y="2" width="10" height="7"/><rect class="m-block" x="14" y="2" width="9" height="7"/><rect class="m-block" x="2" y="11" width="21" height="7"/></pattern>
+  <symbol id="fp" viewBox="0 0 20 24"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.2 9.5C4.3 5.3 7 3 10 3s5.7 2.3 6.8 6.5"/><path d="M2.6 14.5c0-1.4.1-2.6.4-3.7M17.4 12c.1 2.7-.3 5.3-1.1 7.6"/><path d="M5 18.6c-.4-1.5-.5-3.1-.4-4.6C4.8 9.6 7.1 6.6 10 6.6s5.2 3 5.3 7.3c0 1.7-.1 3.3-.5 4.8"/><path d="M7.6 21c-.6-1.8-1-3.9-.9-6C6.8 11.6 8.2 9.8 10 9.8s3.2 1.8 3.3 5c.1 2.2-.3 4.3-1 6.3"/><path d="M10 13c.5 2.6.4 5.6-.4 8.5"/></g></symbol>
+  <symbol id="sil" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4.2"/><path d="M3.5 24c0-5.2 3.8-8.6 8.5-8.6s8.5 3.4 8.5 8.6z"/></symbol>
+  <symbol id="clip" viewBox="0 0 16 44"><path class="clip-p" d="M5 40 V8 a3 3 0 0 1 6 0 V34 a5 5 0 0 1 -10 0 V12"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M6.6 3.5h2.9l1.8 4.7-1.9 1.7a14 14 0 0 0 4.7 4.7l1.7-1.9 4.7 1.8v2.9a2 2 0 0 1-2 2C10.5 19.4 4.6 13.5 4.6 5.5a2 2 0 0 1 2-2Z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12C5 7.5 8.3 5.5 12 5.5s7 2 9.5 6.5c-2.5 4.5-5.8 6.5-9.5 6.5S5 16.5 2.5 12Z"/><path d="M9.8 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"/></g></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z"/><path d="M15.3 15.3L21 21"/><path d="M7.5 9.5a3 3 0 0 1 3-3"/></g></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><path d="M12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></g></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></g></symbol>
+  <symbol id="smark" viewBox="0 0 28 14"><rect class="smark__bad" x="0.5" y="5.6" width="13.5" height="2.8"/><rect class="smark__good" x="14" y="5.6" width="13.5" height="2.8"/><path class="smark__zero" d="M14 0.8v12.4"/><circle class="smark__f smark__f--bad" cx="5" cy="3.6" r="2.7"/><circle class="smark__f smark__f--good" cx="19" cy="10.4" r="2.7"/><circle class="smark__f smark__f--good" cx="23.6" cy="3.6" r="2.7"/></symbol>
+</defs></svg>
+
+<div class="page">
+  <div class="lab">
+  <header class="head">
+    <p class="kicker">Mystery Pub Crawl · moving between tabs</p>
+    <h1 class="title">Tab transitions</h1>
+    <p class="lede">Five ways for the case file to change when you tap a tab. Tap the <b>bottom tabs</b> on the phone (Missions, Feed, My file, GM) and the <b>folder tabs</b> inside Missions and the GM console, then pick another style and feel the difference. Slow it down or scrub through the last change to see how each one is made.</p>
+  </header>
+
+    <section class="bench" aria-label="Controls">
+      <div class="bench__h">Pick a style <span>switching replays the last change</span></div>
+      <fieldset class="styles" id="styles" aria-label="Transition style"></fieldset>
+      <div class="opts">
+        <label class="sw" for="opt-reduced"><input type="checkbox" id="opt-reduced"><span class="sw__track" aria-hidden="true"></span>Reduced motion</label>
+        <label class="sw" for="opt-slow"><input type="checkbox" id="opt-slow"><span class="sw__track" aria-hidden="true"></span>Slow motion ×4</label>
+        <button type="button" class="btn" id="replay"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5"/></svg>Replay</button>
+      </div>
+      <div class="scrub"><label for="scrub">Scrub</label><input type="range" id="scrub" min="0" max="100" step="1" value="0"><output id="scrub-out" for="scrub">–</output></div>
+      <div class="readout"><p id="readout" aria-live="polite"></p><div class="tl" aria-hidden="true"><i id="tl-bar"></i></div></div>
+      <p class="os-note" id="os-note" hidden>Your device asks for reduced motion, so the page starts with it on.</p>
+      <p class="try"><b>Try</b> Missions → Map → Standings and back; Feed → My file → GM; the GM's four folders. Tap two tabs quickly: the second tap wins at once.</p>
+    </section>
+
+    <div class="lab__phone">
+      <div class="pw" id="pw"><div class="shell"><div class="phone" id="phone">
+        <div class="island"></div>
+        <div class="sb"><span>21:48</span><span class="sb__r"><svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="16" height="12" viewBox="0 0 16 12" class="sb__wifi" aria-hidden="true"><path d="M1.5 4.2a9.5 9.5 0 0 1 13 0"/><path d="M4.3 7a5.5 5.5 0 0 1 7.4 0"/><circle cx="8" cy="10" r="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" class="sb__bat" aria-hidden="true"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5"/><rect class="sb__fill" x="2" y="2" width="16" height="9" rx="2"/><rect class="sb__nub" x="24.5" y="4" width="1.8" height="5" rx="1"/></svg></span></div>
+        <header class="ab">
+          <h2 class="ab__t" id="ab-title"><span class="ab__tx">Mystery Pub Crawl</span></h2>
+          <div class="ab__r"><span class="score"><span class="tip"><svg class="tip__ring" viewBox="0 0 28 28" aria-hidden="true"><circle class="tip__track" cx="14" cy="14" r="12"/><circle class="tip__left" cx="14" cy="14" r="12" stroke-dasharray="27 75.4" transform="rotate(-90 14 14)"/></svg><svg class="ic tip__ic" width="17" height="17" aria-hidden="true"><use href="#i-phone"/></svg></span><span class="pts">12 pts · #3</span></span><span class="av" style="--s:38px;--t:var(--accent-tint)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></div>
+        </header>
+
+        <div class="stage" id="stage">
+          <!-- ===== Missions: the folder with Missions · Map · Standings ===== -->
+          <section class="scr" data-sec="missions" aria-label="Missions">
+            <div class="bd">
+              <div class="bd-tabs" role="tablist" aria-label="Missions folder" data-scope="missions">
+                <span class="ind ind--bd" aria-hidden="true"><i class="ind__chart"></i></span>
+                <button type="button" class="bd-tab" role="tab" data-tab="missions" aria-selected="true"><span class="tab__l">Missions</span><i class="bd-dot" hidden></i></button>
+                <button type="button" class="bd-tab" role="tab" data-tab="map" aria-selected="false" tabindex="-1"><span class="tab__l">Map</span></button>
+                <button type="button" class="bd-tab" role="tab" data-tab="standings" aria-selected="false" tabindex="-1"><span class="tab__l"><svg class="smark" width="28" height="14" aria-hidden="true"><use href="#smark"/></svg>Standings</span></button>
+              </div>
+              <div class="sheet sheet--bd" data-scope="missions">
+                <section class="pg" data-tab="missions" style="--bg:var(--manila)" aria-label="Missions">
+                  <div class="pad">
+                    <div class="e-stack">
+                      <div class="e-f e-f--back" style="top:0px"><span class="e-tab" style="left:242px">Lottery<b>18:20</b></span></div>
+                      <div class="e-f e-f--mid" style="top:15px"><span class="e-tab" style="left:124px">Line-up<b>12:04</b></span></div>
+                      <div class="e-f e-f--front" style="top:30px"><span class="e-tab" style="left:6px">Roll call<b>09:12</b></span>
+                        <div class="e-f__b"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg>
+                          <p class="e-k"><span>Roll call · No. 3</span><em>1 of 3 live</em></p>
+                          <h3 class="e-t">Your alibi: a photo of where you are right now</h3>
+                          <p class="e-rule">−5 if you don’t · one answer, a photo or a comment</p>
+                          <div class="mc-row"><div class="clock"><b>09:12</b><i>left</i></div><div class="prints"><span class="pips"><svg class="pip on"><use href="#fp"/></svg><svg class="pip on"><use href="#fp"/></svg><svg class="pip on"><use href="#fp"/></svg><svg class="pip on"><use href="#fp"/></svg><svg class="pip on"><use href="#fp"/></svg><svg class="pip"><use href="#fp"/></svg><svg class="pip"><use href="#fp"/></svg></span><span>5 of 7 answered</span></div></div>
+                          <p class="e-you">Not answered yet</p>
+                          <span class="cta"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M12 9.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>Answer</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p class="e-hint">Swipe the front folder away; tap a tab to pull it forward</p>
+                    <div class="e-wrap">
+                      <section><header class="sec-hd"><h3>Group events</h3><span>random drops</span></header>
+                        <ol class="e-rows"><li class="e-r live"><b>No. 3</b><div class="e-r__m"><span>Pocket lottery</span><i class="ok">18:20 left · you’re in</i></div><span class="e-chip">Lottery</span></li><li class="e-r dim"><b>Next</b><div class="e-r__m"><span>Random drop</span><i>can land at any time</i></div></li></ol>
+                        <p class="e-filed"><b>Filed · 2</b><span>No. 1 −5 · No. 2 +5</span><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-down"/></svg></p>
+                      </section>
+                      <section><header class="sec-hd"><h3>Periodic missions</h3><span>roll call · hourly</span></header>
+                        <ol class="e-rows"><li class="e-r live"><b>No. 3</b><div class="e-r__m"><span>Your alibi: a photo of where you are</span><i>09:12 left · not answered</i></div><span class="e-chip">Roll call</span></li><li class="e-r dim"><b>No. 4</b><div class="e-r__m"><span>Roll call</span><i>opens 22:42 · in 54 min</i></div></li></ol>
+                      </section>
+                      <section><header class="sec-hd"><h3>Story missions</h3><span>Blackwood Manor</span></header>
+                        <ol class="e-rows"><li class="e-r live"><b>Ch. 2</b><div class="e-r__m"><span>The line-up</span><i>12:04 left · not in</i></div><span class="e-chip">Line-up</span></li><li class="e-r dim"><b>3–7</b><div class="e-r__m"><span><span class="waxes"><i class="wax"></i><i class="wax"></i><i class="wax"></i><i class="wax"></i><i class="wax"></i></span></span><i>sealed until the GM opens them</i></div></li></ol>
+                      </section>
+                      <nav class="e-thumb" aria-hidden="true"><span class="on">Group</span><span>Periodic</span><span>Story</span></nav>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="pg" data-tab="map" style="--bg:var(--map-land)" aria-label="Map" hidden>
+                  <div class="marea">
+                    <div class="mlayer">
+                      <svg class="mbase" viewBox="0 0 390 760" aria-hidden="true"><rect width="390" height="760" class="m-land"/><rect width="390" height="760" fill="url(#blocks)"/><path class="m-park" d="M290 600 L400 588 L400 760 L262 760 L250 680 Z"/><path class="m-park" d="M8 410 L96 398 L104 488 L14 500 Z"/><path class="m-water" d="M-10 724 C100 700 200 744 400 702"/><path class="m-edge r-s" d="M70 -10 C76 120 64 240 72 352"/><path class="m-road r-s" d="M70 -10 C76 120 64 240 72 352"/><path class="m-edge r-s" d="M112 150 C116 250 108 330 116 400"/><path class="m-road r-s" d="M112 150 C116 250 108 330 116 400"/><path class="m-edge r-s" d="M320 -10 C316 120 330 220 322 296"/><path class="m-road r-s" d="M320 -10 C316 120 330 220 322 296"/><path class="m-edge r-s" d="M300 380 C306 440 296 500 304 560"/><path class="m-road r-s" d="M300 380 C306 440 296 500 304 560"/><path class="m-edge r-s" d="M30 352 C40 420 34 480 40 560"/><path class="m-road r-s" d="M30 352 C40 420 34 480 40 560"/><path class="m-edge r-s" d="M150 520 C160 580 150 640 160 760"/><path class="m-road r-s" d="M150 520 C160 580 150 640 160 760"/><path class="m-edge r-s" d="M-10 250 C40 246 100 252 160 256"/><path class="m-road r-s" d="M-10 250 C40 246 100 252 160 256"/><path class="m-edge r-s" d="M260 160 C300 170 350 166 400 172"/><path class="m-road r-s" d="M260 160 C300 170 350 166 400 172"/><path class="m-edge r-s" d="M200 610 C260 600 320 612 400 606"/><path class="m-road r-s" d="M200 610 C260 600 320 612 400 606"/><path class="m-edge r-m" d="M244 442 C180 410 100 380 -10 352"/><path class="m-road r-m" d="M244 442 C180 410 100 380 -10 352"/><path class="m-edge r-m" d="M250 470 C180 500 90 520 -10 530"/><path class="m-road r-m" d="M250 470 C180 500 90 520 -10 530"/><path class="m-edge r-m" d="M262 486 C300 520 350 560 400 590"/><path class="m-road r-m" d="M262 486 C300 520 350 560 400 590"/><path class="m-edge r-m" d="M178 300 C240 296 320 300 400 290"/><path class="m-road r-m" d="M178 300 C240 296 320 300 400 290"/><path class="m-edge r-m" d="M176 170 C120 160 60 150 -10 146"/><path class="m-road r-m" d="M176 170 C120 160 60 150 -10 146"/><path class="m-edge r-m" d="M212 372 C270 380 330 372 400 380"/><path class="m-road r-m" d="M212 372 C270 380 330 372 400 380"/><path class="m-edge r-m" d="M186 90 C260 92 330 84 400 88"/><path class="m-road r-m" d="M186 90 C260 92 330 84 400 88"/><path class="m-edge r-l" d="M300 780 C290 650 272 530 252 470 C238 430 222 400 205 352 C190 310 176 275 174 236 C172 180 186 110 186 -10"/><path class="m-road r-l" d="M300 780 C290 650 272 530 252 470 C238 430 222 400 205 352 C190 310 176 275 174 236 C172 180 186 110 186 -10"/><path class="m-route" d="M270 502 C262 470 250 452 238 444 C226 420 212 380 200 340 C190 320 176 300 156 280"/><text class="m-lab" transform="translate(196 338) rotate(-66)">WILMSLOW ROAD</text><text class="m-lab" transform="translate(60 382) rotate(21)">BARLOW MOOR RD</text><text class="m-lab" transform="translate(70 510) rotate(-9)">SCHOOL LANE</text><text class="m-lab" transform="translate(126 160) rotate(5)">LAPWING LANE</text><text class="m-lab" transform="translate(250 294) rotate(-2)">OLD LANSDOWNE RD</text><text class="m-lab m-lab--it" x="296" y="650">FLETCHER MOSS</text><text class="m-lab m-lab--it" x="22" y="450">DIDSBURY</text><text class="m-lab m-lab--it" x="34" y="462">PARK</text><text class="m-lab m-lab--it" transform="translate(40 724) rotate(-4)">RIVER MERSEY</text><text class="m-lab m-lab--big" x="268" y="236">DIDSBURY</text><g class="m-compass" transform="translate(352 330)"><path d="M0 18 L0 -14 M-6 -6 L0 -16 L6 -6"/><text x="-4.5" y="32">N</text></g></svg>
+                      <span class="stop stop--now" style="left:156px;top:280px"><span class="stop__no">3</span><span class="stop__slip">The Crown</span></span>
+                      <span class="stop stop--past" style="left:238px;top:444px"><span class="stop__no">2</span><span class="stop__slip">Ye Olde Cock Inn</span></span>
+                      <span class="stop stop--past" style="left:270px;top:502px"><span class="stop__no">1</span><span class="stop__slip">The Didsbury</span></span>
+                      <span class="mp" style="left:118px;top:256px"><span class="av" style="--s:26px;--t:var(--tint-4)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="mp" style="left:112px;top:300px"><span class="av" style="--s:26px;--t:var(--tint-1)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="mp" style="left:132px;top:326px"><span class="av" style="--s:26px;--t:var(--tint-5)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="mp" style="left:198px;top:248px"><span class="av" style="--s:26px;--t:var(--tint-3)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="mp mp--me" style="left:186px;top:302px"><span class="av" style="--s:26px;--t:var(--accent-tint)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="mp" style="left:52px;top:338px"><span class="av" style="--s:26px;--t:var(--tint-2)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span>
+                      <span class="pen-note" style="left:176px;top:206px">next? sealed</span>
+                    </div>
+                    <div class="nowstrip"><div class="ns__now"><b>Now · stop 03</b><span>The Crown</span><i>since 21:20 · leave by 22:15</i></div><div class="ns__next"><b>Next</b><span>Sealed</span></div></div>
+                    <div class="mtools"><span class="mbtn mbtn--on"><svg class="ic" width="15" height="15" aria-hidden="true"><use href="#i-pin"/></svg>Sharing · on</span><span class="mbtn"><svg class="ic" width="15" height="15" aria-hidden="true"><use href="#i-map"/></svg>Centre</span><span class="mbtn"><svg class="ic" width="15" height="15" aria-hidden="true"><use href="#i-pin"/></svg>Me</span></div>
+                    <span class="mcount">6 players on the map</span>
+                  </div>
+                </section>
+
+                <section class="pg" data-tab="standings" style="--bg:var(--chart-paper)" aria-label="Standings" hidden>
+                  <div class="st">
+                    <div class="st__top"><div class="st__heads"><span class="st__h st__h--bad">← Under suspicion</span><span class="st__h st__h--good">In the clear →</span></div>
+                      <div class="st__axis"><span class="st__tick" style="left:23px">−25</span><span class="st__tick" style="left:57.4px">−20</span><span class="st__tick" style="left:91.8px">−15</span><span class="st__tick" style="left:126.2px">−10</span><span class="st__tick" style="left:160.6px">−5</span><span class="st__tick" style="left:195px">0</span><span class="st__tick" style="left:229.4px">+5</span><span class="st__tick" style="left:263.8px">+10</span><span class="st__tick" style="left:298.2px">+15</span><span class="st__tick" style="left:332.6px">+20</span><span class="st__tick" style="left:367px">+25</span></div></div>
+                    <div class="st__body">
+                      <div class="st__grid"><i class="st__v" style="left:23px"></i><i class="st__v" style="left:57.4px"></i><i class="st__v" style="left:91.8px"></i><i class="st__v" style="left:126.2px"></i><i class="st__v" style="left:160.6px"></i><i class="st__v st__v--zero" style="left:195px"></i><i class="st__v" style="left:229.4px"></i><i class="st__v" style="left:263.8px"></i><i class="st__v" style="left:298.2px"></i><i class="st__v" style="left:332.6px"></i><i class="st__v" style="left:367px"></i></div>
+                      <ol class="st__rows">
+                        <li class="st__row"><span class="st__bar st__bar--plus" style="left:195px;width:110.1px"></span><span class="st__face" style="left:286.1px"><span class="av av--plus" style="--s:38px;--t:var(--tint-4)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__pin st__pin--conf" style="left:308.5px"><svg width="14" height="14" aria-hidden="true"><use href="#i-phone"/></svg></span><span class="st__label" style="right:203px"><b class="st__name">Maya</b> <span class="st__score st__score--plus">+16</span></span></li>
+                        <li class="st__row"><span class="st__bar st__bar--plus" style="left:195px;width:96.3px"></span><span class="st__face" style="left:272.3px"><span class="av av--plus" style="--s:38px;--t:var(--tint-1)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__pin st__pin--conf" style="left:294.7px"><svg width="14" height="14" aria-hidden="true"><use href="#i-phone"/></svg></span><span class="st__label" style="right:203px"><b class="st__name">Theo</b> <span class="st__score st__score--plus">+14</span></span></li>
+                        <li class="st__row st__row--me"><span class="st__bar st__bar--plus" style="left:195px;width:82.6px"></span><span class="st__face" style="left:258.6px"><span class="av av--plus" style="--s:38px;--t:var(--accent-tint)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__pin st__pin--conf" style="left:281px"><svg width="14" height="14" aria-hidden="true"><use href="#i-phone"/></svg></span><span class="st__label" style="right:203px"><b class="st__name me">You</b> <span class="st__score st__score--plus">+12</span></span></li>
+                        <li class="st__row"><span class="st__bar st__bar--plus" style="left:195px;width:20.6px"></span><span class="st__face" style="left:196.6px"><span class="av av--plus" style="--s:38px;--t:var(--tint-3)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__label" style="right:203px"><b class="st__name">Sam</b> <span class="st__score st__score--plus">+3</span></span></li>
+                        <li class="st__row"><span class="st__bar st__bar--minus" style="left:167.5px;width:27.5px"></span><span class="st__face" style="left:148.5px"><span class="av av--minus" style="--s:38px;--t:var(--tint-5)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__label" style="left:203px"><b class="st__name">Kit</b> <span class="st__score st__score--minus">−4</span></span></li>
+                        <li class="st__row"><span class="st__bar st__bar--minus" style="left:140px;width:55px"></span><span class="st__face" style="left:121px"><span class="av av--minus" style="--s:38px;--t:var(--tint-2)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__label" style="left:203px"><b class="st__name">Jonah</b> <span class="st__score st__score--minus">−8</span></span></li>
+                        <li class="st__row"><span class="st__bar st__bar--minus" style="left:105.6px;width:89.4px"></span><span class="st__face" style="left:86.6px"><span class="av av--minus" style="--s:38px;--t:var(--tint-6)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span></span><span class="st__pin st__pin--poi" style="left:81.2px"><svg width="14" height="14" aria-hidden="true"><use href="#i-eye"/></svg></span><span class="st__label" style="left:203px"><b class="st__name">Ellis</b> <span class="st__score st__score--minus">−13</span></span></li>
+                      </ol>
+                    </div>
+                    <div class="st__legend"><p class="st__lg st__lg--conf"><span class="st__pin st__pin--conf"><svg width="13" height="13" aria-hidden="true"><use href="#i-phone"/></svg></span><b>Trusted confidant</b> above +10 · can tip off the police</p><p class="st__lg st__lg--poi"><span class="st__pin st__pin--poi"><svg width="13" height="13" aria-hidden="true"><use href="#i-eye"/></svg></span><b>Person of interest</b> below −10 · police check-ins</p></div>
+                    <p class="st__key">1 square = 5 points</p>
+                  </div>
+                </section>
+                <div class="carriage" aria-hidden="true"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== Feed: the timeline of the night ===== -->
+          <section class="scr" data-sec="feed" aria-label="Feed" hidden>
+            <div class="wallpad">
+              <section class="cf-folder"><span class="cf-folder__tab">Now · stop 03</span><div class="cf-folder__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg><span class="cf-meta">Since 21:20 · 5 of 7 here · 11 entries</span><div class="tl-row"><h3 class="cf-title">The Crown</h3><span class="cf-stamp cf-stamp--active">Active</span></div></div></section>
+              <ul class="cf-strung">
+                <li class="cf-row"><svg class="cf-knot" width="52" height="24" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 18 3, 28 8, 46 12"/></svg><div class="cf-tagwrap" style="transform:rotate(-0.4deg)"><article class="cf-tag"><span class="cf-eye"></span><div class="cf-top"><span>No. 0421</span><span>21:47</span></div><span class="cf-stamp cf-stamp--bad">Police report</span><p class="cf-text"><b>Ellis</b> failed the police check-in</p><div class="cf-foot"><span class="react"><svg width="13" height="13" aria-hidden="true"><use href="#i-search"/></svg>2</span><span class="cf-pts cf-pts--neg">−5</span></div></article></div></li>
+                <li class="cf-row"><svg class="cf-knot" width="52" height="24" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 18 3, 28 8, 46 12"/></svg><div class="cf-tagwrap" style="transform:rotate(0.5deg)"><article class="cf-tag"><span class="cf-eye"></span><div class="cf-top"><span>No. 0418</span><span>21:46</span></div><span class="cf-stamp cf-stamp--good">Confirmed · Maya</span><p class="cf-text"><b>Theo</b> completed a secret tampering mission</p><div class="cf-foot"><span class="react"><svg width="13" height="13" aria-hidden="true"><use href="#i-search"/></svg>4</span><span class="cf-pts cf-pts--pos">+5</span></div></article></div></li>
+                <li class="cf-row"><svg class="cf-knot" width="52" height="24" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 18 3, 28 8, 46 12"/></svg><div class="cf-tagwrap" style="transform:rotate(-0.3deg)"><article class="cf-tag"><span class="cf-eye"></span><div class="cf-top"><span>No. 0417</span><span>21:44</span></div><span class="cf-stamp">Story · chapter 2</span><p class="cf-text">The police want a word: <b>The line-up</b> is open</p><span class="tl-link">Open in Missions ›</span><div class="cf-foot"><span class="react react--none">+ React</span></div></article></div></li>
+              </ul>
+              <p class="feed-more">+ 8 more at the Crown</p>
+              <section class="shut"><span class="cf-folder__tab">Stop 02 · filed</span><div class="shut__b"><div><b>Ye Olde Cock Inn</b><span>20:25–21:20 · 14 entries · 3 photos</span></div><svg width="18" height="18" aria-hidden="true"><use href="#i-down"/></svg></div></section>
+            </div>
+          </section>
+
+          <!-- ===== My file ===== -->
+          <section class="scr" data-sec="file" aria-label="My file" hidden>
+            <div class="wallpad">
+              <div class="mf-top"><div class="mf-top__room">Interview room B</div><div class="mf-rec"><span class="mf-rec__dot"></span>REC 21:47</div></div>
+              <section class="cf-folder mf-suspect">
+                <div class="ixrow"><span class="cf-folder__tab">Suspect file · Priya<svg class="clip" aria-hidden="true"><use href="#clip"/></svg></span><span class="ix"><svg width="13" height="13" aria-hidden="true"><use href="#i-phone"/></svg>Trusted<br>confidant</span></div>
+                <div class="cf-folder__body">
+                  <div class="mf-head"><span class="av" style="--s:104px;--t:var(--accent-tint);border:0;box-shadow:0 2px 0 var(--sh-tab)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="mf-head__who"><span class="cf-meta">Case 29 · 336071</span><h3 class="mf-head__name">Delacroix M</h3><p class="mf-head__line">Marguerite Delacroix · Housekeeper of Blackwood Manor · played by Priya</p><span class="mf-link">Edit photo</span></div></div>
+                  <dl class="mf-stats"><div class="mf-stat mf-stat--score"><dt>Score</dt><dd>12</dd></div><div class="mf-stat"><dt>Rank</dt><dd>3<small>/7</small></dd></div><div class="mf-stat"><dt>Guesses</dt><dd>1<small>/3</small></dd></div></dl>
+                  <div class="mf-sealed"><span class="mf-wax"></span><div class="mf-sealed__label">Motive · not for the record</div><p class="mf-sealed__text">She knows what was in the study safe and has already taken the one thing that could name her.</p></div>
+                </div>
+              </section>
+              <section class="cf-folder"><span class="cf-folder__tab">Tampering missions · 2 rerolls left</span><div class="cf-folder__body"><p class="mf-desc">Strung up in the order they were dealt. Send one to your witness when it’s done.</p></div></section>
+            </div>
+          </section>
+
+          <!-- ===== GM console: Tonight · Suspects · Missions · Setup ===== -->
+          <section class="scr" data-sec="gm" aria-label="GM console" hidden>
+            <div class="gl">
+              <div class="gl-tabs" role="tablist" aria-label="GM console" data-scope="gm">
+                <span class="ind ind--gl" aria-hidden="true"></span>
+                <button type="button" class="gl-tab" role="tab" data-tab="tonight" aria-selected="true"><span class="tab__l">Tonight<i class="gl-count" aria-hidden="true">4</i></span></button>
+                <button type="button" class="gl-tab" role="tab" data-tab="suspects" aria-selected="false" tabindex="-1"><span class="tab__l">Suspects</span></button>
+                <button type="button" class="gl-tab" role="tab" data-tab="missions" aria-selected="false" tabindex="-1"><span class="tab__l">Missions</span></button>
+                <button type="button" class="gl-tab" role="tab" data-tab="setup" aria-selected="false" tabindex="-1"><span class="tab__l">Setup</span></button>
+              </div>
+              <div class="gl-edge"></div>
+              <div class="sheet sheet--gl" data-scope="gm">
+                <section class="pg" data-tab="tonight" style="--bg:var(--wall)" aria-label="Tonight">
+                  <div class="gmpad">
+                    <div class="cs"><div class="cs__t"><b>Case open</b><i>Since 19:58 · running 1 h 50</i></div><span class="b b--sm">Pause</span><span class="b b--warn b--sm">Close</span></div>
+                    <div class="wl"><span>Needs you <em>4</em></span><span>most urgent first</span></div>
+                    <ul class="str">
+                      <li class="tg tg--hot"><svg class="tg__knot" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 17 3, 26 8, 42 12"/></svg><div class="tg__w" style="transform:rotate(-0.35deg)"><article class="tg__b"><span class="tg__eye"></span><div class="tg__top"><span>Switchboard</span><span>21:39</span></div><div class="tg__line"><p class="tg__t">Lines down</p><span class="stp stp--bad">3 in a row</span></div><div class="bs bs--2"><span class="b b--go">Restore lines</span><span class="b">Test call to me</span></div></article></div></li>
+                      <li class="tg"><svg class="tg__knot" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 17 3, 26 8, 42 12"/></svg><div class="tg__w" style="transform:rotate(0.35deg)"><article class="tg__b"><span class="tg__eye"></span><div class="tg__row"><div class="tg__txt"><div class="tg__top"><span>At the door</span><span>21:46</span></div><p class="tg__t">Alex Moreno</p></div><div class="bs bs--row"><span class="b b--go">Let in</span><span class="b b--ic">✕</span></div></div></article></div></li>
+                      <li class="tg"><svg class="tg__knot" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 17 3, 26 8, 42 12"/></svg><div class="tg__w"><article class="tg__b"><span class="tg__eye"></span><div class="tg__top"><span>Statement</span><span>21:34</span></div><p class="tg__t">Theo did “Tag rip”</p><p class="tg__s">Witness Jonah hasn’t answered · 14 min</p><div class="bs bs--2"><span class="b b--go">Confirm</span><span class="b">Reject</span></div></article></div></li>
+                      <li class="tg"><svg class="tg__knot" viewBox="0 0 52 24" aria-hidden="true"><path d="M7.5 3 C 17 3, 26 8, 42 12"/></svg><div class="tg__w" style="transform:rotate(-0.7deg)"><article class="tg__b"><span class="tg__eye"></span><div class="tg__row"><div class="tg__txt"><div class="tg__top"><span>Story · up next</span><span>No. 4 of 7</span></div><p class="tg__t">Dust for prints</p></div><span class="b b--ink">Fire</span></div></article></div></li>
+                    </ul>
+                  </div>
+                </section>
+
+                <section class="pg" data-tab="suspects" style="--bg:var(--wall)" aria-label="Suspects" hidden>
+                  <div class="gmpad">
+                    <section class="fd"><span class="fd__tab">Suspects · 7 playing</span><div class="fd__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg>
+                      <ul class="su">
+                        <li><span class="av av--plus" style="--s:30px;--t:var(--tint-4)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Maya<span class="mk mk--phone"><svg width="12" height="12" aria-hidden="true"><use href="#i-phone"/></svg></span></b><i>Lady Violet Ashcombe</i></div><span class="su__pts">16</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--plus" style="--s:30px;--t:var(--tint-1)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Theo<span class="mk mk--phone"><svg width="12" height="12" aria-hidden="true"><use href="#i-phone"/></svg></span></b><i>Captain Alistair Thorne</i></div><span class="su__pts">14</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--plus" style="--s:30px;--t:var(--accent-tint)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Priya<span class="mk mk--phone"><svg width="12" height="12" aria-hidden="true"><use href="#i-phone"/></svg></span></b><i>Marguerite Delacroix</i></div><span class="su__pts">12</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--plus" style="--s:30px;--t:var(--tint-3)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Sam</b><i>Dr Rupert Fenwick</i></div><span class="su__pts">3</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--minus" style="--s:30px;--t:var(--tint-5)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Kit</b><i>Miss Ada Pennington</i></div><span class="su__pts is-neg">−4</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--minus" style="--s:30px;--t:var(--tint-2)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Jonah</b><i>Reverend Silas Crowe</i></div><span class="su__pts is-neg">−8</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                        <li><span class="av av--minus" style="--s:30px;--t:var(--tint-6)"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sil"/></svg></span><div class="su__who"><b>Ellis<span class="mk mk--eye"><svg width="12" height="12" aria-hidden="true"><use href="#i-eye"/></svg></span></b><i>Colonel Edmund Hale</i></div><span class="su__pts is-neg">−13</span><span class="b b--sq">−1</span><span class="b b--sq">+1</span></li>
+                      </ul>
+                      <p class="gm-more">All 7: rerolls, characters, freeze ›</p></div></section>
+                    <section class="fd"><span class="fd__tab">Police check-ins</span><div class="fd__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg><div class="fd__row"><b class="fd__h">Switchboard</b><span class="stp stp--bad">Lines down</span></div><p class="hint">3 calls in a row didn’t connect (Jonah, Ellis). Next check-in: Ellis, 22:05.</p><div class="bs bs--2"><span class="b b--go">Restore lines</span><span class="b">Test call to me</span></div></div></section>
+                  </div>
+                </section>
+
+                <section class="pg" data-tab="missions" style="--bg:var(--wall)" aria-label="Missions" hidden>
+                  <div class="gmpad">
+                    <section class="fd"><span class="fd__tab">Group mission · voting</span><div class="fd__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg><div class="mc-meta"><span>No. 6 · random drop</span><span class="stp stp--warm">Voting</span></div><h3 class="mc-title">Hats only!</h3><div class="gm-row"><p class="clock"><b>07:41</b><i>left to vote</i></p><p class="mc-n">6 entries</p></div><div class="bs bs--2"><span class="b b--ink">End the vote</span><span class="b">Fire a new one</span></div></div></section>
+                    <section class="fd"><span class="fd__tab">Story · 3 of 7 fired</span><div class="fd__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg>
+                      <ol class="sr"><li class="dn"><b>1</b><span>The body is found</span><span class="stp stp--good">Done</span></li><li class="dn"><b>2</b><span>The line-up</span><span class="stp stp--good">Done</span></li><li class="dn"><b>3</b><span>The will</span><span class="stp stp--good">Done</span></li><li class="nx"><b>4</b><span>Dust for prints</span><span class="b b--go b--sm">Fire</span></li><li><b>5</b><span>Reconstruction</span><em>Not yet</em></li><li><b>6</b><span>Accuse someone</span><em>Not yet</em></li><li><b>7</b><span>Last words</span><em>Not yet</em></li></ol>
+                      <div class="tgl"><div><b>Random drops</b><i>Next about 22:20 · 18 in the pool ›</i></div><span class="tog"></span></div></div></section>
+                    <section class="fd"><span class="fd__tab">Periodic missions · 1 running</span><div class="fd__body"><div class="pm"><div><b>Roll call</b><i>Every 30 min · next 22:10</i></div><span class="b b--sm">Send now</span></div></div></section>
+                  </div>
+                </section>
+
+                <section class="pg" data-tab="setup" style="--bg:var(--wall)" aria-label="Setup" hidden>
+                  <div class="gmpad">
+                    <section class="fd"><span class="fd__tab">Settings</span><div class="fd__body"><svg class="clip" aria-hidden="true"><use href="#clip"/></svg><p class="hint">Every number applies to the live game straight away.</p>
+                      <ul class="acc"><li><span>Hands</span><i>3 dealt · 2 rerolls</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li class="open"><span>Points</span><i>open</i><svg width="14" height="14" aria-hidden="true"><use href="#i-up"/></svg></li></ul>
+                      <div class="acc__in"><div class="fld"><div><b>Tampering mission approved</b><i>Points for an approved submission</i></div><span class="num">5</span></div><div class="fld"><div><b>Group mission win</b><i>Default bonus for the winner</i></div><span class="num">5</span></div><div class="fld"><div><b>Rejected submission fine</b><i>Lost when a witness rejects it</i></div><span class="num">5</span></div><div class="fld"><div><b>Fraud fine</b><i>Taken on top of the submission’s points</i></div><span class="num">5</span></div></div>
+                      <ul class="acc"><li><span>Guessing</span><i>±5 · 3 each</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li><span>Group missions</span><i>every 20–40 min</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li><span>Rewards</span><i>clean +5 · frame −5</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li><span>Police check-ins</span><i>every 30 min · phone on</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li><span>Standings</span><i>above 10 · below −10</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li><li><span>Scoring</span><i>Classic</i><svg width="14" height="14" aria-hidden="true"><use href="#i-down"/></svg></li></ul>
+                    </div></section>
+                  </div>
+                </section>
+                <div class="carriage" aria-hidden="true"></div>
+              </div>
+            </div>
+          </section>
+          <div class="carriage" aria-hidden="true"></div>
+        </div>
+
+        <nav class="tb" aria-label="Main">
+          <span class="tb__ind" aria-hidden="true"></span>
+          <button type="button" class="tb__t" data-sec="missions" aria-current="page"><span class="tb__i"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h6.5l2 2H21V19H3z"/><path d="M3 11h18"/></svg><i class="tb__dot" hidden></i></span>Missions</button>
+          <button type="button" class="tb__t" data-sec="feed"><span class="tb__i"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3h12v18h-12z"/><path d="M9.5 3v18"/><path d="M12.5 8h3.5M12.5 12h3.5M12.5 16h2.5"/><path d="M4.5 7h3M4.5 12h3M4.5 17h3"/></svg><i class="tb__dot"></i></span>Feed</button>
+          <button type="button" class="tb__t" data-sec="file"><span class="tb__i"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg></span>My file</button>
+          <button type="button" class="tb__t" data-sec="gm"><span class="tb__i"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg><i class="tb__dot"></i></span>GM</button>
+        </nav>
+        <div class="homebar"></div>
+      </div></div></div>
+      <p class="phone-cap">You are Priya, and the GM. Every tab works.</p>
+    </div>
+
+    <section class="file" aria-label="The chosen style" id="file"></section>
+  </div>
+
+  <div class="sec-h"><h2>The five at a glance</h2><p>Times are for full speed; reduced motion replaces all of them.</p></div>
+  <div class="glance"><table id="glance"><thead><tr><th scope="col">Style</th><th scope="col">Bottom tabs</th><th scope="col">Folder tabs</th><th scope="col">Going back</th><th scope="col">Reduced motion</th><th scope="col">Time</th><th scope="col">Build</th></tr></thead><tbody></tbody></table></div>
+
+  <div class="verdict" id="verdict"><svg class="ff-clip" aria-hidden="true"><use href="#clip"/></svg>
+    <h2>Recommendation: D, the stack</h2>
+    <p>D is the only style that grows out of what the app already does. The Missions tab is a stack of folders you flick to the back, and D’s folder tabs shuffle the folder with the same flick, so the night teaches one gesture. Changing section lands a new folder on top with a 6 % drop and a shadow, which is quick and has almost no travel, so it stays pleasant on the fortieth tap. Folder tabs get the clear left and right that a row of tabs suggests, and reduced motion simply switches it off.</p>
+    <p>It costs a little more than A: the drop is plain View Transitions CSS, the shuffle needs a small wrapper (about 90 lines) in Board and GmLocker. If that is too much for now, ship A everywhere first; it is the same wiring, and D’s folder shuffle can follow later. B is the runner-up for its put-it-away “back”, but its full-height rise is too much for the bottom tabs. C and E are the most fun to watch and the costliest to keep smooth.</p>
+  </div>
+
+  <div class="sec-h"><h2>Wiring, whichever style</h2><p>Where it plugs into the app (AppFrame, Board, GmLocker)</p></div>
+  <ul class="wiring">
+    <li><b>Section or folder?</b>Compare <code>litTab()</code> before and after. A different bottom tab is a section change; the same one is a folder change. Missions ↔ Map changes the route (<code>/map</code>) but stays a folder change.</li>
+    <li><b>Which way?</b>The orders the app already has: <code>tabsFor()</code> for the bottom tabs, Missions · Map · Standings in Board, <code>LOCKER_TABS</code> in GmLocker. Further along is forwards.</li>
+    <li><b>A tap mid-change</b>A new <code>startViewTransition</code> skips the running one, and <code>::view-transition { pointer-events: none }</code> lets the tap through to the new screen. The wrappers finish their animations first. Either way the second tab wins at once.</li>
+    <li><b>Reduced motion</b>Keyframes sit inside <code>@media (prefers-reduced-motion: no-preference)</code>; the wrappers check <code>matchMedia</code>. Folder tabs with arrow keys follow the same rule.</li>
+    <li><b>Timing as tokens</b><code>--tab-ms</code> and <code>--folder-ms</code> in the pack’s theme.css, so another pack can slow it down or switch it off without touching the engine.</li>
+    <li><b>Scroll and focus</b>AppFrame’s scroll-to-top and focus move stay as they are. The old screen is captured before the scroll, so it leaves from where you were.</li>
+  </ul>
+  <p class="foot">design/mockups/mystery/tab-animations.html · a design demo on made-up data, built with plain JS and Web Animations; transforms and opacity only.</p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+  const SECTIONS = ['missions', 'feed', 'file', 'gm'];
+  const FOLDERS = { missions: ['missions', 'map', 'standings'], gm: ['tonight', 'suspects', 'missions', 'setup'] };
+  const TITLE = { missions: 'Mystery Pub Crawl', feed: 'Mystery Pub Crawl', file: 'My file', gm: 'GM console' };
+  const NAME = { missions: 'Missions', feed: 'Feed', file: 'My file', gm: 'GM', map: 'Map', standings: 'Standings', tonight: 'Tonight', suspects: 'Suspects', setup: 'Setup' };
+
+  // Easings: settle quickly; pull out of a drawer; push back in; turn a page; land; flick; throw a carriage.
+  const E = {
+    out: 'cubic-bezier(.2,.7,.2,1)',
+    pull: 'cubic-bezier(.16,.84,.3,1)',
+    push: 'cubic-bezier(.45,0,.25,1)',
+    turn: 'cubic-bezier(.42,.05,.58,.95)',
+    land: 'cubic-bezier(.25,.6,.35,1)',
+    flick: 'cubic-bezier(.3,.55,.35,1)',
+    slam: 'cubic-bezier(.3,.75,.25,1)',
+  };
+
+  /* ---------- the five recipes: each gets the old page (f) and the new one (t) ---------- */
+  function lift(c) {
+    c.t.el.style.zIndex = 2;
+    c.add(c.f.el, [{ opacity: 1 }, { opacity: 0, offset: 0.55 }, { opacity: 0 }]);
+    c.add(c.t.el, [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { easing: E.out });
+  }
+  function cabinet(c) {
+    const H = c.H, back = -0.06 * H;
+    if (c.dir > 0) {
+      c.t.el.style.zIndex = 2;
+      c.add(c.t.el, [{ transform: `translateY(${H}px)` }, { transform: 'none' }], { easing: E.pull });
+      c.add(c.t.shadow, [{ opacity: 1 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }]);
+      c.add(c.f.el, [{ transform: 'none' }, { transform: `translateY(${back}px)` }], { easing: E.pull });
+      c.dim(c.f, 0, 1, E.out);
+    } else {
+      c.f.el.style.zIndex = 2;
+      c.add(c.f.el, [{ transform: 'none' }, { transform: `translateY(${H}px)` }], { easing: E.push });
+      c.add(c.f.shadow, [{ opacity: 1 }, { opacity: 1 }]);
+      c.add(c.t.el, [{ transform: `translateY(${back}px)` }, { transform: 'none' }], { easing: E.push });
+      c.dim(c.t, 1, 0, E.push);
+    }
+  }
+  function turn(c) {
+    const P = c.kind === 'section' ? 1500 : 1300;
+    const flat = `perspective(${P}px) rotateY(0deg)`, edge = `perspective(${P}px) rotateY(-90deg)`;
+    if (c.dir > 0) {
+      c.f.el.style.zIndex = 2; c.f.el.style.transformOrigin = '0 50%';
+      c.add(c.f.el, [{ transform: flat }, { transform: edge }], { easing: E.turn });
+      c.shade(c.f, 0, 1, E.turn);
+      c.dim(c.t, 0.55, 0, E.turn);
+    } else {
+      c.t.el.style.zIndex = 2; c.t.el.style.transformOrigin = '0 50%';
+      c.add(c.t.el, [{ transform: edge }, { transform: flat }], { easing: E.land });
+      c.shade(c.t, 1, 0, E.land);
+      c.dim(c.f, 0, 0.55, E.land);
+    }
+  }
+  function drop(c) {
+    const high = 'translateY(-14px) scale(1.06)';
+    if (c.dir > 0) {
+      c.t.el.style.zIndex = 2;
+      c.add(c.t.el, [
+        { transform: high, easing: 'cubic-bezier(.5,0,.9,.55)' },
+        { transform: 'translateY(0) scale(.992)', offset: 0.78, easing: 'ease-out' },
+        { transform: 'none' },
+      ]);
+      c.add(c.t.el, [{ opacity: 0 }, { opacity: 1, offset: 0.22 }, { opacity: 1 }]);
+      c.add(c.t.shadow, [{ opacity: 1 }, { opacity: 0.5, offset: 0.78 }, { opacity: 0 }]);
+      c.dim(c.f, 0, 0.75, E.out);
+    } else {
+      c.f.el.style.zIndex = 2;
+      c.add(c.f.el, [{ transform: 'none' }, { transform: high }], { easing: 'cubic-bezier(.2,.6,.4,1)' });
+      c.add(c.f.el, [{ opacity: 1 }, { opacity: 1, offset: 0.1 }, { opacity: 0, offset: 0.55 }, { opacity: 0 }]);
+      c.add(c.f.shadow, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1 }]);
+      c.dim(c.t, 0.75, 0, E.out);
+    }
+  }
+  function shuffle(c) {
+    const away = `translateX(${-1.08 * c.W}px) rotate(-4deg)`, under = 'translateY(14px) scale(.94)';
+    if (c.dir > 0) {
+      c.f.el.style.zIndex = 2; c.f.el.style.transformOrigin = '50% 90%';
+      c.add(c.f.el, [{ transform: 'none' }, { transform: away }], { easing: E.flick });
+      c.add(c.f.shadow, [{ opacity: 0.9 }, { opacity: 0.9 }]);
+      c.add(c.t.el, [{ transform: under }, { transform: 'none' }], { easing: E.out });
+      c.dim(c.t, 0.6, 0, E.out);
+    } else {
+      c.t.el.style.zIndex = 2; c.t.el.style.transformOrigin = '50% 90%';
+      c.add(c.t.el, [{ transform: away }, { transform: 'none' }], { easing: E.land });
+      c.add(c.t.shadow, [{ opacity: 0.9 }, { opacity: 0.9, offset: 0.7 }, { opacity: 0 }]);
+      c.add(c.f.el, [{ transform: 'none' }, { transform: under }], { easing: E.out });
+      c.dim(c.f, 0, 0.6, E.out);
+    }
+  }
+  // A wipe made of transforms only: the clip box slides one way while the page inside slides back, so the page holds
+  // still and only the edge moves. An ink bar (the carriage) rides the edge on the old page's side.
+  function carriage(c) {
+    const W = c.W, s = c.dir, x0 = s > 0 ? W : -W;
+    c.t.el.style.zIndex = 2;
+    c.add(c.t.clip, [{ transform: `translateX(${x0}px)` }, { transform: 'none' }], { easing: E.slam });
+    c.add(c.t.inner, [{ transform: `translateX(${-x0}px)` }, { transform: 'none' }], { easing: E.slam });
+    c.add(c.f.el, [{ transform: 'none' }, { transform: `translateX(${-s * 0.1 * W}px)` }], { easing: E.slam });
+    c.dim(c.f, 0, 0.5, E.slam);
+    const bar = c.box.querySelector(':scope > .carriage');
+    const b0 = s > 0 ? W - 12 : 0, b1 = s > 0 ? -12 : W;
+    c.add(bar, [{ transform: `translateX(${b0}px)`, opacity: 1 }, { transform: `translateX(${b1}px)`, opacity: 1 }], { easing: E.slam });
+  }
+  function fade(c) {
+    c.t.el.style.zIndex = 2;
+    c.add(c.t.el, [{ opacity: 0 }, { opacity: 1 }]);
+  }
+
+  /* ---------- the styles: what each does, and what the page says about it ---------- */
+  const STYLES = {
+    A: {
+      name: 'Lift', tag: 'A calm cross-fade with a 4 px lift.',
+      section: { ms: 220, run: lift }, folder: { ms: 180, run: lift }, reduced: { mode: 'fade', ms: 120 },
+      ind: { kind: 'slide', easing: E.out },
+      bottom: 'The old screen fades out in the first half; the new one fades in on top and rises 4 px.',
+      folderText: 'The same on the folder’s sheet only. The folder and its tabs hold still.',
+      back: 'Looks the same both ways. Only the tab indicator says which way you went.',
+      reducedText: 'A 120 ms cross-fade with no lift.',
+      idea: 'A change you stop noticing by the second round. Every screen arrives the same quiet way.',
+      good: 'The cheapest and safest of the five. Nothing travels, so nothing feels slow, and it suits every screen, the map and the standings included.',
+      risk: 'It says nothing about the case-file world or about direction. Two screens overlap for about 100 ms, which can read as a flicker on a busy screen like the map.',
+      build: 'Bottom tabs: the router’s View Transitions (<code>&lt;Link viewTransition&gt;</code> in React Router 8), with <code>view-transition-name: main</code> on the content and <code>tab-ind</code> on the indicator, so the browser slides the indicator by itself. Folder tabs: React 19’s <code>&lt;ViewTransition&gt;</code> around the panel, with the tab set inside <code>startTransition</code>. Browsers without View Transitions simply change tabs.',
+      cost: 'About 40 lines of CSS, no new JS.',
+      glance: ['Fade, 4 px lift', 'Same, on the sheet', 'Same both ways', '120 ms fade', 'View Transitions, CSS only'],
+    },
+    B: {
+      name: 'Cabinet', tag: 'Each screen is a file pulled out of the cabinet.',
+      section: { ms: 300, run: cabinet }, folder: { ms: 260, run: cabinet }, reduced: { mode: 'fade', ms: 150 },
+      ind: { kind: 'slide', easing: E.pull },
+      bottom: 'The new section’s file rises from the drawer behind the tab bar and covers the old one, which dims and settles back.',
+      folderText: 'The new page is pulled up out of the folder. The folder and its tabs stay put.',
+      back: 'Reversed: the open file is pushed back down into the drawer, uncovering the one before it.',
+      reducedText: 'A 150 ms cross-fade.',
+      idea: 'Going forward takes a file out of the cabinet; going back puts it away again.',
+      good: 'Up and down never fights the left-to-right order of the tabs, and going back feels like tidying up. The rising edge gives the eye one clear thing to follow.',
+      risk: 'The longest travel of the five: a full screen height on every bottom-tab tap. Fine at 300 ms, tiring by the fortieth tap of the night. The tab bar needs its own view-transition name so the rising file slides behind it.',
+      build: 'View Transitions, with the direction as a transition type: <code>addTransitionType(\'back\')</code> in React, <code>:active-view-transition-type(back)</code> in the CSS. The direction comes from the tab orders the app already has (<code>tabsFor</code>, <code>LOCKER_TABS</code>).',
+      cost: 'About 60 lines of CSS and a 15-line direction helper.',
+      glance: ['Rises from the drawer', 'Pulled up out of the folder', 'Pushed back down', '150 ms fade', 'View Transitions + types'],
+    },
+    C: {
+      name: 'Page turn', tag: 'The file’s pages turn like paper.',
+      section: { ms: 320, run: turn }, folder: { ms: 280, run: turn }, reduced: { mode: 'fade', ms: 150 },
+      ind: { kind: 'slide', easing: E.turn },
+      bottom: 'The whole screen turns over on its left edge, shading as it lifts, and uncovers the next section.',
+      folderText: 'Only the sheet under the folder tabs turns.',
+      back: 'The previous page swings back in from the left edge and lands on top.',
+      reducedText: 'A 150 ms cross-fade.',
+      idea: 'The case file is a book you leaf through: forward turns a page, back turns it back.',
+      good: 'The most physical of the five and the clearest about direction. Folders with pages suit the Missions folder and the GM’s four folders.',
+      risk: '3D on screen-sized layers is the heaviest work for the GPU and the likeliest to stutter on an older Android phone. The page swings out towards you, the strongest motion here. At 320 ms it is at the top of the budget and still feels a touch slow.',
+      build: 'View Transitions with <code>perspective(1400px) rotateY(-90deg)</code> in the keyframes and <code>transform-origin: left</code> on <code>::view-transition-old(main)</code>, plus a type for going back. A snapshot can’t carry the shading without a filter, so the shipped version loses it or needs D’s wrapper. Test 3D on iOS Safari before committing.',
+      cost: 'About 60 lines of CSS and a device test pass.',
+      glance: ['Turns on the left edge', 'The sheet turns', 'Swings back in on top', '150 ms fade', 'View Transitions + 3D'],
+    },
+    D: {
+      name: 'The stack', tag: 'New folders land on the stack; folder tabs shuffle it.',
+      section: { ms: 280, run: drop }, folder: { ms: 240, run: shuffle }, reduced: { mode: 'none', ms: 0 },
+      ind: { kind: 'stretch', easing: E.out },
+      bottom: 'The new section’s folder drops onto the stack. Its shadow tightens as it lands and the folder underneath darkens.',
+      folderText: 'A quick shuffle: the front sheet is flicked off to the left and the next one rises from just underneath.',
+      back: 'Sections: the top folder lifts off and the one below brightens. Folders: the previous sheet slides back in from the left, on top.',
+      reducedText: 'None. The screen just changes.',
+      idea: 'Everything is a stack of folders on the desk, like the mission stack already in the Missions tab.',
+      good: 'The folder shuffle is the same flick as swiping the front mission away, so the app teaches one gesture. Sections change with little travel (a 6 % scale), and folders get a clear left and right.',
+      risk: 'The shuffle needs the old sheet above the new one, which a View Transition only gives with a z-index on its snapshots; the safe build keeps the old panel mounted for 240 ms. Two motions to tune instead of one.',
+      build: 'Bottom tabs: View Transitions (scale and opacity on <code>::view-transition-new(main)</code>, the shadow drawn on the snapshot). Folder tabs: a small <code>&lt;Shuffle&gt;</code> wrapper in Board and GmLocker that keeps the outgoing panel (inert) and runs two Web Animations.',
+      cost: 'About 40 lines of CSS and a 90-line wrapper.',
+      glance: ['Drops onto the stack', 'Shuffle: flicked off left', 'Lifts off / slides back on top', 'None', 'View Transitions + small wrapper'],
+    },
+    E: {
+      name: 'Carriage', tag: 'Each screen is typed in like a fresh line.',
+      section: { ms: 300, run: carriage }, folder: { ms: 240, run: carriage }, reduced: { mode: 'none', ms: 0 },
+      ind: { kind: 'overshoot', easing: E.slam },
+      bottom: 'A hard edge sweeps across the screen with an ink bar riding it, like a carriage thrown back, and stops at the margin. The new screen is uncovered in place.',
+      folderText: 'The same sweep across the sheet only.',
+      back: 'The sweep runs the other way, left to right.',
+      reducedText: 'None. The screen just changes.',
+      idea: 'The record is typed up as the night goes on; every tab is a new line.',
+      good: 'Distinctive, and at home with the typewriter type. Nothing flies around: each part of the screen changes once, as the edge passes, so it stays readable.',
+      risk: 'A wipe with transforms only needs two wrappers moving against each other, and anything <code>position: fixed</code> inside (the evidence sheet, the reward pop-up, the photo viewer) rides along for 300 ms. View Transitions could do it only by animating clip-path, which is off the compositor.',
+      build: 'A <code>&lt;Carriage&gt;</code> wrapper around the <code>&lt;Outlet&gt;</code> that holds the previous screen (<code>useOutlet()</code> kept for the sweep) and moves the two wrappers with Web Animations; the same wrapper inside Board and GmLocker.',
+      cost: 'About 120 lines, and two screens mounted during each change.',
+      glance: ['Edge sweeps right to left', 'Same, across the sheet', 'Sweeps left to right', 'None', 'Wrapper + Web Animations'],
+    },
+  };
+  const REC = 'D';
+
+  /* ---------- layers ---------- */
+  function layerize(el) {
+    const shadow = document.createElement('div'); shadow.className = 'layer__shadow';
+    const clip = document.createElement('div'); clip.className = 'layer__clip';
+    const inner = document.createElement('div'); inner.className = 'layer__in';
+    const fx = document.createElement('div'); fx.className = 'layer__fx';
+    while (el.firstChild) inner.appendChild(el.firstChild);
+    clip.appendChild(inner);
+    el.append(shadow, clip, fx);
+    el.classList.add('layer');
+  }
+  $$('.pg').forEach(layerize);
+  $$('.scr').forEach(layerize);
+  const parts = (el) => ({ el, shadow: el.children[0], clip: el.children[1], inner: el.children[1].firstElementChild, fx: el.children[2] });
+
+  const stage = $('#stage');
+  const secEl = (id) => stage.querySelector(`:scope > .scr[data-sec="${id}"]`);
+  const sheetEl = (scope) => $(`.sheet[data-scope="${scope}"]`);
+  const pageEl = (scope, id) => sheetEl(scope).querySelector(`:scope > .pg[data-tab="${id}"]`);
+  const layerOf = (kind, scope, id) => (kind === 'section' ? secEl(id) : pageEl(scope, id));
+  const boxOf = (kind, scope) => (kind === 'section' ? stage : sheetEl(scope));
+  const tablist = (scope) => $(`[role="tablist"][data-scope="${scope}"]`);
+  const folderBtn = (scope, id) => tablist(scope).querySelector(`[data-tab="${id}"]`);
+  const bottomBtn = (id) => $(`.tb__t[data-sec="${id}"]`);
+  const tbInd = $('.tb__ind');
+  const tlBar = $('#tl-bar');
+  const abTitle = $('#ab-title');
+
+  let reducedOS = false;
+  try { reducedOS = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* no matchMedia */ }
+  const state = { sec: 'missions', folder: { missions: 'missions', gm: 'tonight' }, style: 'A', reduced: reducedOS, slow: false };
+  let feedSeen = false;
+  let last = { kind: 'folder', scope: 'missions', from: 'missions', to: 'map' };
+  let current = null;
+  let started = false;
+
+  /* ---------- the chrome: lit tabs, dots, indicators, title ---------- */
+  function syncChrome() {
+    $$('.tb__t').forEach((b) => {
+      if (b.dataset.sec === state.sec) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    if (state.sec === 'feed') feedSeen = true;
+    $('.tb__t[data-sec="missions"] .tb__dot').hidden = state.sec === 'missions';
+    $('.tb__t[data-sec="feed"] .tb__dot').hidden = feedSeen;
+    $('.tb__t[data-sec="gm"] .tb__dot').hidden = state.sec === 'gm';
+    for (const scope of Object.keys(FOLDERS)) {
+      $$('[role="tab"]', tablist(scope)).forEach((b) => {
+        const on = b.dataset.tab === state.folder[scope];
+        b.setAttribute('aria-selected', String(on));
+        b.tabIndex = on ? 0 : -1;
+      });
+    }
+    $('.bd-dot').hidden = state.folder.missions === 'missions';
+  }
+  const geom = (btn) => ({ x: btn.offsetLeft, w: btn.offsetWidth });
+  function rest(ind, g) { ind.style.width = `${g.w}px`; ind.style.transform = `translateX(${g.x}px)`; }
+  function placeBottom() { rest(tbInd, geom(bottomBtn(state.sec))); }
+  function placeFolder(scope) {
+    const ind = $('.ind', tablist(scope));
+    rest(ind, geom(folderBtn(scope, state.folder[scope])));
+    const chart = $('.ind__chart', ind);
+    if (chart) chart.style.opacity = state.folder[scope] === 'standings' ? '1' : '0';
+  }
+  // The indicator rests at the new tab; the animation runs from the old one (its width as a scale, so it rests unscaled).
+  function moveInd(ind, a, b, spec, c, chartTo) {
+    rest(ind, b);
+    const chart = $('.ind__chart', ind);
+    const chartFrom = chart ? Number(chart.style.opacity || 0) : 0;
+    if (chart) chart.style.opacity = String(chartTo || 0);
+    if (!spec || !c) return;
+    const k = (x, w) => `translateX(${x}px) scaleX(${w / b.w})`;
+    const from = k(a.x, a.w), to = k(b.x, b.w);
+    let frames;
+    if (spec.kind === 'stretch') {
+      const fwd = b.x > a.x, lead = 0.8, trail = 0.3;
+      const L = a.x + (b.x - a.x) * (fwd ? trail : lead);
+      const R = a.x + a.w + (b.x + b.w - a.x - a.w) * (fwd ? lead : trail);
+      frames = [{ transform: from }, { transform: k(L, R - L), offset: 0.45 }, { transform: to }];
+    } else if (spec.kind === 'overshoot') {
+      const o = Math.sign(b.x - a.x) * 7;
+      frames = [{ transform: from }, { transform: k(b.x + o, b.w), offset: 0.72 }, { transform: to }];
+    } else {
+      frames = [{ transform: from }, { transform: to }];
+    }
+    c.add(ind, frames, { easing: spec.easing });
+    if (chart && chartFrom !== (chartTo || 0)) c.add(chart, [{ opacity: chartFrom }, { opacity: chartTo || 0 }]);
+  }
+  function setTitleNow() { abTitle.innerHTML = ''; const s = document.createElement('span'); s.className = 'ab__tx'; s.textContent = TITLE[state.sec]; abTitle.appendChild(s); }
+  function swapTitle(from, to, c, quiet) {
+    if (TITLE[from] === TITLE[to]) return;
+    const cur = $('.ab__tx:not(.is-ghost)', abTitle);
+    cur.textContent = TITLE[to];
+    if (!c) return;
+    const ghost = document.createElement('span');
+    ghost.className = 'ab__tx is-ghost'; ghost.textContent = TITLE[from]; ghost.setAttribute('aria-hidden', 'true');
+    abTitle.appendChild(ghost);
+    c.onCleanup(() => ghost.remove());
+    // Out, then in: the two titles overlap for a moment only, so they never read as one smudge.
+    c.add(ghost, [{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }]);
+    const shift = quiet ? 'none' : state.style === 'E' ? `translateX(${c.dir * 10}px)` : 'translateY(4px)';
+    c.add(cur, [{ opacity: 0, transform: shift }, { opacity: 0, transform: shift, offset: 0.3 }, { opacity: 1, transform: 'none' }], { easing: E.out });
+  }
+
+  /* ---------- running a change ---------- */
+  function settle() {
+    const tr = current;
+    if (!tr) return;
+    current = null;
+    tr.cleanup();
+    tr.anims.forEach((a) => a.cancel());
+  }
+
+  function play(change, opt = {}) {
+    settle();
+    const { kind, scope, from, to } = change;
+    if (from === to) return;
+    const order = kind === 'section' ? SECTIONS : FOLDERS[scope];
+    const dir = order.indexOf(to) > order.indexOf(from) ? 1 : -1;
+    const S = STYLES[state.style];
+    const fromEl = layerOf(kind, scope, from), toEl = layerOf(kind, scope, to);
+    const box = boxOf(kind, scope);
+
+    if (kind === 'section') state.sec = to; else state.folder[scope] = to;
+    started = true;
+    last = { kind, scope, from, to };
+    syncChrome();
+    fromEl.hidden = false; toEl.hidden = false;
+    if (kind === 'section' && FOLDERS[to]) placeFolder(to);
+
+    const mode = state.reduced ? S.reduced.mode : kind;
+    const base = state.reduced ? S.reduced.ms : S[kind].ms;
+    const T = mode === 'none' ? 0 : base * (state.slow ? 4 : 1);
+    const anims = [], cleanups = [];
+    const f = parts(fromEl), t = parts(toEl);
+    const c = {
+      kind, dir, T, f, t, box, W: box.clientWidth, H: box.clientHeight,
+      add(el, frames, o = {}) { const a = el.animate(frames, { duration: T, fill: 'both', easing: 'linear', ...o }); anims.push(a); return a; },
+      dim(p, a, b, easing) { p.fx.style.background = 'var(--fx-dim)'; this.add(p.fx, [{ opacity: a }, { opacity: b }], { easing: easing || 'linear' }); },
+      shade(p, a, b, easing) { p.fx.style.background = 'var(--fx-shade)'; this.add(p.fx, [{ opacity: a }, { opacity: b }], { easing: easing || 'linear' }); },
+      onCleanup(fn) { cleanups.push(fn); },
+    };
+    f.el.style.pointerEvents = 'none';
+    const cleanup = () => {
+      fromEl.hidden = true;
+      for (const p of [f, t]) { p.el.style.zIndex = ''; p.el.style.pointerEvents = ''; p.el.style.transformOrigin = ''; p.fx.style.background = ''; }
+      cleanups.forEach((fn) => fn());
+    };
+
+    const live = mode !== 'none' ? c : null;
+    const indSpec = state.reduced ? null : S.ind;
+    if (kind === 'section') moveInd(tbInd, geom(bottomBtn(from)), geom(bottomBtn(to)), indSpec, live);
+    else moveInd($('.ind', tablist(scope)), geom(folderBtn(scope, from)), geom(folderBtn(scope, to)), indSpec, live, scope === 'missions' && to === 'standings' ? 1 : 0);
+    if (kind === 'section') swapTitle(from, to, live, state.reduced);
+
+    if (mode === 'none') { cleanup(); report(); return; }
+    if (mode === 'fade') fade(c); else S[kind].run(c);
+    c.add(tlBar, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }]);
+
+    const tr = { anims, cleanup, T, change: last, paused: false };
+    current = tr;
+    Promise.all(anims.map((a) => a.finished)).then(() => {
+      if (current !== tr) return;
+      current = null;
+      cleanup();
+      anims.forEach((a) => a.cancel());
+      report();
+    }, () => {});
+    if (opt.freezeAt != null) freeze(tr, opt.freezeAt);
+    report();
+  }
+  function freeze(tr, p) {
+    tr.paused = true;
+    tr.anims.forEach((a) => { a.pause(); a.currentTime = Math.min(p, 0.999) * tr.T; });
+  }
+
+  // Put the phone straight into a state, with no animation (the start of a replay).
+  function jumpSection(id) {
+    if (state.sec === id) return;
+    secEl(state.sec).hidden = true;
+    state.sec = id;
+    secEl(id).hidden = false;
+    syncChrome(); placeBottom(); setTitleNow();
+    if (FOLDERS[id]) placeFolder(id);
+  }
+  function jumpFolder(scope, id) {
+    if (state.folder[scope] === id) return;
+    pageEl(scope, state.folder[scope]).hidden = true;
+    state.folder[scope] = id;
+    pageEl(scope, id).hidden = false;
+    syncChrome();
+    if (state.sec === scope) placeFolder(scope);
+  }
+  function replay(p) {
+    settle();
+    const ch = last;
+    if (ch.kind === 'folder') { jumpSection(ch.scope); jumpFolder(ch.scope, ch.from); } else jumpSection(ch.from);
+    play({ ...ch }, { freezeAt: p == null ? null : p });
+  }
+
+  /* ---------- the bench ---------- */
+  const readout = $('#readout');
+  const scrub = $('#scrub'), scrubOut = $('#scrub-out');
+  function report() {
+    if (!started) { readout.textContent = 'Tap a tab on the phone, or press Replay.'; return; }
+    const ch = last, S = STYLES[state.style];
+    const where = ch.kind === 'section' ? 'Bottom tab' : ch.scope === 'gm' ? 'GM folder tab' : 'Missions folder tab';
+    const order = ch.kind === 'section' ? SECTIONS : FOLDERS[ch.scope];
+    const way = order.indexOf(ch.to) > order.indexOf(ch.from) ? 'forwards' : 'backwards';
+    let how;
+    if (state.reduced) how = S.reduced.mode === 'none' ? 'reduced motion: no animation' : `reduced motion: ${S.reduced.ms} ms cross-fade`;
+    else how = `${S[ch.kind].ms} ms`;
+    const ms = state.reduced ? S.reduced.ms : S[ch.kind].ms;
+    if (state.slow && ms) how += ` (×4 = ${ms * 4} ms)`;
+    let tail = '';
+    if (current && current.paused) tail = ` · frozen at ${scrub.value} %`;
+    readout.textContent = `${STYLES[state.style].name} · ${where}: ${NAME[ch.from]} → ${NAME[ch.to]}, ${way} · ${how}${tail}`;
+  }
+
+  const stylesBox = $('#styles');
+  for (const id of Object.keys(STYLES)) {
+    const lab = document.createElement('label');
+    lab.className = 'sty';
+    lab.innerHTML = `<input type="radio" name="style" id="style-${id.toLowerCase()}" value="${id}"><span class="sty__l" aria-hidden="true">${id}</span><span class="sty__n">${STYLES[id].name}</span>`;
+    lab.querySelector('input').setAttribute('aria-label', `${id}, ${STYLES[id].name}`);
+    stylesBox.appendChild(lab);
+  }
+
+  function renderFile() {
+    const S = STYLES[state.style], id = state.style;
+    const fmt = (ms) => (state.slow ? `${ms * 4} ms` : `${ms} ms`);
+    const red = S.reduced.mode === 'none' ? 'reduced: none' : `reduced: ${fmt(S.reduced.ms)} fade`;
+    $('#file').innerHTML = `
+      <div class="fold-file"><span class="fold-file__tab">Style ${id}${id === REC ? ' · recommended' : ''}</span>
+        <div class="fold-file__body"><svg class="ff-clip" aria-hidden="true"><use href="#clip"/></svg>
+          <div class="ff-head"><span class="sty__l" aria-hidden="true">${id}</span><div><h2 class="ff-name">${S.name}</h2><p class="ff-tag">${S.tag}</p></div></div>
+          <p class="ff-times"><span class="${state.reduced ? '' : 'is-on'}">Bottom tabs ${fmt(S.section.ms)}</span><span class="${state.reduced ? '' : 'is-on'}">Folder tabs ${fmt(S.folder.ms)}</span><span class="${state.reduced ? 'is-on' : ''}">${red}</span></p>
+          <dl class="ff-spec">
+            <div><dt>Bottom tabs</dt><dd>${S.bottom}</dd></div>
+            <div><dt>Folder tabs</dt><dd>${S.folderText}</dd></div>
+            <div><dt>Going back</dt><dd>${S.back}</dd></div>
+            <div class="${state.reduced ? 'is-on' : ''}"><dt>Reduced motion</dt><dd>${S.reducedText} The tab indicator jumps.</dd></div>
+          </dl>
+          <div class="ff-notes"><p><b>The idea</b>${S.idea}</p><p><b>What’s good</b>${S.good}</p><p><b>Cost and risk</b>${S.risk}</p></div>
+          <div class="ff-build"><h3>Building it in the app</h3><p>${S.build}</p><p class="ff-cost">${S.cost}</p></div>
+        </div></div>`;
+  }
+  function renderGlance() {
+    const body = $('#glance tbody');
+    body.innerHTML = Object.keys(STYLES).map((id) => {
+      const S = STYLES[id], g = S.glance;
+      const time = `${S.section.ms} / ${S.folder.ms} ms`;
+      return `<tr class="${id === REC ? 'is-rec' : ''}"><th scope="row"><span>${id}</span>${S.name}</th><td>${g[0]}</td><td>${g[1]}</td><td>${g[2]}</td><td>${g[3]}</td><td class="tm">${time}</td><td>${g[4]}</td></tr>`;
+    }).join('');
+  }
+
+  function setStyle(id, replayIt) {
+    if (!STYLES[id]) return;
+    state.style = id;
+    const r = $(`#style-${id.toLowerCase()}`); if (r) r.checked = true;
+    renderFile();
+    scrub.value = 0; scrubOut.textContent = '–';
+    if (replayIt) replay(); else { settle(); report(); }
+  }
+  stylesBox.addEventListener('change', (e) => { if (e.target.name === 'style') setStyle(e.target.value, true); });
+  const optReduced = $('#opt-reduced'), optSlow = $('#opt-slow');
+  optReduced.checked = state.reduced;
+  $('#os-note').hidden = !reducedOS;
+  optReduced.addEventListener('change', () => { state.reduced = optReduced.checked; renderFile(); scrub.value = 0; scrubOut.textContent = '–'; replay(); });
+  optSlow.addEventListener('change', () => { state.slow = optSlow.checked; settle(); renderFile(); report(); });
+  $('#replay').addEventListener('click', () => { scrub.value = 0; scrubOut.textContent = '–'; replay(); });
+  scrub.addEventListener('input', () => {
+    const p = Number(scrub.value) / 100;
+    scrubOut.textContent = `${scrub.value} %`;
+    if (current && current.paused && current.change === last) { freeze(current, p); report(); return; }
+    replay(p);
+  });
+
+  /* ---------- the phone's tabs ---------- */
+  $$('.tb__t').forEach((b) => b.addEventListener('click', () => {
+    const to = b.dataset.sec;
+    if (to === state.sec) return;
+    scrub.value = 0; scrubOut.textContent = '–';
+    play({ kind: 'section', scope: null, from: state.sec, to });
+  }));
+  for (const scope of Object.keys(FOLDERS)) {
+    const list = tablist(scope);
+    const choose = (to) => {
+      if (to === state.folder[scope]) return;
+      scrub.value = 0; scrubOut.textContent = '–';
+      play({ kind: 'folder', scope, from: state.folder[scope], to });
+    };
+    $$('[role="tab"]', list).forEach((b) => {
+      b.addEventListener('click', () => choose(b.dataset.tab));
+      b.addEventListener('keydown', (e) => {
+        const ids = FOLDERS[scope], i = ids.indexOf(state.folder[scope]);
+        const next = { ArrowRight: ids[Math.min(i + 1, ids.length - 1)], ArrowLeft: ids[Math.max(i - 1, 0)], Home: ids[0], End: ids[ids.length - 1] }[e.key];
+        if (!next) return;
+        e.preventDefault();
+        choose(next);
+        folderBtn(scope, next).focus();
+      });
+    });
+  }
+
+  /* ---------- sizing: the phone fits the column and the window ---------- */
+  const pw = $('#pw'), lab = $('.lab');
+  function fit() {
+    let wide = false;
+    try { wide = matchMedia('(min-width: 900px)').matches; } catch (e) { /* narrow */ }
+    const byW = wide ? 1 : lab.clientWidth / 412;
+    const byH = (window.innerHeight - 40) / 866;
+    const s = Math.max(0.5, Math.min(1, byW, wide ? Math.max(byH, 0.62) : Math.max(byH, byW * 0.92)));
+    pw.style.setProperty('--s', s.toFixed(4));
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  /* ---------- start ---------- */
+  renderGlance();
+  setStyle('A', false);
+  syncChrome(); placeBottom();
+  placeFolder('missions');
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!current) { placeBottom(); placeFolder(state.sec === 'gm' ? 'gm' : 'missions'); } });
+  report();
+
+  // For checking: ?style=C&from=missions/missions&to=missions/standings&t=0.5 (&slow=1, &reduced=1) freezes a change.
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('slow') === '1') { state.slow = true; optSlow.checked = true; }
+    if (q.get('reduced') === '1') { state.reduced = true; optReduced.checked = true; }
+    if (q.has('style')) setStyle(q.get('style'), false);
+    if (q.has('from') && q.has('to')) {
+      const [s0, f0] = q.get('from').split('/'), [s1, f1] = q.get('to').split('/');
+      if (f0 && FOLDERS[s0]) jumpFolder(s0, f0);
+      if (s0 !== s1) { if (f1 && FOLDERS[s1]) jumpFolder(s1, f1); last = { kind: 'section', scope: null, from: s0, to: s1 }; }
+      else last = { kind: 'folder', scope: s0, from: f0, to: f1 };
+      const tp = q.has('t') ? Number(q.get('t')) : null;
+      if (tp != null) { scrub.value = Math.round(tp * 100); scrubOut.textContent = `${scrub.value} %`; }
+      replay(tp);
+    }
+  } catch (e) { /* no query string here */ }
+})();
+</script>
+</body>
+</html>

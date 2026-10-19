@@ -14,30 +14,6 @@
 .pf-row--sub { padding: 3px 0 3px 14px; }
 .pf-row--sub dt { font-size: 11px; color: var(--manila-sub); }
 
-/* the accusation form: a strung tag around the engine's guess panel */
-.pf-guess__toggle {
-  align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0;
-  border: 0; border-bottom: 1.5px dashed var(--manila-sub); background: none; color: var(--manila-ink); text-align: left; cursor: pointer;
-  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-}
-.pf-guess__toggle:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
-.pf-guess__chev { flex: none; transition: transform 0.15s ease; }
-.pf-guess__chev.is-open { transform: rotate(180deg); }
-.pf-guess__body { align-self: stretch; min-width: 0; }
-.pf-guess__teaser { font-size: 12px; }
-.pf-accuse .guess { gap: 10px; padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--manila-ink); }
-.pf-accuse .guess__filter { border: 0; border-bottom: 1.5px dashed var(--manila-sub); border-radius: 0; background: transparent; font-family: var(--mono); font-size: 13px; color: var(--manila-ink); }
-.pf-accuse .guess__filter::placeholder { color: var(--manila-sub); }
-.pf-accuse .field__hint, .pf-accuse .guess__rules, .pf-accuse .muted { font-family: var(--mono); font-size: 11px; color: var(--manila-sub); }
-.pf-accuse .guess__scroll { background: rgba(255, 255, 255, 0.25); border: 1.5px solid var(--manila-ink); }
-.pf-accuse .guess__item { border-color: var(--twine-dark); }
-.pf-accuse .guess__head { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--manila-ink); }
-.pf-accuse .guess__item.is-selected .guess__head { background: var(--manila-ink); color: var(--manila); }
-.pf-accuse .guess__desc { font-family: var(--mono); font-size: 12px; color: var(--manila-ink); }
-.pf-accuse .guess > .btn--primary { min-height: 48px; border-radius: 0; background: var(--warn); color: #fff; border: 2px solid var(--warn); box-shadow: none; font-family: var(--mono); letter-spacing: 1px; }
-.pf-accuse .guess > .btn--primary:disabled { opacity: 0.5; }
-.pf-accuse .guess__used { color: var(--stamp-bad); font-weight: 700; }
-
 /* points statement, inside its folder */
 .pf-ledger { align-self: stretch; display: flex; flex-direction: column; }
 .pf-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--twine-dark); }

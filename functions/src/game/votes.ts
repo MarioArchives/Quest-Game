@@ -1,11 +1,12 @@
 import { termForms } from '../shared/packs/terms.js';
-import type { GlobalQuest, GlobalQuestStatus, Submission } from '../shared/types.js';
+import type { Txn } from '../shared/store/types.js';
+import type { Assignment, GlobalQuest, GlobalQuestStatus, Player, Submission } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { parseEvidence } from './evidence.js';
 import { addFeed } from './feed.js';
 import { fail, isPlaying, loadSettings, loadState, requireGM, requirePlayer } from './guards.js';
 import { scoringFor } from './ledger.js';
-import type { PushPlan } from './push.js';
+import { pushAllowed, type PushPlan } from './push.js';
 import { asId, millis, toTs } from './util.js';
 import {
   closeWithTally,
@@ -117,7 +118,7 @@ export async function advanceGlobalQuest(
 export async function enterSideQuest(
   db: Db,
   ctx: Ctx,
-  data: { globalQuestId?: unknown; imagePath?: unknown; thumbPath?: unknown; caption?: unknown },
+  data: { globalQuestId?: unknown; imagePath?: unknown; thumbPath?: unknown; videoPath?: unknown; caption?: unknown; taggedUid?: unknown },
 ): Promise<{ submissionId: string; checking: boolean; late: boolean }> {
   const t = termForms(ctx.pack.terms);
   if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
@@ -131,6 +132,7 @@ export async function enterSideQuest(
     const questSnap = await tx.get(questRef);
     if (!questSnap.exists) fail('not-found', `No such ${t.sideQuest.one}.`);
     const gq = questSnap.data() as GlobalQuest;
+    if (gq.kind === 'announce') fail('failed-precondition', 'This is an announcement: it takes no entries.');
     if (gq.status !== 'live' && gq.status !== 'checking') {
       fail('failed-precondition', `Voting has started on this ${t.sideQuest.one}, so entries are closed.`);
     }
@@ -138,7 +140,8 @@ export async function enterSideQuest(
     // so the fastest entry and the fines are fair.
     const late = gq.status === 'checking' || ctx.now.getTime() >= millis(gq.endsAt);
     if (late && isUnchecked(gq)) fail('failed-precondition', `Time is up for this ${t.sideQuest.one}, so entries are closed.`);
-    const evidence = parseEvidence(uid, data);
+    const evidence = parseEvidence(uid, data, { media: gq.entry?.media, captionRequired: gq.entry?.caption === 'required' });
+    const taggedUid = await readTag(tx, db, uid, questId, gq, data.taggedUid);
 
     const entries = await readEntries(tx, db, questId);
     const mine = await tx.get(db.collection('submissions').where('questId', '==', questId).where('uid', '==', uid));
@@ -150,7 +153,8 @@ export async function enterSideQuest(
     // Everyone still playing in on a live side quest (sealed entries count)? Then time's up: the GMs check them, or
     // (a story mission) it goes straight on.
     const entrants = new Set([...entries.map((e) => e.data.uid), uid]);
-    const checking = gq.status === 'live' && [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
+    // (A long-running mission waits for its deadline however many are in.)
+    const checking = gq.status === 'live' && !gq.longRun && [...players].every(([p, doc]) => !isPlaying(doc) || entrants.has(p));
     const q = { id: questId, ref: questRef, gq };
     const direct = checking && isUnchecked(gq);
     const settings = direct ? await loadSettings(db, tx) : null;
@@ -163,6 +167,8 @@ export async function enterSideQuest(
       thumbPath: evidence.thumbPath ?? null,
       caption: evidence.caption ?? null,
     };
+    // A video and the player it names are kept with the entry, and shown with it when it is revealed.
+    const extras = { ...(evidence.videoPath ? { videoPath: evidence.videoPath } : {}), ...(taggedUid ? { taggedUid } : {}) };
     // The post only says who entered; the evidence goes onto it when the entry is revealed.
     const feedId = addFeed(tx, db, ctx.now, {
       type: 'approved',
@@ -173,7 +179,7 @@ export async function enterSideQuest(
       questTitle: gq.title,
       photoURL: player.photoURL ?? null,
       // The last one in moves it straight on, so this entry is revealed at once.
-      ...(direct ? { imagePath: photo.imagePath, thumbPath: photo.thumbPath, caption: photo.caption } : {}),
+      ...(direct ? { imagePath: photo.imagePath, thumbPath: photo.thumbPath, caption: photo.caption, ...extras } : {}),
     });
     const entry: Submission = {
       uid,
@@ -183,6 +189,7 @@ export async function enterSideQuest(
       status: direct ? 'approved' : 'sealed',
       pointsAwarded: 0,
       ...photo,
+      ...extras,
       evidenceAt: now,
       processedAt: now,
       feedId,
@@ -199,6 +206,32 @@ export async function enterSideQuest(
     }
     return { submissionId: entryRef.id, checking, late };
   });
+}
+
+/**
+ * The player an entry names, for a mission that takes one: with `tag: 'player'` the entrant picks a current player other
+ * than themselves; with `tag: 'assigned'` it is the player they were dealt when it fired (a different one is refused). A
+ * mission without a tag takes none. Reads only.
+ */
+async function readTag(tx: Txn, db: Db, uid: string, questId: string, gq: GlobalQuest, sent: unknown): Promise<string | null> {
+  const tag = gq.entry?.tag;
+  const given = sent !== undefined && sent !== null;
+  if (!tag) {
+    if (given) fail('invalid-argument', 'This does not take a player.');
+    return null;
+  }
+  if (tag === 'assigned') {
+    const dealt = await tx.get(db.doc(`assignments/${questId}_${uid}`));
+    if (!dealt.exists) fail('failed-precondition', 'You were not dealt anyone for this one.');
+    const target = (dealt.data() as Assignment).targetUid;
+    if (given && sent !== target) fail('invalid-argument', 'That is not the player you were dealt.');
+    return target;
+  }
+  if (typeof sent !== 'string' || sent.length === 0 || sent.includes('/')) fail('invalid-argument', 'Pick the player this is about.');
+  if (sent === uid) fail('invalid-argument', 'Pick someone other than yourself.');
+  const player = await tx.get(db.doc(`players/${sent as string}`));
+  if (!player.exists || !isPlaying(player.data() as Player)) fail('invalid-argument', 'Pick a player who is in the game.');
+  return sent as string;
 }
 
 /**
@@ -247,7 +280,7 @@ export async function checkEntry(
 
     const decided = { checked: accept ? 'accepted' : 'rejected', reviewedBy: by, reviewedAt: toTs(ctx.now), reviewNote: note };
     tx.update(subRef, accept ? decided : { ...decided, status: 'rejected' });
-    const push: PushPlan | null = accept
+    const push: PushPlan | null = accept || !pushAllowed(ctx.pack, 'entry-rejected')
       ? null
       : {
           to: [sub.uid],

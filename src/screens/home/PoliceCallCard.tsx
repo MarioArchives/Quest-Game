@@ -1,13 +1,15 @@
 // Police check-ins (packs with police): the open call for this player, shown at the top of Home. A person of interest
 // is called on a clock; a trusted confidant's tip-off opens one too. Answer the question before the clock runs out:
 // pass and earn points, fail or miss and lose them. The result stays up until it is dismissed, because the call
-// itself leaves the open list the moment it is answered.
+// itself leaves the open list the moment it is answered. With phone calls on, a check-in that rings the player's phone
+// shows here as ringing (answered on the keypad); one that couldn't get through comes here with a note and no fine.
 import { useState, type FormEvent } from 'react';
 import { answerPoliceCall, friendlyError } from '../../api';
 import { Button } from '../../components/Button';
 import { formatDelta } from '../../components/PointsChip';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
+import { fallbackNote } from '../../lib/policeLine';
 import { features, t } from '../../pack';
 import type { Doc, PoliceCall } from '../../shared';
 import { Countdown } from './SideQuestCard';
@@ -25,6 +27,7 @@ export function PoliceCallCard() {
   const { myPoliceCall, state } = useGame();
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   if (!features.police || state.status === 'ended') return null;
+  if (myPoliceCall?.channel === 'phone') return <RingingCall call={myPoliceCall} />;
   if (myPoliceCall) return <OpenCall call={myPoliceCall} onDone={setOutcome} />;
   if (!outcome) return null;
   return (
@@ -39,6 +42,28 @@ export function PoliceCallCard() {
   );
 }
 
+/** A check-in ringing the player's phone: nothing to answer here unless it can't get through. */
+function RingingCall({ call }: { call: Doc<PoliceCall> }) {
+  const { playersById } = useGame();
+  const tipper = call.kind === 'tip' && call.byUid ? (playersById.get(call.byUid)?.displayName ?? 'A player') : null;
+  return (
+    <section className="hero halftone police" aria-label={t.policeCall.One} role="status">
+      <span className="sticker hero__sticker">{tipper ? 'Tip-off' : 'On watch'}</span>
+      <p className="hero__eyebrow eyebrow">{t.policeCall.One}</p>
+      {tipper ? (
+        <p className="hero__desc">
+          {tipper} tipped off the police{call.note ? <>: &ldquo;{call.note}&rdquo;</> : null}.
+        </p>
+      ) : null}
+      <h2 className="hero__title police__q">The police are ringing you</h2>
+      <p className="hero__rule">
+        Pick up and key in your answer on the keypad: +{call.passPoints} if you&apos;re right, &minus;{call.failPenalty} if you&apos;re wrong or don&apos;t answer.
+        If the call can&apos;t get through, it comes here instead, with no fine.
+      </p>
+    </section>
+  );
+}
+
 function OpenCall({ call, onDone }: { call: Doc<PoliceCall>; onDone(outcome: Outcome): void }) {
   const { playersById, me } = useGame();
   const now = useNow(1000);
@@ -49,6 +74,7 @@ function OpenCall({ call, onDone }: { call: Doc<PoliceCall>; onDone(outcome: Out
   const timeUp = endsAt <= now;
   const tipper = call.kind === 'tip' && call.byUid ? (playersById.get(call.byUid)?.displayName ?? 'A player') : null;
   const clean = answer.trim();
+  const note = fallbackNote(call);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -68,6 +94,7 @@ function OpenCall({ call, onDone }: { call: Doc<PoliceCall>; onDone(outcome: Out
     <section className="hero halftone police" aria-label={t.policeCall.One}>
       <span className="sticker hero__sticker">{tipper ? 'Tip-off' : 'On watch'}</span>
       <p className="hero__eyebrow eyebrow">{t.policeCall.One}</p>
+      {note ? <p className="police__slip">{note}</p> : null}
       {tipper ? (
         <p className="hero__desc">
           {tipper} tipped off the police{call.note ? <>: &ldquo;{call.note}&rdquo;</> : null}.

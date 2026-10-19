@@ -1,6 +1,23 @@
-# Police check-ins (tabled)
+# Police check-ins
 
-**Status:** the in-app version was built on 2026-10-17: `policeCalls/{id}`, answered in the app with a sum, a watch call every 30 min for a person of interest and a tip once an hour per trusted confidant (see the README's Optional rules). Phone calls are still tabled. This note records how Twilio would drive the same calls, so it can be picked up later.
+**Status:**
+
+- **In the app**, built 2026-10-17: `policeCalls/{id}`, answered in the app with a sum, a watch call every 30 min for a person of interest and a tip once an hour per trusted confidant (see the README's Optional rules).
+- **By phone (Twilio)**, built 2026-10-19 and not yet live. Setup steps: `design/twilio-setup.md`.
+
+## What was built for phone calls
+
+It is Level 1 below, with the in-app sums instead of fixed clips, plus the fallback recommended in `design/mockups/mystery/police-fallback.html`: option B (the switchboard), with A's re-send and C's line status inside it.
+
+- **The call.** A check-in for a player with a verified line rings them from the Verified Caller ID. The webhook (`policeVoice`) reads the intro and the question with Polly TTS, gathers the keypad answer (asking once more on silence) and plays the verdict. The same `policeCalls` doc is scored by the same rules as the app. A pack can reword the lines (`GamePack.policeVoice.lines`) or record them (`policeVoice.recordings`, played from `POLICE_AUDIO_URL`); the question is always read out.
+- **Fair fines.** "Never connected" (refused, `failed`/`canceled`, or no word from Twilio within 90 s) is the system's fault: the check-in is re-sent to the app with a fresh window and no fine. "No answer" (rang out, declined, voicemail, nothing keyed) is the player's: missed, with the fine.
+- **The switchboard** (`game/switchboard`). Three never-connected calls in a row to two or more players (`settings.policeBreakerAt`), or one account error, send every check-in to the app, with a feed note and one push to the GMs. A Twilio account check every 15 min puts it on probation; the next due call is the trial, and restores the lines if it connects. The GM can test-call their own phone, restore, switch to the app by hand, or check the account.
+- **Lines** (`phones/{uid}`). Players add a number on My file and verify it with a test call that reads out a code to key back: unverified, verified, failed, paused or app only. Two never-connected calls in a row pause a line. No number means the app, with no nagging.
+- **Where it lives.** Rules: `functions/src/shared/switchboard.ts`, `functions/src/shared/phone.ts`. Game: `functions/src/game/policePhone.ts` (dialling, the webhook), `phones.ts` (lines, tests, the switchboard callables and timer job), `policeLines.ts`, `voice.ts`. Twilio: `functions/src/firebase/twilio.ts` (REST over fetch, the signature check). App: `src/screens/account/PoliceLineCard.tsx`, `src/screens/gm/SwitchboardPanel.tsx`, `PoliceCallCard`.
+
+Differences from the plan below: no call queue (Twilio places the calls, so the spare phone is only the caller ID and calls can overlap); watch status is the existing standings (person of interest) rather than a separate `watch` field; no "Call now" or manual watch in the GM console, but a test call to the GM's own phone; Levels 2 and 3 are not built.
+
+The rest of this note is the original plan.
 
 ## The idea
 
@@ -19,7 +36,7 @@ level.
   and, optionally, `machineDetection` (voicemail detection). If voicemail answers, the call hangs up or leaves a short message.
 - **Phone numbers.**
   - A player adds their number on My file and opts in. It is stored in `phones/{uid}`. The player and the GM can read it; it is written only through a callable. It is deleted on reset or when the game ends.
-  - An "Add the police to your contacts" button downloads a vCard: Blackwood Manor PD, the caller ID number, a badge picture.
+  - An "Add the police to your contacts" button downloads a vCard: Manchester Metropolitan Police, the caller ID number, a badge picture.
 - **Recordings** go in the mystery pack's `public/audio/police/` as MP3s. The GM records:
   - an intro
   - the digits 0–9

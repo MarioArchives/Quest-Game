@@ -6,12 +6,15 @@ export class ApiError extends Error {
   readonly code: string;
   /** Epoch ms when a rate-limited action becomes available again ('resource-exhausted'). */
   readonly retryAt: number | null;
+  /** The server's own word for why, when it gave one (`details.reason`, e.g. 'not-set-up'), for the app to act on. */
+  readonly reason: string | null;
 
-  constructor(code: string, message: string, retryAt: number | null = null) {
+  constructor(code: string, message: string, retryAt: number | null = null, reason: string | null = null) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.retryAt = retryAt;
+    this.reason = reason;
   }
 }
 
@@ -45,6 +48,14 @@ function retryAtFrom(details: unknown): number | null {
   if (details && typeof details === 'object' && 'retryAt' in details) {
     const value = Number((details as { retryAt: unknown }).retryAt);
     if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function reasonFrom(details: unknown): string | null {
+  if (details && typeof details === 'object' && 'reason' in details) {
+    const value = (details as { reason: unknown }).reason;
+    if (typeof value === 'string' && value) return value;
   }
   return null;
 }
@@ -92,7 +103,7 @@ export function toApiError(err: unknown, nowMs: number = Date.now()): ApiError {
       const mins = Math.max(1, Math.ceil((retryAt - nowMs) / 60_000));
       message = `Too soon. You can try again in ${mins} min.`;
     }
-    return new ApiError(code, message, retryAt);
+    return new ApiError(code, message, retryAt, reasonFrom(err.details));
   }
   if (err instanceof Error) return new ApiError('unknown', err.message || 'Something went wrong.');
   return new ApiError('unknown', 'Something went wrong.');

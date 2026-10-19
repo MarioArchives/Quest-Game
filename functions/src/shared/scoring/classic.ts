@@ -22,6 +22,8 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
       return [{ kind: 'points', uid: event.guesser, delta: -s.wrongGuessCost, reason: 'guess-wrong' }];
     case 'sideQuestWon':
       return [{ kind: 'points', uid: event.uid, delta: event.bonus, reason: 'global-win' }];
+    case 'sideQuestVotes':
+      return [{ kind: 'points', uid: event.uid, delta: event.votes * event.perVote, reason: 'global-votes' }];
     case 'sideQuestSkipped':
       return [{ kind: 'points', uid: event.uid, delta: -(event.penalty ?? s.sideQuestSkipPenalty), reason: 'skipped' }];
     case 'rewardClean':

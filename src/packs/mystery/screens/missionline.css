@@ -1,0 +1,132 @@
+/*
+ * My file's tampering missions on a line (MissionLine.tsx): a twine across the page, bleeding past both edges, and one
+ * full-width kraft tag hung from it at a time, its neighbours peeking in at the sides; the pegs and the count under it.
+ * Layers, back to front: the tags, each one's string down to its eyelet, then the twine.
+ */
+.ml { display: flex; flex-direction: column; }
+.ml-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; padding: 0 2px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1; letter-spacing: 1.5px; text-transform: uppercase; color: var(--walltext);
+}
+.ml-head__title { font: inherit; letter-spacing: inherit; text-transform: inherit; white-space: nowrap; color: inherit; }
+/* On a narrow phone the rerolls drop under the title, still on the right. */
+.ml-head__rerolls { margin-left: auto; color: var(--kraft); white-space: nowrap; }
+.ml-note { margin-top: 8px; padding: 0 2px; font-family: var(--mono); font-size: 12px; line-height: 1.45; color: var(--kraft); }
+.ml-quiet { padding: 12px 2px 0; font-family: var(--mono); font-size: 12px; color: var(--chart); }
+
+/* ---------- the line ---------- */
+.ml-line { position: relative; margin: 4px calc(-1 * var(--page-x)) 0; container-type: inline-size; }
+.ml-track {
+  --ml-w: min(290px, 100cqw - 88px);
+  display: flex; gap: 14px; padding: 34px calc((100cqw - var(--ml-w)) / 2) 10px;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.ml-track::-webkit-scrollbar { display: none; }
+.ml-item { position: relative; flex: none; display: flex; width: var(--ml-w); scroll-snap-align: center; scroll-snap-stop: always; }
+.ml-twine { position: absolute; z-index: 2; left: 0; top: 0; width: 100%; height: 24px; overflow: visible; pointer-events: none; }
+.ml-twine path { fill: none; stroke: var(--twine); stroke-width: 3.2; stroke-linecap: round; }
+/* Each tag's string: a loop from a knot on the twine down through the eyelet, so it moves along with its tag. */
+.ml-string { position: absolute; left: 50%; top: -17.5px; margin-left: -8px; overflow: visible; pointer-events: none; }
+.ml-string path { fill: none; stroke: var(--twine-dark); stroke-width: 2.2; stroke-linejoin: round; }
+.ml-string circle { fill: var(--twine-dark); }
+
+/* ---------- a tag: hung by the eyelet in the middle of its top edge, tilted about it ---------- */
+.ml-tw { flex: 1; display: flex; min-width: 0; transform-origin: 50% 22px; filter: drop-shadow(0 3px 0 var(--wall-shadow)); }
+/* Turned over for a reroll: the back is the same tag's other side. A symmetric ease, so it is edge-on at 0.25s. */
+.ml-flip { position: relative; flex: 1; display: flex; min-width: 0; transform: perspective(1100px) rotateY(0deg); transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.45, 0, 0.55, 1); }
+.ml-flip.is-over { transform: perspective(1100px) rotateY(180deg); }
+.ml-tag {
+  position: relative; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; min-height: 376px; padding: 46px 16px 14px;
+  background: var(--kraft); background-image: linear-gradient(180deg, var(--glass-12), var(--dim-5)); color: var(--manila-ink);
+  clip-path: polygon(30px 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%, 0 30px);
+  /* The hole in the eyelet: the string shows through it. */
+  -webkit-mask: radial-gradient(circle at 50% 22px, transparent 6px, #000 6.5px);
+  mask: radial-gradient(circle at 50% 22px, transparent 6px, #000 6.5px);
+  backface-visibility: hidden;
+  /* Hidden from the moment it turns edge-on too, in case a browser draws a back face anyway. */
+  transition: visibility 0s 0.25s;
+}
+.ml-flip.is-over > .ml-tag:not(.ml-tag--back), .ml-flip:not(.is-over) > .ml-tag--back { visibility: hidden; }
+.ml-tag--back {
+  position: absolute; inset: 0; transform: rotateY(180deg);
+  background-color: var(--kraft-back); background-image: repeating-linear-gradient(180deg, transparent 0 25px, var(--grid-ink) 25px 26px);
+}
+.ml-eye {
+  position: absolute; left: 50%; top: 13px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%;
+  border: 3px solid var(--eyelet); box-shadow: 0 0 0 1px var(--eyelet-edge), inset 0 0 0 1px var(--eyelet-edge);
+}
+.ml-top {
+  align-self: stretch; display: flex; justify-content: space-between; gap: 8px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.ml-top > span:last-child { flex: none; text-align: right; }
+.ml-title { font-family: var(--display); font-size: 25px; line-height: 1.06; letter-spacing: 0; text-transform: none; overflow-wrap: anywhere; color: var(--manila-ink); }
+.ml-what { font-family: var(--mono); font-size: 13.5px; line-height: 1.42; overflow-wrap: anywhere; }
+.ml-proof { align-self: stretch; padding-top: 6px; border-top: 1px dashed var(--kraft-line); font-family: var(--mono); font-size: 11.5px; line-height: 1.4; color: var(--manila-sub); overflow-wrap: anywhere; }
+.ml-proof b { margin-right: 4px; color: var(--manila-ink); letter-spacing: 1px; text-transform: uppercase; }
+.ml-tag .is-struck { text-decoration: line-through; text-decoration-color: var(--stamp-bad); color: var(--manila-sub); }
+.ml-foot { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.ml-foot.cf-btns { display: grid; }
+.ml-small { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-sub); }
+.ml-btn2 { flex-direction: column; gap: 1px; }
+.ml-btn2 small { font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.75; }
+.app__main .ml-tag :focus-visible { --ring: var(--manila-ink); }
+
+/* waiting on the witness */
+.ml-wait { display: flex; align-items: center; gap: 10px; }
+.ml-wait .avatar { border: 0; }
+.ml-wait p { display: flex; flex-direction: column; min-width: 0; font-size: 14px; line-height: 1.3; }
+.ml-wait p span { font-family: var(--mono); font-size: 11px; color: var(--manila-sub); }
+
+/* done: the print for your post, or an empty dashed slot */
+.ml-ev { align-self: stretch; display: flex; align-items: center; gap: 12px; }
+.ml-ev .cf-btn { flex: 1; min-width: 0; text-align: center; }
+.ml-print {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; width: 74px; height: 74px; padding: 4px;
+  border: 2px dashed var(--kraft-line); background: var(--glass-30); color: var(--manila-sub); transform: rotate(-2deg);
+}
+.ml-print em { font-family: var(--mono); font-size: 9px; font-style: normal; font-weight: 700; line-height: 1.15; letter-spacing: 0.5px; text-transform: uppercase; text-align: center; }
+.ml-print--photo { padding: 0; overflow: hidden; border: 5px solid var(--print); border-bottom-width: 14px; background: var(--print); box-shadow: 0 1px 0 var(--sh-tab); }
+.ml-print--photo img { width: 100%; height: 100%; object-fit: cover; }
+
+/* the back: what a reroll costs, as tokens (the dashed one is spent by this swap) */
+.ml-back__title { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: 0; text-transform: none; color: var(--manila-ink); }
+.ml-back__title:focus { outline: none; }
+.ml-tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1.2; letter-spacing: 0.5px; text-transform: uppercase; }
+.ml-tokens__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ml-tok { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--manila-ink); background: var(--manila-ink); box-shadow: inset 0 0 0 3px var(--kraft-back); }
+.ml-tok--spend { background: transparent; border-style: dashed; box-shadow: none; }
+.ml-error { font-family: var(--mono); font-size: 12px; line-height: 1.4; color: var(--warn-text); }
+
+/* ---------- the pegs: the whole hand, and the way along it ---------- */
+.ml-nav { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 2px; }
+.ml-arrow { display: grid; place-items: center; flex: none; width: 36px; height: 44px; padding: 0; border: 0; background: none; color: var(--walltext); cursor: pointer; }
+.ml-arrow:disabled { opacity: 0.3; cursor: default; }
+.ml-arrow--prev svg { transform: scaleX(-1); }
+/* A long hand squeezes its pegs (and then scrolls them, the current one kept in view). */
+.ml-pegs { position: relative; display: flex; align-items: flex-end; gap: 6px; min-width: 0; height: 52px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.ml-pegs:has(> li:nth-child(8)) { gap: 4px; }
+.ml-pegs::-webkit-scrollbar { display: none; }
+.ml-pegs li { display: flex; flex: 0 1 30px; min-width: 20px; }
+.ml-peg {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; width: 100%; height: 44px; padding: 0 0 5px;
+  border: 0; background: var(--kraft); color: var(--manila-ink); cursor: pointer;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px);
+}
+.ml-peg::before { content: ''; position: absolute; top: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--wall); }
+.ml-peg b { font-family: var(--display); font-size: 13px; font-weight: 400; line-height: 1; }
+.ml-peg__box { width: 9px; height: 9px; border: 1.5px solid currentColor; }
+.ml-peg--done, .ml-peg--exposed { background: var(--kraft-back); }
+.ml-peg--done b, .ml-peg--exposed b { color: var(--manila-sub); }
+.ml-peg[aria-current] { height: 52px; background: var(--manila); box-shadow: inset 0 -3px 0 var(--manila-ink); }
+/* Inside the peg's shape, which would clip a ring drawn outside it. */
+.app__main .ml-peg:focus-visible { outline: 2px solid var(--manila-ink); outline-offset: -5px; }
+.ml-mk { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+.ml-mk--done { color: var(--teal-deep); }
+.ml-mk--exposed { color: var(--stamp-bad); }
+.ml-mk--pending { color: var(--stamp-warm); }
+.ml-count { margin-top: 4px; text-align: center; font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.3; letter-spacing: 0.8px; text-transform: uppercase; color: var(--rule); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-flip, .ml-tag { transition: none; }
+}

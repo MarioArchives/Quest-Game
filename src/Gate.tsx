@@ -1,12 +1,14 @@
 import look from '@pack';
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, type ComponentType, type ReactNode } from 'react';
 import { RouterProvider } from 'react-router';
 import { packMismatch } from '../functions/src/shared/packs/index.ts';
 import { Loader } from './components/Loader';
 import { PhotoViewerProvider } from './components/PhotoViewer';
+import { SimulatedPhone } from './components/SimulatedPhone';
 import { ToastProvider } from './components/Toast';
 import { GameProvider, useGame } from './data/GameProvider';
 import { LocationProvider } from './data/LocationProvider';
+import { SCREEN_LOADER_SIZE } from './lib/loaderMark';
 import { pack, t } from './pack';
 import { router } from './routes';
 import { RejectedScreen } from './screens/auth/RejectedScreen';
@@ -14,9 +16,29 @@ import { SignInScreen } from './screens/auth/SignInScreen';
 import { SignUpScreen } from './screens/auth/SignUpScreen';
 import { WaitingScreen } from './screens/auth/WaitingScreen';
 import { useSession } from './session/SessionProvider';
+import { needsBooking } from './shared';
 
-/** The pack's own signed-out screen, when it has one. */
+/** The pack's own screens for the way in, where it has them (see PackLook.screens). */
 const PackSignIn = look.screens?.signIn;
+const PackJoin = look.screens?.join;
+const PackWaiting = look.screens?.waiting;
+const PackRejected = look.screens?.rejected;
+const PackOnboarding = look.screens?.onboarding;
+
+// index.html shows the same loader before the bundle boots (lib/loaderMark.ts), so keep the two alike.
+const loading = () => <Loader fullScreen size={SCREEN_LOADER_SIZE} label={`Loading ${pack.name}`} caption={pack.name} />;
+
+/**
+ * A pack's screen, lazily loaded. Always the same element shape, so a pack that uses one component for joining, waiting
+ * and being turned down keeps its state as the join request moves on.
+ */
+function packScreen<P extends object>(Screen: ComponentType<P>, props: P) {
+  return (
+    <Suspense fallback={loading()}>
+      <Screen {...props} />
+    </Suspense>
+  );
+}
 
 /** Blocks the app when the data was seeded for a different game than this build. */
 function PackCheck({ children }: { children: ReactNode }) {
@@ -35,33 +57,30 @@ function PackCheck({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Decides what the signed-in state sees: sign in, sign up, waiting, rejected, or the app. */
+/** Decides what the signed-in state sees: sign in, sign up, waiting, rejected, the pack's onboarding, or the app. */
 export function Gate() {
   const session = useSession();
 
-  if (session.phase === 'loading') {
-    return <Loader fullScreen size={96} label={`Loading ${pack.name}`} caption={pack.name} />;
-  }
-  if (session.phase === 'signed-out') {
-    return PackSignIn ? (
-      <Suspense fallback={<Loader fullScreen size={96} label={`Loading ${pack.name}`} caption={pack.name} />}>
-        <PackSignIn />
-      </Suspense>
-    ) : (
-      <SignInScreen />
-    );
-  }
+  if (session.phase === 'loading') return loading();
+  if (session.phase === 'signed-out') return PackSignIn ? packScreen(PackSignIn, {}) : <SignInScreen />;
 
   if (session.player || session.isAdmin) {
+    // Let in, but not booked in yet: the pack's onboarding first (GMs go straight in to run the game).
+    const booking = Boolean(PackOnboarding && session.player && !session.isAdmin && needsBooking(session.player));
     return (
       <ToastProvider>
         <GameProvider>
           <PackCheck>
-            <LocationProvider>
-              <PhotoViewerProvider>
-                <RouterProvider router={router} />
-              </PhotoViewerProvider>
-            </LocationProvider>
+            {booking && PackOnboarding ? (
+              packScreen(PackOnboarding, {})
+            ) : (
+              <LocationProvider>
+                <PhotoViewerProvider>
+                  <RouterProvider router={router} />
+                </PhotoViewerProvider>
+              </LocationProvider>
+            )}
+            <SimulatedPhone />
           </PackCheck>
         </GameProvider>
       </ToastProvider>
@@ -69,8 +88,9 @@ export function Gate() {
   }
 
   if (session.editingSignup || !session.joinRequest) {
-    return <SignUpScreen onCancel={session.joinRequest ? () => session.setEditingSignup(false) : undefined} />;
+    const onCancel = session.joinRequest ? () => session.setEditingSignup(false) : undefined;
+    return PackJoin ? packScreen(PackJoin, { onCancel }) : <SignUpScreen onCancel={onCancel} />;
   }
-  if (session.joinRequest.status === 'rejected') return <RejectedScreen />;
-  return <WaitingScreen />;
+  if (session.joinRequest.status === 'rejected') return PackRejected ? packScreen(PackRejected, {}) : <RejectedScreen />;
+  return PackWaiting ? packScreen(PackWaiting, {}) : <WaitingScreen />;
 }

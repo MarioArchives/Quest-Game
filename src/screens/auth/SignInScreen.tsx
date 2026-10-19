@@ -1,6 +1,7 @@
 import look from '@pack';
 import { useState } from 'react';
 import { backend } from '../../backend';
+import type { MockAccount } from '../../backend/types';
 import { Button } from '../../components/Button';
 import { t } from '../../pack';
 import { signInErrorMessage, useSession } from '../../session/SessionProvider';
@@ -34,6 +35,13 @@ export function useSignIn() {
   return { accounts, busy, error, signInAs };
 }
 
+/** A mock account's button: the GM, a demo player, or a guest who has yet to ask to join. */
+function mockAccountLabel(account: MockAccount): string {
+  if (account.role === 'gm') return `Sign in as the ${t.gm.one}`;
+  if (account.role === 'guest') return `Sign in as ${account.label}, not in yet`;
+  return `Sign in as ${account.label}`;
+}
+
 export function SignInScreen() {
   const { accounts, busy, error, signInAs } = useSignIn();
 
@@ -46,7 +54,7 @@ export function SignInScreen() {
           {accounts ? (
             accounts.map((account) => (
               <Button key={account.uid} variant="primary" block busy={busy} onClick={() => signInAs(account.uid)}>
-                {account.role === 'gm' ? `Sign in as the ${t.gm.one}` : `Sign in as ${account.label}`}
+                {mockAccountLabel(account)}
               </Button>
             ))
           ) : (

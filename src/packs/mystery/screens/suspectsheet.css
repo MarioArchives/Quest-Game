@@ -1,0 +1,189 @@
+/*
+ * The reward's Frame step as the suspect sheet, inside the "Evidence secured" folder (theme.css): the standings on
+ * squared chart paper, a row per suspect with a stamp and a track (now, and a red-pen arrow to where a frame would
+ * leave them), the unsigned tip slip over the dimmed folder, and the result in the key's place. On step one, a ruled
+ * index card of who is close to a line, and "Keep it for later".
+ */
+
+/* The folder on this step: a little tighter, and without step one's "Witness confirmed" lead. */
+html .sheet:has(.reward-sheet .ss) .sheet__body { padding: 16px 12px 14px; }
+.reward-sheet:has(.ss) { gap: 10px; }
+.reward-sheet:has(.ss)::before { content: none; display: none; }
+
+/* The tip slip is the sheet's sibling, not inside it: nothing between it and the pop-up is positioned, so it sits on
+   the whole pop-up, clear of the folder's scrolling. */
+.ss { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* ---------- the head: what a frame does, and the key ---------- */
+.ss__head {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-right: 34px; /* clear of the paperclip */
+  font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.ss__key { display: flex; align-items: center; gap: 5px; letter-spacing: 0.3px; white-space: nowrap; }
+.ss__key i { display: inline-block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; }
+.ss__key-now { background: var(--manila-ink); }
+.ss__key-after { margin-left: 4px; border: 2px dashed var(--pen-red); }
+
+/* ---------- the sheet: squared chart paper ---------- */
+.ss__rows {
+  list-style: none; margin: 0; padding: 4px 8px; display: flex; flex-direction: column;
+  background-color: var(--chart-paper);
+  background-image: linear-gradient(var(--grid-ink) 1px, transparent 1px), linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px);
+  background-size: 14px 14px; box-shadow: inset 0 0 0 1px var(--twine);
+}
+.ss-row { border-bottom: 1px dashed var(--twine-dark); }
+.ss-row:last-child { border-bottom: 0; }
+.ss-row__in {
+  all: unset; box-sizing: border-box; width: 100%; min-height: 44px;
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 4px;
+  font-family: var(--body); color: var(--manila-ink);
+}
+button.ss-row__in { cursor: pointer; }
+button.ss-row__in:hover:not(:disabled) { background: var(--red-wash); }
+button.ss-row__in:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: -3px; }
+button.ss-row__in:disabled { cursor: progress; }
+.ss-row--you .ss-row__in { background: var(--glass-40); }
+.ss-row.is-picked .ss-row__in { background: var(--red-wash); box-shadow: inset 0 0 0 2px var(--pen-red); }
+.ss-row.is-hit .ss-row__in { background: var(--red-wash); }
+
+.ss-face { position: relative; width: 40px; height: 40px; }
+.ss-face .avatar { border: 2px solid var(--print); }
+.ss-pin {
+  position: absolute; right: -6px; top: -5px; width: 18px; height: 18px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--paper); border-radius: 50%; box-shadow: 0 1px 0 1px var(--sh-tag); color: var(--paper);
+}
+.ss-pin svg { flex: none; width: 64%; height: 64%; }
+.ss-pin--confidant { background: var(--accent); }
+.ss-pin--poi { background: var(--warn); }
+
+.ss-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ss-top { display: flex; flex-wrap: wrap; align-items: center; column-gap: 7px; row-gap: 2px; min-width: 0; }
+.ss-name { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 700; }
+
+/* The stamp: what the frame would change. */
+.ss-chip {
+  flex: none; padding: 1px 5px; border: 1.5px solid currentColor; transform: rotate(-2deg); white-space: nowrap;
+  font-family: var(--mono); font-size: 9px; font-weight: 700; line-height: 1.25; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.ss-chip--bad { color: var(--stamp-bad); }
+.ss-chip--good { color: var(--stamp-plain); }
+.ss-chip--mute { color: var(--manila-sub); opacity: 0.8; }
+.ss-chip--hit { background: var(--pen-red); border-color: var(--pen-red); color: var(--on-accent); }
+
+.ss-move {
+  margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; line-height: 1; color: var(--manila-sub);
+}
+.ss-move em { font-style: normal; color: var(--stamp-bad); }
+.ss-row.is-hit .ss-move em { font-family: var(--display); font-weight: 400; font-size: 16px; }
+
+/* ---------- a row's track: the Board's scale, the GM's lines, now and after ---------- */
+/* Positions are shares of the half-width from the middle: --x from −1 (left edge) to 1 (right edge). */
+/* Back to front: the tinted ground beyond each line, the baseline, then the lines, the arrow and the dots. */
+.ss-track { position: relative; isolation: isolate; display: block; height: 22px; margin: 0 7px; }
+.ss-track::before { content: ''; position: absolute; z-index: 1; left: -7px; right: -7px; top: 50%; height: 1px; background: var(--manila-sub); }
+.ss-track > * { z-index: 2; }
+.ss-track__band { position: absolute; z-index: 0; top: 5px; height: 12px; }
+.ss-track__band--poi { left: -7px; width: calc(50% + var(--x) * 50% + 7px); background: var(--suspect-half); }
+.ss-track__band--confidant { left: calc(50% + var(--x) * 50%); right: -7px; background: var(--clear-half); }
+.ss-track__zero { position: absolute; left: 50%; top: 4px; width: 1.5px; height: 14px; margin-left: -0.75px; background: var(--manila-sub); }
+.ss-track__line { position: absolute; top: 1px; bottom: 1px; width: 2px; margin-left: -1px; left: calc(50% + var(--x) * 50%); }
+.ss-track__line--poi { background: repeating-linear-gradient(180deg, var(--warn) 0 3px, transparent 3px 5px); }
+.ss-track__line--confidant { background: repeating-linear-gradient(180deg, var(--accent) 0 3px, transparent 3px 5px); }
+/* The red-pen arrow from now to after, its head just short of the after ring. */
+.ss-track__arrow {
+  position: absolute; top: 50%; height: 2px; margin-top: -1px;
+  left: calc(50% + var(--to) * 50% + 9px); width: max(0px, calc((var(--from) - var(--to)) * 50% - 16px)); background: var(--pen-red);
+}
+.ss-track__arrow::before {
+  content: ''; position: absolute; left: -2px; top: 50%; width: 6px; height: 6px; margin-top: -4px;
+  border-left: 2px solid var(--pen-red); border-bottom: 2px solid var(--pen-red); transform: rotate(45deg);
+}
+.ss-dot {
+  position: absolute; top: 50%; left: calc(50% + var(--x) * 50%); width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px;
+  box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--print);
+}
+.ss-dot--pos { background: var(--teal-deep); }
+.ss-dot--neg { background: var(--stamp-bad); }
+.ss-dot--zero { background: var(--manila-sub); }
+.ss-dot--you { background: var(--manila-ink); }
+.ss-dot--after { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--print); border: 2px dashed var(--pen-red); }
+.ss-dot--was { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; background: none; border: 1.5px dashed var(--manila-sub); }
+
+/* ---------- the foot: back, and how to pick ---------- */
+.ss__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.ss__foot > span { flex: 1; min-width: 0; text-align: center; }
+.ss__back {
+  all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 6px 0 0;
+  cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-ink);
+}
+.ss__back:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.ss__back:disabled { opacity: 0.45; cursor: default; }
+.ss__back-icon { transform: rotate(180deg); }
+.ss__empty { font-size: 15px; color: var(--manila-sub); }
+
+/* ---------- the result, where the key was ---------- */
+.ss__done { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; row-gap: 2px; padding: 2px 34px 4px 0; }
+.ss__done b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; color: var(--stamp-bad); }
+.ss__done span { font-size: 15px; font-weight: 600; }
+.ss__close { align-self: stretch; }
+
+/* ---------- the tip slip, over the dimmed folder ---------- */
+/* The dim sits in the sheet's own scroll (it scrolls with it), out over the folder's padding to its edges. */
+.ss__dim { position: absolute; z-index: 5; inset: -16px -12px -14px; background: var(--dim); }
+.ss-tip {
+  position: absolute; z-index: 6; left: 8px; right: 8px; top: 50%;
+  display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px;
+  background: var(--index-card); color: var(--manila-ink); border-top: 3px solid var(--warn);
+  box-shadow: 0 6px 0 var(--sh-tag), 0 18px 30px var(--sh-deep); transform: translateY(-50%) rotate(-1deg);
+  animation: ss-tip-in 0.18s ease-out;
+}
+.ss-tip:focus { outline: none; }
+.ss-tip:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 3px; }
+.ss-tip p { margin: 0; }
+.ss-tip__head {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1.3; letter-spacing: 1.5px; text-transform: uppercase; color: var(--manila-sub);
+}
+.ss-tip__head .cf-stamp { align-self: center; }
+.ss-tip__text { font-family: var(--mono); font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.ss-tip__move { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ss-tip__move b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; }
+.ss-tip__move span { flex: none; font-family: var(--mono); font-size: 18px; font-weight: 700; line-height: 1; color: var(--manila-sub); }
+.ss-tip__move em { font-style: normal; color: var(--stamp-bad); }
+.ss-tip__sign {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1.3; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+}
+.ss-tip__sign span { flex: 1; border-bottom: 1.5px solid var(--manila-ink); }
+.ss-tip__sign i { font-style: normal; font-weight: 400; letter-spacing: 0.3px; text-transform: none; }
+.cf-btns.ss-tip__btns { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+.ss-tip__btns .cf-btn { min-height: 46px; white-space: nowrap; }
+.ss-tip__btns .cf-btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.ss-tip__fine { font-size: 12px; line-height: 1.4; color: var(--manila-sub); }
+@keyframes ss-tip-in { from { opacity: 0; transform: translateY(calc(-50% + 12px)) rotate(-1deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ss-tip { animation: none; }
+}
+
+/* ---------- step one: who is close to a line, and keeping the reward for later ---------- */
+.ss-near.cf-card {
+  gap: 0; padding: 6px 10px 7px; box-shadow: 0 2px 0 var(--sh-tag); transform: rotate(-0.8deg);
+  background-color: var(--index-card); background-position: 0 6px; color: var(--manila-ink); font-size: 13px; line-height: 1.3;
+}
+.ss-near__title { font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 22px; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.ss-near__list { list-style: none; margin: 0; padding: 0; }
+.ss-near__list li { display: flex; align-items: center; gap: 7px; min-height: 22px; font-weight: 600; }
+.ss-near__list .ss-pin { position: static; flex: none; width: 16px; height: 16px; border-width: 1.5px; }
+.ss-later {
+  all: unset; box-sizing: border-box; align-self: center; min-height: 44px; margin: -4px 0 -10px; padding: 0 12px; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.ss-later:hover:not(:disabled) { color: var(--manila-ink); }
+.ss-later:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: -3px; }
+.ss-later:disabled { opacity: 0.45; cursor: default; }

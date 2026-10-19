@@ -104,3 +104,24 @@ describe('13. submission photos', () => {
     await assertFails(deleteObject(ref(as('gm'), 'submissions/alice/seed.jpg')));
   });
 });
+
+describe("13b. submission videos (plan \"Mystery pack: minimal notifications, Bob's story arc…\", edge case 17)", () => {
+  const mp4 = { contentType: 'video/mp4' };
+
+  it('players upload mp4, mov or webm videos under 50 MiB into their own folder (larger than a photo may be)', async () => {
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'submissions/alice/alibi.mp4'), bytes(8 * MiB), mp4));
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'submissions/alice/alibi.mov'), bytes(1000), { contentType: 'video/quicktime' }));
+    await assertSucceeds(uploadBytes(ref(as('alice'), 'submissions/alice/alibi.webm'), bytes(1000), { contentType: 'video/webm' }));
+  });
+
+  it("rejects 50 MiB or more, other kinds of video, other players' folders and non-players", async () => {
+    await assertFails(uploadBytes(ref(as('alice'), 'submissions/alice/huge.mp4'), bytes(50 * MiB), mp4));
+    await assertFails(uploadBytes(ref(as('alice'), 'submissions/alice/old.avi'), bytes(1000), { contentType: 'video/x-msvideo' }));
+    await assertFails(uploadBytes(ref(as('alice'), 'submissions/bob/alibi.mp4'), bytes(1000), mp4));
+    await assertFails(uploadBytes(ref(as('stranger'), 'submissions/stranger/alibi.mp4'), bytes(1000), mp4));
+  });
+
+  it('photos keep their 5 MiB limit', async () => {
+    await assertFails(uploadBytes(ref(as('alice'), 'submissions/alice/big2.jpg'), bytes(5 * MiB), jpeg));
+  });
+});

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { compressAvatar } from '../lib/upload';
 import { Avatar } from './Avatar';
 import { CameraSheet, prefersInAppCamera } from './CameraSheet';
+import { Loader } from './Loader';
 import './AvatarPicker.css';
 
 export type AvatarChoice =
@@ -89,7 +90,7 @@ export function AvatarPicker({ name, value, onChange, presets, onError }: Avatar
           disabled={processing}
           onClick={() => fileRef.current?.click()}
         >
-          {processing ? 'Preparing…' : 'Choose a photo'}
+          {processing ? <Loader inline size={20} label="Preparing the photo" caption="Preparing…" /> : 'Choose a photo'}
         </button>
       </div>
       <input

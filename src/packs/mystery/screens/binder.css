@@ -1,0 +1,134 @@
+/*
+ * The Board's group missions as one binder (MissionBinder.tsx): a manila folder with its label tab on top and a divider
+ * tab per mission down its right edge, newest on top. The open tab joins the page; the others are kraft, red-edged
+ * when they need you. The grid stretches the page to the tabs, so the binder grows taller rather than scroll them.
+ */
+.mb {
+  --mb-col: 44px;
+  --mb-shade: rgba(0, 0, 0, 0.35);
+  --mb-glass: rgba(255, 255, 255, 0.4);
+  --mb-glass-soft: rgba(255, 255, 255, 0.25);
+  display: flex; flex-direction: column; margin-top: 4px;
+}
+.mb__label {
+  align-self: flex-start; margin-left: 18px; padding: 6px 14px 4px; border-radius: 6px 6px 0 0;
+  background: var(--manila-tab); color: var(--manila-ink);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.mb__grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--mb-col); grid-template-areas: 'page tabs'; align-items: stretch; }
+.mb__page {
+  grid-area: page; position: relative; display: flex; flex-direction: column; min-width: 0; padding: 14px 16px 16px;
+  background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
+}
+.mb--empty .mb__page { padding-bottom: 18px; }
+
+/* ---------- the divider tabs ---------- */
+.mb__tabs { grid-area: tabs; align-self: start; display: flex; flex-direction: column; gap: 4px; padding: 12px 0; }
+.mb-tab {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: 40px; min-height: 60px; padding: 4px 0; border: 0; border-radius: 0 7px 7px 0; cursor: pointer;
+  background: var(--kraft); color: var(--manila-ink); font: inherit;
+  /* tucked in behind the page: its shade on the left edge */
+  box-shadow: inset 7px 0 7px -7px var(--mb-shade), 0 3px 0 var(--wall-shadow);
+}
+.mb-tab:hover { background: var(--manila-tab); }
+/* An ink ring inside the tab (the wall's light ring would sit on the next tab). */
+.mb .mb-tab:focus-visible { --ring: var(--manila-ink); outline-offset: -4px; }
+.mb-tab__no { font-family: var(--display); font-weight: 400; font-size: 19px; line-height: 1; }
+.mb-tab__word { font-family: var(--mono); font-size: 10px; font-weight: 700; font-style: normal; line-height: 1; letter-spacing: 0.2px; text-transform: uppercase; }
+.mb-tab--live .mb-tab__word { color: var(--warn); }
+.mb-tab--checking .mb-tab__word, .mb-tab--voting .mb-tab__word { color: var(--stamp-warm); }
+/* Filed: faded ink. */
+.mb-tab--closed .mb-tab__no { color: var(--manila-sub); }
+/* The open one joins the page. */
+.mb-tab[aria-selected='true'] { width: var(--mb-col); background: var(--manila); box-shadow: 0 3px 0 var(--wall-shadow); }
+.mb-tab[aria-selected='true'] .mb-tab__no { color: var(--manila-ink); }
+/* Needs you: a red edge. */
+.mb-tab--need::after {
+  content: ''; position: absolute; right: 0; top: 6px; bottom: 6px; width: 5px; border-radius: 3px 0 0 3px; background: var(--warn);
+}
+/* A long night: closed tabs slim down to their number and your mark. */
+.mb-tab--slim { min-height: 27px; flex-direction: row; gap: 3px; padding: 0; }
+.mb-tab--slim .mb-tab__no { font-size: 13px; }
+.mb-mark { flex: none; }
+.mb-mark--entered, .mb-mark--won { color: var(--teal-deep); }
+.mb-mark--missed { color: var(--stamp-bad); }
+
+/* Just fired: red, sticking out further than the rest, slid out from behind the page with a nudge or two. */
+.mb-tab--new {
+  width: 54px; background: var(--warn); color: var(--on-accent);
+  animation: mb-pop 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both, mb-nudge 900ms ease-in-out 700ms 3;
+}
+.mb-tab--new:hover { background: var(--warn-text); }
+.mb-tab--new .mb-tab__no, .mb-tab--new .mb-tab__word { color: var(--on-accent); }
+.mb-tab--new::after { display: none; }
+@keyframes mb-pop {
+  from { transform: translateX(-100%); }
+  70% { transform: translateX(4px); }
+  to { transform: none; }
+}
+@keyframes mb-nudge {
+  0%, 100% { transform: none; }
+  50% { transform: translateX(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-tab--new { animation: none; }
+}
+
+/* ---------- an open mission's card on the page (SideQuestCard.tsx; the timeline restyles it as its own folder) ---------- */
+.mb .mb__page .hero { margin: 0; padding: 0; overflow: visible; background: none; border: 0; box-shadow: none; color: var(--manila-ink); }
+.mb .mb__page .hero::after { content: none; }
+.mb .mb__page .hero__eyebrow {
+  position: static; display: block; min-height: 22px; margin: 0; padding: 4px 100px 0 0; border-radius: 0; background: none;
+  color: var(--manila-sub); font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; line-height: 1.3; text-transform: uppercase;
+}
+/* Clear of the paperclip. */
+.mb .mb__page .hero__sticker { top: 2px; right: 24px; }
+.mb .mb__page .hero__title { margin-top: 6px; font-size: clamp(24px, 7.4vw, 30px); line-height: 1.06; }
+.mb .mb__page .hero__desc { font-size: 14.5px; }
+.mb .mb__page .hero__rule { font-size: 13.5px; line-height: 1.38; }
+.mb .mb__page .pips { gap: 3px; }
+.mb .mb__page .pip { width: 15px; height: 19px; }
+
+/* ---------- a closed mission's result ---------- */
+.mb-res { display: flex; flex-direction: column; }
+.mb-res__meta {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 22px; padding-right: 26px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; line-height: 1.3; text-transform: uppercase; color: var(--manila-sub);
+}
+.mb-res__title {
+  margin-top: 6px; font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7.4vw, 30px); line-height: 1.06;
+  text-transform: none; color: var(--manila-ink); overflow-wrap: anywhere;
+}
+.mb-res__desc { margin-top: 8px; font-size: 14.5px; line-height: 1.4; color: var(--manila-sub); overflow-wrap: anywhere; }
+.mb-res__rule { margin-top: 8px; font-size: 13.5px; font-weight: 700; line-height: 1.38; color: var(--manila-sub); }
+.mb-res__none { margin-top: 12px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+
+/* The winning (or fastest) entry: a print clipped to the page, the stamp, who, their words, what it earned. */
+.mb-res__win { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 14px; align-items: start; margin-top: 12px; }
+.mb-res__win + .mb-res__win { margin-top: 16px; }
+.mb-res__print { display: block; padding: 5px 5px 16px; background: var(--print); box-shadow: 0 2px 0 var(--mb-shade); transform: rotate(-2deg); }
+.mb-res__print .thumb { display: flex; border: 0; }
+.mb-res__words {
+  display: flex; align-items: center; min-height: 96px; padding: 8px; background: var(--print); box-shadow: 0 2px 0 var(--mb-shade); transform: rotate(-2deg);
+  font-family: var(--mono); font-size: 12px; line-height: 1.35; color: var(--manila-ink); overflow-wrap: anywhere;
+}
+.mb-res__txt { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.mb-res__name { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; font-size: 15px; font-weight: 700; }
+.mb-res__name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-res__cap { font-family: var(--mono); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.mb-res__pts { font-family: var(--display); font-size: 22px; line-height: 1; color: var(--stamp-good); }
+
+.mb-res__tally {
+  margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--twine-dark);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; line-height: 1.5; text-transform: uppercase; color: var(--manila-sub);
+}
+.mb-res__label { margin: 12px 0 6px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 1px; line-height: 1; text-transform: uppercase; color: var(--manila-sub); }
+.mb-res__label--miss { color: var(--stamp-bad); }
+.mb-who { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.mb-who li {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; border: 2px solid var(--manila-ink); border-radius: 999px;
+  background: var(--mb-glass); color: var(--manila-ink); font-size: 11.5px; font-weight: 700;
+}
+.mb-who em { font-style: normal; font-family: var(--mono); font-weight: 700; }
+.mb-who--miss li { border-color: var(--stamp-bad); background: var(--mb-glass-soft); color: var(--stamp-bad); }

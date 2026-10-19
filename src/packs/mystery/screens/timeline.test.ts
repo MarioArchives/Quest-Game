@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterize, kicker, walk, walkLabel } from './timeline';
+import { chapterCounts, chapterLine, chapterize, kicker, missionRef, walk, walkLabel } from './timeline';
 
 const stop = (id: string, number: number, startMs: number | null, lat = 53.4, lng = -2.2, revealed = true) => ({
   id, number, name: id, lat, lng, revealed, startMs,
@@ -92,5 +92,37 @@ describe('kicker', () => {
     expect(kicker('checkin-open')).toBe('ANSWER NOW');
     expect(kicker('checkin-answer')).toBe('PRESENT');
     expect(kicker('checkin-closed')).toBe("TIME'S UP");
+  });
+});
+
+describe('missionRef (Open in Missions)', () => {
+  it('links the posts that open or move on a mission', () => {
+    expect(missionRef({ type: 'global-open', ref: 'g1' })).toBe('g1');
+    expect(missionRef({ type: 'voting-open', ref: 'g1' })).toBe('g1');
+    expect(missionRef({ type: 'checking', ref: 'g1' })).toBe('g1');
+    expect(missionRef({ type: 'checkin-open', ref: 'c1' })).toBe('c1');
+  });
+
+  it('leaves every other post alone, and one with no ref', () => {
+    expect(missionRef({ type: 'global-won', ref: 'sub1' })).toBeNull();
+    expect(missionRef({ type: 'approved', ref: 'sub1' })).toBeNull();
+    expect(missionRef({ type: 'global-open', ref: null })).toBeNull();
+  });
+});
+
+describe('a stop’s line', () => {
+  it('counts entries and photos', () => {
+    expect(chapterCounts([{ photo: true }, { photo: false }, { photo: true }])).toEqual({ entries: 3, photos: 2 });
+  });
+
+  it('the open stop: since when, and how many entries', () => {
+    expect(chapterLine({ from: '21:20', to: null }, { entries: 11, photos: 2 }, true)).toBe('Since 21:20 · 11 entries');
+    expect(chapterLine({ from: null, to: null }, { entries: 1, photos: 0 }, true)).toBe('1 entry');
+  });
+
+  it('a folded stop: its span, entries and photos', () => {
+    expect(chapterLine({ from: '20:25', to: '21:20' }, { entries: 14, photos: 3 }, false)).toBe('20:25–21:20 · 14 entries · 3 photos');
+    expect(chapterLine({ from: '19:30', to: null }, { entries: 0, photos: 0 }, false)).toBe('from 19:30 · 0 entries');
+    expect(chapterLine({ from: null, to: null }, { entries: 2, photos: 1 }, false)).toBe('2 entries · 1 photo');
   });
 });

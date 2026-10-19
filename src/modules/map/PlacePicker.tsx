@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
+import { Loader } from '../../components/Loader';
 import { pack } from '../../pack';
 import { distanceMeters, type LatLng } from './geo';
 import { barsNear, filterPlaces, searchBars, type Place } from './places';
@@ -86,9 +87,17 @@ export function PlacePicker({ near, onPick, onPin }: { near: LatLng; onPick(plac
           <span className="field__hint">The full list is busy, so these are the nearest. Type a name to search all of {area.name}.</span>
         ) : null}
       </div>
-      {state.status === 'loading' ? <p className="placesearch__note">Looking up the bars…</p> : null}
+      {state.status === 'loading' ? (
+        <p className="placesearch__note">
+          <Loader inline size={20} label="Looking up the bars" caption="Looking up the bars…" />
+        </p>
+      ) : null}
       {state.status === 'error' ? <p className="note note--error">Couldn&apos;t reach the bar list. Drop a pin on the map instead.</p> : null}
-      {searching ? <p className="placesearch__note">Searching {area?.name}…</p> : null}
+      {searching ? (
+        <p className="placesearch__note">
+          <Loader inline size={20} label={`Searching ${area?.name ?? ''}`.trim()} caption={`Searching ${area?.name ?? ''}…`} />
+        </p>
+      ) : null}
       {state.status === 'ready' && shown.length === 0 && !searching ? (
         <p className="placesearch__note">{query ? `No bar matches “${query}”.` : 'No bars found nearby.'}</p>
       ) : null}

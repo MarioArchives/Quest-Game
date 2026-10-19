@@ -1,27 +1,29 @@
-/* The Board screen: tabs, and the standings as bars from a zero line. */
-/* Feed and Standings as manila folder tabs standing on the folder's edge; the chosen one is the lighter, front tab. */
-.bd-tabs { display: flex; gap: 4px; padding: 0 10px; border-bottom: 6px solid var(--manila-tab); }
-.bd-tab {
-  min-height: 40px; padding: 8px 16px 6px; border: 0; border-radius: 6px 6px 0 0;
-  background: var(--kraft); color: var(--manila-ink);
-  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-}
-.bd-tab[aria-selected='true'] { background: var(--manila-tab); }
-.bd-tab:focus-visible { outline-offset: -3px; }
-/*
- * Standings chosen: the sheet is a file pulled up out of the folder, and its tab is the file's own tab, the same
- * chart paper running straight down into it (no folder edge, no gap). The Feed tab waits behind, lower and darker.
- */
-.bd-tabs--file { position: relative; z-index: 1; align-items: flex-end; margin-bottom: calc(-1 * var(--gap)); border-bottom: 0; }
-.bd-tabs--file .bd-tab[aria-selected='true'] {
-  min-height: 44px; margin-bottom: -1px; padding-bottom: 9px;
-  background: var(--chart-paper); box-shadow: -2px -2px 0 rgba(0, 0, 0, 0.18);
-}
-.bd-tabs--file .bd-tab[aria-selected='false'] { min-height: 36px; background: var(--kraft); box-shadow: inset 0 -6px 6px -6px rgba(0, 0, 0, 0.35); }
+/* The Missions folder (Board.tsx): folder tabs Missions · Map · Standings over one sheet of paper, edge to edge. */
+/* The folder runs from the screen's edges down to the tab bar: out of the page gutter and its bottom padding. */
+.bd { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0 calc(-1 * var(--page-x)) -32px; }
+/* On the map the frame fills the screen and has no gutter: the folder fills it, its tabs where they are elsewhere. */
+.bd--map { margin: 0; padding-top: 8px; }
 
-.bd-panel { display: flex; flex-direction: column; gap: var(--gap); flex: 1; }
-/* Standings run edge to edge and down to the tab bar: break out of the page gutter and its bottom padding. */
-.bd-panel--bleed { margin: 0 calc(-1 * var(--page-x)) -32px; }
+/* The tabs: kraft, tucked behind the folder; the open one is the sheet's own paper running straight into it. */
+.bd-tabs { position: relative; z-index: 1; display: flex; align-items: flex-end; gap: 3px; padding: 0 12px; }
+.bd-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 9px 13px 7px; border: 0;
+  border-radius: 6px 6px 0 0; background: var(--kraft); color: var(--manila-ink); box-shadow: inset 0 -7px 7px -7px var(--sh-tab);
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+}
+.bd-tab:hover { background: var(--manila-tab); }
+.bd-tab[aria-selected='true'] { min-height: 42px; padding-top: 12px; padding-bottom: 9px; background: var(--manila); box-shadow: none; }
+.bd--standings .bd-tab[aria-selected='true'] { background: var(--chart-paper); }
+.bd-tab:focus-visible { --ring: var(--manila-ink); outline-offset: -3px; }
+/* Something on the Missions tab needs you (seen from the other two). */
+.bd-tab__dot { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--dot); border: 2px solid var(--wall); }
+
+/* The sheet: manila under Missions and the map, chart paper under Standings. */
+.bd-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--manila); color: var(--manila-ink); }
+.bd--missions .bd-body { padding: 14px 16px 40px; }
+.bd--standings .bd-body { background: var(--chart-paper); }
+/* The bee while a tab loads sits on the folder's paper, so its caption takes the folder's ink, not the wall's. */
+.bd-body > .app__loader { color: var(--manila-ink); }
 
 /*
  * Standings: one row per player on a squared grid, − to the left (under suspicion) and + to the right (in the clear).
@@ -39,8 +41,9 @@
   flex: 1;
   display: flex; flex-direction: column;
   container-type: inline-size;
-  /* From the smallest row, so a bigger row never makes the sheet (and so its rows) bigger still. */
-  min-height: calc(var(--rows, 1) * var(--st-row-min) + 96px);
+  /* From the smallest row, so a bigger row never makes the sheet (and so its rows) bigger still; plus a line of the
+     pins' key (--keys) each, with room for one to wrap. */
+  min-height: calc(var(--rows, 1) * var(--st-row-min) + 96px + var(--keys, 0) * 30px);
   background:
     linear-gradient(90deg, rgba(163, 52, 42, 0.12) 50%, rgba(31, 138, 133, 0.13) 50%),
     var(--chart-paper);
@@ -132,4 +135,36 @@
   @keyframes st-delta-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 }
 
-.st__standing { margin-left: 4px; vertical-align: middle; }
+/*
+ * Standing pins: an enamel pin on the face of a trusted confidant (a phone) or a person of interest (an eye). It pokes
+ * out past the face's top and its outer side (away from the bar) by the same amount, and scales with the face: 24px on
+ * a 44px face, the icon two-thirds of it. It is placed in the row from the face's own --f, so it glides with the face
+ * and slides with the row, kept just inside the sheet when the face sits at the grid's edge; taps go to the row.
+ */
+.st__pin {
+  --pin: calc(var(--st-face) * 0.55);
+  --pin-out: calc(var(--st-face) * 0.14);
+  position: absolute; z-index: 4; top: calc(50% - var(--st-face) / 2 - var(--pin-out));
+  width: var(--pin); height: var(--pin);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--paper); border-radius: 50%; box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.3);
+  color: var(--paper); pointer-events: none;
+}
+.st__pin svg { flex: none; width: calc(var(--pin) * 2 / 3); height: calc(var(--pin) * 2 / 3); }
+.st__pin--confidant { background: var(--accent); }
+.st__pin--poi { background: var(--warn); }
+.st__row--plus .st__pin { left: min(50% + var(--f) * var(--st-half) + var(--st-face) / 2 + var(--pin-out) - var(--pin), 100% - var(--pin) - 2px); }
+.st__row--zero .st__pin { left: calc(50% + var(--st-face) / 2 + var(--pin-out) - var(--pin)); }
+.st__row--minus .st__pin { left: max(50% - var(--f) * var(--st-half) - var(--st-face) / 2 - var(--pin-out), 2px); }
+
+/* The pins' key at the foot, on plain chart paper down to the scale's note: the GM's live lines, only those set. */
+.st__legend {
+  position: relative; z-index: 2; display: flex; flex-direction: column; gap: 5px; padding: 8px 12px 3px;
+  border-top: 1px solid rgba(91, 74, 51, 0.28); background: var(--chart-paper);
+}
+.st__lg { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; line-height: 1.2; color: var(--manila-sub); }
+.st__lg b { letter-spacing: 0.5px; text-transform: uppercase; }
+.st__lg--confidant b { color: var(--teal-deep); }
+.st__lg--poi b { color: var(--suspect-deep); }
+.st__lg .st__pin { --pin: 20px; position: static; flex: none; }
+.st__legend + .st__key { background: var(--chart-paper); }

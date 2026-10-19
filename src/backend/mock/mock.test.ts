@@ -52,7 +52,7 @@ describe('E22. a fresh mock', () => {
   it('holds the demo game, started, for the pack', async () => {
     const m = mock();
     expect(m.kind).toBe('mock');
-    expect((await docs(m, 'players')).map((p) => p.id).sort()).toEqual(['demo-jonah', 'demo-maya', 'demo-priya', 'demo-sam']);
+    expect((await docs(m, 'players')).map((p) => p.id).sort()).toEqual(['demo-alex', 'demo-jonah', 'demo-maya', 'demo-priya', 'demo-sam']);
     expect(await read(m, 'game/state')).toMatchObject({ status: 'active', pack: 'lancaster' });
     expect(await read(m, 'game/settings')).toMatchObject({ scoring: 'classic' });
     expect(await read(m, 'admins/mock-gm')).toBeDefined();
@@ -79,6 +79,8 @@ describe('E22. a fresh mock', () => {
       { uid: 'demo-sam', label: 'Sam', role: 'player' },
       { uid: 'demo-priya', label: 'Priya', role: 'player' },
       { uid: 'demo-jonah', label: 'Jonah', role: 'player' },
+      { uid: 'demo-alex', label: 'Alex', role: 'player' },
+      { uid: 'mock-guest', label: 'Robin', role: 'guest' },
     ]);
     expect(m.push).toBeNull();
   });
@@ -104,6 +106,21 @@ describe('E23. signing in', () => {
     let hand: unknown[] = [];
     m.data.watchQuery({ path: 'players/demo-maya/quests' }, (d) => (hand = d), (e) => { throw e; });
     expect(hand.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('the guest is signed in but not in the game: they ask to join, the GM lets them in, and booking in is still to do', async () => {
+    const m = mock();
+    await m.auth.signIn('mock-guest');
+    expect(m.auth.current()).toMatchObject({ uid: 'mock-guest', displayName: 'Robin' });
+    expect(await read(m, 'players/mock-guest')).toBeUndefined();
+    expect(await read(m, 'joinRequests/mock-guest')).toBeUndefined();
+    expect(await m.call('requestJoin', { displayName: 'Robin', photoURL: null })).toEqual({ status: 'pending' });
+    await m.auth.signIn();
+    await m.call('reviewJoinRequest', { uid: 'mock-guest', approve: true });
+    expect(await read(m, 'players/mock-guest')).toMatchObject({ displayName: 'Robin', bookedAt: null });
+    await m.auth.signIn('mock-guest');
+    await m.call('bookIn', { particulars: { heightCm: 170, drink: 'Wine', marks: null } });
+    expect(await read(m, 'players/mock-guest')).toMatchObject({ particulars: { heightCm: 170, drink: 'Wine', marks: null }, bookedAt: expect.any(Stamp) });
   });
 
   it('signs out, and refuses unknown accounts', async () => {
@@ -301,9 +318,11 @@ describe('M23. the mystery pack', () => {
   it('demo players have characters, with private motives, and the pack’s settings', async () => {
     const m = mock(getPack('mystery'));
     expect(await read(m, 'game/state')).toMatchObject({ pack: 'mystery' });
-    const players = await docs(m, 'players');
+    // The newcomer has only just been let in: no character until the GM gives them one.
+    const players = (await docs(m, 'players')).filter((p) => p.id !== 'demo-alex');
     for (const p of players) expect(p.character, p.id).toEqual({ name: expect.any(String), role: expect.any(String) });
     expect((await docs(m, 'motives')).map((x) => x.id).sort()).toEqual(players.map((p) => p.id).sort());
+    expect((await read(m, 'players/demo-alex'))?.character ?? null).toBeNull();
     expect(await read(m, 'game/settings')).toMatchObject({ guessLimit: 3, sideQuestSkipPenalty: 5, cleanPoints: 5, framePoints: 5 });
   });
 

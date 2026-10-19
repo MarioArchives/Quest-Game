@@ -1,7 +1,9 @@
 // The GM settings form as plain data: settings in, the form's strings out, and back, with the form's checks.
 // Kept free of the pack and React so it can be tested on its own.
+import { CALLER_NAME_MAX, normalisePhone } from '../../../functions/src/shared/phone.ts';
 import { standingSettingsProblem } from '../../../functions/src/shared/standing.ts';
 import { RULESETS, type ParamSpec, type Settings } from '../../shared';
+import { telegramUsername } from '../../lib/telegram';
 
 export type NumKey =
   | 'starterQuestCount'
@@ -26,7 +28,8 @@ export type NumKey =
   | 'policeTipEveryMin'
   | 'policeWindowMin'
   | 'policePassPoints'
-  | 'policeFailPenalty';
+  | 'policeFailPenalty'
+  | 'policeBreakerAt';
 export type FlagKey = 'refillOnComplete' | 'revealOnComplete' | 'pointsFloorZero';
 /** The two standing lines: whole numbers (negatives allowed) or blank for off. */
 export type StandingKey = 'confidantAbove' | 'poiBelow';
@@ -56,6 +59,7 @@ export const LIMITS: Record<NumKey, [min: number, max: number]> = {
   policeWindowMin: [1, 120],
   policePassPoints: [0, 10000],
   policeFailPenalty: [0, 10000],
+  policeBreakerAt: [2, 20],
 };
 
 export const NUM_KEYS = Object.keys(LIMITS) as NumKey[];
@@ -76,6 +80,14 @@ export interface SettingsForm {
   flags: Record<FlagKey, boolean>;
   /** Edited in the Story section; carried so a save keeps it. */
   autoSideQuests: boolean;
+  /** Police check-ins ring players' phones (Twilio). */
+  policePhone: boolean;
+  /** Who the police calls are from, as typed. */
+  callerName: string;
+  /** The police's Telegram account, as typed (a username, @name or t.me link); blank for none. */
+  telegram: string;
+  /** That account's phone number, as typed (with its country code); blank for none. */
+  telegramNumber: string;
 }
 
 const RULESET_LIST = Object.values(RULESETS);
@@ -96,13 +108,17 @@ export function fromSettings(s: Settings): SettingsForm {
     quietEnd: s.quietHours?.end ?? '10:00',
     flags: { refillOnComplete: s.refillOnComplete, revealOnComplete: s.revealOnComplete, pointsFloorZero: s.pointsFloorZero },
     autoSideQuests: s.autoSideQuests,
+    policePhone: s.policePhone,
+    callerName: s.policeCallerName,
+    telegram: s.policeTelegram ?? '',
+    telegramNumber: s.policeTelegramNumber ?? '',
   };
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const parseLine = (raw: string): number | null => (raw.trim() === '' ? null : Number(raw.trim()));
 
-/** Problems by field (a number's key, `param:<key>`, a standing key or a quiet-hours key); empty when it can be saved. */
+/** Problems by field (a number's key, `param:<key>`, a standing key, a quiet-hours key, callerName, telegram or telegramNumber); empty when it can be saved. */
 export function validateSettingsForm(form: SettingsForm): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const key of NUM_KEYS) {
@@ -127,11 +143,52 @@ export function validateSettingsForm(form: SettingsForm): Record<string, string>
     const problem = standingSettingsProblem({ confidantAbove: parseLine(form.standing.confidantAbove), poiBelow: parseLine(form.standing.poiBelow) });
     if (problem) errors.poiBelow = problem;
   }
+  const caller = form.callerName.trim();
+  if (caller.length < 1 || caller.length > CALLER_NAME_MAX) errors.callerName = `1 to ${CALLER_NAME_MAX} characters`;
+  if (form.telegram.trim() !== '' && !telegramUsername(form.telegram)) errors.telegram = '5 to 32 letters, digits or _, starting with a letter';
+  if (form.telegramNumber.trim() !== '' && !normalisePhone(form.telegramNumber, '')) errors.telegramNumber = 'With its country code, like +44 7700 900123';
   if (form.quietOn) {
     if (!TIME.test(form.quietStart)) errors.quietStart = 'Use HH:MM';
     if (!TIME.test(form.quietEnd)) errors.quietEnd = 'Use HH:MM';
   }
   return errors;
+}
+
+/** The form's groups, in order (a pack's GM screen can show them as folds, one open at a time). */
+export type FoldId = 'hands' | 'points' | 'guessing' | 'sideQuests' | 'rewards' | 'police' | 'standings' | 'scoring' | 'rules';
+
+/** Minus signs, not hyphens, in a number as typed. */
+const minus = (raw: string) => raw.trim().replace(/^-/, '−');
+
+/** A closed fold's line: what is in it now, as typed ("3 dealt · 2 rerolls", "every 20–40 min", "Classic"). */
+export function foldSummary(id: FoldId, form: SettingsForm): string {
+  const n = (key: NumKey) => form.numbers[key].trim();
+  switch (id) {
+    case 'hands':
+      return `${n('starterQuestCount')} dealt · ${n('rerollLimit')} ${n('rerollLimit') === '1' ? 'reroll' : 'rerolls'}`;
+    case 'points':
+      return `+${n('questPoints')} / −${n('rejectPenalty')} · fraud −${n('fraudPenalty')}`;
+    case 'guessing': {
+      const odds = n('correctGuessReward') === n('wrongGuessCost') ? `±${n('correctGuessReward')}` : `+${n('correctGuessReward')} / −${n('wrongGuessCost')}`;
+      return `${odds} · ${n('guessLimit') === '0' ? 'no limit' : `${n('guessLimit')} each`}`;
+    }
+    case 'sideQuests':
+      return n('globalIntervalMin') === n('globalIntervalMax') ? `every ${n('globalIntervalMin')} min` : `every ${n('globalIntervalMin')}–${n('globalIntervalMax')} min`;
+    case 'rewards':
+      return `+${n('cleanPoints')} / −${n('framePoints')}`;
+    case 'police':
+      return `every ${n('policeEveryMin')} min · phone ${form.policePhone ? 'on' : 'off'}${telegramUsername(form.telegram) || normalisePhone(form.telegramNumber, '') ? ' · Telegram' : ''}`;
+    case 'standings': {
+      const above = form.standing.confidantAbove.trim();
+      const below = form.standing.poiBelow.trim();
+      if (!above && !below) return 'off';
+      return `${above ? `above ${minus(above)}` : 'above off'} · ${below ? `below ${minus(below)}` : 'below off'}`;
+    }
+    case 'scoring':
+      return rulesFor(form.scoring).name;
+    case 'rules':
+      return `${Object.values(form.flags).filter(Boolean).length} on`;
+  }
 }
 
 export function toSettings(form: SettingsForm): Settings {
@@ -167,6 +224,11 @@ export function toSettings(form: SettingsForm): Settings {
     policeWindowMin: n('policeWindowMin'),
     policePassPoints: n('policePassPoints'),
     policeFailPenalty: n('policeFailPenalty'),
+    policePhone: form.policePhone,
+    policeBreakerAt: n('policeBreakerAt'),
+    policeCallerName: form.callerName.trim(),
+    policeTelegram: telegramUsername(form.telegram) ?? '',
+    policeTelegramNumber: normalisePhone(form.telegramNumber, '') ?? '',
     scoring: form.scoring,
     scoringParams: Object.fromEntries(rulesFor(form.scoring).params.map((p) => [p.key, Number(form.params[p.key]!.trim())])),
   };

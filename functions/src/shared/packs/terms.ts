@@ -8,7 +8,7 @@ export interface NounForms {
   Many: string;
 }
 
-export type TermForms = Record<TermKey, NounForms> & { checkin: NounForms; confidant: NounForms; poi: NounForms; policeCall: NounForms };
+export type TermForms = Record<TermKey, NounForms> & { checkin: NounForms; confidant: NounForms; poi: NounForms; policeCall: NounForms; feed: NounForms };
 
 /** What a check-in is called when the pack doesn't say. */
 export const CHECKIN_NOUN: Noun = { one: 'check-in', many: 'check-ins' };
@@ -16,6 +16,8 @@ export const CHECKIN_NOUN: Noun = { one: 'check-in', many: 'check-ins' };
 export const CONFIDANT_NOUN: Noun = { one: 'trusted confidant', many: 'trusted confidants' };
 export const POI_NOUN: Noun = { one: 'person of interest', many: 'persons of interest' };
 export const POLICE_CALL_NOUN: Noun = { one: 'police check-in', many: 'police check-ins' };
+/** What the feed is called when the pack doesn't say. */
+export const FEED_NOUN: Noun = { one: 'feed', many: 'feeds' };
 
 /** Upper-cases the first letter only: "side quest" → "Side quest", "GM" stays "GM". */
 export function capitalise(word: string): string {
@@ -34,5 +36,6 @@ export function termForms(terms: Terms): TermForms {
     confidant: nounForms(terms.confidant ?? CONFIDANT_NOUN),
     poi: nounForms(terms.poi ?? POI_NOUN),
     policeCall: nounForms(terms.policeCall ?? POLICE_CALL_NOUN),
+    feed: nounForms(terms.feed ?? FEED_NOUN),
   } as TermForms;
 }

@@ -6,6 +6,8 @@ import type { Ctx } from '../../../functions/src/game/context.ts';
 import { runPeriodics } from '../../../functions/src/game/checkins.ts';
 import { periodicSeeds } from '../../../functions/src/shared/periodics.ts';
 import { runPolice } from '../../../functions/src/game/police.ts';
+import { runSwitchboard } from '../../../functions/src/game/phones.ts';
+import { simulatedLine } from '../../../functions/src/game/simulatedLine.ts';
 import { runStandings } from '../../../functions/src/game/standing.ts';
 import { runTick } from '../../../functions/src/game/globals.ts';
 import { buildDemo, type DemoGame } from '../../../functions/src/shared/demo/index.ts';
@@ -98,6 +100,8 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
   const auth = createMockAuth(game.players.map((p) => ({ ...p, photoURL: photoOf(p.uid) })));
   const data = createMockData(store, now);
 
+  // The mock never rings anyone: its calls go to the simulated line, and the app plays the phone.
+  const phoneLine = simulatedLine();
   const services: Services = {
     async sendPush() {
       console.debug('Mock backend: push is not supported, so nothing was sent.');
@@ -105,6 +109,7 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
     async wipeFiles(prefixes) {
       files.wipe(prefixes);
     },
+    phone: () => phoneLine,
   };
 
   // Attached after seeding, so filling the store fires nothing.
@@ -129,6 +134,7 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
     await runPeriodics(store, now(), rng, pack);
     await runStandings(store, now(), pack);
     await runPolice(store, now(), rng, pack);
+    await runSwitchboard(store, now(), pack, phoneLine);
     await triggers.settle();
   }
 

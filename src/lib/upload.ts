@@ -114,3 +114,64 @@ export async function uploadAvatar(
   await uploadJpeg(path, blob, onProgress);
   return backend().files.url(path);
 }
+
+/** A video's length in seconds, read from its metadata; NaN when the browser cannot read it. */
+export function readVideoDuration(file: Blob): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement('video');
+    const done = (n: number) => {
+      URL.revokeObjectURL(url);
+      resolve(n);
+    };
+    el.preload = 'metadata';
+    el.muted = true;
+    el.onloadedmetadata = () => done(el.duration);
+    el.onerror = () => done(Number.NaN);
+    el.src = url;
+  });
+}
+
+/** A poster frame for a video as a thumb JPEG (best effort: null when the browser cannot decode a frame). */
+export function videoPoster(file: Blob): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement('video');
+    const done = (blob: Blob | null) => {
+      URL.revokeObjectURL(url);
+      resolve(blob);
+    };
+    el.preload = 'auto';
+    el.muted = true;
+    el.playsInline = true;
+    el.onerror = () => done(null);
+    el.onloadeddata = () => {
+      try {
+        el.currentTime = Math.min(0.1, (el.duration || 0) / 2);
+      } catch {
+        done(null);
+      }
+    };
+    el.onseeked = () => {
+      try {
+        const size = fitWithin(el.videoWidth, el.videoHeight, THUMB_MAX_EDGE);
+        const canvas = document.createElement('canvas');
+        canvas.width = size.width;
+        canvas.height = size.height;
+        canvas.getContext('2d')?.drawImage(el, 0, 0, size.width, size.height);
+        canvas.toBlob((blob) => done(blob), 'image/jpeg', JPEG_QUALITY);
+      } catch {
+        done(null);
+      }
+    };
+    el.src = url;
+  });
+}
+
+/** Resumable upload of a video as it is to `path` (its own content type). */
+export function uploadVideo(path: string, blob: Blob, contentType: string, onProgress?: (transferred: number, total: number) => void): Promise<void> {
+  return backend().files.upload(path, blob, { contentType, cacheControl: METADATA.cacheControl }, onProgress);
+}
+
+/** The file extension a video's storage name gets. */
+export const videoExt = (type: string): string => (type === 'video/quicktime' ? 'mov' : type === 'video/webm' ? 'webm' : 'mp4');

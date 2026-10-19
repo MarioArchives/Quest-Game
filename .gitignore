@@ -13,3 +13,9 @@ ui-debug.log*
 *.tsbuildinfo
 .playwright-mcp/
 .firebase.*.json
+services/telegram-police/.venv/
+services/telegram-police/.env
+services/telegram-police/*.session
+services/telegram-police/*.session-journal
+__pycache__/
+firebase-export-*/

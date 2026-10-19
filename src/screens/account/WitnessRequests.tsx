@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { friendlyError, reviewSubmission } from '../../api';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
+import { Loader } from '../../components/Loader';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
@@ -55,8 +56,8 @@ export function RequestCard({ request, as: Wrap = 'li' }: { request: Doc<Submiss
             {request.claimDescription ? <p className="wreq__desc">{request.claimDescription}</p> : null}
           </>
         ) : (
-          <p className="wreq__desc" role="status">
-            Loading what they&apos;re claiming…
+          <p className="wreq__desc">
+            <Loader inline size={20} label="Loading what they're claiming" caption="Loading what they're claiming…" />
           </p>
         )}
       </div>

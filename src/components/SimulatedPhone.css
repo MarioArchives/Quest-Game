@@ -1,0 +1,101 @@
+/* The simulated line's phone: a full-screen incoming call over everything but toasts (80). Ink, the accent to answer. */
+.simphone-root { position: fixed; inset: 0; z-index: 75; display: flex; justify-content: center; background: var(--ink); }
+.simphone {
+  width: 100%;
+  max-width: var(--app-max);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: calc(16px + var(--safe-top)) var(--page-x) calc(24px + var(--safe-bottom));
+  overflow-y: auto;
+  color: var(--on-ink);
+  font-family: var(--body);
+}
+.simphone:focus { outline: none; }
+.simphone__note {
+  margin: 0;
+  align-self: center;
+  padding: 4px 10px;
+  border: 1px dashed var(--muted-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted-soft);
+}
+
+.simphone__who { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 18px; text-align: center; }
+.simphone__badge {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.is-ringing .simphone__badge { animation: simphone-ring 1.2s ease-in-out infinite; }
+/* On the call the words and the keypad need the room. */
+.is-on .simphone__who, .is-ended .simphone__who { margin-top: 0; }
+.is-on .simphone__badge, .is-ended .simphone__badge { display: none; }
+.simphone__what { margin: 0; font-size: 14px; color: var(--muted-soft); }
+.simphone__caller { margin: 0; font-family: var(--display); font-weight: var(--display-weight); font-size: 28px; line-height: 1.1; }
+.simphone__number { margin: 0; font-size: 17px; letter-spacing: 0.04em; }
+
+.simphone__said {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--ink-hover);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.simphone__said p { margin: 0; }
+
+.simphone__pad { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.simphone__typed { min-height: 1.4em; font-size: 26px; letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
+.simphone__keys { display: grid; grid-template-columns: repeat(3, 60px); gap: 8px 22px; }
+.simphone__key {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--ink-hover);
+  color: var(--on-ink);
+  font-size: 24px;
+  cursor: pointer;
+}
+.simphone__key:active:not(:disabled) { background: var(--muted); }
+.simphone__key:focus-visible,
+.simphone__btn:focus-visible { outline: 3px solid var(--on-ink); outline-offset: 3px; }
+.simphone__hint { margin: 0; font-size: 13px; color: var(--muted-soft); }
+.simphone__error { margin: 0; text-align: center; font-size: 14px; }
+
+.simphone__actions { display: flex; justify-content: center; gap: 28px; margin-top: auto; padding-top: 8px; }
+.simphone__btn {
+  min-width: 120px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 26px;
+  border: 2px solid var(--on-ink);
+  background: transparent;
+  color: var(--on-ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+.simphone__btn:disabled { opacity: 0.5; cursor: default; }
+.simphone__btn--answer { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.simphone__btn--end { border-style: dashed; }
+
+@keyframes simphone-ring {
+  0%, 100% { transform: rotate(0); }
+  10%, 30% { transform: rotate(-12deg); }
+  20%, 40% { transform: rotate(12deg); }
+  50% { transform: rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-ringing .simphone__badge { animation: none; }
+}

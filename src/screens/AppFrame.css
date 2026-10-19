@@ -27,6 +27,7 @@
 .skip-link:focus { top: 8px; }
 
 .appbar {
+  position: relative; /* the tip line's popover hangs from it */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -36,6 +37,10 @@
 .appbar__title { font-size: 30px; line-height: 1; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .appbar__right { display: flex; align-items: center; gap: 8px; flex: none; }
 .appbar__points { border-width: 0; padding: 6px 10px; font-size: 16px; }
+/* The points chip, with the tip line's phone joined to its left (packs with police). */
+.appbar__score { display: inline-flex; align-items: stretch; flex: none; }
+.appbar__score .appbar__points { display: inline-flex; align-items: center; }
+.tipline ~ .appbar__points { padding-left: 9px; }
 .appbar__avatar { padding: 0; border: 0; background: none; border-radius: 50%; display: inline-flex; text-decoration: none; }
 .appbar__avatar:hover .avatar { outline: 2px solid var(--accent); outline-offset: 1px; }
 
