@@ -23,6 +23,15 @@ This folder is the part that runs on a computer you keep on during the night (th
    ```
 6. **Log in as the spare number:** `.venv/bin/python police_call.py login`. It asks for the number, then the code Telegram sends to the spare phone (and the two-step password if you set one). The login is kept in `police.session` (gitignored); anyone with that file can use the account, so keep it on this machine.
 
+## Secrets in Google Cloud
+
+The keys and the police account's login also live in Secret Manager in `musical-mischief` (the game's Google Cloud project): `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` and `TELEGRAM_POLICE_SESSION` (the login as a Telethon string session: whoever can read it can use the account, so it stays behind IAM).
+
+- **Upload or refresh them** (after a new `login`, or new keys): `.venv/bin/python police_call.py store-secrets --project musical-mischief`. Each run adds a new version; values go to gcloud on stdin and are never printed.
+- **Use them:** set `POLICE_SECRETS_PROJECT=musical-mischief` (in `.env` or the environment). The script then reads whatever isn't already in the environment from Secret Manager with your gcloud login, so a machine needs no `.env` keys or `police.session` at all.
+- **One place at a time:** the login is a single Telegram session. Run the line on one machine at a time; the same session connected from two places at once can make Telegram revoke it (then `login` and `store-secrets` again).
+- **Elsewhere in Google Cloud:** a VM or Cloud Run service can read them with a service account given *Secret Manager Secret Accessor* on these three secrets.
+
 ## Try a call
 
 From your own Telegram account (on your phone, not the spare one):

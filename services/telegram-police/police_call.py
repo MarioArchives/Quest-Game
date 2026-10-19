@@ -15,17 +15,22 @@ is picked up, hangs up when the recording ends, and reports what happened, in th
   failed        anything else (the reason follows)
 
   python3 police_call.py login                                   # once: the spare number, then the code Telegram sends
+  python3 police_call.py store-secrets --project musical-mischief # copy the keys and the login into Secret Manager
   python3 police_call.py whoami
   python3 police_call.py call @their_username --audio intro.mp3
   python3 police_call.py call +447700900123 --say "Evening. Manchester Metropolitan Police here."
 
 Keys (from https://my.telegram.org › API development tools) come from the environment or a .env file next to this
-one: TELEGRAM_API_ID and TELEGRAM_API_HASH. The login is kept in police.session here; both are gitignored.
+one: TELEGRAM_API_ID and TELEGRAM_API_HASH. The login is kept in police.session here; both are gitignored. With
+POLICE_SECRETS_PROJECT set (in the environment or .env), the keys and the login (TELEGRAM_POLICE_SESSION, a Telethon
+string session) are read from that Google Cloud project's Secret Manager instead, through your gcloud login, so
+nothing secret needs to live on this machine.
 """
 import argparse
 import asyncio
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -34,6 +39,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SESSION = HERE / 'police'  # Telethon adds .session
 OUTCOMES = ('answered', 'hung-up', 'no-answer', 'declined', 'busy', 'privacy', 'not-found', 'failed')
+# What Secret Manager holds for the line: the app's keys, and the police account's login as a string session.
+SECRETS = ('TELEGRAM_API_ID', 'TELEGRAM_API_HASH', 'TELEGRAM_POLICE_SESSION')
 
 
 def load_env() -> None:
@@ -49,14 +56,72 @@ def load_env() -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-def client():
+def gcloud(*args: str, data: str | None = None) -> subprocess.CompletedProcess:
+    """Runs gcloud with your own login; a secret goes in on stdin, never on the command line."""
+    if not shutil.which('gcloud'):
+        sys.exit('gcloud not found: install the Google Cloud CLI and run `gcloud auth login`.')
+    return subprocess.run(['gcloud', *args, '--quiet'], input=data, capture_output=True, text=True)
+
+
+def load_gcp_secrets() -> None:
+    """With POLICE_SECRETS_PROJECT set, the keys and the login from that project's Secret Manager (the real
+    environment still wins)."""
+    project = os.environ.get('POLICE_SECRETS_PROJECT', '').strip()
+    if not project:
+        return
+    for name in SECRETS:
+        if os.environ.get(name):
+            continue
+        got = gcloud('secrets', 'versions', 'access', 'latest', f'--secret={name}', f'--project={project}')
+        if got.returncode != 0:
+            sys.exit(f'Couldn’t read {name} from Secret Manager in {project}: {got.stderr.strip().splitlines()[-1] if got.stderr.strip() else "no reason given"}')
+        os.environ[name] = got.stdout.strip()
+
+
+def client(use_file: bool = False):
+    """The police account's client: the string session from Secret Manager (or the environment) when there is one,
+    else the login file here. `use_file` always takes the file (logging in, copying it to Secret Manager)."""
     from telethon import TelegramClient
+    from telethon.sessions import StringSession
 
     load_env()
+    if not use_file:
+        load_gcp_secrets()
     api_id, api_hash = os.environ.get('TELEGRAM_API_ID', '').strip(), os.environ.get('TELEGRAM_API_HASH', '').strip()
     if not api_id.isdigit() or not api_hash:
-        sys.exit('Set TELEGRAM_API_ID and TELEGRAM_API_HASH (my.telegram.org › API development tools) in .env or the environment.')
-    return TelegramClient(str(SESSION), int(api_id), api_hash)
+        sys.exit('Set TELEGRAM_API_ID and TELEGRAM_API_HASH (my.telegram.org › API development tools) in .env, the environment or Secret Manager.')
+    saved = '' if use_file else os.environ.get('TELEGRAM_POLICE_SESSION', '').strip()
+    return TelegramClient(StringSession(saved) if saved else str(SESSION), int(api_id), api_hash)
+
+
+async def store_secrets(project: str) -> None:
+    """Copies the keys and the login here into `project`'s Secret Manager: each secret is created the first time and
+    gets a new version after that. Values go to gcloud on stdin and are never printed."""
+    from telethon.sessions import StringSession
+
+    tg = client(use_file=True)
+    await tg.connect()
+    try:
+        if not await tg.is_user_authorized():
+            sys.exit('Not logged in here: run `python3 police_call.py login` first.')
+        values = {
+            'TELEGRAM_API_ID': os.environ['TELEGRAM_API_ID'].strip(),
+            'TELEGRAM_API_HASH': os.environ['TELEGRAM_API_HASH'].strip(),
+            'TELEGRAM_POLICE_SESSION': StringSession.save(tg.session),
+        }
+    finally:
+        await tg.disconnect()
+    labels = '--labels=app=quest-game,part=telegram-police'
+    for name, value in values.items():
+        exists = gcloud('secrets', 'describe', name, f'--project={project}').returncode == 0
+        if exists:
+            done = gcloud('secrets', 'versions', 'add', name, '--data-file=-', f'--project={project}', data=value)
+        else:
+            done = gcloud('secrets', 'create', name, '--replication-policy=automatic', labels, '--data-file=-', f'--project={project}', data=value)
+        if done.returncode != 0:
+            sys.exit(f'{name}: {done.stderr.strip().splitlines()[-1] if done.stderr.strip() else "gcloud failed"}')
+        print(f'{name}: {"new version" if exists else "created"} in {project}')
+    print(f'Done. To use them: POLICE_SECRETS_PROJECT={project} (in .env or the environment); then .env’s keys and police.session can go.')
 
 
 async def resolve(tg, target: str):
@@ -143,6 +208,8 @@ async def main() -> None:
     sub = p.add_subparsers(dest='cmd', required=True)
     sub.add_parser('login', help="log in as the spare number (asks for the number and Telegram's code)")
     sub.add_parser('whoami', help='who this line is logged in as')
+    st = sub.add_parser('store-secrets', help="copy the keys and this machine's login into Google Cloud Secret Manager")
+    st.add_argument('--project', required=True, help='the Google Cloud project, e.g. musical-mischief')
     c = sub.add_parser('call', help='ring someone and play a recording')
     c.add_argument('target', help='@username or +44… (E.164)')
     src = c.add_mutually_exclusive_group(required=True)
@@ -153,7 +220,10 @@ async def main() -> None:
     c.add_argument('--max', type=int, default=60, help='longest the call may last once picked up, in seconds')
     args = p.parse_args()
 
-    tg = client()
+    if args.cmd == 'store-secrets':
+        await store_secrets(args.project)
+        return
+    tg = client(use_file=args.cmd == 'login')
     if args.cmd == 'login':
         await tg.start()  # asks for the phone number, the code and any two-step password
         me = await tg.get_me()
