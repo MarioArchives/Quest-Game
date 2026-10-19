@@ -25,12 +25,33 @@ This folder is the part that runs on a computer you keep on during the night (th
 
 ## Secrets in Google Cloud
 
-The keys and the police account's login also live in Secret Manager in `musical-mischief` (the game's Google Cloud project): `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` and `TELEGRAM_POLICE_SESSION` (the login as a Telethon string session: whoever can read it can use the account, so it stays behind IAM).
+The keys and the police account's login also live in Secret Manager in `musical-mischief` (the game's Google Cloud project): `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` and `TELEGRAM_POLICE_SESSION` (and `TELEGRAM_LINE_SECRET`, see below, when it is set locally at `store-secrets`) (the login as a Telethon string session: whoever can read it can use the account, so it stays behind IAM).
 
 - **Upload or refresh them** (after a new `login`, or new keys): `.venv/bin/python police_call.py store-secrets --project musical-mischief`. Each run adds a new version; values go to gcloud on stdin and are never printed.
 - **Use them:** set `POLICE_SECRETS_PROJECT=musical-mischief` (in `.env` or the environment). The script then reads whatever isn't already in the environment from Secret Manager with your gcloud login, so a machine needs no `.env` keys or `police.session` at all.
 - **One place at a time:** the login is a single Telegram session. Run the line on one machine at a time; the same session connected from two places at once can make Telegram revoke it (then `login` and `store-secrets` again).
 - **Elsewhere in Google Cloud:** a VM or Cloud Run service can read them with a service account given *Secret Manager Secret Accessor* on these three secrets.
+
+## Serve the game's calls
+
+`serve` is the police line for a running game (`POLICE_LINE=telegram` on the functions side). It stays logged in as the spare account and, until Ctrl-C:
+
+- sends a heartbeat to the game every 20 s (the game goes to the app when it hasn't heard from the script for 90 s);
+- polls every 2 s for calls to place, signed with `X-Line-Timestamp` and `X-Line-Signature`;
+- for each call: rings with a silent clip (25 s), reports `ringing`, then on pick-up speaks the game's lines with edge-tts, sends the written question in the chat, hangs up and waits up to 60 s for the player's reply message, reports it, and sends the verdict as a message. Not picked up reports `busy` (declined or busy), `no-answer`, or `failed` (`tg-privacy`, `tg-not-found`, `tg-error`). Calls to one player run one at a time.
+
+Settings, in `.env`, the environment or (for the secret) Secret Manager through `POLICE_SECRETS_PROJECT`:
+
+- `TELEGRAM_LINE_URL`: the game's `telegramLine` function. Deployed: `https://europe-west2-<project>.cloudfunctions.net/telegramLine`. Local emulator: `http://127.0.0.1:5001/demo-quest-game/europe-west2/telegramLine`.
+- `TELEGRAM_LINE_SECRET`: the shared secret the function checks every request against (the same value as the game's `TELEGRAM_LINE_SECRET` secret). `store-secrets` uploads it with the others when it is set locally.
+
+```sh
+.venv/bin/python police_call.py serve
+```
+
+For a test against the local stack, put `POLICE_LINE=telegram` in `functions/.env.local` and the same secret in `functions/.secret.local` (`TELEGRAM_LINE_SECRET=…`), then start `npm run dev` and `serve` with the emulator URL above.
+
+Run it on one machine at a time: it uses the single Telegram login (see above), and two scripts polling the same game would split its calls between them.
 
 ## Try a call
 

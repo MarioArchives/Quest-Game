@@ -2,14 +2,14 @@
 // is called on a clock; a trusted confidant's tip-off opens one too. Answer the question before the clock runs out:
 // pass and earn points, fail or miss and lose them. The result stays up until it is dismissed, because the call
 // itself leaves the open list the moment it is answered. With phone calls on, a check-in that rings the player's phone
-// shows here as ringing (answered on the keypad); one that couldn't get through comes here with a note and no fine.
+// shows here as ringing (answered on the keypad, or by reply in the police's Telegram chat); one that couldn't get through comes here with a note and no fine.
 import { useState, type FormEvent } from 'react';
 import { answerPoliceCall, friendlyError } from '../../api';
 import { Button } from '../../components/Button';
 import { formatDelta } from '../../components/PointsChip';
 import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
-import { fallbackNote } from '../../lib/policeLine';
+import { fallbackNote, lineVia, ringingRule } from '../../lib/policeLine';
 import { features, t } from '../../pack';
 import type { Doc, PoliceCall } from '../../shared';
 import { Countdown } from './SideQuestCard';
@@ -44,7 +44,8 @@ export function PoliceCallCard() {
 
 /** A check-in ringing the player's phone: nothing to answer here unless it can't get through. */
 function RingingCall({ call }: { call: Doc<PoliceCall> }) {
-  const { playersById } = useGame();
+  const { playersById, settings } = useGame();
+  const via = lineVia(call, settings);
   const tipper = call.kind === 'tip' && call.byUid ? (playersById.get(call.byUid)?.displayName ?? 'A player') : null;
   return (
     <section className="hero halftone police" aria-label={t.policeCall.One} role="status">
@@ -55,11 +56,8 @@ function RingingCall({ call }: { call: Doc<PoliceCall> }) {
           {tipper} tipped off the police{call.note ? <>: &ldquo;{call.note}&rdquo;</> : null}.
         </p>
       ) : null}
-      <h2 className="hero__title police__q">The police are ringing you</h2>
-      <p className="hero__rule">
-        Pick up and key in your answer on the keypad: +{call.passPoints} if you&apos;re right, &minus;{call.failPenalty} if you&apos;re wrong or don&apos;t answer.
-        If the call can&apos;t get through, it comes here instead, with no fine.
-      </p>
+      <h2 className="hero__title police__q">The police are ringing you{via === 'telegram' ? ' on Telegram' : ''}</h2>
+      <p className="hero__rule">{ringingRule(call, via)}</p>
     </section>
   );
 }

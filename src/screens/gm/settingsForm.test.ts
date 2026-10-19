@@ -29,6 +29,13 @@ describe('the settings form', () => {
     expect(foldSummary('police', form)).not.toMatch(/Telegram/);
   });
 
+  it('carries the smaller Telegram fine, and refuses a negative one', () => {
+    const form = fromSettings(defaultSettingsFor(getPack('mystery')));
+    expect((form.numbers as Record<string, string>).policeHeardPenalty).toBe('2');
+    expect(validateSettingsForm({ ...form, numbers: { ...form.numbers, policeHeardPenalty: '-1' } as never })).toHaveProperty('policeHeardPenalty');
+    expect(toSettings({ ...form, numbers: { ...form.numbers, policeHeardPenalty: '1' } as never }).policeHeardPenalty).toBe(1);
+  });
+
   it('keeps the random-drop switch, the standing lines and the police numbers as edited', () => {
     const s: Settings = {
       ...defaultSettingsFor(getPack('mystery')),
@@ -40,6 +47,7 @@ describe('the settings form', () => {
       policeWindowMin: 3,
       policePassPoints: 2,
       policeFailPenalty: 4,
+      policeHeardPenalty: 3,
     };
     expect(saved(s)).toEqual(sameAs(s));
   });

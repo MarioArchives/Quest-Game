@@ -11,6 +11,8 @@ import { fcmSender } from './firebase/push-sender.js';
 import { toHttpsError } from './firebase/errors.js';
 import { firestoreStore } from './firebase/store.js';
 import { wipeFiles } from './firebase/storage.js';
+import { policeLineConfig } from './firebase/lineConfig.js';
+import { lineHandler } from './firebase/telegram.js';
 import { twilioLine, voiceHandler, voiceUrlFor } from './firebase/twilio.js';
 import { CALLABLES, type Services } from './game/callables.js';
 import type { Ctx } from './game/context.js';
@@ -21,6 +23,7 @@ import type { PhoneLine } from './game/phoneLine.js';
 import { runSwitchboard } from './game/phones.js';
 import { handlePoliceVoice } from './game/policePhone.js';
 import { simulatedLine } from './game/simulatedLine.js';
+import { handleTelegramLine, telegramLine as makeTelegramLine } from './game/telegramLine.js';
 import { renderTwiml, voiceOf } from './game/voice.js';
 import { runStandings } from './game/standing.js';
 import { makeSender, sendPush, type PushSender } from './game/push.js';
@@ -38,30 +41,35 @@ const db = firestoreStore(getFirestore());
 const REGION = 'europe-west2';
 setGlobalOptions({ region: REGION, maxInstances: 10 });
 
-// Police phone calls (Twilio; see design/twilio-setup.md). The two keys are secrets (Secret Manager); the caller ID,
-// the webhook's URL and the recordings' address are plain config in functions/.env.<project id>, read here only:
-// POLICE_CALLER_ID (the verified number the police ring from, E.164; without it there are no phone calls, no secrets
-// to set and no policeVoice function), POLICE_VOICE_URL (blank: the cloudfunctions.net address) and POLICE_AUDIO_URL
-// (where the pack's recorded lines are served, e.g. https://…/audio/police; blank: every line is read out). The
-// emulators never ring anyone: they have the simulated line, where the app plays the phone.
-const POLICE_CALLER_ID = process.env.POLICE_CALLER_ID?.trim() ?? '';
-const PHONE_CALLS = POLICE_CALLER_ID !== '' && process.env.FUNCTIONS_EMULATOR !== 'true';
-// Declared only with phone calls on: the CLI asks for every declared secret at deploy time, so a deployment without
-// Twilio (no POLICE_CALLER_ID, e.g. police calls on Telegram from services/telegram-police) has none to set.
-const TWILIO_ACCOUNT_SID = PHONE_CALLS ? defineSecret('TWILIO_ACCOUNT_SID') : null;
-const TWILIO_AUTH_TOKEN = PHONE_CALLS ? defineSecret('TWILIO_AUTH_TOKEN') : null;
+// Police phone calls, on one of three lines (policeLineConfig, firebase/lineConfig.ts, decides from the environment in
+// functions/.env.<project id>; the CLI asks for every declared secret at deploy time, so a deployment declares only
+// its own line's):
+// - Twilio (design/twilio-setup.md): POLICE_CALLER_ID is the verified number the police ring from (E.164), with the
+//   secrets TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and the policeVoice webhook. POLICE_VOICE_URL (blank: the
+//   cloudfunctions.net address) and POLICE_AUDIO_URL (where the pack's recorded lines are served, e.g.
+//   https://…/audio/police; blank: every line is read out) are plain config.
+// - Telegram: POLICE_LINE=telegram, with the secret TELEGRAM_LINE_SECRET and the telegramLine function the police
+//   script (services/telegram-police) polls. Placing a call only writes Firestore, so it needs no secret.
+// - The emulators never ring anyone: they have the simulated line, where the app plays the phone.
+const LINE = policeLineConfig(process.env);
+const TWILIO_ACCOUNT_SID = LINE.kind === 'twilio' ? defineSecret('TWILIO_ACCOUNT_SID') : null;
+const TWILIO_AUTH_TOKEN = LINE.kind === 'twilio' ? defineSecret('TWILIO_AUTH_TOKEN') : null;
+const TELEGRAM_LINE_SECRET = LINE.kind === 'telegram' ? defineSecret('TELEGRAM_LINE_SECRET') : null;
 const phoneSecrets = TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN ? [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN] : [];
+const POLICE_CALLER_ID = process.env.POLICE_CALLER_ID?.trim() ?? '';
 const POLICE_AUDIO_URL = (process.env.POLICE_AUDIO_URL?.trim() ?? '').replace(/\/+$/, '');
 
 const voiceUrl = (): string => process.env.POLICE_VOICE_URL?.trim() || `https://${REGION}-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/policeVoice`;
 
-const SIMULATED_LINE = process.env.FUNCTIONS_EMULATOR === 'true' ? simulatedLine() : null;
+const SIMULATED_LINE = LINE.kind === 'simulated' ? simulatedLine() : null;
 
-/** The phone line, for functions that declared the secrets: Twilio's, the simulated one in the emulators, or null. */
+/** The phone line, for functions that declared its secrets: Twilio's, Telegram's, the simulated one in the emulators, or null. */
 const phoneLine = (): PhoneLine | null =>
   TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
     ? twilioLine({ accountSid: TWILIO_ACCOUNT_SID.value(), authToken: TWILIO_AUTH_TOKEN.value(), callerId: POLICE_CALLER_ID, voiceUrl: voiceUrl() })
-    : SIMULATED_LINE;
+    : LINE.kind === 'telegram'
+      ? makeTelegramLine(db)
+      : SIMULATED_LINE;
 
 // Push: the emulators log instead of calling FCM, so no test or local run ever reaches a real phone.
 const pushSender = (): PushSender =>
@@ -185,6 +193,19 @@ export const policeVoice = TWILIO_AUTH_TOKEN
             recording: (line) => (POLICE_AUDIO_URL && recorded.has(line) ? `${POLICE_AUDIO_URL}/${line}.mp3` : null),
           });
         },
+        log: (message, err) => (err ? logger.error(message, err) : logger.warn(message)),
+      }),
+    )
+  : undefined;
+
+// The Telegram line's door: the police script polls it for calls to place and reports what happened. Every request is
+// signed with TELEGRAM_LINE_SECRET; anything unsigned is refused.
+export const telegramLine = TELEGRAM_LINE_SECRET
+  ? onRequest(
+      { secrets: [TELEGRAM_LINE_SECRET], invoker: 'public', timeoutSeconds: 30 },
+      lineHandler({
+        secret: () => TELEGRAM_LINE_SECRET.value(),
+        handle: (op) => handleTelegramLine(db, new Date(), PACK, op),
         log: (message, err) => (err ? logger.error(message, err) : logger.warn(message)),
       }),
     )

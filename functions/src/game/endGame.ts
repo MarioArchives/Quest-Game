@@ -186,7 +186,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
   // Open police check-ins are called off, with no fine.
   if (ctx.pack.features.police) await cancelOpenPoliceCalls(db, ctx.now);
 
-  const [everyone, submissions, guesses, ledger, globals, templates, locations, feed, phones] = await Promise.all([
+  const [everyone, submissions, guesses, ledger, globals, templates, locations, feed, phones, lineOrders] = await Promise.all([
     docs<Player>(db, 'players'),
     docs<Submission>(db, 'submissions'),
     docs<Guess>(db, 'guesses'),
@@ -197,6 +197,8 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     docs<FeedItem>(db, 'feed'),
     // Players' phone numbers are only kept while the game runs.
     db.collection('phones').listDocuments(),
+    // Calls the Telegram police script hasn't taken are called off with the game.
+    db.collection('lineOrders').listDocuments(),
   ]);
   // Players the GM put out of the game get no place in the standings and no wrap; frozen ones keep both.
   const players = everyone.filter((p) => p.left !== 'out');
@@ -337,7 +339,7 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
     ops.push((b) => b.set(db.doc(`wraps/${uid}`), doc));
   }
   ops.push((b) => b.set(db.doc('game/final'), final));
-  for (const ref of [...locations, ...phones]) ops.push((b) => b.delete(ref));
+  for (const ref of [...locations, ...phones, ...lineOrders]) ops.push((b) => b.delete(ref));
   await commitInBatches(db, ops);
 
   // The state flip goes last so a failure part-way leaves the game un-ended and endGame can be retried.

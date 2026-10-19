@@ -60,6 +60,8 @@ export interface Settings {
   policePassPoints: number;
   /** Points lost for failing or missing a police check-in. */
   policeFailPenalty: number;
+  /** Points lost on a Telegram check-in call that was picked up but got a wrong reply or none (smaller than the fail fine). */
+  policeHeardPenalty: number;
   /**
    * Police check-ins ring the player's phone (Twilio) when they have a verified line, and fall back to the app when
    * they don't or the call never connects. Off: every check-in is answered in the app.
@@ -644,6 +646,8 @@ export interface PoliceCall {
   /** The points it opened with. */
   passPoints: number;
   failPenalty: number;
+  /** The smaller fine for a Telegram call picked up but answered wrong or not at all (settings.policeHeardPenalty when it opened). */
+  heardPenalty?: number;
   /** Missing on calls opened before phone calls existed: 'app'. */
   channel?: PoliceChannel;
   /** Why it is in the app while phone calls are on; null when it rang, or phone calls are off. */
@@ -704,6 +708,31 @@ export type SwitchMode = 'phone' | 'app' | 'probation';
  * least two players) or one account error switch everyone to the app; a health check every 15 min moves it to
  * probation and a trial call that connects restores it. The GM reads it; only functions write it.
  */
+/**
+ * lineOrders/{id}: a call for the police script on the Telegram line (services/telegram-police) to place: a check-in
+ * (`query.call`) or a test (`query.line` + `query.test`). Functions only; the script claims them through telegramLine.
+ */
+export interface LineOrder {
+  kind: 'call' | 'test';
+  /** The player's number, E.164. */
+  to: string;
+  /** Echoed back on every event, as Twilio echoes its URL's query. */
+  query: Record<string, string>;
+  /** The call's id on this line: TG-… */
+  sid: string;
+  status: 'new' | 'taken';
+  createdAt: TS;
+  takenAt?: TS | null;
+}
+
+/** game/line: the police script's last heartbeat (Telegram line). Functions write it; the GM reads it. */
+export interface LineBeat {
+  kind: 'telegram';
+  seenAt: TS;
+  /** The Telegram account the script is logged in as. */
+  account: { name: string; id: number | null } | null;
+}
+
 export interface Switchboard {
   mode: SwitchMode;
   /** The GM set this mode by hand: the health check leaves a hand-set 'app' alone. */

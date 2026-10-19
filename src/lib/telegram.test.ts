@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { telegramChatLink, telegramStore, telegramUsername } from './telegram';
+import { isTelegramPolice, telegramChatLink, telegramStore, telegramUsername } from './telegram';
 
 describe('telegramUsername', () => {
   it('takes the bare name from a name, an @name or a t.me link', () => {
@@ -34,5 +34,15 @@ describe('telegramStore', () => {
     expect(telegramStore('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36').store).toBe('google-play');
     const desktop = telegramStore('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36');
     expect(desktop).toEqual({ store: 'web', label: 'Get Telegram', href: 'https://telegram.org/apps' });
+  });
+});
+
+describe('isTelegramPolice', () => {
+  it('is on when the police have a Telegram username or number that will do, and off otherwise', () => {
+    expect(isTelegramPolice({ policeTelegram: 'MancMetPolice', policeTelegramNumber: '' })).toBe(true);
+    expect(isTelegramPolice({ policeTelegram: '', policeTelegramNumber: '+447700900456' })).toBe(true);
+    expect(isTelegramPolice({ policeTelegram: '', policeTelegramNumber: '' })).toBe(false);
+    expect(isTelegramPolice({ policeTelegram: 'cop', policeTelegramNumber: 'nope' })).toBe(false);
+    expect(isTelegramPolice({} as never)).toBe(false);
   });
 });

@@ -1,13 +1,14 @@
 // The police on Telegram (settings.policeTelegram, or just policeTelegramNumber for an account with no username): in place
-// of the calling card and the test call, the detective's card is dealt with the police's Telegram account on it, so a player knows to expect a Telegram call tonight. First "Got
+// of the calling card, the detective's card is dealt with the police's Telegram account on it, so a player knows to expect a Telegram call tonight. First "Got
 // Telegram on this phone?": no sends them to their phone's app store (sign up with the mobile they just gave, then come
 // back); yes opens the police's chat with a hello already typed ("Reporting for duty", their name and case number),
 // which also lets the police's account find and ring them. "Add to contacts" saves the account's number where the GM
-// gave one, for players whose Telegram only takes calls from contacts. "I've said hello" moves on; they can skip it.
+// gave one, for players whose Telegram only takes calls from contacts. The test call is the only way on.
 import { useState } from 'react';
 import { telegramChatLink, telegramStore } from '../../../lib/telegram';
 import { ContactIcon, TickIcon } from './CallingCard';
 import { buzz } from './feel';
+import { telegramFoot } from './telegramDesk';
 import { addContact, type Added } from './contact';
 import { HoneycombStamp } from './stamps';
 import { showCallerId } from './suspect';
@@ -22,7 +23,6 @@ export function TelegramCard({
   hello,
   mobile,
   onDone,
-  onSkip,
 }: {
   /** Who the police are (settings.policeCallerName). */
   name: string;
@@ -34,8 +34,8 @@ export function TelegramCard({
   hello: string;
   /** The mobile they gave, to sign up to Telegram with. */
   mobile: string | null;
+  /** On to the test call (the card's only way on). */
   onDone(): void;
-  onSkip(): void;
 }) {
   const [have, setHave] = useState<Have>(null);
   const [said, setSaid] = useState(false);
@@ -45,6 +45,7 @@ export function TelegramCard({
   const [line1, line2] = rest.length ? [first, rest.join(' ')] : ['', first];
   // The account as the card shows it and the chat link finds it: its username, else its number.
   const handle = username ? `@${username}` : number ? showCallerId(number) : '';
+  const foot = telegramFoot(have, said);
   const chat = telegramChatLink(username ?? number ?? '', hello);
 
   const save = async () => {
@@ -156,20 +157,21 @@ export function TelegramCard({
         </div>
       )}
 
-      {/* The way on: quiet until they've said hello, then filled in; or they carry on with the police in the app. */}
-      <div className="ph-foot">
-        <button
-          type="button"
-          className={`ph-next${said ? ' is-ready' : ''}`}
-          onClick={() => {
-            buzz(30);
-            if (said) onDone();
-            else onSkip();
-          }}
-        >
-          {said ? 'I’ve said hello' : 'Skip: reach me in the app'} <span aria-hidden="true">→</span>
-        </button>
-      </div>
+      {/* The way on: only once they have Telegram, to the (compulsory) test call; quiet until they've said hello. */}
+      {foot ? (
+        <div className="ph-foot">
+          <button
+            type="button"
+            className={`ph-next${foot.ready ? ' is-ready' : ''}`}
+            onClick={() => {
+              buzz(30);
+              onDone();
+            }}
+          >
+            {foot.label} <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

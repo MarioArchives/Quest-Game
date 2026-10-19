@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PoliceCall, PoliceCallPhone } from '../shared';
-import { callChannelLine, fallbackNote, switchboardLabel, testProgress } from './policeLine';
+import { callChannelLine, fallbackNote, lineVia, ringingRule, switchboardLabel, testProgress } from './policeLine';
 
 const base: PoliceCall = {
   uid: 'u',
@@ -73,5 +73,48 @@ describe('testProgress and switchboardLabel', () => {
     expect(switchboardLabel({ mode: 'app', manual: false })).toBe('Lines down');
     expect(switchboardLabel({ mode: 'app', manual: true })).toBe('App (by hand)');
     expect(switchboardLabel({ mode: 'probation', manual: false })).toBe('On trial');
+  });
+});
+
+// Plan "Police check-ins over Telegram", edge case 14: the same words for the Telegram line.
+describe('on the Telegram line', () => {
+  const tg = (more: Partial<PoliceCallPhone>) => phone({ sid: 'TG-c1', ...more });
+  const test = { id: 't', code: '111', sid: 'TG-t', status: 'dialling', result: null, errorCode: null, startedAt: 0, heardAt: null };
+
+  it('says how a Telegram call went', () => {
+    expect(callChannelLine({ ...base, channel: 'phone', phone: tg({ status: 'ringing' }) })).toBe('Telegram · ringing');
+    expect(callChannelLine({ ...base, status: 'passed', answer: '4', channel: 'phone', phone: tg({ result: 'answered' }) })).toBe('Telegram · replied 4');
+    expect(callChannelLine({ ...base, status: 'missed', channel: 'phone', phone: tg({ result: 'no-digits' }) })).toBe('Telegram · picked up, no reply');
+    expect(callChannelLine({ ...base, status: 'missed', channel: 'phone', phone: tg({ result: 'no-answer' }) })).toBe('Telegram · rang out, no answer');
+    expect(callChannelLine({ ...base, status: 'missed', channel: 'phone', phone: tg({ result: 'busy' }) })).toBe('Telegram · declined');
+    const resent = callChannelLine({ ...base, channel: 'app', fallbackReason: 'never-connected', phone: tg({ result: 'never-connected', errorCode: 'tg-not-found' }) });
+    expect(resent).toMatch(/^Telegram · never connected \(.*Telegram.*\) · then the app$/);
+  });
+
+  it('follows a test call on Telegram, and on the phone as before', () => {
+    expect(testProgress({ ...test, status: 'ringing' }, 'telegram')).toMatch(/Telegram/);
+    expect(testProgress({ ...test, status: 'in-progress' }, 'telegram')).toMatch(/reply/i);
+    expect(testProgress({ ...test, status: 'in-progress' }, 'telegram')).not.toMatch(/key in/i);
+    expect(testProgress({ ...test, status: 'in-progress' })).toMatch(/key in/i);
+  });
+
+  it('tells the player what each outcome costs on the ringing card', () => {
+    const call = { ...base, passPoints: 3, failPenalty: 4, heardPenalty: 1 };
+    const telegram = ringingRule(call, 'telegram');
+    expect(telegram).toMatch(/Telegram|chat/);
+    for (const part of ['+3', '−1', '−4']) expect(telegram).toContain(part);
+    const keypad = ringingRule(call, 'phone');
+    expect(keypad).toMatch(/keypad/);
+    expect(keypad).not.toMatch(/Telegram/);
+    expect(keypad).toContain('+3');
+    expect(keypad).toContain('−4');
+  });
+
+  it('knows a call is on Telegram from its id, or from the settings before it has one', () => {
+    const none = { policeTelegram: '', policeTelegramNumber: '' };
+    expect(lineVia({ ...base, phone: tg({}) }, none)).toBe('telegram');
+    expect(lineVia({ ...base, phone: phone({ sid: null }) }, { policeTelegram: '', policeTelegramNumber: '+447700900456' })).toBe('telegram');
+    expect(lineVia({ ...base, phone: phone({}) }, none)).toBe('phone');
+    expect(lineVia({ ...base, phone: phone({ sid: null }) }, none)).toBe('phone');
   });
 });

@@ -1,4 +1,4 @@
-// GM: the police switchboard (packs with police, phone calls on). Line health (the last look at the Twilio account),
+// GM: the police switchboard (packs with police, phone calls on). Line health (the last look at the Twilio account, or the Telegram line's heartbeat),
 // the last error, phone or app, a test call to the GM's own phone, Restore and Switch to the app, and every player's
 // line. The server trips it by itself (calls that never connect, or an account error), checks the account every
 // 15 min while it is down and restores it when a trial call connects; this panel is the GM's hand on it.
@@ -6,11 +6,12 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { setPoliceLine, setSwitchboard, testPoliceLine } from '../../api';
 import { Button } from '../../components/Button';
 import { useGame } from '../../data/GameProvider';
-import { tsMs, useDocument, useQuery } from '../../data/hooks';
+import { tsMs, useDocument, useNow, useQuery } from '../../data/hooks';
 import { LINE_LABEL, switchboardLabel, testProgress } from '../../lib/policeLine';
+import { isTelegramPolice } from '../../lib/telegram';
 import { pack, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
-import { formatPhone, type PlayerPhone, type Switchboard } from '../../shared';
+import { formatPhone, LINE_OFFLINE_MS, type LineBeat, type PlayerPhone, type Switchboard } from '../../shared';
 import { clockTime, useRunner } from './common';
 
 const LINES_UP: Switchboard = {
@@ -24,6 +25,12 @@ const LINES_UP: Switchboard = {
   health: null,
 };
 
+/** "20 s", "3 min" or "2 h": how long ago, for the line's heartbeat. */
+function ago(at: number, now = Date.now()): string {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  return s < 90 ? `${s} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${Math.round(s / 3600)} h`;
+}
+
 export function SwitchboardPanel() {
   const { settings, playersById } = useGame();
   const { user } = useSession();
@@ -31,6 +38,9 @@ export function SwitchboardPanel() {
   const [number, setNumber] = useState('');
   const doc = useDocument<Switchboard>('game/switchboard');
   const lines = useQuery<PlayerPhone>({ path: 'phones' });
+  const beat = useDocument<LineBeat>('game/line');
+  const now = useNow(5000);
+  const telegram = isTelegramPolice(settings);
   const sb = doc.data ?? LINES_UP;
   const mine = lines.data.find((l) => l.id === user?.uid) ?? null;
   const players = useMemo(
@@ -46,13 +56,15 @@ export function SwitchboardPanel() {
       <section className="gm-card" aria-label="Switchboard">
         <h3 className="gm-h">Switchboard</h3>
         <p className="gm-hint">
-          Phone calls are off, so every {t.policeCall.one} is answered in the app. Turn them on in Settings › {t.policeCall.Many} once Twilio is set up.
+          Phone calls are off, so every {t.policeCall.one} is answered in the app. Turn them on in Settings › {t.policeCall.Many} once the line is set up.
         </p>
       </section>
     );
   }
 
-  const progress = testProgress(mine?.test);
+  const progress = testProgress(mine?.test, telegram ? 'telegram' : 'phone');
+  const seenAt = beat.data?.seenAt ? tsMs(beat.data.seenAt) : 0;
+  const telegramOnline = seenAt > 0 && now - seenAt < LINE_OFFLINE_MS;
   const saveMine = (event: FormEvent) => {
     event.preventDefault();
     void run('number', () => setPoliceLine({ number: number.trim() }).then(() => setNumber('')), 'Number saved.');
@@ -68,10 +80,10 @@ export function SwitchboardPanel() {
         {sb.mode === 'phone'
           ? `${t.policeCall.Many} ring players with a tested number. ${settings.policeBreakerAt} calls in a row that never connect (to 2+ players), or one account error, send everyone to the app.`
           : sb.mode === 'probation'
-            ? 'The Twilio account looks fine again: the next check-in due goes by phone as a trial, and the lines are back if it connects.'
+            ? `The ${telegram ? 'Telegram line' : 'Twilio account'} looks fine again: the next check-in due goes by phone as a trial, and the lines are back if it connects.`
             : sb.manual
               ? `You sent every ${t.policeCall.one} to the app. Restore the lines when you want calls again.`
-              : `Every ${t.policeCall.one} opens in the app, with no fine for the calls that didn't connect. The account is checked every 15 min; you can test your own phone and restore the lines.`}
+              : `Every ${t.policeCall.one} opens in the app, with no fine for the calls that didn't connect. The line is checked every 15 min; you can test your own phone and restore the lines.`}
         {sb.since && tsMs(sb.since) ? ` Since ${clockTime(tsMs(sb.since))}.` : ''}
       </p>
       {sb.lastError ? (
@@ -80,7 +92,16 @@ export function SwitchboardPanel() {
           {sb.streak > 0 ? ` · ${sb.streak} in a row didn't connect` : ''}
         </p>
       ) : null}
-      {sb.health ? (
+      {telegram ? (
+        <p className={`gm-hint${telegramOnline ? '' : ' gm-hint--warn'}`}>
+          {telegramOnline
+            ? `Telegram line online${beat.data?.account?.name ? ` as ${beat.data.account.name}` : ''}, seen ${ago(seenAt, now)} ago`
+            : seenAt
+              ? `Telegram line offline: last seen ${ago(seenAt, now)} ago. Start the police script.`
+              : 'Telegram line offline: the police script has not checked in. Start it.'}
+        </p>
+      ) : null}
+      {sb.health && !telegram ? (
         <p className="gm-hint">
           Twilio account {sb.health.ok ? 'OK' : `not OK (${sb.health.message})`}
           {sb.health.balance ? ` · credit ${sb.health.balance}` : ''}
@@ -100,7 +121,7 @@ export function SwitchboardPanel() {
           </Button>
         ) : null}
         <Button small variant="ghost" busy={busyKey === 'check'} disabled={anyBusy} onClick={() => void run('check', () => setSwitchboard({ action: 'check' }))}>
-          Check Twilio now
+          Check the line now
         </Button>
       </div>
 

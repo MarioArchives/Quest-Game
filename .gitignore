@@ -19,3 +19,4 @@ services/telegram-police/*.session
 services/telegram-police/*.session-journal
 __pycache__/
 firebase-export-*/
+.secret.local

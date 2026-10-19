@@ -29,6 +29,7 @@ export type NumKey =
   | 'policeWindowMin'
   | 'policePassPoints'
   | 'policeFailPenalty'
+  | 'policeHeardPenalty'
   | 'policeBreakerAt';
 export type FlagKey = 'refillOnComplete' | 'revealOnComplete' | 'pointsFloorZero';
 /** The two standing lines: whole numbers (negatives allowed) or blank for off. */
@@ -59,6 +60,7 @@ export const LIMITS: Record<NumKey, [min: number, max: number]> = {
   policeWindowMin: [1, 120],
   policePassPoints: [0, 10000],
   policeFailPenalty: [0, 10000],
+  policeHeardPenalty: [0, 10000],
   policeBreakerAt: [2, 20],
 };
 
@@ -224,6 +226,7 @@ export function toSettings(form: SettingsForm): Settings {
     policeWindowMin: n('policeWindowMin'),
     policePassPoints: n('policePassPoints'),
     policeFailPenalty: n('policeFailPenalty'),
+    policeHeardPenalty: n('policeHeardPenalty'),
     policePhone: form.policePhone,
     policeBreakerAt: n('policeBreakerAt'),
     policeCallerName: form.callerName.trim(),

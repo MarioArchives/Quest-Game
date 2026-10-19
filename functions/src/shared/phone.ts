@@ -138,7 +138,7 @@ export const answeredByMachine = (answeredBy: string | null | undefined): boolea
  * Errors that mean the account or the caller ID is broken, so no call can connect: they switch the whole game to the
  * app at once, from any call. 'not-set-up' is ours: the server has no Twilio configuration.
  */
-export const ACCOUNT_ERROR_CODES: readonly string[] = ['not-set-up', '10001', '20003', '20005', '21210', '21212'];
+export const ACCOUNT_ERROR_CODES: readonly string[] = ['not-set-up', 'line-offline', '10001', '20003', '20005', '21210', '21212'];
 /**
  * Permission errors (geo permissions, a trial account's unverified numbers). On a check-in call (to a line that has
  * already passed a test) they mean the account changed, so they trip the switchboard too; on a test call they only
@@ -153,7 +153,7 @@ export function tripsAtOnce(code: string | null, kind: 'checkin' | 'test'): bool
 }
 
 /** Our own codes for calls that went quiet or couldn't reach Twilio: the system's fault, never the line's. */
-export const SYSTEM_ERROR_CODES: readonly string[] = ['no-status', 'no-result', 'network'];
+export const SYSTEM_ERROR_CODES: readonly string[] = ['no-status', 'no-result', 'network', 'tg-error'];
 
 /** True when a call that never connected is down to the number itself, so it counts against the player's line. */
 export const linesFault = (code: string | null): boolean =>
@@ -164,6 +164,10 @@ const ERROR_WORDS: Readonly<Record<string, string>> = {
   'no-status': 'No word from Twilio within 90 s',
   'no-result': 'The call never finished',
   network: "Couldn't reach Twilio",
+  'line-offline': "The Telegram line is offline: the police script isn't running",
+  'tg-not-found': "The number isn't on Telegram, or Telegram couldn't find it",
+  'tg-privacy': "The player's Telegram privacy settings don't allow calls from the police",
+  'tg-error': 'The Telegram line hit a fault of its own',
   '10001': 'The Twilio account is not active (10001)',
   '20003': 'Twilio refused the account: wrong keys, or the account is suspended (20003)',
   '20005': 'The Twilio account is not active (20005)',
@@ -207,6 +211,18 @@ export function describeTestResult(result: PhoneTestResult, code: string | null)
  * with this, so the app knows to play the phone for them.
  */
 export const SIMULATED_SID_PREFIX = 'SIM-';
+
+/** Calls on the Telegram line (the police script, services/telegram-police) have ids starting with this. */
+export const TELEGRAM_SID_PREFIX = 'TG-';
+
+/** The Telegram line is offline when the police script hasn't sent a heartbeat for this long. */
+export const LINE_OFFLINE_MS = 90_000;
+
+/** A Telegram call is given up after this long without a result (ringing, the lines and two replies of a minute). */
+export const TELEGRAM_GIVE_UP_MS = 5 * 60_000;
+
+/** True when this call id is the Telegram line's. */
+export const isTelegramSid = (sid: string | null | undefined): boolean => typeof sid === 'string' && sid.startsWith(TELEGRAM_SID_PREFIX);
 
 /** True when this call id is the simulated line's: no real phone is ringing. */
 export const isSimulatedSid = (sid: string | null | undefined): boolean => typeof sid === 'string' && sid.startsWith(SIMULATED_SID_PREFIX);

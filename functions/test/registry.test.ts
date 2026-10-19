@@ -51,7 +51,7 @@ describe('CALLABLES', () => {
 
   it('functions/src/index.ts exports one function per callable and per trigger', () => {
     const index = read('../src/index.ts');
-    for (const name of [...Object.keys(CALLABLES), ...TRIGGERS.map((t) => t.name), 'globalQuestTick', 'policeVoice']) {
+    for (const name of [...Object.keys(CALLABLES), ...TRIGGERS.map((t) => t.name), 'globalQuestTick', 'policeVoice', 'telegramLine']) {
       expect(index, name).toMatch(new RegExp(`export const ${name}\\b`));
     }
   });

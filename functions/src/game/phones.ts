@@ -72,7 +72,7 @@ export async function setPoliceLine(
       if (!number) fail('invalid-argument', "That doesn't look like a mobile number. Try it with the country code, like +44 7700 900123.");
       // The same verified number again changes nothing.
       if (line && line.number === number && line.status === 'verified') return { status: line.status };
-      const fresh: PlayerPhone = { number, status: 'unverified', verifiedAt: null, failures: 0, reason: null, callerId: phoneLine?.callerId ?? line?.callerId ?? null, test: null, updatedAt: now };
+      const fresh: PlayerPhone = { number, status: 'unverified', verifiedAt: null, failures: 0, reason: null, callerId: phoneLine?.callerId || line?.callerId || null, test: null, updatedAt: now };
       tx.set(ref, fresh);
       return { status: fresh.status };
     }
@@ -125,7 +125,7 @@ export async function testPoliceLine(db: Db, ctx: Ctx, _data: unknown, line: Pho
       startedAt: toTs(ctx.now),
       heardAt: null,
     };
-    tx.update(ref, { test: next, callerId: line.callerId, updatedAt: toTs(ctx.now) });
+    tx.update(ref, { test: next, callerId: line.callerId || null, updatedAt: toTs(ctx.now) });
     return { uid, number: phone.number, testId: next.id };
   });
 

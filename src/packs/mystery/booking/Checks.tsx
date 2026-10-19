@@ -6,6 +6,7 @@ import { friendlyError, testPoliceLine, toApiError } from '../../../api';
 import { Loader } from '../../../components/Loader';
 import { describeTestResult, type PhoneTestResult, type PlayerPhone } from '../../../shared';
 import { buzz, lessMotion } from './feel';
+import { offersApp, testCallWords, type DeskCall } from './telegramDesk';
 import { Stamp } from './parts';
 import { cleanUkNumber, isUkMobile, showUkNumber, typedCountryCode } from './suspect';
 
@@ -55,7 +56,7 @@ export function Terminal({ name, verdict, typed = true }: { name: string; verdic
 /* ---------------------------------------------------------------- the test call */
 
 /** How the test call is going; 'off' when this server has no phone line to ring with (Twilio not set up). */
-type Call = 'dialling' | 'ringing' | 'keying' | 'answered' | 'missed' | 'off';
+type Call = DeskCall;
 
 /** Results that are the player's to put right (the number, the ringer, the keypad), rather than the system's. */
 const THEIRS: PhoneTestResult[] = ['wrong-code', 'no-digits', 'no-answer', 'busy', 'voicemail'];
@@ -73,6 +74,7 @@ export function TestCall({
   onDone,
   onSkip,
   onNumber,
+  via = 'phone',
 }: {
   /** Their line (phones/{uid}), live. */
   line: PlayerPhone | null;
@@ -80,7 +82,10 @@ export function TestCall({
   onSkip(): void;
   /** Saves a new number (the digits); rejects with what was wrong. */
   onNumber(digits: string): Promise<void>;
+  /** The line the test rings on; the words follow it. */
+  via?: 'phone' | 'telegram';
 }) {
+  const words = testCallWords(via);
   const [testId, setTestId] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -141,16 +146,16 @@ export function TestCall({
   const theirs = Boolean(test?.result && THEIRS.includes(test.result));
   const status =
     call === 'dialling'
-      ? `Dialling ${number}…`
+      ? words.dialling(number)
       : call === 'ringing'
-        ? 'Ringing. Pick up: the desk reads you a short code to key in. Then hang up.'
+        ? words.ringing
         : call === 'keying'
-          ? 'Answered. Key in the code you hear.'
+          ? words.keying
           : call === 'answered'
-            ? 'Answered. We can reach you.'
+            ? words.answered
             : call === 'off'
-              ? 'Phone calls aren’t set up yet, so the police will reach you in the app for now.'
-              : `${sentence(why ?? 'No answer')}${theirs ? ' Is the number right, and your ringer on?' : ''}`;
+              ? `${via === 'telegram' ? 'The Telegram line' : 'Phone calls'} isn’t set up yet, so the police will reach you in the app for now.`
+              : `${sentence(why ?? 'No answer')}${theirs ? words.missedHint : ''}`;
 
   return (
     <section className="bk-call" aria-labelledby="bk-call-title">
@@ -159,8 +164,8 @@ export function TestCall({
       </h1>
       <p className="bk-call__note">
         {call === 'off'
-          ? 'One last thing: we’d ring your mobile to be sure we can reach you, but the lines aren’t connected yet.'
-          : 'One last thing: we need to know we can reach you. We’re ringing your mobile from the number you just saved.'}
+          ? 'One last thing: we’d ring you to be sure we can reach you, but the lines aren’t connected yet.'
+          : words.note}
       </p>
 
       <div className={`bk-call__panel is-${call === 'keying' ? 'ringing' : call}`}>
@@ -207,9 +212,11 @@ export function TestCall({
           <button type="button" className="bk-back bk-back--center" onClick={() => setEditing(true)}>
             Change my number
           </button>
-          <button type="button" className="bk-back bk-back--center" onClick={onSkip}>
-            Carry on: the police can reach me in the app
-          </button>
+          {offersApp(call) ? (
+            <button type="button" className="bk-back bk-back--center" onClick={onSkip}>
+              Carry on: the police can reach me in the app
+            </button>
+          ) : null}
         </div>
       ) : (
         <button type="button" className="bk-back bk-back--center" onClick={() => setEditing(true)}>

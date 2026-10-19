@@ -7,7 +7,8 @@
 // is the player's: missed, with its fine. Every handler is idempotent, because Twilio retries.
 import { termForms, type TermForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
-import { answeredByMachine, callStatusMeaning, spokenQuestion } from '../shared/phone.js';
+import { answeredByMachine, callStatusMeaning, isTelegramSid, spokenQuestion } from '../shared/phone.js';
+import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import type { DocRef, Txn } from '../shared/store/types.js';
 import type { GameState, Player, PoliceCall, PoliceCallPhone, Settings } from '../shared/types.js';
 import type { Db } from './context.js';
@@ -80,10 +81,18 @@ function neverConnected(c: CallTx, phone: PoliceCallPhone, code: string | null):
   noteOutcome(c.book, c.now, c.settings.policeBreakerAt, { kind: 'checkin', connected: false, uid: c.call.uid, callId: c.ref.id, code });
 }
 
-/** The player's fault (rang out, declined, voicemail, nothing keyed): missed, with its fine. */
-function missed(c: CallTx, phone: PoliceCallPhone): void {
+/**
+ * The fine for a player who picked up a Telegram call and then got it wrong or said nothing: the smaller
+ * heardPenalty, kept from when the call opened. Undefined on other lines (the call's own failPenalty).
+ */
+function heardFine(c: CallTx, sid: string | null | undefined): number | undefined {
+  return isTelegramSid(sid ?? c.phone?.sid) ? (c.call.heardPenalty ?? DEFAULT_SETTINGS.policeHeardPenalty) : undefined;
+}
+
+/** The player's fault (rang out, declined, voicemail, nothing keyed): missed, with its fine (`penalty`: another than the call's). */
+function missed(c: CallTx, phone: PoliceCallPhone, penalty?: number): void {
   const scoring = scoringFor(c.pack, c.settings, c.state, c.now);
-  chargeMissed(c.tx, c.db, c.now, c.t, scoring, { ref: c.ref, data: c.call }, c.player!, c.player!.points, { phone });
+  chargeMissed(c.tx, c.db, c.now, c.t, scoring, { ref: c.ref, data: c.call }, c.player!, c.player!.points, { phone }, penalty);
 }
 
 /**
@@ -108,7 +117,7 @@ export async function dialPoliceCall(db: Db, callId: string, now: Date, pack: Ga
       return null;
     }
     c.tx.update(c.ref, { phone: { ...c.phone!, status: 'dialling' } });
-    if (line && number.callerId !== line.callerId) c.book.linePatches.set(c.call.uid, { callerId: line.callerId });
+    if (line && line.callerId && number.callerId !== line.callerId) c.book.linePatches.set(c.call.uid, { callerId: line.callerId });
     return number.number;
   });
   if (!to) return 'skipped';
@@ -200,11 +209,11 @@ async function callGather(db: Db, now: Date, pack: GamePack, callId: string, par
         c.tx.update(c.ref, { phone });
         return askQuestion(c, attempt + 1, [say('again')]);
       }
-      missed(c, { ...phone, result: 'no-digits' });
+      missed(c, { ...phone, result: 'no-digits' }, heardFine(c, phone.sid));
       return sayAndHangUp(say('no-answer'));
     }
     const scoring = scoringFor(pack, c.settings, c.state, now);
-    const { status } = scoreAnswer(c.tx, c.db, now, c.t, scoring, { ref: c.ref, data: c.call }, c.player!, digits, { phone: { ...phone, result: 'answered' } });
+    const { status } = scoreAnswer(c.tx, c.db, now, c.t, scoring, { ref: c.ref, data: c.call }, c.player!, digits, { phone: { ...phone, result: 'answered' } }, heardFine(c, phone.sid));
     return sayAndHangUp(say(status === 'passed' ? 'pass' : 'fail'));
   });
   return reply ?? [{ kind: 'hangup' }];
@@ -240,7 +249,7 @@ async function callStatus(db: Db, now: Date, pack: GamePack, callId: string, par
         return;
       case 'answered-ended':
         connected(c);
-        missed(c, { ...phone, result: answeredByMachine(params.AnsweredBy) ? 'voicemail' : 'no-digits' });
+        missed(c, { ...phone, result: answeredByMachine(params.AnsweredBy) ? 'voicemail' : 'no-digits' }, heardFine(c, phone.sid));
         return;
       case 'unanswered':
         connected(c);

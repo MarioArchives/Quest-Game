@@ -19,6 +19,7 @@ is picked up, hangs up when the recording ends, and reports what happened, in th
   python3 police_call.py whoami
   python3 police_call.py call @their_username --audio intro.mp3
   python3 police_call.py call +447700900123 --say "Evening. Manchester Metropolitan Police here."
+  python3 police_call.py serve                                   # the game's calls: poll its telegramLine, ring, report
 
 Keys (from https://my.telegram.org › API development tools) come from the environment or a .env file next to this
 one: TELEGRAM_API_ID and TELEGRAM_API_HASH. The login is kept in police.session here; both are gitignored. With
@@ -28,12 +29,18 @@ nothing secret needs to live on this machine.
 """
 import argparse
 import asyncio
+import hashlib
+import hmac
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
+import wave
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -41,6 +48,8 @@ SESSION = HERE / 'police'  # Telethon adds .session
 OUTCOMES = ('answered', 'hung-up', 'no-answer', 'declined', 'busy', 'privacy', 'not-found', 'failed')
 # What Secret Manager holds for the line: the app's keys, and the police account's login as a string session.
 SECRETS = ('TELEGRAM_API_ID', 'TELEGRAM_API_HASH', 'TELEGRAM_POLICE_SESSION')
+# Also needed by `serve`: the secret the game's telegramLine function checks every request against.
+LINE_SECRET = 'TELEGRAM_LINE_SECRET'
 
 
 def load_env() -> None:
@@ -63,13 +72,13 @@ def gcloud(*args: str, data: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(['gcloud', *args, '--quiet'], input=data, capture_output=True, text=True)
 
 
-def load_gcp_secrets() -> None:
-    """With POLICE_SECRETS_PROJECT set, the keys and the login from that project's Secret Manager (the real
-    environment still wins)."""
+def load_gcp_secrets(names: tuple[str, ...] = SECRETS) -> None:
+    """With POLICE_SECRETS_PROJECT set, the keys and the login (and, for `serve`, the line secret) from that
+    project's Secret Manager (the real environment still wins)."""
     project = os.environ.get('POLICE_SECRETS_PROJECT', '').strip()
     if not project:
         return
-    for name in SECRETS:
+    for name in names:
         if os.environ.get(name):
             continue
         got = gcloud('secrets', 'versions', 'access', 'latest', f'--secret={name}', f'--project={project}')
@@ -78,7 +87,7 @@ def load_gcp_secrets() -> None:
         os.environ[name] = got.stdout.strip()
 
 
-def client(use_file: bool = False):
+def client(use_file: bool = False, serving: bool = False):
     """The police account's client: the string session from Secret Manager (or the environment) when there is one,
     else the login file here. `use_file` always takes the file (logging in, copying it to Secret Manager)."""
     from telethon import TelegramClient
@@ -86,7 +95,7 @@ def client(use_file: bool = False):
 
     load_env()
     if not use_file:
-        load_gcp_secrets()
+        load_gcp_secrets(SECRETS + (LINE_SECRET,) if serving else SECRETS)
     api_id, api_hash = os.environ.get('TELEGRAM_API_ID', '').strip(), os.environ.get('TELEGRAM_API_HASH', '').strip()
     if not api_id.isdigit() or not api_hash:
         sys.exit('Set TELEGRAM_API_ID and TELEGRAM_API_HASH (my.telegram.org › API development tools) in .env, the environment or Secret Manager.')
@@ -109,6 +118,8 @@ async def store_secrets(project: str) -> None:
             'TELEGRAM_API_HASH': os.environ['TELEGRAM_API_HASH'].strip(),
             'TELEGRAM_POLICE_SESSION': StringSession.save(tg.session),
         }
+        if os.environ.get(LINE_SECRET, '').strip():
+            values[LINE_SECRET] = os.environ[LINE_SECRET].strip()
     finally:
         await tg.disconnect()
     labels = '--labels=app=quest-game,part=telegram-police'
@@ -122,6 +133,74 @@ async def store_secrets(project: str) -> None:
             sys.exit(f'{name}: {done.stderr.strip().splitlines()[-1] if done.stderr.strip() else "gcloud failed"}')
         print(f'{name}: {"new version" if exists else "created"} in {project}')
     print(f'Done. To use them: POLICE_SECRETS_PROJECT={project} (in .env or the environment); then .env’s keys and police.session can go.')
+
+
+# ---------- serve: the line the game hands its calls to ----------
+
+
+def sign_body(secret: str, timestamp: str, body: str) -> str:
+    """Hex HMAC-SHA256 of "timestamp.body", as the telegramLine function checks it."""
+    return hmac.new(secret.encode(), f'{timestamp}.{body}'.encode(), hashlib.sha256).hexdigest()
+
+
+def outcome_params(outcome: str) -> dict:
+    """A call that didn't go through, as the status Twilio would send."""
+    if outcome in ('declined', 'busy'):
+        return {'CallStatus': 'busy'}
+    if outcome == 'no-answer':
+        return {'CallStatus': 'no-answer'}
+    code = {'privacy': 'tg-privacy', 'not-found': 'tg-not-found'}.get(outcome, 'tg-error')
+    return {'CallStatus': 'failed', 'ErrorCode': code}
+
+
+def split_steps(steps: list) -> dict:
+    """A reply's steps as what to say, the ask (if any) and whether to hang up."""
+    out = {'say': [], 'ask': None, 'hangup': False}
+    for step in steps:
+        if step.get('say'):
+            out['say'].append(step['say'])
+        if step.get('ask'):
+            out['ask'] = step['ask']
+        if step.get('hangup'):
+            out['hangup'] = True
+    return out
+
+
+class Replies:
+    """Players' replies in the chat, each to the one call waiting on that player."""
+
+    def __init__(self) -> None:
+        self.waiting: dict[int, asyncio.Future] = {}
+
+    def expect(self, user_id: int) -> asyncio.Future:
+        """A future for this player's next reply (it replaces one already waiting)."""
+        self.cancel(user_id)
+        future = asyncio.get_running_loop().create_future()
+        self.waiting[user_id] = future
+        return future
+
+    def deliver(self, user_id: int, text: str) -> bool:
+        """Hands `text` to the call waiting on this player; False when none is waiting."""
+        future = self.waiting.pop(user_id, None)
+        if future is None or future.done():
+            return False
+        future.set_result(text)
+        return True
+
+    def cancel(self, user_id: int) -> None:
+        future = self.waiting.pop(user_id, None)
+        if future is not None and not future.done():
+            future.cancel()
+
+
+def serve_config(env) -> tuple[str, str]:
+    """The game's telegramLine URL and the shared secret; exits without them."""
+    url, secret = env.get('TELEGRAM_LINE_URL', '').strip(), env.get(LINE_SECRET, '').strip()
+    if not url:
+        sys.exit('Set TELEGRAM_LINE_URL: https://europe-west2-<project>.cloudfunctions.net/telegramLine (see README.md).')
+    if not secret:
+        sys.exit(f'Set {LINE_SECRET} (the secret the game’s telegramLine function checks; .env, the environment or Secret Manager).')
+    return url, secret
 
 
 async def resolve(tg, target: str):
@@ -203,6 +282,268 @@ async def ring(tg, user, audio: Path, ring_s: int, max_s: int) -> tuple[str, str
     return 'answered', f'heard {heard:.0f}s'
 
 
+# ---------- serve: the Telegram-facing part (poll the game, place its calls, relay replies) ----------
+
+RING_SECONDS = 25
+HEARTBEAT_S = 20
+POLL_S = 2
+LINE_VOICE = 'en-GB-RyanNeural'
+
+
+def log(message: str) -> None:
+    print(f'{time.strftime("%H:%M:%S")} {message}', flush=True)
+
+
+def post_signed(url: str, secret: str, payload: dict) -> dict | None:
+    """One signed POST to the game's telegramLine (blocking: run it in a thread). None on any failure, which the
+    caller retries on its next turn; nothing secret is logged."""
+    body = json.dumps(payload, separators=(',', ':'))
+    timestamp = str(int(time.time()))
+    request = urllib.request.Request(
+        url,
+        data=body.encode(),
+        headers={'Content-Type': 'application/json', 'X-Line-Timestamp': timestamp, 'X-Line-Signature': sign_body(secret, timestamp, body)},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read().decode() or '{}')
+    except urllib.error.HTTPError as err:
+        log(f'  the game answered {err.code} to {payload.get("op")}')
+    except (urllib.error.URLError, OSError, ValueError) as err:
+        log(f'  couldn’t reach the game for {payload.get("op")}: {type(err).__name__}')
+    return None
+
+
+def silent_clip() -> Path:
+    """A second of silence to ring with (the call needs a stream to connect; the speech replaces it)."""
+    out = Path(tempfile.mkstemp(prefix='police-silence-', suffix='.wav')[1])
+    with wave.open(str(out), 'wb') as clip:
+        clip.setnchannels(1)
+        clip.setsampwidth(2)
+        clip.setframerate(48000)
+        clip.writeframes(b'\x00\x00' * 48000)
+    return out
+
+
+class Live:
+    """What a call in progress is doing, fed by py-tgcalls' updates."""
+
+    def __init__(self) -> None:
+        self.ended = asyncio.Event()  # the current stream finished
+        self.hung_up = asyncio.Event()  # the player hung up (or we did)
+
+
+class Line:
+    """The script's side of the game's line: the account, the calls and the chat."""
+
+    def __init__(self, tg, url: str, secret: str, voice: str = LINE_VOICE) -> None:
+        self.tg, self.url, self.secret, self.voice = tg, url, secret, voice
+        self.replies = Replies()
+        self.live: dict[int, Live] = {}
+        self.locks: dict[str, asyncio.Lock] = {}
+        self.tasks: set[asyncio.Task] = set()
+        self.calls = None
+        self.silence = silent_clip()
+
+    async def send(self, payload: dict) -> dict | None:
+        return await asyncio.to_thread(post_signed, self.url, self.secret, payload)
+
+    async def event(self, order: dict, step: str, params: dict, attempt: str | None = None) -> dict | None:
+        payload = {'op': 'event', 'sid': order['sid'], 'query': order['query'], 'step': step, 'params': params}
+        if attempt:
+            payload['try'] = attempt
+        return await self.send(payload)
+
+    async def start(self) -> None:
+        from telethon import events
+        from pytgcalls import PyTgCalls
+        from pytgcalls.types import ChatUpdate, StreamEnded, Update
+
+        self.calls = PyTgCalls(self.tg)
+
+        @self.calls.on_update()
+        async def on_update(_, update: Update):
+            state = self.live.get(update.chat_id)
+            if state is None:
+                return
+            if isinstance(update, StreamEnded):
+                state.ended.set()
+            elif isinstance(update, ChatUpdate) and update.status & ChatUpdate.Status.DISCARDED_CALL:
+                state.hung_up.set()
+
+        @self.tg.on(events.NewMessage(incoming=True))
+        async def on_message(event):
+            if not event.is_private or event.sender_id is None:
+                return
+            text = (event.raw_text or '').strip()
+            if self.replies.deliver(event.sender_id, text):
+                log(f'  a reply from {event.sender_id}')
+            else:
+                log(f'  a message from {event.sender_id} (nobody waiting): {text[:40]!r}')
+
+        await self.calls.start()
+
+    # ----- the loops -----
+
+    async def heartbeat_loop(self, account: dict) -> None:
+        while True:
+            await self.send({'op': 'heartbeat', 'account': account})
+            await asyncio.sleep(HEARTBEAT_S)
+
+    async def poll_loop(self) -> None:
+        while True:
+            got = await self.send({'op': 'poll'})
+            for order in (got or {}).get('orders', []):
+                task = asyncio.create_task(self.run_order(order))
+                self.tasks.add(task)
+                task.add_done_callback(self.tasks.discard)
+            await asyncio.sleep(POLL_S)
+
+    # ----- one order -----
+
+    async def run_order(self, order: dict) -> None:
+        lock = self.locks.setdefault(order['to'], asyncio.Lock())  # one call at a time to a player
+        async with lock:
+            user_id = None
+            outcome = 'failed'
+            try:
+                user = await resolve(self.tg, order['to'])
+                if user is None:
+                    outcome = 'not-found'
+                else:
+                    user_id = user.id
+                    outcome = await self.converse(order, user)
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:  # noqa: BLE001 (the game needs an outcome whatever went wrong)
+                from telethon import errors
+
+                outcome = 'privacy' if isinstance(err, errors.UserPrivacyRestrictedError) else 'failed'
+                log(f'  {order["sid"]}: {type(err).__name__}: {err}')
+            finally:
+                if user_id is not None:
+                    await self.hang_up(user_id)
+                    self.live.pop(user_id, None)
+                    self.replies.cancel(user_id)
+            if outcome != 'completed':
+                await self.event(order, 'status', outcome_params(outcome))
+            log(f'{order["sid"]} ({order["kind"]}): {outcome}')
+
+    async def converse(self, order: dict, user) -> str:
+        """Rings, speaks, asks and reports. Returns 'completed' or the outcome that stopped it."""
+        await self.event(order, 'status', {'CallStatus': 'ringing'})
+        state = self.live[user.id] = Live()
+        outcome = await self.dial(user)
+        if outcome != 'answered':
+            return outcome
+        reply = await self.event(order, 'voice', {'CallStatus': 'in-progress', 'AnsweredBy': 'human'})
+        while reply is not None:
+            parts = split_steps(reply.get('steps', []))
+            ask = parts['ask']
+            if not state.hung_up.is_set():  # still on the call: say it
+                for line in parts['say'] + (ask or {}).get('say', []):
+                    if not await self.speak_live(user, line):
+                        break
+            if ask is None:
+                if parts['say']:
+                    await self.tg.send_message(user, '\n'.join(parts['say']))  # the verdict, in writing
+                break
+            future = self.replies.expect(user.id)  # before the message, so a quick reply isn't lost
+            await self.tg.send_message(user, ask['message'])
+            await self.hang_up(user.id)
+            try:
+                text = await asyncio.wait_for(future, ask.get('replySec', 60))
+            except asyncio.TimeoutError:
+                text = ''
+            self.replies.cancel(user.id)
+            nxt = ask.get('next') or {}
+            reply = await self.event(order, nxt.get('step', 'gather'), {'CallStatus': 'in-progress', 'Digits': text}, nxt.get('try'))
+        await self.event(order, 'status', {'CallStatus': 'completed'})
+        return 'completed'
+
+    # ----- Telegram calls -----
+
+    async def dial(self, user) -> str:
+        """Rings with a silent clip; 'answered' once picked up, else the outcome word."""
+        from telethon import errors
+        from pytgcalls.exceptions import CallBusy, CallDeclined, CallDiscarded, TimedOutAnswer
+        from pytgcalls.types import CallConfig, MediaStream
+
+        try:
+            await self.calls.play(user.id, MediaStream(str(self.silence), video_flags=MediaStream.Flags.IGNORE), CallConfig(timeout=RING_SECONDS))
+        except TimedOutAnswer:
+            return 'no-answer'
+        except CallBusy:
+            return 'busy'
+        except (CallDeclined, CallDiscarded):
+            return 'declined'
+        except errors.UserPrivacyRestrictedError:
+            return 'privacy'
+        return 'answered'
+
+    async def speak_live(self, user, line: str) -> bool:
+        """Says one line on the live call and waits for it to end. False if the player hung up."""
+        from pytgcalls.types import MediaStream
+
+        state = self.live[user.id]
+        audio = await speak(line, self.voice)
+        try:
+            state.ended.clear()
+            await self.calls.play(user.id, MediaStream(str(audio), video_flags=MediaStream.Flags.IGNORE))
+            waits = [asyncio.ensure_future(state.ended.wait()), asyncio.ensure_future(state.hung_up.wait())]
+            try:
+                await asyncio.wait(waits, timeout=90, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for w in waits:
+                    w.cancel()
+        finally:
+            audio.unlink(missing_ok=True)
+        return not state.hung_up.is_set()
+
+    async def hang_up(self, user_id: int) -> None:
+        state = self.live.get(user_id)
+        if state is None or state.hung_up.is_set():
+            return
+        state.hung_up.set()
+        try:
+            await self.calls.leave_call(user_id)
+        except Exception:  # noqa: BLE001 (already gone)
+            pass
+
+    async def stop(self) -> None:
+        for task in list(self.tasks):
+            task.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+        for user_id in list(self.live):
+            await self.hang_up(user_id)
+        self.silence.unlink(missing_ok=True)
+
+
+async def serve(tg, url: str, secret: str) -> None:
+    """Runs the line until interrupted: a heartbeat, a poll and a task per order."""
+    try:
+        import edge_tts  # noqa: F401
+    except ImportError:
+        sys.exit('serve needs edge-tts: pip install -r requirements.txt')
+    missing = [tool for tool in ('ffmpeg', 'ffprobe') if not shutil.which(tool)]
+    if missing:
+        sys.exit(f'{" and ".join(missing)} not found: sudo apt install ffmpeg')
+    me = await tg.get_me()
+    name = ' '.join(filter(None, [me.first_name, me.last_name])) or (me.username or 'police')
+    line = Line(tg, url, secret)
+    await line.start()
+    log(f'Serving as {name} (id {me.id}); polling every {POLL_S}s. Ctrl-C to stop.')
+    loops = [asyncio.create_task(line.heartbeat_loop({'name': name, 'id': me.id})), asyncio.create_task(line.poll_loop())]
+    try:
+        await asyncio.gather(*loops)
+    finally:
+        for loop in loops:
+            loop.cancel()
+        await line.stop()
+        log('Stopped.')
+
+
 async def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -210,6 +551,7 @@ async def main() -> None:
     sub.add_parser('whoami', help='who this line is logged in as')
     st = sub.add_parser('store-secrets', help="copy the keys and this machine's login into Google Cloud Secret Manager")
     st.add_argument('--project', required=True, help='the Google Cloud project, e.g. musical-mischief')
+    sub.add_parser('serve', help="run the game's Telegram line: poll its telegramLine for calls, ring, relay replies")
     c = sub.add_parser('call', help='ring someone and play a recording')
     c.add_argument('target', help='@username or +44… (E.164)')
     src = c.add_mutually_exclusive_group(required=True)
@@ -223,7 +565,8 @@ async def main() -> None:
     if args.cmd == 'store-secrets':
         await store_secrets(args.project)
         return
-    tg = client(use_file=args.cmd == 'login')
+    tg = client(use_file=args.cmd == 'login', serving=args.cmd == 'serve')
+    url, secret = serve_config(os.environ) if args.cmd == 'serve' else ('', '')
     if args.cmd == 'login':
         await tg.start()  # asks for the phone number, the code and any two-step password
         me = await tg.get_me()
@@ -238,6 +581,10 @@ async def main() -> None:
         if args.cmd == 'whoami':
             me = await tg.get_me()
             print(f'{me.first_name} {me.last_name or ""}'.rstrip() + f' (@{me.username or "no username"}, +{me.phone}, id {me.id})')
+            return
+
+        if args.cmd == 'serve':
+            await serve(tg, url, secret)
             return
 
         missing = [tool for tool in ('ffmpeg', 'ffprobe') if not shutil.which(tool)]
@@ -264,4 +611,7 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

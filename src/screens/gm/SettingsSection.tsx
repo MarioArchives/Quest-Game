@@ -98,6 +98,7 @@ const GROUPS: Group[] = [
       { key: 'policeWindowMin', label: 'Time to answer (min)', hint: 'Then it counts as missed' },
       { key: 'policePassPoints', label: 'Pass', hint: 'Points for a right answer' },
       { key: 'policeFailPenalty', label: 'Fail or miss', hint: 'Points lost for a wrong or missing answer' },
+      { key: 'policeHeardPenalty', label: 'Fine when they pick up but get it wrong', hint: 'Telegram calls: a wrong reply, or none' },
     ],
   },
 ];

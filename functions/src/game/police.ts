@@ -4,9 +4,10 @@
 // time, costs its failPenalty. With phone calls on (settings.policePhone), a check-in rings the player's verified line
 // instead (./policePhone.ts) and falls back to the app when it can't (./policeLines.ts).
 import { getPack } from '../shared/packs/index.js';
+import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import { termForms, type TermForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
-import { PHONE_GIVE_UP_MS, PHONE_SILENT_MS } from '../shared/phone.js';
+import { isTelegramSid, PHONE_GIVE_UP_MS, PHONE_SILENT_MS, TELEGRAM_GIVE_UP_MS } from '../shared/phone.js';
 import { cooldownLeftMs, isRightAnswer, policeQuestion } from '../shared/police.js';
 import { standingOf } from '../shared/standing.js';
 import type { DocRef, Txn } from '../shared/store/types.js';
@@ -69,6 +70,7 @@ export function openPoliceCall(
     answeredAt: null,
     passPoints: settings.policePassPoints,
     failPenalty: settings.policeFailPenalty,
+    heardPenalty: settings.policeHeardPenalty ?? DEFAULT_SETTINGS.policeHeardPenalty,
     channel: route.channel,
     fallbackReason: route.fallbackReason,
     phone,
@@ -115,11 +117,13 @@ export function chargeMissed(
   player: Player,
   balance: number,
   extra: Record<string, unknown> = {},
+  /** A fine other than the call's failPenalty (the smaller one for a Telegram call that was picked up). */
+  penalty: number = call.data.failPenalty,
 ): number {
   const c = call.data;
   tx.update(call.ref, { status: 'missed', ...extra });
   const { applied } = applyScore(
-    tx, db, now, scoring, { kind: 'policeFailed', uid: c.uid, penalty: c.failPenalty, missed: true },
+    tx, db, now, scoring, { kind: 'policeFailed', uid: c.uid, penalty, missed: true },
     new Map([[c.uid, balance]]), { ref: call.ref.id, by: 'system' },
   );
   const delta = applied.get(c.uid) ?? 0;
@@ -138,12 +142,14 @@ export function scoreAnswer(
   player: Player,
   answer: string,
   extra: Record<string, unknown> = {},
+  /** A fine other than the call's failPenalty for a wrong answer (the smaller one for a Telegram call that was picked up). */
+  penalty: number = call.data.failPenalty,
 ): { status: 'passed' | 'failed'; points: number } {
   const c = call.data;
   const passed = isRightAnswer(answer, c.expected);
   const event = passed
     ? ({ kind: 'policePassed', uid: c.uid, points: c.passPoints } as const)
-    : ({ kind: 'policeFailed', uid: c.uid, penalty: c.failPenalty, missed: false } as const);
+    : ({ kind: 'policeFailed', uid: c.uid, penalty, missed: false } as const);
   tx.update(call.ref, { status: passed ? 'passed' : 'failed', answer, answeredAt: toTs(now), ...extra });
   const { applied } = applyScore(tx, db, now, scoring, event, new Map([[c.uid, player.points]]), { ref: call.ref.id, by: 'system' });
   const points = applied.get(c.uid) ?? 0;
@@ -159,12 +165,12 @@ export function scoreAnswer(
 
 /**
  * Why the timer gives up on a phone call that is still open: Twilio said nothing within 90 s of placing it
- * ('no-status'), or it has run 3 min without an outcome ('no-result'). Either way the system's fault. Null: wait.
+ * ('no-status'), or it has run 3 min (5 on the Telegram line, which waits for replies) without an outcome ('no-result'). Either way the system's fault. Null: wait.
  */
 export function stalledPhoneCode(phone: PoliceCallPhone, nowMs: number): 'no-status' | 'no-result' | null {
   const placed = millis(phone.placedAt);
   if (phone.heardAt == null && nowMs - placed >= PHONE_SILENT_MS) return 'no-status';
-  if (nowMs - placed >= PHONE_GIVE_UP_MS) return 'no-result';
+  if (nowMs - placed >= (isTelegramSid(phone.sid) ? TELEGRAM_GIVE_UP_MS : PHONE_GIVE_UP_MS)) return 'no-result';
   return null;
 }
 

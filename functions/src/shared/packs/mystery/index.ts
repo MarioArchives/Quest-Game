@@ -47,6 +47,8 @@ export const mystery: GamePack = {
     policeWindowMin: 5,
     policePassPoints: 5,
     policeFailPenalty: 5,
+    // On the Telegram line, picking up and then answering wrong or not at all costs less than not picking up.
+    policeHeardPenalty: 2,
     // Police check-ins ring players' phones (the booking desk asks for a number and makes a test call). Without
     // Twilio set up (design/twilio-setup.md) the test call says so and every check-in opens in the app.
     policePhone: true,

@@ -63,6 +63,13 @@ service cloud.firestore {
     match /game/switchboard {
       allow read: if isGM();
     }
+    // The Telegram line's heartbeat (the police script's last sign of life). The GM reads it; only functions write it
+    // (the telegramLine function).
+    match /game/line {
+      allow read: if isGM();
+    }
+    // lineOrders (calls waiting for the police script) have no rule: no client reads or writes them, the GM included.
+    // Only functions touch them (placing a call, the script's poll).
 
     // Periodic missions (the series) are the GM's plans: the GM reads them, only functions write (managePeriodic,
     // the timer). Their check-ins and answers: everyone in the game reads them; only functions write (answerCheckin,

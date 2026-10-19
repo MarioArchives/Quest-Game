@@ -7,6 +7,7 @@ import {
   describePhoneError,
   describeTestResult,
   formatPhone,
+  isTelegramSid,
   linesFault,
   normalisePhone,
   policeVCard,
@@ -192,6 +193,30 @@ describe('Twilio, as the game reads it', () => {
     expect(describePhoneError('99999')).toBe('Twilio error 99999');
     expect(describeTestResult('wrong-code', null)).toMatch(/didn't match/);
     expect(describeTestResult('never-connected', '20003')).toMatch(/20003/);
+  });
+});
+
+describe('the Telegram line, as the game reads it', () => {
+  it("knows its calls' ids", () => {
+    expect(isTelegramSid('TG-abc')).toBe(true);
+    for (const sid of ['CA123', 'SIM-abc', '', null, undefined]) expect(isTelegramSid(sid), String(sid)).toBe(false);
+  });
+
+  it('trips the switchboard at once when the script is offline; counts not-found and privacy against the line, not its own faults', () => {
+    expect(tripsAtOnce('line-offline', 'checkin')).toBe(true);
+    expect(tripsAtOnce('line-offline', 'test')).toBe(true);
+    for (const code of ['tg-not-found', 'tg-privacy', 'tg-error']) expect(tripsAtOnce(code, 'checkin'), code).toBe(false);
+    expect(linesFault('tg-not-found')).toBe(true);
+    expect(linesFault('tg-privacy')).toBe(true);
+    expect(linesFault('tg-error')).toBe(false);
+    expect(linesFault('line-offline')).toBe(false);
+  });
+
+  it('describes its codes in words, never as Twilio errors', () => {
+    expect(describePhoneError('tg-not-found')).toMatch(/Telegram/);
+    expect(describePhoneError('tg-privacy')).toMatch(/privacy|calls/i);
+    expect(describePhoneError('line-offline')).toMatch(/offline|isn.t running/i);
+    for (const code of ['tg-not-found', 'tg-privacy', 'tg-error', 'line-offline']) expect(describePhoneError(code), code).not.toMatch(/Twilio/);
   });
 });
 

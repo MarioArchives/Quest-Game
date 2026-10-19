@@ -2,6 +2,8 @@
 // tidied from whatever the GM pasted, a link that opens its chat (by username, or by phone number for an account with
 // none) with a message already typed, and where to get Telegram on this phone.
 
+import { normalisePhone } from '../shared';
+
 /** A Telegram username: 5 to 32 letters, digits and underscores, starting with a letter. */
 const USERNAME = /^[a-z][a-z0-9_]{4,31}$/i;
 
@@ -41,4 +43,9 @@ export function telegramStore(userAgent: string): StoreLink {
     return { store: 'google-play', label: 'Get it on Google Play', href: 'https://play.google.com/store/apps/details?id=org.telegram.messenger' };
   }
   return { store: 'web', label: 'Get Telegram', href: 'https://telegram.org/apps' };
+}
+
+/** The police ring on Telegram: the settings hold a username or a number that will do (either may be missing). */
+export function isTelegramPolice(settings: { policeTelegram?: string; policeTelegramNumber?: string }): boolean {
+  return Boolean(telegramUsername(settings.policeTelegram ?? '') || normalisePhone(settings.policeTelegramNumber ?? '', ''));
 }

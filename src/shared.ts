@@ -37,6 +37,7 @@ export type {
   PhoneTest,
   PhoneTestResult,
   PlayerPhone,
+  LineBeat,
   Switchboard,
   SwitchMode,
   Quest,
@@ -69,7 +70,7 @@ export { VOTABLE_FEED_TYPES, canHoldTop, takesVote } from '../functions/src/shar
 export { tallyVotes } from '../functions/src/shared/votes';
 export { drawTemplate } from '../functions/src/shared/draw';
 export { PERIODIC_LIMITS, periodicDone, periodicProblems } from '../functions/src/shared/periodics';
-export { describePhoneError, describeTestResult, formatPhone, isSimulatedSid, normalisePhone, policeVCard } from '../functions/src/shared/phone';
+export { describePhoneError, describeTestResult, formatPhone, isSimulatedSid, isTelegramSid, LINE_OFFLINE_MS, normalisePhone, policeVCard } from '../functions/src/shared/phone';
 export type { SimulatedAction, SimulatedTurn } from '../functions/src/shared/phone';
 export { DRINK_MAX, HEIGHT_MAX_CM, HEIGHT_MIN_CM, MARKS_MAX, needsBooking } from '../functions/src/shared/booking';
 

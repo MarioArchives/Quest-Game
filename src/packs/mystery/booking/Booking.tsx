@@ -14,7 +14,7 @@ import { backend } from '../../../backend';
 import { Loader } from '../../../components/Loader';
 import { useGame } from '../../../data/GameProvider';
 import { tsMs, useDocument } from '../../../data/hooks';
-import { telegramUsername } from '../../../lib/telegram';
+import { isTelegramPolice, telegramUsername } from '../../../lib/telegram';
 import { compressAvatar, uploadAvatar } from '../../../lib/upload';
 import { features, pack } from '../../../pack';
 import { useSession } from '../../../session/SessionProvider';
@@ -74,7 +74,7 @@ export default function Booking() {
   // their account finds the player.
   const telegramName = features.police ? telegramUsername(settings.policeTelegram ?? '') : null;
   const telegramNumber = features.police ? normalisePhone(settings.policeTelegramNumber ?? '', pack.locale) : null;
-  const telegram = Boolean(telegramName || telegramNumber);
+  const telegram = Boolean(features.police) && isTelegramPolice(settings);
   const phoneOn = Boolean(features.police && (settings.policePhone || telegram));
   const line = useDocument<PlayerPhone>(phoneOn && uid ? `phones/${uid}` : null);
   const since = tsMs(player?.joinedAt);
@@ -128,9 +128,9 @@ export default function Booking() {
   }, [step]);
 
   // The calling card and the test call need the line; without one (or with phone calls off) the case opens. The
-  // Telegram card doesn't: it only needs a mobile on the sheet.
+  // Telegram card doesn't: it only needs a mobile on the sheet, and the test call (which does) comes after it.
   const phoneStep = step === 'number' || step === 'call';
-  const noLine = !usePhone || (!telegram && !line.loading && !line.data);
+  const noLine = !usePhone || (!line.loading && !line.data && (!telegram || step === 'call'));
   useEffect(() => {
     if (phoneStep && noLine) setStep('open');
   }, [phoneStep, noLine]);
@@ -211,7 +211,7 @@ export default function Booking() {
     );
   }
 
-  if (phoneStep && telegram && usePhone) {
+  if (step === 'number' && telegram && usePhone) {
     return (
       <TelegramCard
         name={settings.policeCallerName.trim() || 'Police'}
@@ -219,14 +219,13 @@ export default function Booking() {
         number={telegramNumber}
         hello={`Reporting for duty. ${name}, case ${caseNumber(uid)}.`}
         mobile={who.phone.trim() ? showUkNumber(cleanUkNumber(who.phone)) : null}
-        onDone={() => setStep('open')}
-        onSkip={() => setStep('open')}
+        onDone={() => setStep('call')}
       />
     );
   }
 
   // Without a caller ID yet (no phone line on this server), the card says the number comes with the first call.
-  if (step === 'number' && line.data) {
+  if (step === 'number' && !telegram && line.data) {
     return <CallingCard name={settings.policeCallerName.trim() || 'Police'} number={line.data.callerId} onDone={() => setStep('call')} />;
   }
 
@@ -264,6 +263,7 @@ export default function Booking() {
           <Livescan print={print} onDone={() => setStep('booked')} onBack={() => setStep('particulars')} />
         ) : step === 'call' || step === 'number' ? (
           <TestCall
+            via={telegram ? 'telegram' : 'phone'}
             line={line.data}
             onDone={() => setStep('open')}
             onSkip={() => setStep('open')}

@@ -858,6 +858,38 @@ describe('Police phone lines and the switchboard (phone calls on)', () => {
   });
 });
 
+describe('The Telegram line (plan "Police check-ins over Telegram", edge case 13)', () => {
+  async function seedLine() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'lineOrders/o1'), { kind: 'call', to: '+447700900001', query: { call: 'c1' }, sid: 'TG-c1', status: 'new', createdAt: T });
+      await setDoc(doc(db, 'game/line'), { kind: 'telegram', seenAt: T, account: { name: 'Test Constabulary', id: 42 } });
+    });
+  }
+
+  it("no client reads or writes the script's orders, the GM included", async () => {
+    await seedLine();
+    for (const who of [as('alice'), as('gm'), anon()]) {
+      await assertFails(getDoc(doc(who, 'lineOrders/o1')));
+      await assertFails(getDocs(collection(who, 'lineOrders')));
+      await assertFails(setDoc(doc(who, 'lineOrders/o2'), { kind: 'call', to: '+447700900001', status: 'new' }));
+      await assertFails(updateDoc(doc(who, 'lineOrders/o1'), { status: 'taken' }));
+      await assertFails(deleteDoc(doc(who, 'lineOrders/o1')));
+    }
+  });
+
+  it("only the GM reads the line's heartbeat, and nobody writes it from the app", async () => {
+    await seedLine();
+    await assertSucceeds(getDoc(doc(as('gm'), 'game/line')));
+    for (const uid of ['alice', 'pending']) await assertFails(getDoc(doc(as(uid), 'game/line')));
+    await assertFails(getDoc(doc(anon(), 'game/line')));
+    for (const uid of ['alice', 'gm']) {
+      await assertFails(setDoc(doc(as(uid), 'game/line'), { kind: 'telegram', seenAt: T }));
+      await assertFails(deleteDoc(doc(as(uid), 'game/line')));
+    }
+  });
+});
+
 describe("Story facts and dealt players (plan \"Mystery pack: minimal notifications, Bob's story arc…\", edge case 24)", () => {
   async function seedStory() {
     await env.withSecurityRulesDisabled(async (c) => {

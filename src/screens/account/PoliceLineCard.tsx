@@ -11,20 +11,22 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useDocument } from '../../data/hooks';
 import { saveContact } from '../../lib/policeContact';
 import { LINE_LABEL, testProgress } from '../../lib/policeLine';
+import { isTelegramPolice } from '../../lib/telegram';
 import { clockTime } from '../../lib/time';
 import { features, pack, t, zone } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import { formatPhone, normalisePhone, type PlayerPhone } from '../../shared';
 
-/** The status sentence under the line. */
-function statusText(phone: PlayerPhone | null): string {
+/** The status sentence under the line; `telegram` words it for calls and replies on Telegram instead of the keypad. */
+function statusText(phone: PlayerPhone | null, telegram: boolean): string {
   const inApp = `your ${t.policeCall.many} come in the app`;
-  if (!phone) return `No number, so ${inApp}. Add a mobile and the police ring you instead: you answer on the keypad.`;
+  const answer = telegram ? 'reply in the police chat' : 'you answer on the keypad';
+  if (!phone) return `No number, so ${inApp}. Add a mobile and the police ring you instead${telegram ? ' on Telegram' : ''}: ${answer}.`;
   switch (phone.status) {
     case 'unverified':
-      return `Not tested yet, so ${inApp}. Ring it to test: answer, and key in the code you hear.`;
+      return `Not tested yet, so ${inApp}. Ring it to test: answer, and ${telegram ? 'reply in our chat with' : 'key in'} the code you hear.`;
     case 'verified':
-      return `Tested${phone.verifiedAt ? ` at ${clockTime(tsMs(phone.verifiedAt), zone)}` : ''}. The police ring this number; a call that doesn't get through comes in the app instead, with no fine.`;
+      return `Tested${phone.verifiedAt ? ` at ${clockTime(tsMs(phone.verifiedAt), zone)}` : ''}. The police ring this number${telegram ? ' on Telegram' : ''}; a call that doesn't get through comes in the app instead, with no fine.`;
     case 'failed':
       return `${phone.reason ?? "The test didn't work"}. Until a test works, ${inApp}.`;
     case 'paused':
@@ -48,9 +50,12 @@ export function PoliceLineCard() {
 
   if (!on || line.loading) return null;
   const phone = line.data;
-  const progress = testProgress(phone?.test);
+  const telegram = isTelegramPolice(settings);
+  const progress = testProgress(phone?.test, telegram ? 'telegram' : 'phone');
   const showForm = !phone || editing;
   const typed = normalisePhone(number, pack.locale);
+  // The number the police ring from: their Telegram account's (when the GM gave one), else the phone line's.
+  const contact = (telegram ? normalisePhone(settings.policeTelegramNumber ?? '', '') : null) ?? phone?.callerId ?? null;
 
   const run = async (what: NonNullable<typeof busy>, action: () => Promise<void>) => {
     setBusy(what);
@@ -99,7 +104,7 @@ export function PoliceLineCard() {
 
       {phone && !editing ? <p className="policeline__number">{formatPhone(phone.number, pack.locale)}</p> : null}
       <p className="locate__fine" role="status">
-        {progress ?? statusText(phone)}
+        {progress ?? statusText(phone, telegram)}
       </p>
 
       {showForm ? (
@@ -155,14 +160,14 @@ export function PoliceLineCard() {
         </div>
       )}
 
-      {phone?.callerId && phone.status === 'verified' ? (
+      {contact && phone?.status === 'verified' ? (
         <Button
           small
           block
           icon={<Icon name="user" size={16} strokeWidth={2.4} />}
           busy={busy === 'contact'}
           disabled={busy !== null}
-          onClick={() => void run('contact', () => saveContact(settings.policeCallerName || 'Police', phone.callerId!))}
+          onClick={() => void run('contact', () => saveContact(settings.policeCallerName || 'Police', contact))}
         >
           Add the police to your contacts
         </Button>
