@@ -44,11 +44,13 @@ setGlobalOptions({ region: REGION, maxInstances: 10 });
 // to set and no policeVoice function), POLICE_VOICE_URL (blank: the cloudfunctions.net address) and POLICE_AUDIO_URL
 // (where the pack's recorded lines are served, e.g. https://…/audio/police; blank: every line is read out). The
 // emulators never ring anyone: they have the simulated line, where the app plays the phone.
-const TWILIO_ACCOUNT_SID = defineSecret('TWILIO_ACCOUNT_SID');
-const TWILIO_AUTH_TOKEN = defineSecret('TWILIO_AUTH_TOKEN');
 const POLICE_CALLER_ID = process.env.POLICE_CALLER_ID?.trim() ?? '';
 const PHONE_CALLS = POLICE_CALLER_ID !== '' && process.env.FUNCTIONS_EMULATOR !== 'true';
-const phoneSecrets = PHONE_CALLS ? [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN] : [];
+// Declared only with phone calls on: the CLI asks for every declared secret at deploy time, so a deployment without
+// Twilio (no POLICE_CALLER_ID, e.g. police calls on Telegram from services/telegram-police) has none to set.
+const TWILIO_ACCOUNT_SID = PHONE_CALLS ? defineSecret('TWILIO_ACCOUNT_SID') : null;
+const TWILIO_AUTH_TOKEN = PHONE_CALLS ? defineSecret('TWILIO_AUTH_TOKEN') : null;
+const phoneSecrets = TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN ? [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN] : [];
 const POLICE_AUDIO_URL = (process.env.POLICE_AUDIO_URL?.trim() ?? '').replace(/\/+$/, '');
 
 const voiceUrl = (): string => process.env.POLICE_VOICE_URL?.trim() || `https://${REGION}-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/policeVoice`;
@@ -57,7 +59,7 @@ const SIMULATED_LINE = process.env.FUNCTIONS_EMULATOR === 'true' ? simulatedLine
 
 /** The phone line, for functions that declared the secrets: Twilio's, the simulated one in the emulators, or null. */
 const phoneLine = (): PhoneLine | null =>
-  PHONE_CALLS
+  TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
     ? twilioLine({ accountSid: TWILIO_ACCOUNT_SID.value(), authToken: TWILIO_AUTH_TOKEN.value(), callerId: POLICE_CALLER_ID, voiceUrl: voiceUrl() })
     : SIMULATED_LINE;
 
@@ -168,7 +170,7 @@ export const globalQuestTick = onSchedule({ schedule: 'every 5 minutes', timeZon
 
 // Twilio's webhook for the police phone calls: what to say, the keypad answer and every status change. Twilio signs
 // each request with the auth token; anything unsigned is refused.
-export const policeVoice = PHONE_CALLS
+export const policeVoice = TWILIO_AUTH_TOKEN
   ? onRequest(
       { secrets: phoneSecrets, invoker: 'public', timeoutSeconds: 30 },
       voiceHandler({
