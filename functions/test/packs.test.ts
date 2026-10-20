@@ -401,19 +401,19 @@ describe('M18. the mystery pack', () => {
     expect(p.catalogue.global.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('opens on Manchester city centre with a six-bar route and footprints between stops', () => {
+  it('opens on Manchester city centre with a six-bar route, Oxford Road to the Northern Quarter, and footprints between stops', () => {
     const p = getPack('mystery');
-    expect(p.map).toMatchObject({ centre: { lat: 53.4791, lng: -2.2359 }, zoom: 15, placeName: 'Manchester city centre', routeStyle: 'footprints' });
+    expect(p.map).toMatchObject({ centre: { lat: 53.4731, lng: -2.2343 }, zoom: 14, placeName: 'Manchester city centre', routeStyle: 'footprints' });
     expect(p.map?.barSearch).toMatchObject({ name: 'Manchester' });
-    expect(p.route?.map((s) => s.name)).toEqual(['The Badger', 'Flok', 'The Mother of Invention', 'Terrace NQ', 'Cane and Grain', 'YES']);
-    expect(p.route?.[1]).toEqual({ name: 'Flok', lat: 53.48276, lng: -2.23372, address: '5 Stevenson Square, M1 1DN', placeRef: 'osm:node/6358776626' });
+    expect(p.route?.map((s) => s.name)).toEqual(['Big Hands', 'The Grosvenor', 'YES', 'The Badger', 'Flok', 'The Mother of Invention']);
+    expect(p.route?.find((s) => s.name === 'Flok')).toEqual({ name: 'Flok', lat: 53.48276, lng: -2.23372, address: '5 Stevenson Square, M1 1DN', placeRef: 'osm:node/6358776626' });
     // Every stop has an address; all but The Mother of Invention (newer than the map) come from OpenStreetMap.
     expect(p.route?.every((s) => s.address)).toBe(true);
     expect(p.route?.filter((s) => !s.placeRef?.startsWith('osm:')).map((s) => s.name)).toEqual(['The Mother of Invention']);
-    // All in the city centre, within the bar search's box and about a kilometre of the map's centre.
+    // All in the city centre, within the bar search's box and about a kilometre and a quarter of the map's centre.
     for (const s of p.route ?? []) {
-      expect(Math.abs(s.lat - p.map!.centre.lat), s.name).toBeLessThan(0.01);
-      expect(Math.abs(s.lng - p.map!.centre.lng), s.name).toBeLessThan(0.01);
+      expect(Math.abs(s.lat - p.map!.centre.lat), s.name).toBeLessThan(0.012);
+      expect(Math.abs(s.lng - p.map!.centre.lng), s.name).toBeLessThan(0.012);
     }
   });
 

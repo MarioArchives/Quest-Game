@@ -125,13 +125,13 @@ describe('planRoute', () => {
     expect(plan.map((s) => s.id)).toEqual(['route-1', 'route-2', 'route-3', 'route-4', 'route-5', 'route-6']);
     expect(plan.map((s) => s.data.order)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(plan[0].data).toEqual({
-      name: 'The Badger',
-      lat: 53.48162,
-      lng: -2.23408,
+      name: 'Big Hands',
+      lat: 53.46292,
+      lng: -2.23041,
       order: 1,
-      address: '24 Dale Street, M1 1FY',
-      placeRef: 'osm:node/3114683531',
-      placeName: 'The Badger',
+      address: '296 Oxford Road, M13 9NS',
+      placeRef: 'osm:node/258864504',
+      placeName: 'Big Hands',
       startsAt: null,
       endsAt: null,
       revealed: false,

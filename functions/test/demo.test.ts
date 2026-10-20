@@ -221,6 +221,6 @@ describe('demo route stops', () => {
     const list = stops(demo(getPack('mystery')));
     expect(list.length).toBe(6);
     expect(list.filter((x) => x.data.revealed).length).toBe(3);
-    expect(list[0].data.name).toBe('The Badger');
+    expect(list[0].data.name).toBe('Big Hands');
   });
 });

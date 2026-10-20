@@ -116,9 +116,9 @@ export const mystery: GamePack = {
   // (the JSON types 'judging' as plain text)
   catalogue: quests as Catalogue,
   map: {
-    // Between the Northern Quarter and Charles Street, so the whole crawl (about a kilometre end to end) is in view.
-    centre: { lat: 53.4791, lng: -2.2359 },
-    zoom: 15,
+    // Between Oxford Road and the Northern Quarter, so the whole crawl (about two and a half kilometres) is in view.
+    centre: { lat: 53.4731, lng: -2.2343 },
+    zoom: 14,
     placeName: 'Manchester city centre',
     nearbyKm: 2,
     credit: null,
@@ -127,16 +127,20 @@ export const mystery: GamePack = {
     barSearch: { name: 'Manchester', south: 53.34, west: -2.32, north: 53.545, east: -2.146 },
   },
   venues: [],
-  // The starting route through Manchester city centre (OpenStreetMap places and addresses; The Mother of Invention is
-  // newer than the map, so its position comes from Google Maps and it has no placeRef). The GM can edit, reorder and
+  // The starting route through Manchester city centre, south to north for a Friday or Saturday night from about 7pm:
+  // up Oxford Road while the walks are longest and everyone is fresh, the early closers before they close (The
+  // Grosvenor, midnight to 2am; The Badger, midnight; Flok, 1am), then the Northern Quarter's few steps apart and The
+  // Mother of Invention, open till 4am, to finish (it is shut on Sundays). Terrace NQ and Cane and Grain (Thomas Street,
+  // open till 3am) are two minutes on if it is full. OpenStreetMap places and addresses; The Mother of Invention is
+  // newer than the map, so its position comes from Google Maps and it has no placeRef. The GM can edit, reorder and
   // reveal it in the app, or swap a stop for another bar from the map's bar search.
   route: [
+    { name: 'Big Hands', lat: 53.46292, lng: -2.23041, address: '296 Oxford Road, M13 9NS', placeRef: 'osm:node/258864504' },
+    { name: 'The Grosvenor', lat: 53.47016, lng: -2.23691, address: '137 Grosvenor Street, M1 7DZ', placeRef: 'osm:node/30969134' },
+    { name: 'YES', lat: 53.47401, lng: -2.23816, address: '38 Charles Street, M1 7DB', placeRef: 'osm:node/9062401417' },
     { name: 'The Badger', lat: 53.48162, lng: -2.23408, address: '24 Dale Street, M1 1FY', placeRef: 'osm:node/3114683531' },
     { name: 'Flok', lat: 53.48276, lng: -2.23372, address: '5 Stevenson Square, M1 1DN', placeRef: 'osm:node/6358776626' },
-    { name: 'The Mother of Invention', lat: 53.48332, lng: -2.23481, address: 'Oldham Street, M4 1EB' },
-    { name: 'Terrace NQ', lat: 53.48412, lng: -2.23665, address: '43 Thomas Street, M4 1NA', placeRef: 'osm:node/1435542159' },
-    { name: 'Cane and Grain', lat: 53.48397, lng: -2.23645, address: '51 Thomas Street, M4 1NA', placeRef: 'osm:node/5892038085' },
-    { name: 'YES', lat: 53.47401, lng: -2.23816, address: '38 Charles Street, M1 7DB', placeRef: 'osm:node/9062401417' },
+    { name: 'The Mother of Invention', lat: 53.48332, lng: -2.23481, address: '73-75 Oldham Street, M4 1EB' },
   ],
   demoCharacters: [
     {
