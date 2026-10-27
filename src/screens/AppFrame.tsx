@@ -34,6 +34,8 @@ const LABELS = tabLabels(brand.tabs, { gm: t.gm.One, wrap: t.wrap.One });
 const FEED_TAB = Boolean(look.screens?.feed);
 /** The pack hosts the map in a screen of its own (a folder tab under Home), so there is no Map tab. */
 const OWN_MAP = Boolean(look.screens?.map);
+/** The pack's own app bar title for the screens that otherwise show its name. */
+const PackTitle = look.appTitle;
 
 const TITLES: Record<string, string> = {
   '/': pack.name,
@@ -149,7 +151,7 @@ function Frame() {
         Skip to content
       </a>
       <header className="appbar">
-        <h1 className="appbar__title">{title}</h1>
+        <h1 className="appbar__title">{PackTitle && title === pack.name ? <PackTitle /> : title}</h1>
         <div className="appbar__right">
           {player && opening ? (
             <span className="appbar__score">

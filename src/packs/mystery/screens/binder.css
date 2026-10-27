@@ -36,7 +36,7 @@
 .mb .mb-tab:focus-visible { --ring: var(--manila-ink); outline-offset: -4px; }
 .mb-tab__no { font-family: var(--display); font-weight: 400; font-size: 19px; line-height: 1; }
 .mb-tab__word { font-family: var(--mono); font-size: 10px; font-weight: 700; font-style: normal; line-height: 1; letter-spacing: 0.2px; text-transform: uppercase; }
-.mb-tab--live .mb-tab__word { color: var(--warn); }
+.mb-tab--live .mb-tab__word { color: var(--kraft-bad); }
 .mb-tab--checking .mb-tab__word, .mb-tab--voting .mb-tab__word { color: var(--stamp-warm); }
 /* Filed: faded ink. */
 .mb-tab--closed .mb-tab__no { color: var(--manila-sub); }

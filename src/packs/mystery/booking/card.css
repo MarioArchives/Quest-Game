@@ -13,7 +13,7 @@
   --room: #0d0e0f;
   --room-text: #efe9d6;
   --room-sub: #b8b4a6;
-  --room-faint: #8d8a80;
+  --room-faint: #a09d94;
   position: relative; isolation: isolate; overflow: clip; display: flex; flex-direction: column;
   max-width: var(--app-max); min-height: 100dvh; margin: 0 auto; padding: calc(var(--safe-top) + 52px) 16px calc(24px + var(--safe-bottom));
   background: var(--room); color: var(--room-text); font-family: var(--body); line-height: normal;

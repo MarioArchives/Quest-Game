@@ -2,11 +2,14 @@ import { lazy } from 'react';
 import { markArt } from '../../components/MarkArt';
 import type { PackLook } from '../types';
 import { mark } from './mark';
+import { CaseTitle } from './screens/CaseTitle';
 import './theme.css';
 
 const look: PackLook = {
   // The Manchester bee (mark.ts); brand.ts shows the same bee in index.html before the bundle boots.
   LoaderArt: markArt(mark),
+  // The app bar on the board and the log book: your case number, as on your file.
+  appTitle: CaseTitle,
   auth: {
     posterLine: 'The last night of Bob · one night only',
     posterTitle: ['Mystery', 'Pub Crawl'],

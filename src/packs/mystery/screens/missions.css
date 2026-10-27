@@ -15,8 +15,8 @@
  */
 .ms-stack { --step: 15px; --tab-h: 26px; --dx: 0px; --tilt: 0deg; position: relative; margin: 0 -6px; }
 .ms-stack__tabs { height: calc((var(--layers) - 1) * var(--step) + var(--tab-h)); }
-.ms-f { position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--k) * var(--step)); z-index: calc(var(--k) + 1); pointer-events: none; --layer: var(--kraft); }
-.ms-f--mid { --layer: var(--manila-tab); }
+.ms-f { position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--k) * var(--step)); z-index: calc(var(--k) + 1); pointer-events: none; --layer: var(--kraft); --layer-red: var(--kraft-bad); }
+.ms-f--mid { --layer: var(--manila-tab); --layer-red: var(--warn-text); }
 .ms-f::before { content: ''; position: absolute; left: 0; right: 0; top: calc(var(--tab-h) - 1px); bottom: 0; background: var(--layer); box-shadow: 0 2px 0 var(--sh-tag); }
 .ms-f--front { z-index: 30; }
 .ms-f--front::before { display: none; }
@@ -29,9 +29,9 @@
   font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap;
 }
 .ms-tab__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ms-tab b { flex: none; color: var(--warn); font-variant-numeric: tabular-nums; }
+.ms-tab b { flex: none; color: var(--layer-red, var(--warn)); font-variant-numeric: tabular-nums; }
 .ms-tab:focus-visible { --ring: var(--manila-ink); outline-offset: -3px; }
-.ms-f--front .ms-tab { height: calc(var(--tab-h) + 2px); background: var(--manila); border: 1.5px solid var(--kraft-line); border-bottom: 0; cursor: default; }
+.ms-f--front .ms-tab { --layer-red: var(--warn); height: calc(var(--tab-h) + 2px); background: var(--manila); border: 1.5px solid var(--kraft-line); border-bottom: 0; cursor: default; }
 /* The "+n" tab: narrow, at the far right, out of the others' room. */
 .ms-tab--more { left: auto; right: 6px; width: calc(var(--more-w) - 4px); max-width: none; justify-content: center; color: var(--manila-sub); }
 

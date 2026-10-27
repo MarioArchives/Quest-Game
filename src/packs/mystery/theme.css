@@ -15,7 +15,7 @@
   --wall: #3d4042;
   --wall-shadow: #26282a;
   --walltext: #e9ebec;
-  --chart: #a5aaad;
+  --chart: #a8adb0;
   --figure: #2f3234;
   --alt: #d8ebe8;
   --rule: #a9adaf;
@@ -24,7 +24,7 @@
   --clear-half: #d3e7e5;
   --suspect-half: #f0d9d6;
   --suspect-deep: #7d241d;
-  --warn: #a3342a;
+  --warn: #9b3128;
   --warn-text: #8f2a22;
   --warn-on-dark: #e98679;
   --felt: #161816;
@@ -55,6 +55,14 @@
   --stamp-bad: #8f2a22;
   --stamp-warm: #7a520a;
   --stamp-plain: #14544f;
+  /* The same inks a shade deeper for type on kraft (tags, back folders, shut files, the twine-coloured tabs), whose
+     shading runs darker than manila: 4.5:1 or more down to the bottom of a tag. Kraft surfaces swap them in below. */
+  --kraft-sub: #423625;
+  --kraft-good: #224224;
+  --kraft-bad: #671e18;
+  --kraft-warm: #503607;
+  --kraft-plain: #0f3f3b;
+  --kraft-muted: #383b3d;
   --print: #f1f0ec;
   --chart-paper: #f4ecd5;
   /* The GM console's paper: form fields on manila, an ink button's hover, the evidence bags' stripes, and the see-through
@@ -96,7 +104,7 @@
   --accent-hover: #125c59;
   --accent-press: #125c59;
   --accent-tint: #d8ebe8;
-  --muted: #5a5f62;
+  --muted: #52575a;
   --muted-soft: #8d9294;
   --black: #161718;
   --on-ink: #ffffff;
@@ -176,6 +184,10 @@ body, .app, .loader--screen { background: var(--wall); }
 
 h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .appbar__title { font-size: 22px; color: var(--walltext); }
+/* On the board, the log book and the map: your case number (screens/CaseTitle.tsx), labelled like a file. */
+.case-title { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-weight: 700; }
+.case-title__k { font-size: 10px; line-height: 1; letter-spacing: 2px; text-transform: uppercase; color: var(--chart); }
+.case-title__no { font-size: 16px; line-height: 1; color: var(--walltext); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .appbar__points { background: var(--wall-shadow); color: var(--walltext); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; }
 .appbar__avatar .avatar { border-color: var(--paper); }
 .appbar__avatar:hover .avatar { outline-color: var(--walltext); }
@@ -195,6 +207,15 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 /* top rows of the player pass and standings sit on the wall */
 .pl-top, .pl-top *, .rk-top, .rk-top * { color: var(--walltext); }
 .pl-top .section-head__meta, .rk-top .section-head__meta { color: var(--rule); }
+/* the standings podium's names and points stand on the wall too (the blocks under them stay ink) */
+.rk-podium .rk-pod { color: var(--walltext); }
+
+/* Kraft surfaces take the deeper inks (see --kraft-sub): their small type is mostly 10–13px mono. */
+.cf-tag, .ml-tag, .ml-peg, .reward-disc, .routelist > .routerow, .gl-sub .gm-list--cards > li.gm-card, .tl__shutbar, .lb-chip--tab, .lb-pile__card {
+  --manila-sub: var(--kraft-sub); --muted: var(--kraft-muted); --teal-text: var(--kraft-plain);
+  --stamp-good: var(--kraft-good); --stamp-bad: var(--kraft-bad); --stamp-warm: var(--kraft-warm); --stamp-plain: var(--kraft-plain);
+  --warn-text: var(--kraft-bad); --btn-x-fg: var(--kraft-bad); --btn-x-edge: var(--kraft-bad); --btn-off-fg: var(--kraft-sub);
+}
 
 /* GM console rows that sit on the wall become one paper strip */
 .gm-links { border-top: 0; background: var(--paper); box-shadow: var(--shadow); }
@@ -309,6 +330,10 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .app__main > .btn--ghost { color: var(--walltext); }
 .btn-icon { background: var(--paper); }
 .btn-icon:hover:not(:disabled) { background: var(--alt); }
+/* A secondary key laid over a photo or the wrap's coloured cards has no paper behind it, so it brings its own (disabled
+   ones too: a dashed rule alone would vanish into the photo). */
+.evidence__preview-actions .btn:not(.btn--primary), .wrap__controls .wrap__save { background: var(--manila); }
+.evidence__preview-actions .btn:not(.btn--primary):hover:not(:disabled), .wrap__controls .wrap__save:hover:not(:disabled) { background: var(--manila-tab); }
 .input, .textarea { background: #fbfaf7; font-family: var(--body); }
 .input[readonly] { background: var(--paper); }
 .field__label { font-family: var(--mono); letter-spacing: 1.5px; }
@@ -512,12 +537,14 @@ html .route-error__home { display: inline-flex; align-items: center; justify-con
 /* Stops: red-pen circles round the number, with a typed paper slip for the name. */
 .fqmapscreen .fqstopno {
   width: 30px; height: 30px; border: 2.5px solid #c4302b; border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%;
-  background: transparent; color: #c4302b; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
+  background: transparent; color: #9b2622; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
 }
 .fqmapscreen .fqpin--stop-now .fqstopno { background: rgba(196, 48, 43, 0.12); color: #a3201b; box-shadow: none; border-width: 3px; }
-.fqmapscreen .fqpin--stop-next .fqstopno { background: transparent; color: #c4302b; box-shadow: none; }
-.fqmapscreen .fqpin--stop-past .fqstopno { background: transparent; color: #8a6f5a; border-color: #8a6f5a; opacity: 0.8; }
+.fqmapscreen .fqpin--stop-next .fqstopno { background: transparent; color: #9b2622; box-shadow: none; }
+/* A stop you've left: a faded ring, its number still legible. */
+.fqmapscreen .fqpin--stop-past .fqstopno { background: transparent; color: #624f40; border-color: rgba(138, 111, 90, 0.8); }
 .fqmapscreen .fqpin--stop-hidden .fqstopno { border: 2px dashed var(--manila-sub); color: var(--manila-sub); }
+.fqmapscreen .fqpin--stop-hidden .fqpin__label { opacity: 0.85; }
 .fqmapscreen .fqpin--stop .fqpin__label, .fqmapscreen .fqpin--stop-now .fqpin__label, .fqmapscreen .fqpin--player .fqpin__label {
   background: var(--print); color: var(--manila-ink); border: 0; font-family: var(--mono); font-weight: 700; letter-spacing: 1px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
@@ -526,7 +553,7 @@ html .route-error__home { display: inline-flex; align-items: center; justify-con
 /* With no next stop on the map yet (players), a red-pen note by the current stop. */
 .fqmapscreen .leaflet-marker-pane:not(:has(.fqpin--stop-next)) .fqpin--stop-now::after {
   content: 'next? sealed'; position: absolute; left: calc(50% + 6px); bottom: calc(100% + 18px); width: 110px; padding: 0 0 12px 54px;
-  font-family: var(--mono); font-size: 12px; font-weight: 700; color: #c4302b; transform: rotate(-12deg); pointer-events: none;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; color: #9b2622; transform: rotate(-12deg); pointer-events: none;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 34'%3E%3Cpath d='M4 30 C 20 24, 40 14, 62 8' fill='none' stroke='%23c4302b' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M54 4 L 63 8 L 56 15' fill='none' stroke='%23c4302b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") left bottom / 80px 34px no-repeat;
 }
 /* Footprints in ink. */
@@ -586,7 +613,7 @@ html .route-error__home { display: inline-flex; align-items: center; justify-con
 /* The stop number as the map's red-pen circle. */
 .routerow .routerow__no.fqstopno {
   width: 30px; height: 30px; border: 2.5px solid #c4302b; border-radius: 52% 46% 55% 44% / 48% 54% 44% 56%;
-  background: transparent; color: #c4302b; box-shadow: none; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
+  background: transparent; color: var(--kraft-bad); box-shadow: none; font-family: var(--mono); font-weight: 700; font-size: 15px; transform: rotate(-8deg);
 }
 .routerow.is-hidden .routerow__no.fqstopno { border: 2px dashed var(--manila-sub); color: var(--manila-sub); }
 .routerow .btn-icon { background: transparent; border: 2px solid var(--manila-ink); color: var(--manila-ink); }

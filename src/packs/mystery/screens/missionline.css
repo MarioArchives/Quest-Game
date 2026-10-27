@@ -69,7 +69,8 @@
 .ml-foot.cf-btns { display: grid; }
 .ml-small { font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--manila-sub); }
 .ml-btn2 { flex-direction: column; gap: 1px; }
-.ml-btn2 small { font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.75; }
+.ml-btn2 small { font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px; color: var(--manila-sub); }
+.ml-btn2:active:not(:disabled) small { color: inherit; }
 .app__main .ml-tag :focus-visible { --ring: var(--manila-ink); }
 
 /* waiting on the witness */
@@ -117,7 +118,7 @@
 .ml-peg b { font-family: var(--display); font-size: 13px; font-weight: 400; line-height: 1; }
 .ml-peg__box { width: 9px; height: 9px; border: 1.5px solid currentColor; }
 .ml-peg--done, .ml-peg--exposed { background: var(--kraft-back); }
-.ml-peg--done b, .ml-peg--exposed b { color: var(--manila-sub); }
+.ml-peg--done b, .ml-peg--exposed b { color: var(--kraft-sub); }
 .ml-peg[aria-current] { height: 52px; background: var(--manila); box-shadow: inset 0 -3px 0 var(--manila-ink); }
 /* Inside the peg's shape, which would clip a ring drawn outside it. */
 .app__main .ml-peg:focus-visible { outline: 2px solid var(--manila-ink); outline-offset: -5px; }

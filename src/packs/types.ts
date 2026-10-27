@@ -149,6 +149,11 @@ export interface PackLook {
    * Draw it from the pack's mark data with `markArt(mark)` (components/MarkArt.tsx), the same data as `brand.boot`.
    */
   LoaderArt: ComponentType;
+  /**
+   * What the app bar says on the game's own screens (Home, the pack's feed, a hosted map) in place of the pack's name,
+   * e.g. something of the signed-in player's (it can read the session). The browser tab keeps the pack's name.
+   */
+  appTitle?: ComponentType;
   auth: AuthCopy;
   /**
    * Screens the pack replaces, loaded lazily; without them the engine's Home, Account and player pass are used.
