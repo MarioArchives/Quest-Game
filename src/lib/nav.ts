@@ -95,3 +95,34 @@ export interface SwipeNode {
 export function swipeBlocked(chain: readonly SwipeNode[]): boolean {
   return chain.some((n) => n.ownSwipe || n.scrollsX || n.field || n.slider || n.dialog);
 }
+
+/** Whether a touch has moved enough to tell: 'x' sideways (a page turn), 'y' up or down (a scroll), null not yet. */
+export function swipeLock({ dx, dy }: { dx: number; dy: number }): 'x' | 'y' | null {
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (ax > 10 && ax > 1.2 * ay) return 'x';
+  if (ay > 10) return 'y';
+  return null;
+}
+
+/** How far a page turn has gone (0–1) for a finger `dx` across a screen `width` wide; `dir` 1 going on, -1 going back. */
+export function turnProgress(dx: number, width: number, dir: 1 | -1): number {
+  if (!(width > 0)) return 0;
+  return Math.min(1, Math.max(0, (dir === 1 ? -dx : dx) / width));
+}
+
+/** Whether a page turn let go at `progress`, moving at `velocity` turns a second (positive towards finishing), finishes. */
+export function turnOutcome({ progress, velocity }: { progress: number; velocity: number }): 'commit' | 'cancel' {
+  if (velocity > 0.6) return 'commit';
+  if (velocity < -0.6) return 'cancel';
+  return progress >= 0.5 ? 'commit' : 'cancel';
+}
+
+/** Which way a tap from one tab to another turns: 1 on, -1 back, 0 for no turn. */
+export function tabStep(tabs: readonly TabId[], from: TabId | null, to: TabId): -1 | 0 | 1 {
+  if (from === null) return 0;
+  const a = tabs.indexOf(from);
+  const b = tabs.indexOf(to);
+  if (a < 0 || b < 0 || a === b) return 0;
+  return b > a ? 1 : -1;
+}

@@ -1,6 +1,20 @@
 // Engine plan edge cases 9-11 (app side): tabs and GM sections follow the pack's features.
 import { describe, expect, it } from 'vitest';
-import { gmSectionsFor, isTabSwipe, litTab, swipeBlocked, swipeTab, tabLabels, tabsFor, type SwipeNode, type TabId } from './nav';
+import {
+  gmSectionsFor,
+  isTabSwipe,
+  litTab,
+  swipeBlocked,
+  swipeLock,
+  swipeTab,
+  tabLabels,
+  tabStep,
+  tabsFor,
+  turnOutcome,
+  turnProgress,
+  type SwipeNode,
+  type TabId,
+} from './nav';
 
 const ALL_ON = { guesses: true, sideQuests: true, map: true };
 
@@ -156,5 +170,62 @@ describe('swiping between tabs (plan "swipe between tabs", edge cases S1–S3)',
   it.each(['ownSwipe', 'scrollsX', 'field', 'slider', 'dialog'] as const)('S3. one that starts in (or inside) something with %s is left alone', (key) => {
     expect(swipeBlocked([{ ...plain, [key]: true }])).toBe(true);
     expect(swipeBlocked([plain, plain, { ...plain, [key]: true }])).toBe(true);
+  });
+});
+
+describe('turning the page between tabs (plan "turn the page", edge cases 1–4)', () => {
+  it.each([
+    ['11 px across', { dx: 11, dy: 0 }, 'x'],
+    ['11 px the other way', { dx: -11, dy: 0 }, 'x'],
+    ['10 px across is still undecided', { dx: 10, dy: 0 }, null],
+    ['more than 1.2 times as far across as down', { dx: 13, dy: 10 }, 'x'],
+    ['exactly 1.2 times is not sideways (and 10 px down is still undecided)', { dx: 12, dy: 10 }, null],
+    ['11 px down', { dx: 0, dy: 11 }, 'y'],
+    ['11 px up', { dx: 3, dy: -11 }, 'y'],
+    ['down and across, not sideways enough', { dx: 13, dy: 11 }, 'y'],
+    ['well across, a little down', { dx: 30, dy: 11 }, 'x'],
+    ['nothing yet', { dx: 0, dy: 0 }, null],
+  ] as const)('1. swipeLock: %s', (_label, move, want) => {
+    expect(swipeLock(move)).toBe(want);
+  });
+
+  it('2. turnProgress: going on follows a finger moving left, going back one moving right', () => {
+    expect(turnProgress(-195, 390, 1)).toBeCloseTo(0.5);
+    expect(turnProgress(195, 390, -1)).toBeCloseTo(0.5);
+    expect(turnProgress(-39, 390, 1)).toBeCloseTo(0.1);
+  });
+
+  it('2. turnProgress: stays between 0 and 1, and is 0 on a screen with no width', () => {
+    expect(turnProgress(50, 390, 1)).toBe(0); // dragged back past where it started
+    expect(turnProgress(-50, 390, -1)).toBe(0);
+    expect(turnProgress(-500, 390, 1)).toBe(1);
+    expect(turnProgress(500, 390, -1)).toBe(1);
+    expect(turnProgress(-100, 0, 1)).toBe(0);
+  });
+
+  it.each([
+    ['a short flick on finishes it', { progress: 0.1, velocity: 0.61 }, 'commit'],
+    ['a flick back turns it back even past half', { progress: 0.9, velocity: -0.61 }, 'cancel'],
+    ['let go at half: it finishes', { progress: 0.5, velocity: 0 }, 'commit'],
+    ['let go just short of half: it turns back', { progress: 0.49, velocity: 0 }, 'cancel'],
+    ['0.6 a second is not a flick', { progress: 0.49, velocity: 0.6 }, 'cancel'],
+    ['nor is -0.6', { progress: 0.7, velocity: -0.6 }, 'commit'],
+  ] as const)('3. turnOutcome: %s', (_label, release, want) => {
+    expect(turnOutcome(release)).toBe(want);
+  });
+
+  const PLAYER: TabId[] = ['home', 'feed', 'account'];
+
+  it('4. tabStep: +1 to a later tab, -1 to an earlier one, in the bar\'s order', () => {
+    expect(tabStep(PLAYER, 'home', 'feed')).toBe(1);
+    expect(tabStep(PLAYER, 'home', 'account')).toBe(1);
+    expect(tabStep(PLAYER, 'account', 'home')).toBe(-1);
+    expect(tabStep(['home', 'feed', 'account', 'gm'], 'gm', 'feed')).toBe(-1);
+  });
+
+  it('4. tabStep: 0 for the same tab, or when either end is not in the bar', () => {
+    expect(tabStep(PLAYER, 'feed', 'feed')).toBe(0);
+    expect(tabStep(PLAYER, null, 'feed')).toBe(0);
+    expect(tabStep(PLAYER, 'home', 'gm')).toBe(0);
   });
 });

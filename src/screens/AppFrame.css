@@ -6,6 +6,8 @@
   min-height: 100dvh;
   margin: 0 auto;
   background: var(--paper);
+  /* A screen sliding in (a tab swipe) or a card flying off sideways never widens the page: on a phone that shifts it. */
+  overflow-x: clip;
 }
 @media (min-width: 481px) {
   .app { border-left: var(--line); border-right: var(--line); }
@@ -107,3 +109,59 @@
   border-radius: 50%;
 }
 .tabbar__tab.is-active .tabbar__dot { background: var(--card); border-color: var(--ink); }
+
+/* Sideways drags on a screen are ours (a tab swipe, see useTabSwipe); up/down scrolling and pinch stay the browser's. */
+.app__main { touch-action: pan-y pinch-zoom; }
+
+/*
+ * The page turn between tabs (a pack with brand.tabSwipe 'turn', see src/data/tabTurn.ts). It runs as a view transition
+ * whose animations are all off: the old screen is a snapshot (named tab-page-old), the new one live (tab-page-new), and
+ * --turn on <html> (0–1, written by the finger, a tap's tween or a spring) drives their look. The long animation on
+ * ::view-transition does nothing but keep the transition open until tabTurn.ts skips it. The bars cross-fade above the page.
+ */
+:root.tab-turning .app__main { background: var(--turn-paper); }
+:root.tab-turn-old .app__main { view-transition-name: tab-page-old; }
+:root.tab-turn-new .app__main { view-transition-name: tab-page-new; }
+:root.tab-turning .appbar { view-transition-name: tab-appbar; }
+:root.tab-turning .tabbar { view-transition-name: tab-tabbar; }
+
+:root.tab-turning::view-transition { animation: tab-turn-hold 60s linear; }
+@keyframes tab-turn-hold { from { opacity: 1; } to { opacity: 1; } }
+:root.tab-turning::view-transition-group(*),
+:root.tab-turning::view-transition-old(*),
+:root.tab-turning::view-transition-new(*) { animation: none; }
+
+/* Cross-fades that stay opaque halfway: the browser normally adds plus-lighter through the animations switched off above. */
+:root.tab-turning::view-transition-image-pair(root),
+:root.tab-turning::view-transition-image-pair(tab-appbar),
+:root.tab-turning::view-transition-image-pair(tab-tabbar) { isolation: isolate; }
+:root.tab-turning::view-transition-old(root),
+:root.tab-turning::view-transition-old(tab-appbar),
+:root.tab-turning::view-transition-old(tab-tabbar) { opacity: calc(1 - var(--turn)); mix-blend-mode: plus-lighter; }
+:root.tab-turning::view-transition-new(root),
+:root.tab-turning::view-transition-new(tab-appbar),
+:root.tab-turning::view-transition-new(tab-tabbar) { opacity: var(--turn); mix-blend-mode: plus-lighter; }
+:root.tab-turning::view-transition-group(tab-appbar),
+:root.tab-turning::view-transition-group(tab-tabbar) { z-index: 3; }
+:root.tab-turning::view-transition-old(tab-page-old),
+:root.tab-turning::view-transition-new(tab-page-new) { mix-blend-mode: normal; }
+
+/* Going on: the screen you leave turns over on its left edge, towards you; the next one lies underneath. */
+:root.tab-turn-fwd::view-transition-group(tab-page-old) { z-index: 2; }
+:root.tab-turn-fwd::view-transition-group(tab-page-new) { z-index: 1; }
+:root.tab-turn-fwd::view-transition-old(tab-page-old) {
+  transform-origin: 0 var(--turn-origin-old);
+  transform: perspective(2200px) rotateY(calc(var(--turn) * -90deg));
+  filter: brightness(calc(1 - 0.45 * var(--turn)));
+}
+:root.tab-turn-fwd::view-transition-new(tab-page-new) { filter: brightness(calc(0.45 + 0.55 * var(--turn))); }
+
+/* Going back: the previous screen comes down on top of the one you are on, which darkens. */
+:root.tab-turn-back::view-transition-group(tab-page-new) { z-index: 2; }
+:root.tab-turn-back::view-transition-group(tab-page-old) { z-index: 1; }
+:root.tab-turn-back::view-transition-new(tab-page-new) {
+  transform-origin: 0 var(--turn-origin-new);
+  transform: perspective(2200px) rotateY(calc((1 - var(--turn)) * -90deg));
+  filter: brightness(calc(1 - 0.45 * (1 - var(--turn))));
+}
+:root.tab-turn-back::view-transition-old(tab-page-old) { filter: brightness(calc(1 - 0.55 * var(--turn))); }

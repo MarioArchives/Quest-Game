@@ -33,6 +33,13 @@ describe('pack looks', () => {
     for (const c of avatar.tints) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
+  // Plan "turn the page", edge case 6: the mystery pack's tabs turn like pages; the other packs keep the slide.
+  it('mystery turns its tabs like pages; the other packs leave it to the engine (the slide)', () => {
+    expect(brands.mystery!.tabSwipe).toBe('turn');
+    expect(brands.lancaster!.tabSwipe).toBeUndefined();
+    expect(brands.starter!.tabSwipe).toBeUndefined();
+  });
+
   it('mystery: the charcoal wall for the browser chrome', () => {
     expect(brands.mystery).toMatchObject({ themeColor: '#3d4042' });
   });

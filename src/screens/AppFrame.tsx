@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useRef } from 'react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { Suspense, useEffect, useRef, type MouseEvent } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
 import { Icon, isIconName, type IconName } from '../components/Icon';
@@ -7,10 +7,11 @@ import { useClosePhotoViewer } from '../components/PhotoViewer';
 import { RewardSheetProvider } from '../components/RewardSheet';
 import look from '@pack';
 import { chipCountdown, spokenCountdown } from '../lib/countdown';
-import { litTab, tabLabels, tabsFor, type TabId } from '../lib/nav';
+import { litTab, tabLabels, tabStep, tabsFor, type TabId } from '../lib/nav';
 import { brand, features, pack, t } from '../pack';
 import { useGame } from '../data/GameProvider';
 import { useTabSwipe } from '../data/useTabSwipe';
+import { canTurn, startTurn, turning } from '../data/tabTurn';
 import { useOpening } from '../data/useOpening';
 import { useTabBadges } from '../data/useTabBadges';
 import { refreshPush } from '../data/usePush';
@@ -82,6 +83,7 @@ function Frame() {
   const { player, user, isAdmin } = useSession();
   const { state, me } = useGame();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const badges = useTabBadges(pathname, FEED_TAB);
   // The one place that opens the game at zero (see useOpening); a player's chip counts down to the start meanwhile.
   const opening = useOpening();
@@ -124,6 +126,18 @@ function Frame() {
   const tabs = tabsFor({ features, isAdmin, ended: state.status === 'ended', feed: FEED_TAB, ownMap: OWN_MAP }).map((id) => ({ ...TABS[id], id, dot: dots[id] }));
 
   useTabSwipe(mainRef, tabs, lit, pathname !== '/map');
+
+  // A tap on another tab turns the page too (in a pack that does), just without a finger.
+  const tapTab = (e: MouseEvent<HTMLAnchorElement>, tab: (typeof tabs)[number]) => {
+    if (brand.tabSwipe !== 'turn' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || !canTurn()) return;
+    const step = tabStep(tabs.map((x) => x.id), lit, tab.id);
+    if (step === 0) return;
+    e.preventDefault();
+    if (turning()) return; // mid-turn: the tap would pull the screen out from under it
+    const turn = startTurn({ to: tab.to, dir: step, navigate });
+    if (turn) void turn.play();
+    else navigate(tab.to);
+  };
 
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
   const photo = player?.photoURL ?? user?.photoURL ?? null;
@@ -175,6 +189,7 @@ function Frame() {
           <Link
             key={tab.to}
             to={tab.to}
+            onClick={(e) => tapTab(e, tab)}
             aria-label={tab.dot ? `${tab.label}, ${tab.dotLabel}` : undefined}
             className={`tabbar__tab${tab.id === lit ? ' is-active' : ''}`}
             aria-current={tab.id === lit ? 'page' : undefined}

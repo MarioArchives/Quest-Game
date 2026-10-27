@@ -59,6 +59,8 @@ export interface PackBrand {
   tabIcons?: Partial<Record<TabId, string>>;
   /** Player icons without a photo: the initial (default) or a silhouette, on a tint per player from `tints`. */
   avatar?: { placeholder: 'initial' | 'silhouette'; tints: string[] };
+  /** How the screen moves between bottom tabs: 'slide' (the engine's, on release) or 'turn' (a page turn that follows the finger). */
+  tabSwipe?: 'slide' | 'turn';
 }
 
 /** The sign-in family of screens: words that belong to the game, not the engine. */
