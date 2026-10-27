@@ -8,20 +8,23 @@ import { routeSeedStops } from '../route.ts';
 import { Stamp } from '../store/stamp.ts';
 import type { DocData } from '../store/types.ts';
 import type { Settings } from '../types.ts';
+import { voteStyleOf } from '../votes.ts';
 import { BOTS, hashString, particularsFor, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES } from './bots.ts';
 import { posterSvg } from './poster.ts';
 
 export interface DemoFile {
   path: string;
   contentType: string;
-  /** The file's text (demo posters are SVG). */
-  text: string;
+  /** The file's text (demo posters are SVG)… */
+  text?: string;
+  /** …or a demo clip or its still, by file name in demo/clips/ (the mock serves it from there; the seed uploads it). */
+  clip?: string;
 }
 
 export interface DemoGame {
   /** Documents to write, by path (only ones that don't exist yet should be written). */
   docs: Array<{ path: string; data: DocData }>;
-  /** Files to store (demo photo posters). */
+  /** Files to store (demo photo posters, and the video entries' clips and stills). */
   files: DemoFile[];
   /** The demo players' uids, display names first. */
   players: Array<{ uid: string; displayName: string }>;
@@ -36,7 +39,19 @@ export interface DemoOptions {
 
 export const DEMO_SIDE_QUEST = 'demo-side';
 const SIDE_QUEST = DEMO_SIDE_QUEST;
+/** A story mission that takes a video, when the pack has one: shown with its vote open. */
+export const DEMO_VIDEO_QUEST = 'demo-video';
+/** How long the demo's video vote stays open, in minutes. */
+const DEMO_VOTE_MIN = 180;
 const SVG = 'image/svg+xml';
+
+/** The video entries: who sent which clip (demo/clips/<clip>.mp4 and .jpg), with what caption. */
+const VIDEO_ENTRIES: Array<{ bot: number; clip: string; caption: string; minutesAgo: number }> = [
+  { bot: 0, clip: 'toast', caption: 'Half the party raised a glass with me at 11:02.', minutesAgo: 52 },
+  { bot: 1, clip: 'pour', caption: 'The barman was pouring my pint. Ask him.', minutesAgo: 41 },
+  { bot: 2, clip: 'karaoke', caption: 'Mid-chorus at 11:02. Fifty witnesses.', minutesAgo: 30 },
+  { bot: 3, clip: 'served', caption: 'She served me at the bar at 11:02 on the dot.', minutesAgo: 19 },
+];
 
 /** The demo's first stops are revealed and timed (minutes from "now"); later route stops stay hidden with no times. */
 const DEMO_ROUTE_TIMES: Array<{ startsMin: number; endsMin?: number }> = [
@@ -354,6 +369,67 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
       });
       pushPhoto(imagePath, thumbPath, side.title, bot.name);
     }
+  }
+
+  // A story mission that takes a video (a pack whose story has one), its vote open with the players' clips, so the demo
+  // shows video entries: looping on the vote's polaroids, with a player in the feed.
+  const videoStory = pack.features.sideQuests ? (pack.catalogue.story ?? []).find((q) => q.entry?.media === 'video' && q.kind !== 'announce') : undefined;
+  if (videoStory) {
+    entries.push([
+      `globalQuests/${DEMO_VIDEO_QUEST}`,
+      {
+        title: videoStory.title,
+        description: videoStory.description,
+        bonusPoints: videoStory.points ?? sidePoints,
+        source: 'story',
+        templateId: null,
+        startsAt: at(60),
+        endsAt: at(10),
+        status: 'voting',
+        // Open for hours rather than the usual window, so the vote is still there after a slow look round the demo.
+        votingEndsAt: Stamp.fromMillis(nowMs + Math.max(settings.voteWindowMin, DEMO_VOTE_MIN) * 60_000),
+        voteStyle: voteStyleOf({ voteStyle: settings.voteStyle }),
+        winnerUids: [],
+        winningSubmissionIds: [],
+        tally: null,
+        storyId: videoStory.id,
+        judging: videoStory.judging ?? 'vote',
+        skipPenalty: videoStory.penalty ?? settings.sideQuestSkipPenalty,
+        fastestBonus: videoStory.fastestBonus ?? 0,
+        entry: videoStory.entry,
+        ...(videoStory.votePoints != null ? { votePoints: videoStory.votePoints } : {}),
+        ...(videoStory.tieBonus != null ? { tieBonus: videoStory.tieBonus } : {}),
+        question: videoStory.question ?? null,
+        gmChecks: false,
+      },
+    ]);
+    pushPost('video-open', at(60), { type: 'global-open', text: `New ${T.sideQuest.one}: ${videoStory.title}`, uid: null, ref: DEMO_VIDEO_QUEST, questTitle: videoStory.title });
+    for (const { bot: index, clip, caption, minutesAgo } of VIDEO_ENTRIES) {
+      const bot = BOTS[index];
+      const subId = `${bot.uid}-video`;
+      const videoPath = `submissions/${bot.uid}/${subId}.mp4`;
+      const thumbPath = `submissions/${bot.uid}/${subId}_thumb.jpg`;
+      const postId = `entry-${subId}`;
+      const media = { imagePath: null, thumbPath, videoPath, caption };
+      // Revealed, as the vote opening made them: votable, with the clip on the entry's post.
+      entries.push([
+        `submissions/${subId}`,
+        { uid: bot.uid, kind: 'global', questId: DEMO_VIDEO_QUEST, createdAt: at(minutesAgo), status: 'approved', ...media, evidenceAt: at(minutesAgo), feedId: postId, processedAt: at(minutesAgo), pointsAwarded: 0, questTitle: videoStory.title },
+      ]);
+      pushPost(postId, at(minutesAgo), {
+        type: 'approved',
+        text: `${bot.name} entered the ${T.sideQuest.one} "${videoStory.title}"`,
+        uid: bot.uid,
+        ref: subId,
+        photoURL: null,
+        questTitle: videoStory.title,
+        submissionId: subId,
+        ...media,
+      });
+      files.push({ path: videoPath, contentType: 'video/mp4', clip: `${clip}.mp4` });
+      files.push({ path: thumbPath, contentType: 'image/jpeg', clip: `${clip}.jpg` });
+    }
+    pushPost('video-voting', at(10), { type: 'voting-open', text: `Voting is open: ${videoStory.title}`, uid: null, ref: DEMO_VIDEO_QUEST, questTitle: videoStory.title });
   }
 
   // Reactions only make sense on posts that exist; a typo in REACTIONS would silently drop them, so say so.

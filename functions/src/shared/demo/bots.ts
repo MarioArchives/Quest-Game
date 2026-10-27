@@ -94,9 +94,11 @@ export const REACTIONS: Record<string, Array<[string, string]>> = {
  * Only posts that take votes count (never the voter's own); some are left unvoted on purpose.
  */
 export const VOTES: Record<string, Array<[string, 1 | -1]>> = {
-  'approved-demo-maya-1': [['demo-sam', 1], ['demo-priya', 1], ['demo-jonah', -1]],
-  'approved-demo-sam-1': [['demo-maya', 1], ['demo-jonah', 1], ['demo-priya', 1]],
-  'approved-demo-priya-1': [['demo-maya', -1]],
+  // A witness's vote on what they confirmed is dropped (takesVote). Alex's votes give these three a verdict's worth
+  // (3), so the demo shows a credible and a doubtful verdict, and Maya paid for agreeing.
+  'approved-demo-maya-1': [['demo-sam', 1], ['demo-priya', 1], ['demo-jonah', -1], ['demo-alex', 1]],
+  'approved-demo-sam-1': [['demo-maya', 1], ['demo-jonah', 1], ['demo-priya', 1], ['demo-alex', 1]],
+  'approved-demo-priya-1': [['demo-maya', -1], ['demo-sam', -1], ['demo-alex', -1]],
   'entry-demo-maya-side': [['demo-priya', 1], ['demo-jonah', 1]],
   'entry-demo-sam-side': [['demo-maya', -1], ['demo-priya', 1]],
 };

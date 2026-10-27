@@ -14,6 +14,8 @@ export interface VotePost {
   down?: number;
   score?: number;
   votes?: Record<string, Vote>;
+  /** The entry's verdict, once settled (verdict points on). */
+  verdict?: { result: Vote | 0; agreed?: string[] } | null;
 }
 
 /** A vote you cast that the server hasn't shown back yet: null is a vote taken back. Keyed by post id. */
@@ -39,7 +41,26 @@ export function stampCounts(post: VotePost, uid: string, pending: Pending = {}):
   return { up: Math.max(0, up), down: Math.max(0, down), mine };
 }
 
-/** Entries of yours that others can vote on: they show "Yours · credible n · doubtful n" and no stamps. */
+/**
+ * Whether an entry's eye and heart counts are hidden from `uid`: while agreeing with the verdict pays and the game hasn't
+ * ended, until they've put their own on it or its verdict is in. Their own entries always show theirs.
+ */
+export function countsHidden(post: VotePost, uid: string, mine: Vote | null, opts: { verdictPoints: number; ended: boolean }): boolean {
+  if (opts.verdictPoints <= 0 || opts.ended || post.verdict) return false;
+  return mine === null && !isYours(post, uid);
+}
+
+/**
+ * An entry's verdict once it's in, for the line under it: which side won (the heart, the eye, or 0 for no verdict) and
+ * what it paid you (0 unless you were on that side).
+ */
+export function verdictFor(post: VotePost, uid: string, points: number): { result: Vote | 0; paid: number } | null {
+  const v = post.verdict;
+  if (!v) return null;
+  return { result: v.result, paid: v.result !== 0 && v.agreed?.includes(uid) && points > 0 ? points : 0 };
+}
+
+/** Entries of yours that others can vote on: they show "Yours" with their eye and heart counts, and no buttons. */
 export function isYours(post: VotePost, uid: string): boolean {
   return isVotableAbout({ type: post.type as never, uid: post.uid ?? null }) && (post.uid === uid || post.actorUid === uid);
 }

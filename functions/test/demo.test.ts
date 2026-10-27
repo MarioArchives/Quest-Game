@@ -1,7 +1,8 @@
 // Data-layer plan edge case 22 (the demo half): the demo game is plain data, the same every time for the same
 // inputs, and only includes what the pack has. The seed script and the mock backend both load it.
+import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildDemo } from '../src/shared/demo/index.js';
+import { buildDemo, DEMO_VIDEO_QUEST } from '../src/shared/demo/index.js';
 import { defaultSettingsFor, getPack } from '../src/shared/packs/index.js';
 import { Stamp } from '../src/shared/store/stamp.js';
 import { testPack } from './packs.js';
@@ -90,6 +91,29 @@ describe('buildDemo', () => {
       expect(files.get(p)!.contentType).toBe('image/svg+xml');
       expect(files.get(p)!.text).toContain('<svg');
     }
+  });
+
+  it("a pack with a video story mission gets it with its vote open: the players' clips revealed, each clip and still in demo/clips", () => {
+    const d = demo(getPack('mystery'));
+    const quest = d.docs.find((x) => x.path === `globalQuests/${DEMO_VIDEO_QUEST}`);
+    expect(quest?.data).toMatchObject({ status: 'voting', source: 'story', storyId: 's-alibi', entry: { media: 'video' }, gmChecks: false, voteStyle: 'yesno' });
+    // Open for three hours, so it outlasts a slow look round the demo (the usual window is 20 minutes).
+    expect((quest!.data.votingEndsAt as Stamp).toMillis() - NOW).toBe(180 * 60_000);
+    const entries = d.docs.filter((x) => /^submissions\/[^/]+$/.test(x.path) && x.data.questId === DEMO_VIDEO_QUEST);
+    expect(entries.map((e) => e.data.uid)).toEqual(['demo-maya', 'demo-sam', 'demo-priya', 'demo-jonah']);
+    const files = new Map(d.files.map((f) => [f.path, f]));
+    for (const e of entries) {
+      expect(e.data, e.path).toMatchObject({ status: 'approved', imagePath: null, videoPath: expect.stringMatching(/\.mp4$/) });
+      // Revealed: the clip is on the entry's post too, as the vote opening puts it there.
+      const post = d.docs.find((x) => x.path === `feed/${e.data.feedId}`)!;
+      expect(post.data.videoPath, e.path).toBe(e.data.videoPath);
+      for (const [path, type] of [[e.data.videoPath, 'video/mp4'], [e.data.thumbPath, 'image/jpeg']] as const) {
+        const file = files.get(path as string);
+        expect(file?.contentType, String(path)).toBe(type);
+        expect(existsSync(new URL(`../../demo/clips/${file!.clip}`, import.meta.url)), file!.clip).toBe(true);
+      }
+    }
+    expect(demo().docs.some((x) => x.path === `globalQuests/${DEMO_VIDEO_QUEST}`)).toBe(false);
   });
 
   it('with the map on, players have locations; with it off, none', () => {

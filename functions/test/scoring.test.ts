@@ -601,3 +601,27 @@ describe('the top of the log book (plan "+5 for the log book\'s top entry", edge
     expect(rows(id, { ...WITH, topEntryPoints: 0 })).not.toMatch(/Top of the log book/);
   });
 });
+
+describe('agreeing with the room (verdict points)', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  const WITH: Settings = { ...SETTINGS, verdictPoints: 1 };
+  const run = (rules: ScoringRules, e: ScoreEvent) => scoreEvent(rules, e, sctx(rules, { settings: WITH, startedAt: START, now: at(30) }));
+  const rows = (id: string, settings: Settings) => {
+    const rules = RULESETS[id]!;
+    return rules.describe(settings, resolveParams(rules, undefined), termForms(getPack('mystery').terms)).map(([l, v]) => `${l}: ${v}`).join('\n');
+  };
+
+  it.each(ids)('%s pays the points to that player, as a verdict line', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'verdictAgreed', uid: 'alice', points: 1 })).toEqual([pts('alice', 1, 'verdict')]);
+    expect(run(RULESETS[id]!, { kind: 'verdictAgreed', uid: 'alice', points: 0 })).toEqual([]);
+  });
+
+  it('names one player', () => {
+    expect(participants({ kind: 'verdictAgreed', uid: 'alice', points: 1 })).toEqual(['alice']);
+  });
+
+  it.each(ids)('%s lists it in the house rules only when it pays', (id) => {
+    expect(rows(id, WITH)).toMatch(/Agree with the room: \+1 when your eye or heart on an entry matches its verdict/);
+    expect(rows(id, { ...WITH, verdictPoints: 0 })).not.toMatch(/Agree with the room/);
+  });
+});

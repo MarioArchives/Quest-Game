@@ -3,8 +3,11 @@ import type { DemoFile } from '../../../functions/src/shared/demo/index.ts';
 import { BackendError } from '../errors';
 import type { FilesApi } from '../types';
 
+/** The demo clips and their stills (demo/clips/), as URLs the dev server or the mock build serves. */
+const CLIPS = import.meta.glob<string>('/demo/clips/*.{mp4,jpg}', { query: '?url', import: 'default', eager: true });
+
 export interface MockFiles extends FilesApi {
-  /** Stores a demo file (SVG text). */
+  /** Stores a demo file (SVG text, or one of the demo clips). */
   putDemo(file: DemoFile): void;
   /** Deletes every file whose path starts with one of the prefixes. */
   wipe(prefixes: string[]): void;
@@ -31,7 +34,12 @@ export function createMockFiles(): MockFiles {
       if (!file) throw new BackendError('files', 'storage/object-not-found', `No file at ${path}.`);
       return file.url;
     },
-    putDemo({ path, contentType, text }) {
+    putDemo({ path, contentType, text = '', clip }) {
+      if (clip) {
+        const url = CLIPS[`/demo/clips/${clip}`];
+        if (url) files.set(path, { contentType, url });
+        return;
+      }
       const base = contentType === 'image/svg+xml' ? `${contentType};charset=utf-8` : contentType;
       files.set(path, { contentType, url: `data:${base},${encodeURIComponent(text)}` });
     },

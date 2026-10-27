@@ -32,6 +32,8 @@ export type ScoreEvent =
   | { kind: 'policeFailed'; uid: string; penalty: number; missed: boolean }
   /** The player's own entry took the top of the log book: `points` for its player. */
   | { kind: 'topEntry'; uid: string; points: number }
+  /** The player's eye or heart on an entry matched its verdict: `points` (settings.verdictPoints). */
+  | { kind: 'verdictAgreed'; uid: string; points: number }
   /** Reward choice: the owner clears their name. */
   | { kind: 'rewardClean'; uid: string }
   /** Reward choice: the owner (`uid`) frames `target`. Only the target's points should change. */

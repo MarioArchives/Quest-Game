@@ -48,12 +48,16 @@ import './booking.css';
 type Step = 'cleared' | 'room' | 'particulars' | 'letter' | 'prints' | 'booked' | 'photo' | 'number' | 'call' | 'open';
 
 const RELATIONS = pack.booking?.relations ?? [];
-/** The step tabs; the letter counts as the start of the prints, the test call (last of all) with the booking. */
+/** The step tabs; the letter counts as the start of the prints, the file and the photographer's room as the mugshot, and
+ * the police's card as the start of the test call. */
 const STEPS: { id: Step; label: string }[] = [
   { id: 'particulars', label: 'Particulars' },
   { id: 'prints', label: 'Prints' },
-  { id: 'booked', label: 'Booked' },
+  { id: 'booked', label: 'Mugshot' },
+  { id: 'call', label: 'Test call' },
 ];
+/** Which tab a step lights. */
+const TAB_OF: Partial<Record<Step, Step>> = { letter: 'prints', photo: 'booked', number: 'call' };
 /** Where a reload carries on from: any desk, never the middle of a scene (the photographer's leads back to the file). */
 const RESUME: Partial<Record<string, Step>> = {
   particulars: 'particulars',
@@ -217,7 +221,6 @@ export default function Booking() {
         name={settings.policeCallerName.trim() || 'Police'}
         username={telegramName}
         number={telegramNumber}
-        hello={`Reporting for duty. ${name}, case ${caseNumber(uid)}.`}
         mobile={who.phone.trim() ? showUkNumber(cleanUkNumber(who.phone)) : null}
         onDone={() => setStep('call')}
       />
@@ -291,9 +294,9 @@ export default function Booking() {
   );
 }
 
-/** The three steps as file tabs: done ones ticked, this one lifted out in manila. */
+/** The steps as file tabs: done ones ticked, this one lifted out in manila. */
 function Steps({ step }: { step: Step }) {
-  const at = STEPS.findIndex((s) => s.id === (step === 'letter' ? 'prints' : step === 'call' || step === 'number' ? 'booked' : step));
+  const at = STEPS.findIndex((s) => s.id === (TAB_OF[step] ?? step));
   return (
     <ol className="bk-steps" aria-label="Booking steps">
       {STEPS.map((s, i) => (
@@ -915,12 +918,7 @@ function BookedFile({
               <Mugshot label={name} number={number} photo={photo} />
             ) : (
               <button type="button" className="bk-mug-slot" onClick={onPhoto}>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="2.5" y="5" width="15" height="15" rx="1.5" />
-                  <circle cx="7.4" cy="10" r="1.6" />
-                  <path d="M3 18l4.4-4.4 3.4 3.4 2.6-2.6 4.1 4.1M20 2v6M17 5h6" />
-                </svg>
-                Insert photo
+                [paste photo here]
               </button>
             )}
             <dl className="bk-facts">

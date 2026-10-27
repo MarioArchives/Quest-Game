@@ -64,20 +64,13 @@
 .vt-pol__photo.is-words { background: var(--manila-sub); }
 .vt-pol__img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .vt-pol__video { width: 100%; height: 100%; display: flex; }
-.vt-pol__video .entry-video { width: 100%; height: 100%; object-fit: contain; }
+.vt-pol__video .entry-video { width: 100%; height: 100%; object-fit: cover; }
 .vt-pol__none { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; color: var(--vt-photo-sub); }
 .vt-pol__words { padding: 12px 18px; font-family: var(--hand); font-size: 30px; line-height: 1.1; color: var(--vt-photo-ink); overflow-wrap: anywhere; max-height: 100%; overflow: hidden; }
 .vt-pol__cap { margin: 10px 2px 0; flex: none; max-height: 3.3em; overflow: hidden; font-family: var(--hand); font-size: 25px; line-height: 1.1; color: var(--manila-ink); overflow-wrap: anywhere; }
 .vt-pol__tagged { margin: 2px 2px 0; flex: none; font-family: var(--mono); font-size: 11px; color: var(--manila-sub); }
 .vt-pol__foot { flex: none; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .vt-pol__by { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--manila-sub); overflow-wrap: anywhere; }
-.vt-react { height: 44px; min-width: 64px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 2px solid var(--manila-ink); border-radius: 22px; background: transparent; color: var(--manila-ink); }
-.vt-react svg { width: 18px; height: 18px; }
-.vt-react span { font-family: var(--mono); font-size: 14px; font-weight: 700; }
-.vt-react:disabled { opacity: 0.45; }
-.vt-react--eye[aria-pressed='true'] { background: var(--manila-ink); color: var(--manila); }
-.vt-react--heart[aria-pressed='true'] { border-color: var(--warn); background: var(--warn); color: var(--on-ink); }
-.vt-react--heart svg.is-filled { fill: currentColor; }
 
 /* ---- the cork board ---- */
 .vt-boardwrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 12px; }

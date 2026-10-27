@@ -30,6 +30,8 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
       return [{ kind: 'points', uid: event.uid, delta: s.cleanPoints, reason: 'cleared' }];
     case 'topEntry':
       return [{ kind: 'points', uid: event.uid, delta: event.points, reason: 'top-entry' }];
+    case 'verdictAgreed':
+      return [{ kind: 'points', uid: event.uid, delta: event.points, reason: 'verdict' }];
     case 'rewardFrame':
       return [{ kind: 'points', uid: event.target, delta: -s.framePoints, reason: 'framed' }];
     case 'checkinMissed':
@@ -72,6 +74,9 @@ export function sharedRows(s: Settings, t: TermForms, features: Features = ALL_O
         ]
       : []),
     ...(s.topEntryPoints > 0 ? [[`Top of the ${t.feed.one}`, `+${s.topEntryPoints} while your entry holds it`] as [string, string]] : []),
+    ...(s.verdictPoints > 0
+      ? [['Agree with the room', `+${s.verdictPoints} when your eye or heart on an entry matches its verdict`] as [string, string]]
+      : []),
     ['Overruled as fraud', `${t.gm.One} takes the points back, plus a ${s.fraudPenalty} fine`],
   ];
 }

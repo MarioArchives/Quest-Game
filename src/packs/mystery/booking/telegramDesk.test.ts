@@ -1,44 +1,39 @@
-// The booking desk with the police on Telegram (plan "Police check-ins over Telegram", edge case 16): the test call is
-// compulsory. The Telegram card never offers the app; its only way on is the test call, and only a test call that
-// fails (or a server with no line at all) offers the police in the app.
+// The booking desk's test call: short words, and a foot with Change my number and Skip until the call is through.
 import { describe, expect, it } from 'vitest';
-import { offersApp, telegramFoot, testCallWords, type DeskCall } from './telegramDesk';
+import { showsFoot, testCallWords, type DeskCall } from './telegramDesk';
 
-describe('telegramFoot', () => {
-  it('has no way on until they say whether they have Telegram, nor while they are getting it', () => {
-    expect(telegramFoot(null, false)).toBeNull();
-    expect(telegramFoot('no', false)).toBeNull();
-  });
-
-  it('then leads to the test call, ready once they have said hello', () => {
-    expect(telegramFoot('yes', false)).toMatchObject({ ready: false });
-    expect(telegramFoot('yes', true)).toMatchObject({ ready: true });
-    expect(telegramFoot('yes', true)!.label).toMatch(/test call/i);
-  });
-
-  it('never offers the app', () => {
-    for (const have of [null, 'yes', 'no'] as const) {
-      for (const said of [false, true]) expect(telegramFoot(have, said)?.label ?? '').not.toMatch(/app/i);
-    }
-  });
-});
-
-describe('offersApp', () => {
-  it('offers the police in the app only after the test call fails, or with no line on the server', () => {
+describe('showsFoot', () => {
+  it('offers Change my number and Skip until the test call is through (with no line at all it just carries on)', () => {
     const calls: DeskCall[] = ['dialling', 'ringing', 'keying', 'answered', 'missed', 'off'];
-    expect(calls.filter(offersApp)).toEqual(['missed', 'off']);
+    expect(calls.filter(showsFoot)).toEqual(['dialling', 'ringing', 'keying', 'missed']);
   });
 });
 
 describe('testCallWords', () => {
-  it('words the test call for Telegram: ringing there, a code to reply with in the chat', () => {
+  it('words the test call for Telegram: we ring, answer there, reply with the 3-digit code', () => {
     const words = testCallWords('telegram');
+    expect(words.note).toMatch(/ring you/i);
     expect(words.note).toMatch(/Telegram/);
+    expect(words.note).toMatch(/3\u2011digit code/); // a non-breaking hyphen keeps "3-digit" on one line
     expect(words.ringing).toMatch(/Telegram/);
     expect(words.keying).toMatch(/reply|chat/i);
     expect(words.keying).not.toMatch(/key in/i);
     expect(words.dialling('07700 900123')).toMatch(/Telegram/);
-    expect(words.missedHint).toMatch(/Telegram/);
+  });
+
+  it('after any miss on Telegram, says to have Telegram downloaded with calls allowed', () => {
+    const words = testCallWords('telegram');
+    expect(words.missedHint).toMatch(/Telegram is downloaded/);
+    expect(words.missedHint).toMatch(/calls are allowed/);
+    expect(words.hintAlways).toBe(true);
+  });
+
+  it('keeps it short: the note is one or two sentences', () => {
+    for (const via of ['telegram', 'phone'] as const) {
+      const note = testCallWords(via).note;
+      expect(note.length).toBeLessThanOrEqual(80);
+      expect(note.split(/[.!?](\s|$)/).filter((s) => s && s.trim()).length).toBeLessThanOrEqual(2);
+    }
   });
 
   it('keeps the keypad words for a phone line', () => {
@@ -46,5 +41,6 @@ describe('testCallWords', () => {
     expect(words.keying).toMatch(/key in/i);
     expect(words.note).not.toMatch(/Telegram/);
     expect(words.dialling('07700 900123')).toContain('07700 900123');
+    expect(words.hintAlways).toBe(false);
   });
 });

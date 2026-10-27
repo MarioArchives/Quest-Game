@@ -252,6 +252,15 @@ describe("the mystery pack's police", () => {
     expect(JSON.stringify(voice)).not.toMatch(/Greater Manchester Police/);
   });
 
+  it('opens every call with "This is {caller}." and a failed test says to refresh the case page and try again', () => {
+    for (const key of ['intro-tip', 'intro-watch', 'test-intro']) {
+      for (const line of all(key)) expect(line.startsWith('This is {caller}.')).toBe(true);
+    }
+    const say = voiceScript(mystery, { policeCallerName: 'Manchester Metropolitan Police' }, { seed: 'call-1' });
+    expect(say('intro-watch', 'Sam').text.startsWith('This is Manchester Metropolitan Police.')).toBe(true);
+    expect(say('test-fail').text).toBe('Refresh the case page and try again.');
+  });
+
   it('is a valid pack, with case updates on', () => {
     expect(validatePack(mystery)).toEqual([]);
     expect(mystery.settings?.policeNotices).toBe(true);

@@ -45,6 +45,14 @@ export interface Settings {
   /** Reward choice (packs with rewardChoice): points to yourself for "clean". */
   /** Points to a player while their own entry is on top of the log book (votes packs); 0 = none. */
   topEntryPoints: number;
+  /**
+   * Votes packs: points to each player whose eye or heart on an entry matches its verdict, the side with more votes
+   * (`verdictWindowMin` after the entry was posted, with at least `verdictMinVotes` votes; a tie has none). 0 = off;
+   * while it's on, an entry's counts stay hidden from a player until they vote on it or its verdict is in.
+   */
+  verdictPoints: number;
+  verdictWindowMin: number;
+  verdictMinVotes: number;
   cleanPoints: number;
   /** Reward choice: points taken from the player you frame. */
   framePoints: number;
@@ -528,9 +536,23 @@ export const LEDGER_REASON_LIST = [
   'police-missed',
   'top-entry',
   'top-entry-lost',
+  'verdict',
 ] as const;
 
 export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
+
+/**
+ * An entry's verdict, settled once `verdictWindowMin` after it was posted: 1 credible (more hearts), -1 doubtful (more
+ * eyes), 0 none (a tie, or fewer than `verdictMinVotes` votes). `up` and `down` are the counts it was settled on.
+ */
+export interface FeedVerdict {
+  result: 1 | -1 | 0;
+  up: number;
+  down: number;
+  /** The players it paid: on the verdict's side and still in the game. */
+  agreed: string[];
+  at: TS;
+}
 
 /** pointsLedger/{id} */
 export interface LedgerEntry {
@@ -850,6 +872,8 @@ export interface FeedItem {
   down?: number;
   score?: number;
   votes?: Record<string, 1 | -1>;
+  /** Votes packs with verdict points: the entry's verdict once settled (see Settings.verdictPoints). */
+  verdict?: FeedVerdict;
   /** A 'standing' post: the standing the player now has (null: they lost it). Missing on posts from before. */
   standing?: PlayerStanding | null;
   /** A video entry's file, once revealed. */

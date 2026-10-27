@@ -27,6 +27,7 @@ import { simulatedLine } from './game/simulatedLine.js';
 import { handleTelegramLine, telegramLine as makeTelegramLine } from './game/telegramLine.js';
 import { renderTwiml, voiceOf } from './game/voice.js';
 import { runStandings } from './game/standing.js';
+import { runVerdicts } from './game/verdicts.js';
 import { deliverPush } from './game/notices.js';
 import { makeSender, type PushSender } from './game/push.js';
 import { TRIGGERS, type TriggerDef, type TriggerEnv } from './game/triggers.js';
@@ -182,6 +183,7 @@ export const globalQuestTick = onSchedule({ schedule: 'every 5 minutes', timeZon
   await runStandings(db, new Date(), PACK);
   await runPolice(db, new Date(), Math.random, PACK);
   await runSwitchboard(db, new Date(), PACK, phoneLine());
+  await runVerdicts(db, new Date(), PACK);
 });
 
 // Twilio's webhook for the police phone calls: what to say, the keypad answer and every status change. Twilio signs
@@ -230,7 +232,8 @@ export const devTick =
           const standings = await runStandings(db, new Date(), PACK);
           const police = await runPolice(db, new Date(), Math.random, PACK);
           const switchboard = await runSwitchboard(db, new Date(), PACK, phoneLine());
-          res.json({ opening, ...sideQuests, checkins, standings, police, switchboard });
+          const verdicts = await runVerdicts(db, new Date(), PACK);
+          res.json({ opening, ...sideQuests, checkins, standings, police, switchboard, verdicts });
         } catch (err) {
           logger.error('devTick failed', err);
           res.status(500).json({ error: err instanceof Error ? err.message : String(err) });

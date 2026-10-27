@@ -23,6 +23,9 @@ export type NumKey =
   | 'guessLimit'
   | 'sideQuestSkipPenalty'
   | 'topEntryPoints'
+  | 'verdictPoints'
+  | 'verdictWindowMin'
+  | 'verdictMinVotes'
   | 'cleanPoints'
   | 'framePoints'
   | 'policeEveryMin'
@@ -55,6 +58,9 @@ export const LIMITS: Record<NumKey, [min: number, max: number]> = {
   voteWindowMin: [1, 180],
   sideQuestSkipPenalty: [0, 10000],
   topEntryPoints: [0, 100],
+  verdictPoints: [0, 100],
+  verdictWindowMin: [5, 240],
+  verdictMinVotes: [1, 50],
   cleanPoints: [0, 10000],
   framePoints: [0, 10000],
   policeEveryMin: [1, 1440],
@@ -224,6 +230,9 @@ export function toSettings(form: SettingsForm): Settings {
     guessLimit: n('guessLimit'),
     sideQuestSkipPenalty: n('sideQuestSkipPenalty'),
     topEntryPoints: n('topEntryPoints'),
+    verdictPoints: n('verdictPoints'),
+    verdictWindowMin: n('verdictWindowMin'),
+    verdictMinVotes: n('verdictMinVotes'),
     cleanPoints: n('cleanPoints'),
     framePoints: n('framePoints'),
     refillOnComplete: form.flags.refillOnComplete,

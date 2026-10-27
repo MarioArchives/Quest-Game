@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   catchUpOrder,
+  countsHidden,
+  verdictFor,
   entryTitle,
   isYours,
   nextVote,
@@ -138,5 +140,34 @@ describe('the top card', () => {
   it('words the card underneath once it changed hands', () => {
     expect(underLine('The corkscrew', 3, '22:40', '23:19')).toBe('The corkscrew · +3 · 22:40–23:19');
     expect(underLine('The corkscrew', null, '22:40', null)).toBe('The corkscrew · from 22:40');
+  });
+});
+
+describe('counts hidden until you vote, and the verdict', () => {
+  const post = { id: 'p', type: 'approved', uid: 'sam', up: 2, down: 1, votes: { priya: 1, jonah: 1, alex: -1 } as Record<string, 1 | -1> };
+  const on = { verdictPoints: 1, ended: false };
+
+  it('hides the counts from a player who has not voted, while verdicts pay and the game runs', () => {
+    expect(countsHidden(post, 'maya', null, on)).toBe(true);
+    expect(countsHidden(post, 'maya', 1, on)).toBe(false);
+    expect(countsHidden(post, 'maya', -1, on)).toBe(false);
+  });
+
+  it('never hides your own entry, a settled one, or anything with verdicts off or the game over', () => {
+    expect(countsHidden(post, 'sam', null, on)).toBe(false);
+    expect(countsHidden({ ...post, verdict: { result: 1, agreed: [] } }, 'maya', null, on)).toBe(false);
+    expect(countsHidden(post, 'maya', null, { ...on, verdictPoints: 0 })).toBe(false);
+    expect(countsHidden(post, 'maya', null, { ...on, ended: true })).toBe(false);
+  });
+
+  it('gives the verdict once it is in (the heart, the eye, or none) and what it paid you', () => {
+    expect(verdictFor(post, 'priya', 1)).toBeNull();
+    const settled = { ...post, verdict: { result: 1 as const, agreed: ['jonah', 'priya'] } };
+    expect(verdictFor(settled, 'priya', 1)).toEqual({ result: 1, paid: 1 });
+    expect(verdictFor(settled, 'alex', 1)).toEqual({ result: 1, paid: 0 });
+    expect(verdictFor({ ...post, verdict: { result: -1, agreed: ['alex'] } }, 'alex', 2)).toEqual({ result: -1, paid: 2 });
+    expect(verdictFor({ ...post, verdict: { result: 0, agreed: [] } }, 'priya', 1)).toEqual({ result: 0, paid: 0 });
+    // verdict points switched off since: it says what won, and pays nothing
+    expect(verdictFor(settled, 'priya', 0)).toEqual({ result: 1, paid: 0 });
   });
 });

@@ -18,12 +18,13 @@
 // (set by `firebase emulators:exec`) and otherwise uses the firebase.json dev ports. --prod signs in with
 // Application Default Credentials (`gcloud auth application-default login`).
 
+import { readFile } from 'node:fs/promises';
 import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 // Node 24 strips the types, so the pack and its defaults are shared with the functions.
 import { defaultSettingsFor, getPack } from '../functions/src/shared/packs/index.ts';
-import { buildDemo, DEMO_SIDE_QUEST } from '../functions/src/shared/demo/index.ts';
+import { buildDemo, DEMO_SIDE_QUEST, DEMO_VIDEO_QUEST } from '../functions/src/shared/demo/index.ts';
 import { planPeriodics, planRoute, planSettings, planState, resolvePackId } from './lib/seed-plan.mjs';
 import { toFirestore } from './lib/stamps.mjs';
 import { explainCredentials, selectTarget } from './lib/target.mjs';
@@ -216,11 +217,13 @@ async function seedPeriodics() {
 
 // ---------------------------------------------------------------- demo data
 
-async function uploadPoster({ path, contentType, text }) {
+/** A demo file: a poster's SVG text, or a clip or still from demo/clips/. */
+async function uploadDemoFile({ path, contentType, text, clip }) {
+  const body = clip ? await readFile(new URL(`../demo/clips/${clip}`, import.meta.url)) : Buffer.from(text);
   await getStorage()
     .bucket(BUCKET)
     .file(path)
-    .save(Buffer.from(text), {
+    .save(body, {
       contentType,
       resumable: false,
       metadata: { cacheControl: CACHE_CONTROL },
@@ -239,9 +242,11 @@ async function resetDemo() {
     const snap = await db.collection(col).where('uid', 'in', uids).get();
     for (const doc of snap.docs) await db.recursiveDelete(doc.ref); // feed posts take their reactions with them
   }
-  const sideFeed = await db.collection('feed').where('ref', '==', DEMO_SIDE_QUEST).get();
-  for (const doc of sideFeed.docs) await db.recursiveDelete(doc.ref);
-  await db.recursiveDelete(db.doc(`globalQuests/${DEMO_SIDE_QUEST}`));
+  for (const quest of [DEMO_SIDE_QUEST, DEMO_VIDEO_QUEST]) {
+    const questFeed = await db.collection('feed').where('ref', '==', quest).get();
+    for (const doc of questFeed.docs) await db.recursiveDelete(doc.ref);
+    await db.recursiveDelete(db.doc(`globalQuests/${quest}`));
+  }
   await db.doc('game/top').delete(); // the pinned log-book entry (votes packs) points at a demo post
   for (const d of buildDemo({ pack: PACK, settings: DEFAULT_SETTINGS, nowMs: Date.now() }).docs) {
     if (d.path.startsWith('stops/')) await db.doc(d.path).delete();
@@ -268,8 +273,8 @@ async function seedDemo(settings) {
     await batch.commit();
   }
 
-  // Poster images are deterministic, so re-uploading just overwrites the same objects.
-  for (const f of demo.files) await uploadPoster(f);
+  // Posters and clips are deterministic, so re-uploading just overwrites the same objects.
+  for (const f of demo.files) await uploadDemoFile(f);
 
   const summary = [];
   const players = demo.docs.filter((d) => /^players\/[^/]+$/.test(d.path));
@@ -317,7 +322,7 @@ async function main() {
     console.log(`  demo players    uploading photos to ${BUCKET} (Storage ${process.env.FIREBASE_STORAGE_EMULATOR_HOST})`);
     const settings = { ...DEFAULT_SETTINGS, ...((await db.doc('game/settings').get()).data() ?? {}) };
     const d = await seedDemo(settings);
-    console.log(`  demo players    ${d.created} docs created, ${d.skipped} already there, ${d.photos} photos uploaded`);
+    console.log(`  demo players    ${d.created} docs created, ${d.skipped} already there, ${d.photos} photos and clips uploaded`);
     for (const line of d.summary) console.log(`                  - ${line}`);
   }
 

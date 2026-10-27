@@ -1,2 +1,4 @@
 .entry-video { display: block; width: 100%; max-height: 360px; background: var(--black); border: var(--line); }
+/* Just the clip: it fills the frame it's in, and taps go through it to the card underneath. */
+.entry-video--loop { max-height: none; border: 0; object-fit: cover; pointer-events: none; }
 .entry-tagged { margin: 4px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); }

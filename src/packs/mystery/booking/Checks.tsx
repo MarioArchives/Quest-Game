@@ -6,7 +6,7 @@ import { friendlyError, testPoliceLine, toApiError } from '../../../api';
 import { Loader } from '../../../components/Loader';
 import { describeTestResult, type PhoneTestResult, type PlayerPhone } from '../../../shared';
 import { buzz, lessMotion } from './feel';
-import { offersApp, testCallWords, type DeskCall } from './telegramDesk';
+import { showsFoot, testCallWords, type DeskCall } from './telegramDesk';
 import { Stamp } from './parts';
 import { cleanUkNumber, isUkMobile, showUkNumber, typedCountryCode } from './suspect';
 
@@ -65,9 +65,10 @@ const sentence = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
 
 /**
  * The last check: with the police's number saved, the police ring the mobile they gave (testPoliceLine), to be sure
- * they can be reached. Dialling, ringing (pick up, key in the code read out), then answered and on; or a miss, with the
- * reason, and a choice of ringing again, fixing the number right here, or carrying on with the police in the app.
- * Where phone calls aren't set up on the server at all, it says so and carries on.
+ * they can be reached. Dialling, ringing (pick up, give back the code read out), then answered and on; or a miss, with
+ * the reason, what to check and Ring me again. Until it's through, the foot has Change my number (fixed right here) on
+ * the left and Skip (the police then reach them in the app) on the right. Where phone calls aren't set up on the server
+ * at all, it says so and carries on.
  */
 export function TestCall({
   line,
@@ -154,8 +155,8 @@ export function TestCall({
           : call === 'answered'
             ? words.answered
             : call === 'off'
-              ? `${via === 'telegram' ? 'The Telegram line' : 'Phone calls'} isn’t set up yet, so the police will reach you in the app for now.`
-              : `${sentence(why ?? 'No answer')}${theirs ? words.missedHint : ''}`;
+              ? 'The police will reach you in the app for now.'
+              : `${sentence(why ?? 'No answer')}${theirs || words.hintAlways ? ` ${words.missedHint}` : ''}`;
 
   return (
     <section className="bk-call" aria-labelledby="bk-call-title">
@@ -163,9 +164,7 @@ export function TestCall({
         A test call
       </h1>
       <p className="bk-call__note">
-        {call === 'off'
-          ? 'One last thing: we’d ring you to be sure we can reach you, but the lines aren’t connected yet.'
-          : words.note}
+        {call === 'off' ? 'The lines aren’t connected yet.' : words.note}
       </p>
 
       <div className={`bk-call__panel is-${call === 'keying' ? 'ringing' : call}`}>
@@ -204,25 +203,21 @@ export function TestCall({
           Carry on <span aria-hidden="true">→</span>
         </button>
       ) : call === 'missed' ? (
-        <div className="bk-call__retry">
-          <button type="button" className="bk-go" disabled={busy} aria-busy={busy || undefined} onClick={() => void ring()}>
-            {busy ? <Loader size={24} label="Ringing you" /> : null}
-            Ring me again
-          </button>
-          <button type="button" className="bk-back bk-back--center" onClick={() => setEditing(true)}>
+        <button type="button" className="bk-go" disabled={busy} aria-busy={busy || undefined} onClick={() => void ring()}>
+          {busy ? <Loader size={24} label="Ringing you" /> : null}
+          Ring me again
+        </button>
+      ) : null}
+      {!editing && showsFoot(call) ? (
+        <div className="bk-call__foot">
+          <button type="button" className="bk-back" onClick={() => setEditing(true)}>
             Change my number
           </button>
-          {offersApp(call) ? (
-            <button type="button" className="bk-back bk-back--center" onClick={onSkip}>
-              Carry on: the police can reach me in the app
-            </button>
-          ) : null}
+          <button type="button" className="bk-back" onClick={onSkip}>
+            Skip
+          </button>
         </div>
-      ) : (
-        <button type="button" className="bk-back bk-back--center" onClick={() => setEditing(true)}>
-          Wrong number? Change it
-        </button>
-      )}
+      ) : null}
     </section>
   );
 }

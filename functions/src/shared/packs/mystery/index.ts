@@ -38,6 +38,8 @@ export const mystery: GamePack = {
     guessLimit: 3,
     sideQuestSkipPenalty: 5,
     topEntryPoints: 5,
+    // +1 for every eye or heart that matches an entry's verdict, half an hour after it's posted (counts hidden till you vote).
+    verdictPoints: 1,
     cleanPoints: 5,
     framePoints: 5,
     pointsFloorZero: false,
@@ -77,15 +79,16 @@ export const mystery: GamePack = {
       { name: 'Police Constable Gareth Openshaw', telegramVoice: 'en-GB-ThomasNeural' },
     ],
     lines: {
+      // Every call opens the same way: "This is Manchester Metropolitan Police." (the test call too).
       'intro-tip': [
-        'Good evening, {name}. This is {officer} of the {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded.',
-        'Evening, {name}. {officer} here, {caller}, Major Incident Team. I am calling about Operation Last Orders, the death of Bob. This call is being recorded.',
-        "{name}? Good. This is {officer}, {caller}, Major Incident Team, working Operation Last Orders, the death of Bob. I'm recording this call.",
+        'This is {caller}. Good evening, {name}. I am {officer} of the Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded.',
+        'This is {caller}. Evening, {name}. {officer} here, Major Incident Team. I am calling about Operation Last Orders, the death of Bob. This call is being recorded.',
+        "This is {caller}. {name}? Good. I'm {officer}, Major Incident Team, working Operation Last Orders, the death of Bob. I'm recording this call.",
       ],
       'intro-watch': [
-        'Good evening, {name}. This is {officer} of the {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
-        'Evening, {name}. {officer} here, {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
-        "{name}? This is {officer}, {caller}, Major Incident Team. Operation Last Orders, the death of Bob. I'm recording this call, and you are on our watch list tonight.",
+        'This is {caller}. Good evening, {name}. I am {officer} of the Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
+        'This is {caller}. Evening, {name}. {officer} here, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
+        "This is {caller}. {name}? I'm {officer}, Major Incident Team. Operation Last Orders, the death of Bob. I'm recording this call, and you are on our watch list tonight.",
       ],
       accused: [
         'We have been tipped off that you have been {accusation}.',
@@ -114,9 +117,9 @@ export const mystery: GamePack = {
       ],
       closed: 'This check-in is closed. Goodbye.',
       moved: "The line's bad, so your check-in is waiting in the app. Goodbye.",
-      'test-intro': '{caller}, testing your line. Your code is',
+      'test-intro': 'This is {caller}. Testing your line. Your code is',
       'test-pass': "Got it. We'll be in touch. Goodbye.",
-      'test-fail': "That's not the code. Try again from the app. Goodbye.",
+      'test-fail': 'Refresh the case page and try again.',
     },
     chatLines: {
       ask: ['Can you answer in the chat: {question}', 'Reply in the chat with your answer: {question}'],

@@ -64,6 +64,17 @@ describe('the settings form', () => {
     expect(toSettings({ ...form, numbers: { ...form.numbers, topEntryPoints: '3' } as never }).topEntryPoints).toBe(3);
   });
 
+  it('carries the verdict points, the window and the votes a verdict needs, within their ranges', () => {
+    const form = fromSettings(defaultSettingsFor(getPack('mystery')));
+    const numbers = form.numbers as Record<string, string>;
+    expect([numbers.verdictPoints, numbers.verdictWindowMin, numbers.verdictMinVotes]).toEqual(['1', '30', '3']);
+    for (const [key, bad] of [['verdictPoints', '-1'], ['verdictPoints', '101'], ['verdictWindowMin', '4'], ['verdictWindowMin', '241'], ['verdictMinVotes', '0']] as const) {
+      expect(validateSettingsForm({ ...form, numbers: { ...form.numbers, [key]: bad } as never }), `${key} ${bad}`).toHaveProperty(key);
+    }
+    const back = toSettings({ ...form, numbers: { ...form.numbers, verdictPoints: '2', verdictWindowMin: '45', verdictMinVotes: '4' } as never });
+    expect([back.verdictPoints, back.verdictWindowMin, back.verdictMinVotes]).toEqual([2, 45, 4]);
+  });
+
   it('keeps the random-drop switch, the standing lines and the police numbers as edited', () => {
     const s: Settings = {
       ...defaultSettingsFor(getPack('mystery')),

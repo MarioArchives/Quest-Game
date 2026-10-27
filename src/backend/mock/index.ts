@@ -9,6 +9,7 @@ import { runPolice } from '../../../functions/src/game/police.ts';
 import { runSwitchboard } from '../../../functions/src/game/phones.ts';
 import { simulatedLine } from '../../../functions/src/game/simulatedLine.ts';
 import { runStandings } from '../../../functions/src/game/standing.ts';
+import { runVerdicts } from '../../../functions/src/game/verdicts.ts';
 import { runTick } from '../../../functions/src/game/globals.ts';
 import { runOpening } from '../../../functions/src/game/startTime.ts';
 import { buildDemo, type DemoGame } from '../../../functions/src/shared/demo/index.ts';
@@ -137,6 +138,7 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
     await runStandings(store, now(), pack);
     await runPolice(store, now(), rng, pack);
     await runSwitchboard(store, now(), pack, phoneLine);
+    await runVerdicts(store, now(), pack);
     await triggers.settle();
   }
 

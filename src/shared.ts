@@ -71,7 +71,7 @@ export { LEDGER_REASON_LIST, REACTION_EMOJI } from '../functions/src/shared/type
 export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/settings';
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
-export { TOP_FEED_TYPES, VOTABLE_FEED_TYPES, canHoldTop, isVotableAbout, takesVote } from '../functions/src/shared/feedVotes';
+export { TOP_FEED_TYPES, VOTABLE_FEED_TYPES, agreedWith, canHoldTop, isVotableAbout, takesVote, verdictOf } from '../functions/src/shared/feedVotes';
 export { ballotComplete, entryVotesText, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../functions/src/shared/votes';
 export type { BallotTally } from '../functions/src/shared/votes';
 export { ENTRY_REACTIONS, canReact } from '../functions/src/shared/entryReactions';

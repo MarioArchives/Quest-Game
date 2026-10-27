@@ -1,17 +1,12 @@
-// The booking desk with the police on Telegram: the test call is compulsory, so the Telegram card's only way on is the
-// test call, and only a failed test (or a server with no line) offers the police in the app.
+// The booking desk's test call, on a phone line or with the police on Telegram: short words, and until it's through a
+// foot with Change my number on the left and Skip (the police then reach them in the app) on the right.
 
 /** Where the test call is: dialling, ringing, answered and keying the code, through, missed, or no line at all. */
 export type DeskCall = 'dialling' | 'ringing' | 'keying' | 'answered' | 'missed' | 'off';
 
-/** The Telegram card's way on, once they've said they have Telegram: on to the test call (ready once they said hello). */
-export function telegramFoot(have: 'yes' | 'no' | null, said: boolean): { label: string; ready: boolean } | null {
-  return have === 'yes' ? { label: 'Next: a test call', ready: said } : null;
-}
-
-/** Whether the test call offers "the police can reach me in the app": only after a miss, or with no line on the server. */
-export function offersApp(call: DeskCall): boolean {
-  return call === 'missed' || call === 'off';
+/** Whether the test call shows its foot (Change my number, Skip): until it's through; with no line it just carries on. */
+export function showsFoot(call: DeskCall): boolean {
+  return call !== 'answered' && call !== 'off';
 }
 
 export interface TestCallWords {
@@ -20,27 +15,32 @@ export interface TestCallWords {
   ringing: string;
   keying: string;
   answered: string;
+  /** Said after what went wrong on a miss. */
   missedHint: string;
+  /** Whether the hint follows every miss, or only the ones that are the player's to put right. */
+  hintAlways: boolean;
 }
 
 /** The test call's words on a phone line or on Telegram. */
 export function testCallWords(via: 'phone' | 'telegram'): TestCallWords {
   if (via === 'telegram') {
     return {
-      note: 'One last thing: we need to know we can reach you. We’re ringing you on Telegram. Answer, listen for the 3-digit code, and reply with it in our chat.',
-      dialling: (number) => `Ringing you on Telegram (${number})…`,
-      ringing: 'Ringing on Telegram. Pick up: the desk reads you a short code. Then reply with it in our chat.',
-      keying: 'Answered. Reply in our chat with the code you hear.',
+      note: 'We’ll ring you. Answer on Telegram and reply with the 3\u2011digit code.',
+      dialling: () => 'Ringing you on Telegram…',
+      ringing: 'Ringing. Answer on Telegram.',
+      keying: 'Reply in our chat with the code.',
       answered: 'Answered. We can reach you.',
-      missedHint: ' Is Telegram on this phone, with the mobile you gave, and are its calls allowed?',
+      missedHint: 'Make sure Telegram is downloaded and calls are allowed.',
+      hintAlways: true,
     };
   }
   return {
-    note: 'One last thing: we need to know we can reach you. We’re ringing your mobile from the number you just saved.',
+    note: 'We’ll ring your mobile. Answer and key in the 3\u2011digit code.',
     dialling: (number) => `Dialling ${number}…`,
-    ringing: 'Ringing. Pick up: the desk reads you a short code to key in. Then hang up.',
-    keying: 'Answered. Key in the code you hear.',
+    ringing: 'Ringing. Answer it.',
+    keying: 'Key in the code you hear.',
     answered: 'Answered. We can reach you.',
-    missedHint: ' Is the number right, and your ringer on?',
+    missedHint: 'Is the number right, and your ringer on?',
+    hintAlways: false,
   };
 }

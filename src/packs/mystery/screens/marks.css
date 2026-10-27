@@ -1,0 +1,25 @@
+/* The eye and the heart (VoteMarks.tsx): round-ended keys with the icon and the count, the same in the Log book and on
+   the vote's polaroids. Pressed, the eye inks solid and the heart goes red and fills. */
+.vm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vm-icon { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vm-btn {
+  height: 44px; min-width: 64px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px;
+  border: 2px solid var(--manila-ink); border-radius: 22px; background: transparent; color: var(--manila-ink); cursor: pointer;
+}
+.vm-btn span { font-family: var(--mono); font-size: 14px; font-weight: 700; }
+.vm-btn:disabled { opacity: 0.45; cursor: default; }
+.vm-btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.vm-btn--eye[aria-pressed='true'] { background: var(--manila-ink); color: var(--manila); }
+.vm-btn--heart[aria-pressed='true'] { border-color: var(--warn); background: var(--warn); color: var(--on-ink); }
+.vm-btn--heart[aria-pressed='true'] .vm-icon { fill: currentColor; }
+
+/* counts only: your own entry, the top card, a pinned polaroid */
+.vm-counts { display: inline-flex; align-items: center; gap: 10px; }
+.vm-count { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--manila-sub); }
+.vm-count .vm-icon { width: 13px; height: 13px; }
+.vm-own { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); }
+/* once the verdict is in: "Verdict ♥ · +1 to you", the winning side as its icon (the heart filled) */
+.vm-verdict { flex-basis: 100%; display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--manila-sub); }
+.vm-verdict .vm-icon { width: 15px; height: 15px; }
+.vm-verdict--heart .vm-icon { fill: currentColor; }
+.vm-verdict.is-mine { color: var(--stamp-good); }

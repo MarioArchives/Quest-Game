@@ -27,7 +27,8 @@ import type { MissionsLinkState } from './MissionsTab';
 import { tagNumber } from './lockerLib';
 import { EntryVideo, TaggedLine } from '../../../components/EntryVideo';
 import { chapterCounts, chapterLine, chapterize, kicker, missionRef, OPEN_STOP_POSTS, walkLabel, type Chapter } from './timeline';
-import { CatchUpPile, Stamps, TopCard, VotingContext, useVoting, type PileEntry, type TopEntry, type Voting } from './LogbookParts';
+import { CatchUpPile, TopCard, VotingContext, useVoting, type PileEntry, type TopEntry, type Voting } from './LogbookParts';
+import { VoteMarks } from './VoteMarks';
 import { catchUpOrder, entryTitle, isYours, pickLine, pickOfStop, pillText, scoreOf, stopChip, toStamp, tonightLine, votableCount } from './logbook';
 import './timeline.css';
 
@@ -355,7 +356,7 @@ export function Row({ item, ms }: { item: Doc<FeedItem>; ms: number }) {
         </button>
       ) : null}
       <div className="cf-foot">
-        {reactionStyle === 'votes' ? stampable ? <Stamps post={item} voting={voting} /> : <span /> : <ReactionsBar feedId={item.id} count={item.reactionCount ?? 0} />}
+        {reactionStyle === 'votes' ? stampable ? <VoteMarks post={item} voting={voting} name={who?.displayName} /> : <span /> : <ReactionsBar feedId={item.id} count={item.reactionCount ?? 0} />}
         {points !== null ? (
           <span className={`cf-pts ${points < 0 ? 'cf-pts--neg' : 'cf-pts--pos'}${flagged ? ' is-struck' : ''}`}>
             {pointsText}

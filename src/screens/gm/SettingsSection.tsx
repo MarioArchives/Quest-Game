@@ -59,7 +59,12 @@ const GROUPS: Group[] = [
       { key: 'rejectPenalty', label: `Rejected ${t.claim.one} fine`, hint: `Lost when a ${t.witness.one} rejects a ${t.claim.one}` },
       { key: 'fraudPenalty', label: 'Fraud fine', hint: `Taken on top of the ${t.claim.one}’s points` },
       ...(reactionStyle === 'votes'
-        ? [{ key: 'topEntryPoints' as const, label: `Top of the ${t.feed.one}`, hint: `While a player’s own entry is on top of the ${t.feed.one}` }]
+        ? [
+            { key: 'topEntryPoints' as const, label: `Top of the ${t.feed.one}`, hint: `While a player’s own entry is on top of the ${t.feed.one}` },
+            { key: 'verdictPoints' as const, label: 'Agree with the room', hint: 'For an eye or heart that matches the verdict; 0 = off' },
+            { key: 'verdictWindowMin' as const, label: 'Verdict after (min)', hint: 'From when an entry is posted' },
+            { key: 'verdictMinVotes' as const, label: 'Votes for a verdict', hint: 'Fewer, and there is no verdict' },
+          ]
         : []),
     ],
   },

@@ -26,3 +26,24 @@ export function canHoldTop(post: Pick<FeedItem, 'type' | 'uid'>): boolean {
 export function isVotableAbout(post: Pick<FeedItem, 'type' | 'uid'>): boolean {
   return !!post.uid && (VOTABLE_FEED_TYPES as readonly string[]).includes(post.type);
 }
+
+/**
+ * An entry's verdict from its votes: 1 (credible) when hearts outnumber eyes, -1 (doubtful) the other way, 0 on a tie
+ * or with fewer than `minVotes` votes in all.
+ */
+export function verdictOf(votes: Readonly<Record<string, 1 | -1>> | undefined, minVotes: number): 1 | -1 | 0 {
+  const all = Object.values(votes ?? {});
+  if (all.length === 0 || all.length < minVotes) return 0;
+  const up = all.filter((v) => v === 1).length;
+  const down = all.length - up;
+  return up > down ? 1 : down > up ? -1 : 0;
+}
+
+/** The voters on the verdict's side, in uid order (none for no verdict). */
+export function agreedWith(votes: Readonly<Record<string, 1 | -1>> | undefined, result: 1 | -1 | 0): string[] {
+  if (result === 0) return [];
+  return Object.entries(votes ?? {})
+    .filter(([, v]) => v === result)
+    .map(([uid]) => uid)
+    .sort();
+}

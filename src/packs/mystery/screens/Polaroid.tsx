@@ -1,17 +1,14 @@
 // One entry as a taped polaroid, for the vote's deck (card), the cork board (pin) and the sheet (sheet). The photo
 // (or the video, or the words of a text-only entry), the comment handwritten under it, who it is from, the people in
-// it, and the eye and the heart. Presentational: the deck owns the dragging.
-import type { CSSProperties, PointerEvent } from 'react';
+// it, and the eye and the heart: the entry's vote in the Log book. Presentational: the deck owns the dragging.
+import { useMemo, type CSSProperties } from 'react';
 import { EntryVideo, TaggedLine } from '../../../components/EntryVideo';
 import { useGame } from '../../../data/GameProvider';
-import { useStorageUrl } from '../../../data/hooks';
-import { useEntryReactions } from '../../../data/useEntryReactions';
-import { ENTRY_REACTIONS, type Doc, type EntryReactionKind, type Submission } from '../../../shared';
-
-export const REACTION_ICON: Record<EntryReactionKind, { label: string; d: string; filled: boolean }> = {
-  eye: { label: 'Suspicious', d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zM9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0', filled: false },
-  heart: { label: 'Love it', d: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', filled: true },
-};
+import { useDocument, useStorageUrl } from '../../../data/hooks';
+import { useSession } from '../../../session/SessionProvider';
+import type { Doc, FeedItem, Submission } from '../../../shared';
+import { useVoting } from './LogbookParts';
+import { MarkCounts, VoteMarks, useCountsHidden } from './VoteMarks';
 
 /** The name a polaroid carries: "You" on your own, else the player's name. */
 export function useEntryName(entry: Doc<Submission>): string {
@@ -23,10 +20,10 @@ export function useEntryName(entry: Doc<Submission>): string {
 export function PolaroidMedia({ entry, name, playVideo }: { entry: Doc<Submission>; name: string; playVideo: boolean }) {
   const url = useStorageUrl(entry.imagePath ?? entry.thumbPath);
   if (entry.videoPath && playVideo) {
-    // Its controls are for playing it: the pointer going down on them must not start the card's drag.
+    // Just the clip on a loop, filling the photo: no controls, so the card swipes over it like over a photo.
     return (
-      <div className="vt-pol__video" onPointerDown={(e: PointerEvent) => e.stopPropagation()}>
-        <EntryVideo videoPath={entry.videoPath} thumbPath={entry.thumbPath} label={`${name}’s video`} />
+      <div className="vt-pol__video">
+        <EntryVideo videoPath={entry.videoPath} thumbPath={entry.thumbPath} label={`${name}’s video`} loop />
       </div>
     );
   }
@@ -35,33 +32,17 @@ export function PolaroidMedia({ entry, name, playVideo }: { entry: Doc<Submissio
   return <span className="vt-pol__words">{entry.caption}</span>;
 }
 
-/** The eye and the heart as toggles with their counts. Disabled on your own entry. */
+/** The entry's post in the Log book: the eye and the heart are its votes (and count towards the top entry). */
+function useEntryPost(entry: Doc<Submission>): Doc<FeedItem> | null {
+  return useDocument<FeedItem>(entry.feedId ? `feed/${entry.feedId}` : null).data;
+}
+
+/** The eye and the heart, one of them yours at most: the same vote as under the entry in the Log book. */
 export function ReactionButtons({ entry, name }: { entry: Doc<Submission>; name: string }) {
-  const r = useEntryReactions(entry);
-  return (
-    <>
-      {ENTRY_REACTIONS.map((kind) => {
-        const icon = REACTION_ICON[kind];
-        return (
-          <button
-            key={kind}
-            type="button"
-            className={`vt-react vt-react--${kind}`}
-            aria-label={`${icon.label}: ${name}’s entry`}
-            aria-pressed={r.mine[kind]}
-            disabled={!r.can}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => r.toggle(kind)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={icon.filled && r.mine[kind] ? 'is-filled' : undefined}>
-              <path d={icon.d} />
-            </svg>
-            <span>{r.count[kind]}</span>
-          </button>
-        );
-      })}
-    </>
-  );
+  const post = useEntryPost(entry);
+  const posts = useMemo(() => (post ? [post] : []), [post]);
+  const voting = useVoting(posts);
+  return post ? <VoteMarks post={post} voting={voting} name={name} /> : null;
 }
 
 interface Props {
@@ -111,14 +92,18 @@ interface PinProps {
 /** A polaroid pinned on the cork board: a button that opens the sheet. Counts only; the toggles are on the sheet. */
 export function PinPolaroid({ entry, tilt, stamp, tag, voted, onOpen, style }: PinProps & { style: CSSProperties }) {
   const name = useEntryName(entry);
-  const r = useEntryReactions(entry);
+  const { user } = useSession();
+  const post = useEntryPost(entry);
+  const up = post?.up ?? 0;
+  const down = post?.down ?? 0;
+  const hidden = useCountsHidden(post, post?.votes?.[user?.uid ?? ''] ?? null);
   const textOnly = !entry.videoPath && !entry.imagePath && !entry.thumbPath;
   return (
     <li className="vt-pin-slot" style={{ ...style, '--tilt': `${tilt}deg` } as CSSProperties}>
       <button
         type="button"
         className={`vt-pol vt-pol--pin${voted ? ' is-voted' : ''}`}
-        aria-label={`${name}’s entry: look closer. ${r.count.eye} eye, ${r.count.heart} heart${stamp ? `. ${stamp === '?' ? 'Not judged yet' : stamp}` : ''}${tag ? `. ${tag}` : ''}`}
+        aria-label={`${name}’s entry: look closer.${hidden ? '' : ` ${up} ${up === 1 ? 'heart' : 'hearts'}, ${down} ${down === 1 ? 'eye' : 'eyes'}`}${stamp ? `. ${stamp === '?' ? 'Not judged yet' : stamp}` : ''}${tag ? `. ${tag}` : ''}`}
         onClick={onOpen}
       >
         <span className="vt-pin" aria-hidden="true" />
@@ -127,16 +112,7 @@ export function PinPolaroid({ entry, tilt, stamp, tag, voted, onOpen, style }: P
           {stamp ? <span className={`vt-stamp vt-stamp--${stamp === 'YES' ? 'yes' : stamp === 'NO' ? 'no' : 'q'}`}>{stamp}</span> : null}
         </span>
         <span className="vt-pol__name">{name}</span>
-        <span className="vt-pol__counts" aria-hidden="true">
-          {ENTRY_REACTIONS.map((kind) => (
-            <span key={kind}>
-              <svg viewBox="0 0 24 24">
-                <path d={REACTION_ICON[kind].d} />
-              </svg>
-              {r.count[kind]}
-            </span>
-          ))}
-        </span>
+        <MarkCounts up={up} down={down} hidden={hidden} className="vt-pol__counts" />
         {tag ? <span className={`vt-tag vt-tag--${tag === 'MY VOTE' ? 'mine' : 'maybe'}`} aria-hidden="true">{tag}</span> : null}
       </button>
     </li>

@@ -1,7 +1,7 @@
-// The Log book's parts (the mystery pack's Feed): the Credible / Doubtful stamps on an entry, the "most credible" card
-// pinned at the top, and the catch-up pile behind the "Next to stamp" pill. The rules for who may vote and what counts
-// are in logbook.ts and in the shared feedVotes helper; this draws them.
-import { createContext, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+// The Log book's parts (the mystery pack's Feed): the votes (the eye and the heart under an entry are VoteMarks.tsx),
+// the "most credible" card pinned at the top, and the catch-up pile behind the "Next to stamp" pill. The rules for who
+// may vote and what counts are in logbook.ts and in the shared feedVotes helper; this draws them.
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { friendlyError } from '../../../api';
 import { backend } from '../../../backend';
 import { SERVER_TIME } from '../../../backend/types';
@@ -11,18 +11,16 @@ import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { tsMs, useStorageUrl } from '../../../data/hooks';
 import { useSession } from '../../../session/SessionProvider';
-import { firstName } from '../../../screens/home/FeedPost';
 import type { Doc, FeedItem, TopPost } from '../../../shared';
 import { kicker } from './timeline';
+import { MarkCounts, MarkIcon, useCountsHidden } from './VoteMarks';
 import {
   myVote,
   nextVote,
   pileLine,
   scoreLabel,
   sinceLine,
-  stampCounts,
   underLine,
-  isYours,
   type Pending,
   type Vote,
   type VotePost,
@@ -32,7 +30,7 @@ import {
 
 export interface Voting {
   pending: Pending;
-  /** Tap a stamp (or a pile button): sets, switches or takes back; shows at once and rolls back with a toast on failure. */
+  /** Tap the eye or the heart (or a pile button): sets, switches or takes back; shows at once, rolled back with a toast on failure. */
   cast(post: VotePost, tapped: Vote): void;
 }
 
@@ -89,50 +87,6 @@ export function useVoting(items: VotePost[]): Voting {
   return useMemo(() => ({ pending, cast }), [pending, cast]);
 }
 
-// ---------- the stamps on an entry ----------
-
-/**
- * Under an entry that takes votes: "Credible n" and "Doubtful n" as two rubber stamps; yours is inked (and the entry is
- * stamped with your first name). An entry of yours shows its counts and no stamps.
- */
-export function Stamps({ post, voting }: { post: VotePost; voting: Voting }) {
-  const { user, player } = useSession();
-  const uid = user?.uid ?? '';
-  const { up, down, mine } = stampCounts(post, uid, voting.pending);
-  if (isYours(post, uid)) {
-    return (
-      <span className="lb-own">
-        Yours · credible {up} · doubtful {down}
-      </span>
-    );
-  }
-  const tap = (v: Vote) => () => voting.cast(post, v);
-  return (
-    <span className={`lb-stamps${mine === null ? ' is-wait' : ''}`} role="group" aria-label="Is this entry credible?">
-      <button type="button" className={`lb-btn lb-btn--good${mine === 1 ? ' is-on' : ''}`} aria-pressed={mine === 1} disabled={!player} onClick={tap(1)}>
-        Credible <b>{up}</b>
-        <span className="visually-hidden">{mine === 1 ? ', yours. Tap to take it back' : ''}</span>
-      </button>
-      <button type="button" className={`lb-btn lb-btn--bad${mine === -1 ? ' is-on' : ''}`} aria-pressed={mine === -1} disabled={!player} onClick={tap(-1)}>
-        Doubtful <b>{down}</b>
-        <span className="visually-hidden">{mine === -1 ? ', yours. Tap to take it back' : ''}</span>
-      </button>
-      {mine !== null ? <Imprint vote={mine} /> : null}
-    </span>
-  );
-}
-
-/** The ink your stamp leaves on the entry, after the stamps: the word, then your first name. Aria-hidden; the button says it. */
-function Imprint({ vote }: { vote: Vote }) {
-  const { player } = useSession();
-  return (
-    <span className={`lb-imp lb-imp--${vote === 1 ? 'good' : 'bad'}`} aria-hidden="true">
-      {vote === 1 ? 'Credible' : 'Doubtful'}
-      {player ? <i>{firstName(player.displayName)}</i> : null}
-    </span>
-  );
-}
-
 // ---------- the top card ----------
 
 export interface TopEntry {
@@ -169,10 +123,13 @@ export function TopCard({
   clock: (ms: number) => string;
   onOpen(feedId: string): void;
 }) {
+  const { user } = useSession();
+  const voting = useContext(VotingContext);
+  const hidden = useCountsHidden(entry?.item ?? null, entry?.item ? myVote(entry.item, user?.uid ?? '', voting?.pending) : null);
   if (!top || !top.feedId) {
     return (
-      <section className="lb-top lb-top--quiet" aria-label="Most credible tonight">
-        <p>No entry stamped credible yet</p>
+      <section className="lb-top lb-top--quiet" aria-label="Most hearts tonight">
+        <p>No hearts yet</p>
       </section>
     );
   }
@@ -188,8 +145,11 @@ export function TopCard({
   const body = (
     <>
       <span className="lb-card__h">
-        <span>Most credible tonight</span>
-        <b>{scoreLabel(top.score)}</b>
+        <span className="lb-card__k">
+          <MarkIcon kind="heart" />
+          Most hearts tonight
+        </span>
+        {hidden ? null : <b>{scoreLabel(top.score)}</b>}
       </span>
       <span className="lb-card__b">
         {item && (item.thumbPath || item.imagePath) ? <CardThumb item={item} /> : null}
@@ -199,8 +159,7 @@ export function TopCard({
         </span>
       </span>
       <span className="lb-card__f">
-        <span className="lb-cnt--good">Credible {top.up}</span>
-        <span className="lb-cnt--bad">Doubtful {top.down}</span>
+        <MarkCounts up={top.up} down={top.down} hidden={hidden} />
         {payout ? <span className="lb-cnt--good">{payout}</span> : null}
         {since ? <span>{since}</span> : null}
       </span>
@@ -208,14 +167,14 @@ export function TopCard({
   );
 
   return (
-    <section className={`lb-top${under ? ' lb-top--swap' : ''}`} aria-label="Most credible tonight">
+    <section className={`lb-top${under ? ' lb-top--swap' : ''}`} aria-label="Most hearts tonight">
       {under ? (
         <div className="lb-under">
           <s>{under}</s>
         </div>
       ) : null}
       {item ? (
-        <button type="button" className="lb-card lb-card--tap" onClick={() => onOpen(feedId)} aria-label={`Most credible tonight, ${scoreLabel(top.score)}. Go to the entry`}>
+        <button type="button" className="lb-card lb-card--tap" onClick={() => onOpen(feedId)} aria-label={`Most hearts tonight${hidden ? '' : `, ${scoreLabel(top.score)}`}. Go to the entry`}>
           <Pin />
           {body}
         </button>
@@ -254,8 +213,8 @@ export interface PileEntry {
 const SWIPE_PX = 90;
 
 /**
- * Entries you haven't stamped, one at a time: this stop first, newest first, then back through the night. Doubtful,
- * Skip, Credible, or swipe the card (left doubtful, right credible). When none are left it says so and closes.
+ * Entries you haven't stamped, one at a time: this stop first, newest first, then back through the night. The eye,
+ * Skip, the heart, or swipe the card (left the eye, right the heart). When none are left it says so and closes.
  */
 export function CatchUpPile({ order, voting, onClose }: { order: PileEntry[]; voting: Voting; onClose(): void }) {
   // The order is fixed when the pile opens, so a vote doesn't reshuffle what comes next.
@@ -325,17 +284,13 @@ export function CatchUpPile({ order, voting, onClose }: { order: PileEntry[]; vo
             </div>
           </div>
           <div className="lb-pile__btns">
-            <Button variant="danger" onClick={() => vote(-1)}>
-              Doubtful
-            </Button>
+            <Button variant="danger" icon={<MarkIcon kind="eye" />} aria-label="Eye" onClick={() => vote(-1)} />
             <Button variant="ghost" onClick={skip}>
               Skip
             </Button>
-            <Button variant="primary" onClick={() => vote(1)}>
-              Credible
-            </Button>
+            <Button variant="primary" icon={<MarkIcon kind="heart" />} aria-label="Heart" onClick={() => vote(1)} />
           </div>
-          <p className="lb-pile__hint">Swipe right for credible, left for doubtful. Nothing is scored.</p>
+          <p className="lb-pile__hint">Swipe right for a heart, left for an eye.</p>
         </div>
       ) : (
         <p className="lb-pile__done" role="status">
