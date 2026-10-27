@@ -1,4 +1,5 @@
-import type { GameState, GameStatus } from '../shared/types.js';
+import type { Txn } from '../shared/store/types.js';
+import type { GameState, GameStatus, Settings } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { fail, loadSettings, loadState, requireGM } from './guards.js';
@@ -17,17 +18,28 @@ export async function setGameStatus(db: Db, ctx: Ctx, data: { status?: unknown }
     if (state.status === target) return { status: target };
     if (state.status === 'lobby' && target === 'paused') fail('failed-precondition', 'The game has not started yet.');
 
-    const next: GameState = { ...state, status: target };
-    let text = target === 'paused' ? 'The game is paused' : 'The game has resumed';
     if (state.status === 'lobby') {
-      // First start: the game begins and the first side quest is scheduled.
+      // Opened by hand: any start time goes, so the timer never opens it a second time.
       const settings = await loadSettings(db, tx);
-      next.startedAt = toTs(ctx.now);
-      next.nextGlobalQuestAt = toTs(nextGlobalTime(ctx.now, settings, rng));
-      text = 'The game has started!';
+      openGame(tx, db, ctx.now, settings, rng, { ...state, opensAt: null, opensMoved: null });
+      return { status: target };
     }
+    const next: GameState = { ...state, status: target };
+    const text = target === 'paused' ? 'The game is paused' : 'The game has resumed';
     tx.set(db.doc('game/state'), next);
     addFeed(tx, db, ctx.now, { type: 'status', text, uid: null, ref: null });
     return { status: target };
   });
+}
+
+/** First start, from the lobby: the game begins, the first side quest is scheduled and the players are told. */
+export function openGame(tx: Txn, db: Db, now: Date, settings: Settings, rng: () => number, state: GameState): void {
+  const next: GameState = {
+    ...state,
+    status: 'active',
+    startedAt: toTs(now),
+    nextGlobalQuestAt: toTs(nextGlobalTime(now, settings, rng)),
+  };
+  tx.set(db.doc('game/state'), next);
+  addFeed(tx, db, now, { type: 'status', text: 'The game has started!', uid: null, ref: null });
 }

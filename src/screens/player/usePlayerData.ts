@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useGame, type RankedPlayer } from '../../data/GameProvider';
 import { tsMs, useQuery } from '../../data/hooks';
 import { playerRecord, type PlayerRecord } from '../../lib/record';
-import type { Doc, LedgerEntry, Submission } from '../../shared';
+import { entryVotesText, type Doc, type LedgerEntry, type Submission } from '../../shared';
 import { t } from '../../pack';
 
 /** A side quest the player won (one 'global-win' ledger line). */
@@ -13,6 +13,8 @@ export interface SideWin {
   bonus: number;
   /** Votes for the winning entry, when the side quest is still among the loaded ones. */
   votes: number | null;
+  /** That count in words ("3 votes", "3 yes · 1 no"). */
+  words: string | null;
   atMs: number;
   /** The GM disqualified the entry after the win (the bonus was taken back). */
   disqualified: boolean;
@@ -23,6 +25,7 @@ export interface SideEntry {
   id: string;
   title: string;
   votes: number | null;
+  words: string | null;
 }
 
 export interface PlayerData {
@@ -59,6 +62,10 @@ export function usePlayerData(player: RankedPlayer): PlayerData {
       const tally = sub ? questById.get(sub.questId)?.tally : null;
       return sub && tally ? (tally[sub.id] ?? 0) : null;
     };
+    const wordsFor = (sub: Doc<Submission> | null | undefined) => {
+      const quest = sub ? questById.get(sub.questId) : undefined;
+      return sub && quest ? entryVotesText(quest, sub.id) : null;
+    };
 
     // A disqualification takes the award back against the same entry (ref = the submission id).
     const overruled = new Set(ledger.filter((e) => e.reason === 'fraud' && e.ref).map((e) => e.ref));
@@ -73,6 +80,7 @@ export function usePlayerData(player: RankedPlayer): PlayerData {
           title: sub?.questTitle ?? quest?.title ?? t.sideQuest.One,
           bonus: e.delta,
           votes: votesFor(sub),
+          words: wordsFor(sub),
           atMs: tsMs(e.createdAt),
           disqualified: overruled.has(e.ref),
         };
@@ -80,7 +88,7 @@ export function usePlayerData(player: RankedPlayer): PlayerData {
     const wonIds = new Set(wins.map((w) => w.submission?.id).filter(Boolean));
     const alsoEntered: SideEntry[] = theirs
       .filter((s) => s.kind === 'global' && !wonIds.has(s.id))
-      .map((s) => ({ id: s.id, title: s.questTitle ?? questById.get(s.questId)?.title ?? t.sideQuest.One, votes: votesFor(s) }));
+      .map((s) => ({ id: s.id, title: s.questTitle ?? questById.get(s.questId)?.title ?? t.sideQuest.One, votes: votesFor(s), words: wordsFor(s) }));
 
     const postReactions = new Map(feed.map((p) => [p.id, p.reactionCount ?? 0]));
     const reactions = new Map<string, number>();

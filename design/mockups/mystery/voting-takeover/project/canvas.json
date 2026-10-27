@@ -1,0 +1,22 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-20T16:45:46Z" },
+  "title": "Voting takeover mockups",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 390, "h": 844, "title": "A · Swipe the suspects", "is_interactive": true },
+    "Roll.dc.html": { "x": 470, "y": 0, "w": 390, "h": 844, "title": "B · Evidence roll", "is_interactive": true },
+    "Parade.dc.html": { "x": 940, "y": 0, "w": 390, "h": 844, "title": "C · Identity parade", "is_interactive": true },
+    "Faceoff.dc.html": { "x": 1410, "y": 0, "w": 390, "h": 844, "title": "D · Face-off", "is_interactive": true },
+    "Board.dc.html": { "x": 1880, "y": 0, "w": 390, "h": 844, "title": "E · Murder board", "is_interactive": true },
+    "PolaroidPick.dc.html": { "x": 0, "y": 1264, "w": 390, "h": 844, "title": "A+ · Polaroids, pick one", "is_interactive": true },
+    "PolaroidYesNo.dc.html": { "x": 470, "y": 1264, "w": 390, "h": 844, "title": "A+ · Polaroids, yes or no", "is_interactive": true }
+  },
+  "order": ["Main.dc.html", "Roll.dc.html", "Parade.dc.html", "Faceoff.dc.html", "Board.dc.html", "PolaroidPick.dc.html", "PolaroidYesNo.dc.html"],
+  "notes": {
+    "heading": { "x": 0, "y": -300, "text": "Voting takeover: five ways to vote", "kind": "title1", "maxW": 2270 },
+    "revised": { "x": 0, "y": 964, "text": "A, revised: polaroids, then the board", "kind": "title1", "maxW": 860 }
+  },
+  "designSystems": []
+}

@@ -40,8 +40,8 @@ const ALL_KINDS: PushKind[] = [
   'rejected', 'fraud', 'exposed', 'framed', 'adjust', 'story-beat', 'witness', 'witness-left', 'entry-rejected', 'join',
 ];
 
-/** What the user asked for, plus the GM's three. */
-const MYSTERY_KINDS: PushKind[] = ['global-open', 'story-beat', 'voting-open', 'witness', 'standing-gained', 'join', 'checking', 'police-line'];
+/** What the user asked for, plus the GM's three, plus the game's status (the start time moving, the case opening). */
+const MYSTERY_KINDS: PushKind[] = ['global-open', 'story-beat', 'voting-open', 'witness', 'standing-gained', 'join', 'checking', 'police-line', 'status'];
 
 function post(type: FeedType, extra: Partial<FeedItem> = {}): FeedItem {
   return { type, text: `text of ${type}`, uid: 'alice', ref: 'r1', createdAt: ts(T0), questTitle: 'Hats only!', ...extra };
@@ -109,6 +109,15 @@ describe('feed posts under a pack without a list (edge case 1)', () => {
 });
 
 describe('the mystery pack: what still buzzes (edge cases 2, 4)', () => {
+  it('a status post (the start time moving, the case opening) goes to every player, titled with the game and opening Home (countdown plan edge case 14)', () => {
+    const plan = pushFor(post('status', { text: 'Start moved to 19:30, Sat 7 Nov.', uid: null }), null, mystery());
+    expect(plan).toEqual({ to: 'players', message: { title: mystery().name, body: 'Start moved to 19:30, Sat 7 Nov.', link: '#/' } });
+  });
+
+  it('a pack whose list leaves status out stays quiet about it (countdown plan edge case 14)', () => {
+    expect(pushFor(post('status'), null, testPack({ pushKinds: ['global-open'] }))).toBeNull();
+  });
+
   it('a new group or story mission goes to every player, by name', () => {
     const plan = pushFor(post('global-open'), null, mystery());
     expect(plan?.to).toBe('players');
@@ -143,7 +152,7 @@ describe('the mystery pack: what still buzzes (edge cases 2, 4)', () => {
 describe('the mystery pack: what goes quiet (edge case 3)', () => {
   it.each([
     'checkin-open', 'global-won', 'global-scored', 'approved', 'rejected', 'fraud', 'exposed', 'framed', 'adjust',
-    'police-call', 'police-tip', 'announcement', 'stop-revealed', 'status',
+    'police-call', 'police-tip', 'announcement', 'stop-revealed',
   ] as const)('%s sends nothing', (type) => {
     expect(pushFor(post(type, { actorUid: 'bob' }), 'personal', mystery())).toBeNull();
   });

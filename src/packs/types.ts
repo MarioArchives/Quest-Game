@@ -3,7 +3,7 @@
 // index.tsx (a PackLook, default export) and public/ (files served at the site root).
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { TabId } from '../lib/nav';
-import type { Doc, Player } from '../shared';
+import type { Doc, GlobalQuest, Player, Submission } from '../shared';
 
 /** One filled shape on a loading mark's print plate, in the 64x64 viewBox. */
 export interface MarkShape {
@@ -123,6 +123,20 @@ export interface JoinScreenProps {
   onCancel?(): void;
 }
 
+/** The pack's full-screen vote (look.screens.vote), shown by the engine while a vote needs the player. */
+export interface VoteScreenProps {
+  /** The vote. It may close while shown (status 'closed'): then show who won, and offer only putAside. */
+  quest: Doc<GlobalQuest>;
+  /** Its entries up for the vote (approved), the player's own included: the screen leaves those out. */
+  entries: Doc<Submission>[];
+  /** How many more votes wait after this one. */
+  queued: number;
+  /** "Back to the case": puts every vote waiting aside for this session. */
+  putAside(): void;
+  /** Done: this vote's takeover ends; the next vote waiting opens. */
+  done(): void;
+}
+
 export interface PackLook {
   /**
    * The loading mark, drawn inside a 64x64 viewBox: a `<g className="loader__plate">` of filled shapes and a
@@ -173,6 +187,11 @@ export interface PackLook {
      * until it calls `bookIn`. Packs without one go straight to the game; GMs always do.
      */
     onboarding?: LazyExoticComponent<ComponentType>;
+    /**
+     * The full-screen vote: while a side quest's vote needs the player (in voting, not finished, not put aside), the
+     * engine shows it over the whole app (not on /gm, not during a police check-in). Without it the cards stay as they are.
+     */
+    vote?: LazyExoticComponent<ComponentType<VoteScreenProps>>;
   };
   /** The reward pop-up's words; the engine has plain defaults. */
   reward?: RewardCopy;

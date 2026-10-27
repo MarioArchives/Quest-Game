@@ -1,5 +1,7 @@
 // The tip line beside the points chip (packs with police): whether the signed-in player can tip off the police right
 // now (a trusted confidant with the cooldown clear), is waiting out the cooldown, or isn't a confidant yet.
+import type { LineText } from '../../functions/src/shared/packs/types.ts';
+import { accusation, ACCUSED_LINE } from '../../functions/src/shared/phone.ts';
 import { cooldownLeftMs } from '../../functions/src/shared/police.ts';
 import { standingOf } from '../../functions/src/shared/standing.ts';
 import type { GameStatus, Settings } from '../shared';
@@ -49,4 +51,19 @@ export function tipLineState({ police, status, me, settings, nowMs }: TipLineInp
   const waitMs = tipWaitMs(me.lastSnitchedMs, settings.policeTipEveryMin, nowMs);
   if (waitMs > 0) return { kind: 'cooldown', waitMs, fullMs, remaining: waitMs / fullMs, opensAtMs: nowMs + waitMs };
   return { kind: 'ready', period: me.lastSnitchedMs == null ? 'never' : String(me.lastSnitchedMs) };
+}
+
+/**
+ * What the police will say about the tip, as the tipper types it: the pack's 'accused' line (`template`, its first
+ * variant; the engine's when missing) with their note, the target's first name, the caller and "an officer"; "…" until
+ * they write something.
+ */
+export function accusedPreview(template: LineText | undefined, note: string, name: string, caller: string): string {
+  const what = accusation(note);
+  const line = (typeof template === 'string' ? template : template?.[0]) ?? ACCUSED_LINE;
+  return line
+    .replace(what ? /\{accusation\}/g : /\{accusation\}\.?/g, () => what || '…')
+    .replace(/\{name\}/g, () => name)
+    .replace(/\{caller\}/g, () => caller)
+    .replace(/\{officer\}/g, () => 'an officer');
 }

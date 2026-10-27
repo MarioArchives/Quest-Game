@@ -6,6 +6,7 @@
 @import '@fontsource/archivo/latin-400.css';
 @import '@fontsource/archivo/latin-500.css';
 @import '@fontsource/archivo/latin-600.css';
+@import '@fontsource/caveat/latin-600.css';
 /* The bee on a button (kept apart: the boot test reads theme.css for the loader's own line colour). */
 @import './buttons.css';
 
@@ -35,6 +36,8 @@
   --silhouette: #8d9294;
   /* a notification dot (the Missions folder tab's) */
   --dot: #e2574c;
+  /* the countdown chip in its last minutes */
+  --urgent: var(--warn);
   /* Case files (E4·1): manila folders, kraft evidence tags on twine, steel eyelets and the inks stamped on them. */
   --manila: #e6cf98;
   --manila-tab: #d9bd7e;
@@ -74,6 +77,10 @@
      paper's grid, the tip slip's card and its shadow, and the folder dimmed behind the slip. */
   --pen-red: #c4302b;
   --red-wash: rgba(196, 48, 43, 0.12);
+  /* the wax seal on the sealed case file */
+  --wax-hi: #e2574c;
+  --wax: #b23b30;
+  --wax-deep: #7d241d;
   --grid-ink: rgba(91, 74, 51, 0.16);
   --index-card: #fbfaf4;
   --sh-deep: rgba(0, 0, 0, 0.45);
@@ -98,6 +105,26 @@
   /* Buttons (case brown): teal is left to "in the clear" (standings, the confidant band, sharing on). Primary is the
      GM's Fire button made the house button; secondary the same brown as a 2px rule; destructive a dark red rule
      (solid red only in the confirm sheets); selected a filled key. Letters are 4.5:1 or more in every state. */
+  /* The voting takeover (polaroids on a cork board): cork, taped photos, yes and no inks, twine and pins. */
+  --vt-cork: #a9834f;
+  --vt-cork-edge: #6e5238;
+  --vt-speck: #8a6538;
+  --vt-polaroid: #f4f2ea;
+  --vt-back-1: #e3e0d4;
+  --vt-back-2: #ebe8dd;
+  --vt-tape: rgba(226, 214, 180, 0.9);
+  --vt-yes: #9ad2cc;
+  --vt-no: #f2a99d;
+  --vt-string: #e9dfc4;
+  --vt-string-faint: #8a6538;
+  --vt-pin: #c8a24a;
+  --vt-pin-edge: #7a520a;
+  --vt-seg-off: #62676a;
+  --vt-photo-ink: #efe6cf;
+  --vt-photo-sub: #e0d5bb;
+  --vt-sub: #b9bdc0;
+  --vt-scrim: rgba(22, 23, 24, 0.82);
+  --hand: 'Caveat', 'Archivo', cursive;
   --btn-go-bg: #3a2e1c;
   --btn-go-fg: #e6cf98;
   --btn-go-edge: #21180e;

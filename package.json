@@ -21,6 +21,7 @@
     "test": "npm run build -w functions && firebase emulators:exec --only auth,firestore,storage --project demo-quest-game \"vitest run\"",
     "test:unit": "vitest run --project unit --project functions-memory",
     "seed": "node scripts/seed.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "make-admin": "node scripts/make-admin.mjs",
     "import-schedule": "node scripts/packs/lancaster/import-schedule.mjs"
   },
@@ -28,6 +29,7 @@
     "@fontsource/anton": "^5.3.0",
     "@fontsource/archivo": "^5.3.0",
     "@fontsource/archivo-black": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
     "@fontsource/space-mono": "^5.3.0",
     "firebase": "^13.0.0",
     "html-to-image": "^1.11.13",

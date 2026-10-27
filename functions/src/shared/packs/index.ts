@@ -1,7 +1,7 @@
 // The registry of game packs. A deployment picks one by id (VITE_GAME_PACK for the app, GAME_PACK for the
 // functions and scripts); both default to DEFAULT_PACK_ID.
 import { periodicProblems } from '../periodics.ts';
-import { isVoiceLine } from '../phone.ts';
+import { CHAT_LINES, isVoiceLine, READ_OUT_LINES } from '../phone.ts';
 import type { Settings } from '../types.ts';
 import { DEFAULT_SETTINGS } from '../settings.ts';
 import { RULESETS } from '../scoring/index.ts';
@@ -102,11 +102,64 @@ export function validatePack(pack: GamePack): string[] {
     for (const key of [...Object.keys(voice.lines ?? {}), ...(voice.recordings ?? [])]) {
       if (!isVoiceLine(key)) problems.push(`The police voice line "${key}" is not one the engine says.`);
     }
-    for (const [key, text] of Object.entries(voice.lines ?? {})) {
-      if (typeof text !== 'string' || !text.trim()) problems.push(`The police voice line "${key}" is blank.`);
+    for (const key of Object.keys(voice.chatLines ?? {})) {
+      if (!(CHAT_LINES as readonly string[]).includes(key)) problems.push(`The police chat line "${key}" is not one the engine says in the chat (${CHAT_LINES.join(', ')}).`);
+    }
+    // Every line is one wording or 1 to 10 variants, none blank; the lines that must carry something say so.
+    const MUST_HAVE: Record<string, string> = { accused: '{accusation}', ask: '{question}' };
+    const lists: Array<[string, string, unknown]> = [
+      ...Object.entries(voice.lines ?? {}).map(([k, v]): [string, string, unknown] => ['line', k, v]),
+      ...Object.entries(voice.chatLines ?? {}).map(([k, v]): [string, string, unknown] => ['chat line', k, v]),
+    ];
+    for (const [what, key, text] of lists) {
+      const list = typeof text === 'string' ? [text] : Array.isArray(text) ? (text as unknown[]) : null;
+      if (!list || list.some((v) => typeof v !== 'string' || !v.trim())) {
+        problems.push(`The police voice ${what} "${key}" is blank.`);
+        continue;
+      }
+      if (list.length < 1 || list.length > 10) problems.push(`The police voice ${what} "${key}" has ${list.length} variants; it needs 1 to 10.`);
+      const needs = MUST_HAVE[key];
+      for (const v of list as string[]) {
+        if (needs && !v.includes(needs)) problems.push(`The police voice ${what} "${key}" must have ${needs} in every variant.`);
+        if (v.includes('{officer}') && !voice.officers?.length) problems.push(`The police voice ${what} "${key}" names the {officer}, but the pack has no officers.`);
+      }
+    }
+    for (const [i, officer] of (voice.officers ?? []).entries()) {
+      const name = typeof officer?.name === 'string' ? officer.name.trim() : '';
+      if (name.length < 1 || name.length > 60) problems.push(`Police officer ${i + 1} needs a name of 1 to 60 characters.`);
+      if (officer?.telegramVoice !== undefined && !/^[a-z]{2}-[A-Z]{2}-\w+Neural$/.test(officer.telegramVoice)) {
+        problems.push(`Police officer ${i + 1} ("${name}") has a voice "${String(officer.telegramVoice)}" that isn't an edge-tts voice name like en-GB-RyanNeural.`);
+      }
+    }
+    for (const key of voice.recordings ?? []) {
+      const given = (voice.lines as Record<string, unknown> | undefined)?.[key];
+      if (Array.isArray(given) && given.length > 1) problems.push(`The police voice line "${key}" is recorded, so it must be one wording, not variants.`);
+      if ((Array.isArray(given) ? given : [given]).some((v) => typeof v === 'string' && v.includes('{officer}'))) {
+        problems.push(`The police voice line "${key}" is recorded, so it can't name the {officer}.`);
+      }
+    }
+    for (const key of voice.recordings ?? []) {
+      if ((READ_OUT_LINES as readonly string[]).includes(key)) problems.push(`The police voice line "${key}" is always read out (it changes every call), so it can't be recorded.`);
     }
     if (voice.voice && (!voice.voice.voice?.trim() || !voice.voice.language?.trim())) problems.push('The police voice needs a voice and a language.');
   }
+  const relations = pack.booking?.relations;
+  if (pack.booking && relations !== undefined) {
+    if (!Array.isArray(relations) || relations.length < 2 || relations.length > 16) problems.push('The booking desk relation list needs 2 to 16 relations.');
+    else {
+      const ids = new Set<string>();
+      for (const [i, r] of relations.entries()) {
+        const label = `Relation ${i + 1} ("${r?.id}")`;
+        if (typeof r?.id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(r.id)) problems.push(`${label} needs an id of lower case letters, digits and hyphens.`);
+        else if (ids.has(r.id)) problems.push(`${label} has a duplicate id.`);
+        else ids.add(r.id);
+        const text = (v: unknown, max: number) => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= max;
+        if (!text(r?.label, 24)) problems.push(`${label} needs a label of 1 to 24 characters.`);
+        if (!text(r?.phrase, 40)) problems.push(`${label} needs a phrase of 1 to 40 characters.`);
+      }
+    }
+  }
+  if (pack.policeQuiz) problems.push(...quizProblems(pack));
   if (pack.reactions !== undefined && pack.reactions !== 'emoji' && pack.reactions !== 'votes') {
     problems.push(`reactions is "${String(pack.reactions)}"; it must be "emoji" or "votes".`);
   }
@@ -156,6 +209,7 @@ export function validatePack(pack: GamePack): string[] {
         ['fine', q.penalty],
         ['long-running setting', q.longRun],
         ['record', q.records],
+        ['question', q.question],
       ];
       for (const [what, value] of extras) if (value != null) problems.push(`${label} is an announcement, so it cannot have ${what}.`);
       if (q.fact && (!q.fact.key?.trim() || !q.fact.label?.trim() || !q.fact.value?.trim())) {
@@ -188,11 +242,67 @@ export function validatePack(pack: GamePack): string[] {
       if (writes !== undefined && typeof writes !== 'boolean') problems.push(`${label} has an entry writesMotive setting that must be true or false.`);
       if (writes === true && tag !== 'assigned') problems.push(`${label} writes motives, so its entry tag must be 'assigned' (each motive is about the player dealt).`);
     }
+    if (q.question !== undefined) {
+      if (q.judging !== 'vote') problems.push(`${label} has a question, but only a mission judged by a vote asks one.`);
+      else if (typeof q.question !== 'string' || !q.question.trim() || q.question.length > 60) {
+        problems.push(`${label} has a question that must be words of at most 60 characters.`);
+      }
+    }
     if (q.records && (!q.records.key?.trim() || !q.records.label?.trim())) problems.push(`${label} records a fact that needs a non-blank key and label.`);
   }
   for (const id of dupes) problems.push(`The quest id "${id}" is a duplicate.`);
   for (const q of pack.catalogue.personal) {
     if (!/Proof: \S/.test(q.description)) problems.push(`The personal quest "${q.id}" needs a "Proof: ..." line.`);
+  }
+  return problems;
+}
+
+/** Problems with a pack's police question bank. */
+function quizProblems(pack: GamePack): string[] {
+  const problems: string[] = [];
+  const items = pack.policeQuiz ?? [];
+  if (!pack.features.police) problems.push('The pack has a police quiz but the police feature is off.');
+  const KINDS = ['sum', 'fixed', 'fact', 'standing', 'stop', 'watch-count', 'own', 'whose'];
+  const words = (v: unknown, max: number) => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= max;
+  for (const [i, item] of (items as Array<Record<string, unknown>>).entries()) {
+    const label = `Police quiz item ${i + 1} (${String(item.kind)})`;
+    if (!KINDS.includes(item.kind as string)) {
+      problems.push(`${label} has a kind that isn't one of ${KINDS.join(', ')}.`);
+      continue;
+    }
+    if (item.weight !== undefined && !(Number.isInteger(item.weight) && (item.weight as number) >= 1 && (item.weight as number) <= 10)) {
+      problems.push(`${label} has a weight of ${String(item.weight)}; it must be a whole number from 1 to 10.`);
+    }
+    if (item.kind === 'sum') continue;
+    if (!words(item.ask, 80)) problems.push(`${label} needs a question (ask) of 1 to 80 characters.`);
+    const decoys = (v: unknown): string[] | null => (Array.isArray(v) && v.every((d) => words(d, 60)) ? (v as string[]) : null);
+    switch (item.kind) {
+      case 'fixed': {
+        const list = decoys(item.decoys);
+        if (!words(item.answer, 60)) problems.push(`${label} needs an answer.`);
+        else if (!list || new Set(list.filter((d) => d !== item.answer)).size < 2 || list.includes(item.answer as string)) {
+          problems.push(`${label} needs at least 2 decoys, none of them the answer.`);
+        }
+        break;
+      }
+      case 'fact':
+        if (!words(item.fact, 60)) problems.push(`${label} needs the key of the fact it asks about.`);
+        if (item.decoys !== undefined && item.decoys !== 'times' && !decoys(item.decoys)) problems.push(`${label} has decoys that must be a list of words, or 'times'.`);
+        break;
+      case 'standing':
+        if (item.pick !== 'lowest' && item.pick !== 'highest') problems.push(`${label} must pick 'lowest' or 'highest'.`);
+        break;
+      case 'stop':
+        if (!pack.features.stops) problems.push(`${label} asks about the stop, but the stops feature is off.`);
+        if (!decoys(item.decoys) || (item.decoys as string[]).length < 2) problems.push(`${label} needs at least 2 decoy bars.`);
+        break;
+      case 'own':
+      case 'whose':
+        if (item.field !== 'relation' && !(item.kind === 'own' && item.field === 'height')) problems.push(`${label} has a field that isn't ${item.kind === 'own' ? 'relation or height' : 'relation'}.`);
+        if (item.field === 'relation' && !pack.booking?.relations?.length) problems.push(`${label} asks about the relation, but the pack has no booking relation list.`);
+        if (item.kind === 'whose' && !String(item.ask ?? '').includes('{value}')) problems.push(`${label} needs {value} in its question (the relation's phrase).`);
+        break;
+    }
   }
   return problems;
 }

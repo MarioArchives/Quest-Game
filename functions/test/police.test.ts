@@ -506,3 +506,57 @@ describe('packs without police, and the game around them (edge cases 33–34)', 
     expect(toMillis((await player('alice')).lastSnitchedAt)).toBe(addMin(T0, -90).getTime());
   });
 });
+
+// Plan "Police that sound official, a question bank, …", edge case 7.
+describe('a question from the bank on every check-in', () => {
+  const QUIZ: GamePack = testPack({ features: { police: true }, policeQuiz: [{ kind: 'fixed', ask: 'Who was the victim?', answer: 'Bob', decoys: ['Rob', 'Bill'] }] });
+  const quizTrigger = (uid: string, now: Date = T0) => handlePlayerWritten(db(), uid, now, constRng(0), QUIZ);
+
+  async function quizCall(uid = 'alice') {
+    await setup();
+    await setPoints(uid, -15);
+    await quizTrigger(uid);
+    const [c] = await callsFor(uid);
+    return c!;
+  }
+
+  it('a watch call from the standing trigger stores the question, its options and the right option', async () => {
+    const c = await quizCall();
+    expect(c).toMatchObject({ question: 'Who was the victim?', quiz: 'fixed' });
+    expect([...c.options].sort()).toEqual(['Bill', 'Bob', 'Rob']);
+    expect(c.options[Number(c.expected) - 1]).toBe('Bob');
+  });
+
+  it('the timer and a tip-off do too', async () => {
+    await quizCall();
+    await db().doc(`policeCalls/${(await callsFor('alice'))[0]!.id}`).update({ status: 'passed' });
+    const res = await tick(addMin(T0, 30), QUIZ);
+    expect(await call(res.opened[0]!)).toMatchObject({ question: 'Who was the victim?', quiz: 'fixed' });
+    await setPoints('bob', 15);
+    const { callId } = await tip('bob', 'carol', 'hogging the jukebox', addMin(T0, 31), QUIZ);
+    expect((await call(callId)).options).toHaveLength(3);
+  });
+
+  it('a pack without a quiz still asks a sum, with no options', async () => {
+    await setup();
+    await becomePoi('alice');
+    const [c] = await calls();
+    expect(c!.question).toMatch(/^What's \d+ [+×] \d+\?$/);
+    expect(c!.options ?? null).toBeNull();
+  });
+
+  it('answered in the app by the option number, or by its text', async () => {
+    const c = await quizCall();
+    expect((await answer('alice', c.id, c.expected, addMin(T0, 1), QUIZ)).status).toBe('passed');
+    const k = await quizCall('carol');
+    expect((await answer('carol', k.id, 'bob', addMin(T0, 1), QUIZ)).status).toBe('passed');
+    expect(await call(k.id)).toMatchObject({ status: 'passed', answer: k.expected });
+  });
+
+  it('a wrong option fails, with the same fine as before', async () => {
+    const c = await quizCall();
+    const wrong = String(c.options.findIndex((o: string) => o !== 'Bob') + 1);
+    expect((await answer('alice', c.id, wrong, addMin(T0, 1), QUIZ)).status).toBe('failed');
+    expect(await policeLedger('alice')).toEqual([['police-fail', -2]]);
+  });
+});

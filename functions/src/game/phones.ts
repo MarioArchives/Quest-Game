@@ -9,6 +9,7 @@ import {
   callStatusMeaning,
   describeTestResult,
   HEALTH_EVERY_MS,
+  isTelegramSid,
   normalisePhone,
   PHONE_GIVE_UP_MS,
   PHONE_SILENT_MS,
@@ -198,7 +199,7 @@ export async function testVoice(db: Db, now: Date, pack: GamePack, uid: string, 
     }
     w.tx.update(w.ref, { test: { ...w.test, ...heard } });
     noteOutcome(w.book, now, w.settings.policeBreakerAt, { kind: 'test', connected: true, uid, callId: null, code: null });
-    const say = voiceScript(pack, w.settings);
+    const say = voiceScript(pack, w.settings, { seed: testId, chat: isTelegramSid(w.test.sid ?? params.CallSid) });
     return [
       {
         kind: 'gather',
@@ -225,7 +226,7 @@ export async function testGather(
   const hangup: VoiceReply = [{ kind: 'hangup' }];
   const digits = (params.Digits ?? '').replace(/\D/g, '');
   const reply = await withTest(db, now, pack, uid, testId, (w): VoiceReply => {
-    const say = voiceScript(pack, w.settings);
+    const say = voiceScript(pack, w.settings, { seed: testId, chat: isTelegramSid(w.test.sid ?? params.CallSid) });
     if (otherCall(w.test, params.CallSid)) return hangup;
     // Twilio asking again after it was settled gets the same verdict.
     if (w.test.result === 'passed') return [{ kind: 'say', speech: say('test-pass') }, { kind: 'hangup' }];

@@ -28,6 +28,8 @@ export function classicScore(event: ScoreEvent, ctx: ScoreContext): ScoreLine[] 
       return [{ kind: 'points', uid: event.uid, delta: -(event.penalty ?? s.sideQuestSkipPenalty), reason: 'skipped' }];
     case 'rewardClean':
       return [{ kind: 'points', uid: event.uid, delta: s.cleanPoints, reason: 'cleared' }];
+    case 'topEntry':
+      return [{ kind: 'points', uid: event.uid, delta: event.points, reason: 'top-entry' }];
     case 'rewardFrame':
       return [{ kind: 'points', uid: event.target, delta: -s.framePoints, reason: 'framed' }];
     case 'checkinMissed':
@@ -50,7 +52,7 @@ const ALL_ON: Features = { guesses: true, sideQuests: true, map: true };
 export function sharedRows(s: Settings, t: TermForms, features: Features = ALL_ON): Array<[string, string]> {
   return [
     [`${t.claim.One} rejected`, `you lose ${s.rejectPenalty} and get a fresh ${t.quest.one}`],
-    ...(features.sideQuests ? [[`${t.sideQuest.One} win`, `+${s.sideQuestPoints} for the most votes (ties all win)`] as [string, string]] : []),
+    ...(features.sideQuests ? [[`${t.sideQuest.One} win`, s.voteStyle === 'yesno' ? `+${s.sideQuestPoints} for the most yes votes less the noes (ties all win)` : `+${s.sideQuestPoints} for the most votes (ties all win)`] as [string, string]] : []),
     ...(features.sideQuests && s.sideQuestSkipPenalty > 0
       ? [[`${t.sideQuest.One} skipped`, `you lose ${s.sideQuestSkipPenalty} if you don't enter`] as [string, string]]
       : []),
@@ -69,6 +71,7 @@ export function sharedRows(s: Settings, t: TermForms, features: Features = ALL_O
           ['Wrong guess', `you lose ${s.wrongGuessCost}`] as [string, string],
         ]
       : []),
+    ...(s.topEntryPoints > 0 ? [[`Top of the ${t.feed.one}`, `+${s.topEntryPoints} while your entry holds it`] as [string, string]] : []),
     ['Overruled as fraud', `${t.gm.One} takes the points back, plus a ${s.fraudPenalty} fine`],
   ];
 }

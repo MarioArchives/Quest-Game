@@ -2,6 +2,7 @@
 // the night's three kinds below as index dividers (group events, periodic missions, story missions). Pure, so it is
 // testable; MissionsTab.tsx turns the game's docs into these shapes (times in ms).
 import type { Mark } from '../../../lib/missionTabs';
+import type { VoteStyle } from '../../../shared';
 
 /** The three kinds of mission, as the dividers file them. */
 export type DeckKind = 'group' | 'periodic' | 'story';
@@ -153,12 +154,12 @@ export function openLine(
 }
 
 /** The rule on a group or story mission's folder: "+3 each, the fastest +2 · −3 if you don't". */
-export function missionRule(m: { judging?: 'vote' | 'submit'; bonusPoints: number; fastestBonus?: number }, fine: number): string {
+export function missionRule(m: { judging?: 'vote' | 'submit'; bonusPoints: number; fastestBonus?: number }, fine: number, style: VoteStyle = 'pick'): string {
   const fast = m.fastestBonus ?? 0;
   const pays =
     (m.judging ?? 'vote') === 'submit'
       ? `+${m.bonusPoints} each${fast > 0 ? `, the fastest +${fast}` : ''}`
-      : `Most votes wins +${m.bonusPoints}${fast > 0 ? `, the fastest entry +${fast}` : ''}`;
+      : `${style === 'yesno' ? 'Most yes (less no)' : 'Most votes'} wins +${m.bonusPoints}${fast > 0 ? `, the fastest entry +${fast}` : ''}`;
   return `${pays}${fine > 0 ? ` · −${fine} if you don’t` : ''}`;
 }
 

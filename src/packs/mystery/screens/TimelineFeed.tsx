@@ -33,10 +33,18 @@ import './timeline.css';
 
 type Post = { item: Doc<FeedItem>; type: string; ref: string | null; ms: number };
 
+/** "+5 to Sam" while the top's points are with a player and the case is open. */
+function topPayout(top: TopPost | null, status: string, players: Map<string, { displayName?: string | null }>): string | null {
+  const award = top?.award;
+  if (!award || status === 'ended') return null;
+  const name = firstName(players.get(award.uid)?.displayName ?? '');
+  return name ? `+${award.points} to ${name}` : `+${award.points}`;
+}
+
 export default function TimelineFeed() {
   const { isAdmin, user } = useSession();
   const uid = user?.uid ?? '';
-  const { ready, feed, feedLoading, feedError, playersById } = useGame();
+  const { ready, feed, feedLoading, feedError, playersById, state } = useGame();
   const voting = useVoting(feed);
   const top = useDocument<TopPost>('game/top');
   const [pile, setPile] = useState(false);
@@ -129,7 +137,7 @@ export default function TimelineFeed() {
           <h2>{t.feed.One}</h2>
           <span>{tonightLine(feed.length)}</span>
         </div>
-        <TopCard top={top.data} entry={topEntry} previous={previous} clock={(ms) => clockTime(ms, zone)} onOpen={setFocusId} />
+        <TopCard top={top.data} entry={topEntry} previous={previous} payout={topPayout(top.data, state.status, playersById)} clock={(ms) => clockTime(ms, zone)} onOpen={setFocusId} />
         <div className="tl__trail">
           {chapters.map((c, i) => (
             <Fragment key={c.stop?.id ?? 'before'}>

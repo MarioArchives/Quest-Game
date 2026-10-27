@@ -466,6 +466,7 @@
   "story": [
     {
       "id": "s-incriminating",
+      "question": "Most damning?",
       "title": "Incriminating evidence",
       "description": "Catch another player in a compromising, incriminating moment, and tag who's in the photo. It stays open until the GM's deadline; the vote opens when new evidence is revealed.",
       "judging": "vote",
@@ -495,6 +496,7 @@
     },
     {
       "id": "s-old-days",
+      "question": "Best memory of Bob?",
       "title": "The good old days",
       "description": "A photo with your miniature Bob (everyone got one at the start of the night), capturing a fond memory with Bob.",
       "judging": "vote",
@@ -504,6 +506,7 @@
     },
     {
       "id": "s-weapon",
+      "question": "What killed Bob?",
       "title": "Murder weapon",
       "description": "Find an object, photograph it and explain how it killed Bob. The most voted becomes the murder weapon.",
       "judging": "vote",
@@ -532,6 +535,7 @@
     },
     {
       "id": "s-alibi",
+      "question": "Best alibi?",
       "title": "Couldn't be me",
       "description": "A video of someone, extra if they're a stranger, saying their name and backing your alibi for where you were at 11:02 pm.",
       "judging": "vote",
@@ -545,6 +549,7 @@
     },
     {
       "id": "s-scene",
+      "question": "Where did it happen?",
       "title": "The room where it happened",
       "description": "Photograph the place Bob was murdered and say why. The most voted becomes the scene of the crime.",
       "judging": "vote",

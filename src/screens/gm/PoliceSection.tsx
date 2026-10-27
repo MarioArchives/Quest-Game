@@ -9,7 +9,7 @@ import { tsMs, useNow, useQuery } from '../../data/hooks';
 import { callChannelLine } from '../../lib/policeLine';
 import { formatCountdown } from '../../lib/time';
 import { t } from '../../pack';
-import type { PoliceCall, PoliceCallStatus } from '../../shared';
+import { choiceLabel, type PoliceCall, type PoliceCallStatus } from '../../shared';
 import { clockTime, dayAndTime } from './common';
 import { SwitchboardPanel } from './SwitchboardPanel';
 
@@ -75,7 +75,7 @@ export function PoliceSection() {
                   </p>
                   {c.phone || c.fallbackReason ? <p className="gm-entry__meta">{callChannelLine(c)}</p> : null}
                   <p className="gm-entry__meta">
-                    {c.answer !== null ? `Answered “${c.answer}” (expected ${c.expected})` : c.status === 'open' ? `Expects ${c.expected}` : 'No answer'}
+                    {c.answer !== null ? `Answered “${choiceLabel(c.options, c.answer)}” (expected ${choiceLabel(c.options, c.expected)})` : c.status === 'open' ? `Expects ${choiceLabel(c.options, c.expected)}` : 'No answer'}
                     {' · '}+{c.passPoints} / −{c.failPenalty}
                   </p>
                   <p className="gm-entry__meta">

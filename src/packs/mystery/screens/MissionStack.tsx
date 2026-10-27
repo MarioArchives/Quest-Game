@@ -13,9 +13,12 @@ import { formatCountdown } from '../../../lib/time';
 import { pack, t } from '../../../pack';
 import { useAnswers } from '../../../screens/home/CheckinCard';
 import { CheckingCard, Pips, VotingCard, useEntered } from '../../../screens/home/SideQuestCard';
+import { useVoteTakeover } from '../../../screens/vote/VoteLayer';
 import { useSession } from '../../../session/SessionProvider';
+import type { Doc, GlobalQuest } from '../../../shared';
 import { Paperclip } from './CaseKit';
 import { checkinRule, missionRule, sendBack, STACK_MAX, tabSlots } from './missionDeck';
+import { SealedFile } from './SealedFile';
 import type { DeckMission } from './useMissionDeck';
 
 /** How far the front folder must be dragged to go to the back. */
@@ -114,7 +117,7 @@ export function MissionStack({ missions, order, onOrder, onVote }: { missions: D
     pull(byPlace[next]!, true);
   };
 
-  if (!front) return <EmptyStack />;
+  if (!front) return <SealedFile fallback={<EmptyStack />} />;
 
   const layers = shown.length;
   const style = { '--layers': layers, '--n': layers, '--more-w': more > 0 ? '40px' : '0px', '--dx': `${dx}px`, '--tilt': `${dx / 40}deg` } as CSSProperties;
@@ -164,6 +167,7 @@ export function MissionStack({ missions, order, onOrder, onVote }: { missions: D
       <div
         className="ms-f__b"
         id="ms-front"
+        data-own-swipe=""
         role="tabpanel"
         aria-labelledby={`ms-tab-${front.id}`}
         onPointerDown={onPointerDown}
@@ -228,12 +232,39 @@ function FrontFolder({ m, index, count, onVote }: { m: DeckMission; index: numbe
   if (q.status === 'live') return <LiveFront m={m} head={head} />;
   if (q.status === 'checking') return <CheckingCard quest={q} eyebrow={eyebrow} />;
   // A Submit mission is scored as it closes: it never has a vote to show.
-  if (q.status === 'voting' && judgingOf(q) === 'vote') return <VotingCard quest={q} eyebrow={eyebrow} onVote={onVote} />;
+  if (q.status === 'voting' && judgingOf(q) === 'vote') return <VotingFront quest={q} eyebrow={eyebrow} onVote={onVote} head={head} />;
   return (
     <>
       {head}
       <h3 className="ms-t">{q.title}</h3>
       <p className="ms-you">Being scored</p>
+    </>
+  );
+}
+
+/**
+ * A mission in voting. A player gets the small front card: the clock, the rule, how far they have got and "Open the
+ * vote" (the vote itself is the full-screen takeover). A GM who doesn't play keeps the plain vote card.
+ */
+export function VotingFront({ quest, eyebrow, onVote, head }: { quest: Doc<GlobalQuest>; eyebrow: string; onVote(): void; head?: ReactNode }) {
+  const { available, open, progressFor } = useVoteTakeover();
+  const { settings } = useGame();
+  const progress = progressFor(quest.id);
+  if (!available || !progress) return <VotingCard quest={quest} eyebrow={eyebrow} onVote={onVote} />;
+  const endsMs = quest.votingEndsAt ? tsMs(quest.votingEndsAt) : null;
+  const text = progress.total === 0 ? 'Nothing of anyone else’s to vote on' : progress.finished ? 'Your vote is in' : progress.judged > 0 ? `${progress.judged} of ${progress.total} judged` : 'Not voted yet';
+  return (
+    <>
+      {head ?? <p className="ms-k"><span>{eyebrow}</span></p>}
+      <h3 className="ms-t">{quest.title}</h3>
+      <p className="ms-rule">{missionRule(quest, skipFine(quest, settings), quest.voteStyle ?? settings.voteStyle)}</p>
+      <div className="ms-row">{endsMs !== null ? <Clock endsMs={endsMs} /> : null}</div>
+      <p className={`ms-you ${progress.finished ? 'ok' : progress.total > 0 ? 'hot' : ''}`}>{text}</p>
+      {progress.total > 0 ? (
+        <button type="button" className="cf-btn cf-btn--go ms-cta" onClick={() => open(quest.id)}>
+          Open the vote
+        </button>
+      ) : null}
     </>
   );
 }
@@ -254,7 +285,7 @@ function LiveFront({ m, head }: { m: DeckMission; head: ReactNode }) {
       {head}
       <h3 className="ms-t">{quest.title}</h3>
       {quest.description ? <p className="ms-desc">{quest.description}</p> : null}
-      <p className="ms-rule">{missionRule(quest, skipFine(quest, settings))}</p>
+      <p className="ms-rule">{missionRule(quest, skipFine(quest, settings), quest.voteStyle ?? settings.voteStyle)}</p>
       <div className="ms-row">
         <Clock endsMs={tsMs(quest.endsAt)} />
         <div className="ms-prints">

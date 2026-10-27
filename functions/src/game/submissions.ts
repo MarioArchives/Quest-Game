@@ -204,6 +204,6 @@ export async function reviewSubmission(
     return { status: 'rejected' as const };
   });
   // The override flagged the entry's posts: a flagged post loses the pinned top entry (votes packs).
-  if (overridden && ctx.pack.reactions === 'votes') await recomputeTop(db, ctx.now);
+  if (overridden && ctx.pack.reactions === 'votes') await recomputeTop(db, ctx.now, ctx.pack);
   return result;
 }

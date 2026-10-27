@@ -123,3 +123,4 @@
   text-underline-offset: 3px;
 }
 .tipoff__fine { font-size: 13px; color: var(--muted); }
+.tipoff__said { margin: 6px 0 0; font-size: 14px; font-style: italic; color: var(--ink); overflow-wrap: anywhere; }

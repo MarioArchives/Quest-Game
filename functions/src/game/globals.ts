@@ -5,7 +5,7 @@ import { termForms } from '../shared/packs/terms.js';
 import type { GamePack, StoryQuest } from '../shared/packs/types.js';
 import type { StoryEntry } from '../shared/types.js';
 import { derange } from '../shared/derange.js';
-import type { GlobalQuest, GlobalQuestSource, Judging, Player, QuietHours, Settings } from '../shared/types.js';
+import type { GlobalQuest, GlobalQuestSource, Judging, Player, QuietHours, Settings, Vote } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { fail, isPlaying, loadSettings, loadState, requireGM } from './guards.js';
@@ -93,6 +93,7 @@ interface OpenSpec {
     votePoints?: number;
     tieBonus?: number;
     records?: { key: string; label: string };
+    question?: string | null;
   };
 }
 
@@ -185,7 +186,7 @@ export async function runTick(db: Db, now: Date, rng: () => number, pack: GamePa
     const moving = [...expired, ...(template ? running : [])].map(asQuest);
     const move = await readMoveOn(tx, db, moving, votingOver.length > 0);
     const entries = votingOver.length > 0 ? await readAllEntries(tx, db) : new Map<string, Entry[]>();
-    const votes = new Map<string, Map<string, string>>();
+    const votes = new Map<string, Map<string, Vote>>();
     for (const q of votingOver) votes.set(q.id, await readVotes(tx, db, q.id));
     const scoring = scoringFor(pack, settings, state, now);
 
@@ -306,6 +307,7 @@ function storySpec(input: Record<string, unknown>, story: StoryQuest, settings: 
       ...(story.votePoints != null ? { votePoints: story.votePoints } : {}),
       ...(story.tieBonus != null ? { tieBonus: story.tieBonus } : {}),
       ...(story.records ? { records: story.records } : {}),
+      question: story.question ?? null,
     },
   };
 }

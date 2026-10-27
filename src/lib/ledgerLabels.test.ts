@@ -71,3 +71,12 @@ describe('ledgerLabels', () => {
     expect((ledgerLabels(t, 'gm') as Record<string, string>)['global-votes']).toMatch(/votes?/i);
   });
 });
+
+describe('the top of the log book (plan "+5 for the log book\'s top entry")', () => {
+  it('labels gaining and losing it in the pack’s word for the feed', () => {
+    const you = ledgerLabels(termForms(getPack('mystery').terms), 'you');
+    expect(you['top-entry' as never]).toBe('Top of the log book');
+    expect(you['top-entry-lost' as never]).toBe('Lost the top of the log book');
+    expect(ledgerLabels(termForms(getPack('lancaster').terms), 'them')['top-entry' as never]).toBe('Top of the feed');
+  });
+});

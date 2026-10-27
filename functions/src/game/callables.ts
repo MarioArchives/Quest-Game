@@ -20,6 +20,7 @@ import { rerollQuest } from './quests.js';
 import { grantRerolls } from './rerolls.js';
 import { resetGame } from './reset.js';
 import { resolveReward } from './rewards.js';
+import { openOnTime, setStartTime } from './startTime.js';
 import { setGameStatus } from './status.js';
 import { reviewSubmission } from './submissions.js';
 import { advanceGlobalQuest, castVote, checkEntry, enterSideQuest } from './votes.js';
@@ -63,6 +64,8 @@ const withPush =
   };
 
 export const CALLABLES: Readonly<Record<string, CallableDef>> = {
+  setStartTime: { run: plain(setStartTime) },
+  openOnTime: { run: plain(openOnTime) },
   requestJoin: { run: plain(requestJoin) },
   reviewJoinRequest: { run: plain(reviewJoinRequest) },
   bookIn: { run: plain(bookIn) },

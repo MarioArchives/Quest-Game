@@ -6,13 +6,17 @@ import { Icon, isIconName, type IconName } from '../components/Icon';
 import { useClosePhotoViewer } from '../components/PhotoViewer';
 import { RewardSheetProvider } from '../components/RewardSheet';
 import look from '@pack';
+import { chipCountdown, spokenCountdown } from '../lib/countdown';
 import { litTab, tabLabels, tabsFor, type TabId } from '../lib/nav';
 import { brand, features, pack, t } from '../pack';
 import { useGame } from '../data/GameProvider';
+import { useTabSwipe } from '../data/useTabSwipe';
+import { useOpening } from '../data/useOpening';
 import { useTabBadges } from '../data/useTabBadges';
 import { refreshPush } from '../data/usePush';
 import { useSession } from '../session/SessionProvider';
 import { TipLine } from './home/TipLine';
+import { VoteLayer, VoteTakeoverProvider, useVoteTakeover } from './vote/VoteLayer';
 import './AppFrame.css';
 
 interface Tab {
@@ -64,10 +68,23 @@ const TABS: Record<TabId, Tab> = {
 };
 
 export function AppFrame() {
+  return (
+    <RewardSheetProvider>
+      <VoteTakeoverProvider>
+        <Frame />
+      </VoteTakeoverProvider>
+    </RewardSheetProvider>
+  );
+}
+
+function Frame() {
+  const { showing: voting } = useVoteTakeover();
   const { player, user, isAdmin } = useSession();
   const { state, me } = useGame();
   const { pathname } = useLocation();
   const badges = useTabBadges(pathname, FEED_TAB);
+  // The one place that opens the game at zero (see useOpening); a player's chip counts down to the start meanwhile.
+  const opening = useOpening();
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
   const closePhoto = useClosePhotoViewer();
@@ -106,19 +123,32 @@ export function AppFrame() {
   if (FEED_TAB && lit === 'home') dots.home = false;
   const tabs = tabsFor({ features, isAdmin, ended: state.status === 'ended', feed: FEED_TAB, ownMap: OWN_MAP }).map((id) => ({ ...TABS[id], id, dot: dots[id] }));
 
+  useTabSwipe(mainRef, tabs, lit, pathname !== '/map');
+
   const displayName = player?.displayName ?? user?.displayName ?? 'You';
   const photo = player?.photoURL ?? user?.photoURL ?? null;
 
   return (
-    <RewardSheetProvider>
-    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`}>
+    <>
+    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`} inert={voting !== null}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to content
       </a>
       <header className="appbar">
         <h1 className="appbar__title">{title}</h1>
         <div className="appbar__right">
-          {player ? (
+          {player && opening ? (
+            <span className="appbar__score">
+              <TipLine />
+              <span
+                className={`chip appbar__points appbar__points--count${opening.stage === 'final' ? ' appbar__points--final' : ''}`}
+                aria-label={`Starts in ${spokenCountdown(opening.remainingMs)}`}
+              >
+                <Icon name="clock" size={15} strokeWidth={2.4} />
+                {chipCountdown(opening.remainingMs)}
+              </span>
+            </span>
+          ) : player ? (
             <span className="appbar__score">
               <TipLine />
               <span className="chip appbar__points" aria-label={`${player.points} points${me ? `, rank ${me.rank}` : ''}`}>
@@ -158,6 +188,7 @@ export function AppFrame() {
         ))}
       </nav>
     </div>
-    </RewardSheetProvider>
+    <VoteLayer />
+    </>
   );
 }

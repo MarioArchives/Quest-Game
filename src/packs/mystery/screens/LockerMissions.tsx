@@ -72,7 +72,7 @@ function MissionCard() {
 
 /** `alongside`: a long-running mission beside the one taking the night's attention; it has no "fire a new one". */
 function RunningMission({ quest, now, alongside = false }: { quest: Doc<GlobalQuest>; now: number; alongside?: boolean }) {
-  const { activePlayers, state } = useGame();
+  const { activePlayers, state, settings } = useGame();
   const { user } = useSession();
   const { entries, toCheck } = useEntries(quest);
   const [confirming, setConfirming] = useState(false);
@@ -136,8 +136,8 @@ function RunningMission({ quest, now, alongside = false }: { quest: Doc<GlobalQu
             </>
           ) : (
             <p>
-              The votes for <strong>&ldquo;{quest.title}&rdquo;</strong> are counted now. The entry with the most votes gets{' '}
-              <strong>+{quest.bonusPoints}</strong>; a tie pays everyone tied in full, and no votes means no winner.
+              The votes for <strong>&ldquo;{quest.title}&rdquo;</strong> are counted now. The entry with the{' '}
+              {(quest.voteStyle ?? settings.voteStyle) === 'yesno' ? 'most yeses (less the noes)' : 'most votes'} gets <strong>+{quest.bonusPoints}</strong>; a tie pays everyone tied in full, and no votes means no winner.
             </p>
           )}
         </ConfirmSheet>

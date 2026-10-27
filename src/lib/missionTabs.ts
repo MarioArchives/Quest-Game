@@ -1,7 +1,7 @@
 // The night's side quests as a row of tabs, one per side quest (a pack's Board): which ones count tonight and their
 // numbers, what needs you, your mark on a closed one, which tab opens first, and a closed one's result. Pure, so it
 // is testable; the screen turns the game's docs into these shapes (times in ms).
-import type { GlobalQuestStatus, Judging } from '../shared';
+import { entryVotesText, type GlobalQuest, type GlobalQuestStatus, type Judging, type VoteStyle } from '../shared';
 
 /** What the tabs need of a side quest. */
 export interface MissionLike {
@@ -15,6 +15,10 @@ export interface MissionLike {
   winningSubmissionIds?: string[];
   /** Votes per entry (submission id), once voting has closed. */
   tally?: Record<string, number> | null;
+  /** How its vote was cast; missing = one vote each. */
+  voteStyle?: VoteStyle;
+  /** A yes/no vote's yeses and noes per entry, once counted (the tally then holds yes − no). */
+  yesNo?: GlobalQuest['yesNo'];
   fastestBonus?: number;
   fastestSubmissionId?: string | null;
 }
@@ -138,11 +142,12 @@ export function filedAtMs(m: MissionLike, feed: Array<{ type: string; ref: strin
 }
 
 /** What a closed side quest paid, in the past tense: "No vote: every entry earned +3, the fastest +2 more. No entry cost −3." */
-export function filedRule(m: { judging?: Judging; bonusPoints: number; fastestBonus?: number }, fine: number): string {
+export function filedRule(m: { judging?: Judging; bonusPoints: number; fastestBonus?: number; voteStyle?: VoteStyle }, fine: number): string {
   const fast = m.fastestBonus ?? 0;
   const fined = fine > 0 ? ` No entry cost −${fine}.` : '';
   if ((m.judging ?? 'vote') === 'submit') return `No vote: every entry earned +${m.bonusPoints}${fast > 0 ? `, the fastest +${fast} more` : ''}.${fined}`;
-  return `Most votes won +${m.bonusPoints}${fast > 0 ? `, the fastest entry +${fast}` : ''}. Ties all won.${fined}`;
+  const most = m.voteStyle === 'yesno' ? 'Most yes (less no)' : 'Most votes';
+  return `${most} won +${m.bonusPoints}${fast > 0 ? `, the fastest entry +${fast}` : ''}. Ties all won.${fined}`;
 }
 
 /** An entry still standing in a closed side quest. */
@@ -161,11 +166,11 @@ export interface LineLike {
 
 export interface MissionResult<E> {
   /** A Vote's winning entries (with their votes, when counted), or a Submit's fastest entry. */
-  leads: Array<{ entry: E; votes: number | null }>;
+  leads: Array<{ entry: E; votes: number | null; words: string | null }>;
   /** A Vote's fastest entry, when it paid a fastest bonus and isn't a winner. */
   fastest: E | null;
-  /** A Vote's count, most votes first (entries with none are left out). */
-  votes: Array<{ entry: E; votes: number }>;
+  /** A Vote's count, most votes first (entries with none are left out). A yes/no vote lists every entry with a yes or a no, highest yes − no first, and `votes` is that net. */
+  votes: Array<{ entry: E; votes: number; words: string }>;
   /** Everyone whose entry stood, in the order they entered. */
   entered: string[];
   /** Who paid the fine for not entering, and how much (as applied). */
@@ -185,15 +190,22 @@ export function missionResult<E extends EntryLike>(m: MissionLike, entries: E[],
   let fastest: E | null = null;
   let votes: MissionResult<E>['votes'] = [];
   if ((m.judging ?? 'vote') === 'submit') {
-    leads = fastestEntry ? [{ entry: fastestEntry, votes: null }] : [];
+    leads = fastestEntry ? [{ entry: fastestEntry, votes: null, words: null }] : [];
   } else {
     const winners = (m.winningSubmissionIds ?? []).map((id) => byId.get(id)).filter((e): e is E => Boolean(e));
-    leads = winners.map((entry) => ({ entry, votes: m.tally?.[entry.id] ?? null }));
+    leads = winners.map((entry) => ({ entry, votes: m.tally?.[entry.id] ?? null, words: entryVotesText(m, entry.id) }));
     if (fastestEntry && (m.fastestBonus ?? 0) > 0 && !winners.includes(fastestEntry)) fastest = fastestEntry;
-    votes = ordered
-      .map((entry) => ({ entry, votes: m.tally?.[entry.id] ?? 0 }))
-      .filter((v) => v.votes > 0)
-      .sort((a, b) => b.votes - a.votes);
+    if (m.voteStyle === 'yesno') {
+      votes = ordered
+        .filter((entry) => (m.yesNo?.[entry.id]?.yes ?? 0) + (m.yesNo?.[entry.id]?.no ?? 0) > 0)
+        .map((entry) => ({ entry, votes: m.tally?.[entry.id] ?? (m.yesNo?.[entry.id]?.yes ?? 0) - (m.yesNo?.[entry.id]?.no ?? 0), words: entryVotesText(m, entry.id) ?? '' }))
+        .sort((a, b) => b.votes - a.votes);
+    } else {
+      votes = ordered
+        .map((entry) => ({ entry, votes: m.tally?.[entry.id] ?? 0, words: entryVotesText(m, entry.id) ?? '' }))
+        .filter((v) => v.votes > 0)
+        .sort((a, b) => b.votes - a.votes);
+    }
   }
 
   const entered: string[] = [];

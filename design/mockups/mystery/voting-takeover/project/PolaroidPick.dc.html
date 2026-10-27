@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Polaroid swipe: pick one</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;600;700&amp;family=Caveat:wght@600&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#e6cf98}a:hover{color:#f4ecd5}
+.mono{font-family:'Space Mono',ui-monospace,monospace}
+.disp{font-family:'Archivo Black','Archivo',system-ui,sans-serif;font-weight:400}
+.hand{font-family:'Caveat','Archivo',cursive;font-weight:600}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #e5ac17;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: #3d4042; color: #e9ebec; font-family: 'Archivo', system-ui, sans-serif;">
+
+  <div style="height: 126px; box-sizing: border-box;">
+    <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0 6px;">
+      <button type="button" style="height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; border: 0; background: transparent; color: #e9ebec; font-size: 14px; font-weight: 600;">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        <span>Back to the case</span>
+      </button>
+      <p class="mono" role="timer" aria-label="8 minutes 41 seconds left to vote" style="margin: 0; display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border: 2px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 15px; font-weight: 700; transform: rotate(-2deg);">08:41<span style="font-size: 10px; font-weight: 400; letter-spacing: 0.08em;">TO VOTE</span></p>
+    </header>
+    <div style="padding: 2px 20px 0;">
+      <p class="mono" style="margin: 0; font-size: 11px; letter-spacing: 0.1em; color: #b9bdc0;">{{eyebrow}}</p>
+      <h1 class="disp" style="margin: 4px 0 0; font-size: 28px; line-height: 1.05;">Murder weapon</h1>
+      <p style="margin: 4px 0 0; font-size: 13px; line-height: 1.3; color: #d4d7d9;">{{intro}}</p>
+    </div>
+  </div>
+
+  <sc-if value="{{inDeck}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; top: 126px; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 20px 0;">
+        <div aria-hidden="true" style="flex: 1 1 auto; display: flex; gap: 4px;">
+          <sc-for list="{{segs}}" as="s" hint-placeholder-count="6">
+            <span style="flex: 1 1 0; height: 4px; border-radius: 2px; background: {{s.bg}};"></span>
+          </sc-for>
+        </div>
+        <span class="mono" style="font-size: 11px; color: #b9bdc0;">{{progress}}</span>
+      </div>
+
+      <div style="position: relative; flex: 1 1 auto; min-height: 0; margin: 24px 26px 0;">
+        <div aria-hidden="true" style="position: absolute; top: 10px; right: -6px; bottom: 6px; left: 6px; background: #e3e0d4; transform: rotate(4deg); box-shadow: 0 4px 0 #26282a;"></div>
+        <div aria-hidden="true" style="position: absolute; top: 4px; right: 2px; bottom: 2px; left: -4px; background: #ebe8dd; transform: rotate(-3deg); box-shadow: 0 3px 0 #26282a;"></div>
+        <sc-if value="{{showCard}}" hint-placeholder-val="{{true}}">
+          <article aria-label="{{card.aria}}" onPointerDown="{{down}}" onPointerMove="{{move}}" onPointerUp="{{up}}" onPointerCancel="{{up}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; padding: 14px 14px 10px; background: #f4f2ea; color: #2a2116; box-shadow: 0 5px 0 #26282a; touch-action: pan-y; user-select: none; cursor: grab; transform: {{cardTransform}}; transition: {{cardTransition}};">
+            <span aria-hidden="true" style="position: absolute; left: 50%; top: -13px; width: 96px; height: 26px; margin-left: -48px; background: rgba(226, 214, 180, 0.9); transform: rotate(-3deg);"></span>
+            <div style="position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: {{card.tone}}; color: #efe6cf; text-align: center;">
+              <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+              <span class="disp" style="font-size: 30px; line-height: 1.05; padding: 0 24px;">{{card.word}}</span>
+              <span class="mono" aria-hidden="true" style="position: absolute; right: 12px; top: 14px; padding: 3px 10px; border: 3px solid {{rightInkColor}}; border-radius: 3px; color: {{rightInkColor}}; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; transform: rotate(8deg); opacity: {{rightInk}};">{{rightWord}}</span>
+              <span class="mono" aria-hidden="true" style="position: absolute; left: 12px; top: 14px; padding: 3px 10px; border: 3px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; transform: rotate(-8deg); opacity: {{leftInk}};">{{leftWord}}</span>
+              <sc-if value="{{card.own}}" hint-placeholder-val="{{false}}">
+                <span class="mono" style="position: absolute; left: 10px; bottom: 10px; padding: 4px 8px; background: #c9a974; color: #2a2116; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;">YOUR ENTRY</span>
+              </sc-if>
+            </div>
+            <p class="hand" style="margin: 10px 2px 0; min-height: 56px; font-size: 25px; line-height: 1.1; color: #2a2116;">{{card.caption}}</p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span class="mono" style="flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #5b4a33;">{{card.byline}}</span>
+              <sc-for list="{{card.reacts}}" as="r" hint-placeholder-count="2">
+                <button type="button" aria-label="{{r.aria}}" aria-pressed="{{r.on}}" disabled="{{r.off}}" onClick="{{r.toggle}}" onPointerDown="{{stop}}" style="height: 44px; min-width: 64px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 2px solid {{r.edge}}; border-radius: 22px; background: {{r.bg}}; color: {{r.fg}};">
+                  <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; fill: {{r.fill}};"><path d="{{r.d}}"></path></svg>
+                  <span class="mono" style="font-size: 14px; font-weight: 700;">{{r.count}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </article>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; justify-content: center; gap: 28px; padding: 18px 0 2px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px;">
+          <button type="button" aria-label="Back to the last one" disabled="{{noBack}}" onClick="{{back}}" style="width: 48px; height: 48px; margin-top: 8px; border-radius: 50%; border: 2px solid #8d9294; background: transparent; color: #e9ebec; display: flex; align-items: center; justify-content: center; opacity: {{backDim}};">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg>
+          </button>
+          <span class="mono" style="font-size: 11px; color: #b9bdc0;">BACK</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 72px;">
+          <button type="button" aria-label="{{leftAria}}" onClick="{{left}}" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid #e9ebec; background: transparent; color: #e9ebec; display: flex; align-items: center; justify-content: center;">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 26px; height: 26px;"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+          <span class="mono" style="font-size: 11px; color: #b9bdc0;">{{leftLabel}}</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 76px;">
+          <button type="button" aria-label="{{rightAria}}" disabled="{{rightOff}}" onClick="{{right}}" style="width: 72px; height: 72px; margin-top: -4px; border-radius: 50%; border: 2px solid #21180e; background: #e6cf98; color: #2a2116; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 0 #26282a; opacity: {{rightDim}};">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 30px; height: 30px; stroke-width: 2.4;"><path d="{{rightIcon}}"></path></svg>
+          </button>
+          <span class="mono" style="font-size: 11px; color: #e6cf98; font-weight: 700;">{{rightLabel}}</span>
+        </div>
+      </div>
+      <p style="margin: 0; padding: 8px 24px 18px; text-align: center; font-size: 13px; line-height: 1.35; color: #d4d7d9;">{{deckLine}}</p>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{onBoard}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; top: 126px; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column;">
+      <div style="position: relative; flex: 1 1 auto; min-height: 0; background: #a9834f; box-shadow: inset 0 0 0 6px #6e5238; overflow: hidden;">
+        <div aria-hidden="true">
+          <sc-for list="{{specks}}" as="k" hint-placeholder-count="30">
+            <span style="position: absolute; left: {{k.x}}; top: {{k.y}}; width: {{k.s}}; height: {{k.s}}; border-radius: 50%; background: #8a6538;"></span>
+          </sc-for>
+          <sc-for list="{{strings}}" as="g" hint-placeholder-count="6">
+            <span style="position: absolute; left: 195px; top: {{g.top}}; width: {{g.len}}; height: {{g.h}}; background: {{g.color}}; transform: rotate({{g.ang}}); transform-origin: 0 50%;"></span>
+          </sc-for>
+        </div>
+        <div aria-hidden="true" style="position: absolute; left: 141px; top: 238px; width: 108px; box-sizing: border-box; padding: 10px 8px 12px; background: #fbfaf4; color: #2a2116; text-align: center; transform: rotate(-2deg); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);">
+          <span style="position: absolute; left: 50%; top: -6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #c8a24a; border: 2px solid #7a520a; box-sizing: border-box;"></span>
+          <span class="mono" style="display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #5b4a33;">THE QUESTION</span>
+          <span class="hand" style="display: block; margin-top: 6px; font-size: 22px; line-height: 1.05;">What killed Bob?</span>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 0;">
+          <sc-for list="{{photos}}" as="p" hint-placeholder-count="6">
+            <li style="position: absolute; left: {{p.left}}; top: {{p.top}}; width: 128px; transform: rotate({{p.rot}}); opacity: {{p.dim}};">
+              <button type="button" aria-label="{{p.aria}}" onClick="{{p.open}}" style="position: relative; width: 128px; display: flex; flex-direction: column; gap: 4px; padding: 7px 7px 8px; border: 0; background: #f4f2ea; color: #2a2116; text-align: left; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);">
+                <span aria-hidden="true" style="position: absolute; left: 50%; top: {{p.pinTop}}; width: {{p.pinSize}}; height: {{p.pinSize}}; margin-left: {{p.pinShift}}; border-radius: 50%; background: {{p.pinColor}}; border: 2px solid {{p.pinEdge}}; box-sizing: border-box;"></span>
+                <span style="position: relative; height: 92px; display: flex; align-items: center; justify-content: center; padding: 0 6px; background: {{p.tone}}; color: #efe6cf; text-align: center;">
+                  <span class="disp" style="font-size: 14px; line-height: 1.1;">{{p.word}}</span>
+                  <sc-if value="{{p.hasStamp}}" hint-placeholder-val="{{false}}">
+                    <span class="mono" style="position: absolute; right: 4px; bottom: 4px; padding: 1px 6px; border: 2px solid {{p.stampColor}}; border-radius: 2px; color: {{p.stampColor}}; font-size: 12px; font-weight: 700; transform: rotate(-6deg);">{{p.stamp}}</span>
+                  </sc-if>
+                </span>
+                <span class="hand" style="font-size: 17px; line-height: 1; color: #2a2116;">{{p.name}}</span>
+                <span class="mono" style="display: flex; gap: 8px; font-size: 10px; font-weight: 700; color: #5b4a33;">
+                  <span>EYE {{p.eyes}}</span><span>HEART {{p.hearts}}</span>
+                </span>
+                <sc-if value="{{p.hasTag}}" hint-placeholder-val="{{false}}">
+                  <span class="mono" aria-hidden="true" style="position: absolute; left: -8px; top: 66px; padding: 3px 8px; background: {{p.tagBg}}; color: {{p.tagFg}}; font-size: 11px; font-weight: 700; transform: rotate(-8deg); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);">{{p.tag}}</span>
+                </sc-if>
+              </button>
+            </li>
+          </sc-for>
+        </ul>
+      </div>
+      <footer style="flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px 18px; background: #26282a;">
+        <div style="flex: 1 1 auto; min-width: 0;">
+          <p class="mono" style="margin: 0; font-size: 10px; letter-spacing: 0.1em; color: #b9bdc0;">{{trayLabel}}</p>
+          <p style="margin: 2px 0 0; font-size: 15px; font-weight: 700; line-height: 1.2;">{{trayValue}}</p>
+          <p style="margin: 2px 0 0; font-size: 12px; color: #c4c8ca;">{{traySub}}</p>
+        </div>
+        <button type="button" aria-label="Swipe through them again" onClick="{{again}}" style="flex: none; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 2px solid #8d9294; border-radius: 8px; background: transparent; color: #e9ebec;">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg>
+        </button>
+        <button type="button" disabled="{{notDone}}" style="flex: none; height: 48px; padding: 0 20px; border: 2px solid #21180e; border-radius: 8px; background: #e6cf98; color: #2a2116; font-size: 15px; font-weight: 700; box-shadow: 0 3px 0 #161718; opacity: {{doneDim}};">Done</button>
+      </footer>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;">
+      <button type="button" aria-label="Back to the board" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 0; background: rgba(22, 23, 24, 0.82);"></button>
+      <section role="dialog" aria-modal="true" aria-label="{{sheet.aria}}" style="position: absolute; left: 22px; right: 22px; top: 70px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="position: relative; display: flex; flex-direction: column; padding: 12px 12px 10px; background: #f4f2ea; color: #2a2116; transform: rotate(-1.2deg); box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);">
+          <span aria-hidden="true" style="position: absolute; left: 50%; top: -13px; width: 96px; height: 26px; margin-left: -48px; background: rgba(226, 214, 180, 0.9); transform: rotate(3deg);"></span>
+          <div style="position: relative; height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: {{sheet.tone}}; color: #efe6cf; text-align: center;">
+            <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+            <span class="disp" style="font-size: 30px; line-height: 1.05; padding: 0 24px;">{{sheet.word}}</span>
+          </div>
+          <p class="hand" style="margin: 10px 2px 0; font-size: 25px; line-height: 1.1;">{{sheet.caption}}</p>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+            <span class="mono" style="flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #5b4a33;">{{sheet.byline}}</span>
+            <sc-for list="{{sheet.reacts}}" as="r" hint-placeholder-count="2">
+              <button type="button" aria-label="{{r.aria}}" aria-pressed="{{r.on}}" disabled="{{r.off}}" onClick="{{r.toggle}}" style="height: 44px; min-width: 64px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 2px solid {{r.edge}}; border-radius: 22px; background: {{r.bg}}; color: {{r.fg}};">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; fill: {{r.fill}};"><path d="{{r.d}}"></path></svg>
+                <span class="mono" style="font-size: 14px; font-weight: 700;">{{r.count}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{pickMode}}" hint-placeholder-val="{{true}}">
+          <button type="button" disabled="{{sheet.own}}" onClick="{{pinIt}}" style="height: 50px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px solid #74231c; border-radius: 8px; background: #a3342a; color: #ffffff; font-size: 15px; font-weight: 700; box-shadow: 0 3px 0 #161718; opacity: {{sheet.actDim}};">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px;"><circle cx="12" cy="8" r="5" fill="#ffffff"></circle><path d="M12 13v8" stroke="#ffffff" fill="none" style="stroke-width: 2; stroke-linecap: round;"></path></svg>
+            <span>{{sheet.pinLabel}}</span>
+          </button>
+        </sc-if>
+        <sc-if value="{{yesNoMode}}" hint-placeholder-val="{{false}}">
+          <div role="group" aria-label="Your vote on this one" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; opacity: {{sheet.actDim}};">
+            <button type="button" aria-pressed="{{sheet.isNo}}" disabled="{{sheet.own}}" onClick="{{sayNo}}" style="height: 50px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px solid #e9ebec; border-radius: 8px; background: {{sheet.noBg}}; color: {{sheet.noFg}}; font-size: 15px; font-weight: 700;">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              <span>No</span>
+            </button>
+            <button type="button" aria-pressed="{{sheet.isYes}}" disabled="{{sheet.own}}" onClick="{{sayYes}}" style="height: 50px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px solid #e6cf98; border-radius: 8px; background: {{sheet.yesBg}}; color: {{sheet.yesFg}}; font-size: 15px; font-weight: 700;">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              <span>Yes</span>
+            </button>
+          </div>
+        </sc-if>
+        <button type="button" onClick="{{close}}" style="height: 48px; border: 2px solid #e9ebec; border-radius: 8px; background: transparent; color: #e9ebec; font-size: 15px; font-weight: 700;">Back to the board</button>
+      </section>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+// 'pick': swipe right for a maybe, then pin one on the board. 'yesno': every swipe is a yes or a no.
+const MODE = 'pick';
+const ENTRIES = [
+  { id: 'e1', who: 'Priya', short: 'pint glass', word: 'Pint glass', caption: 'Bludgeoned with the last pint of the night. Fingerprints: everyone’s.', tone: '#5d4835', base: { eye: 1, heart: 4 } },
+  { id: 'e2', who: 'Sam', short: 'jukebox', word: 'Jukebox', caption: 'Mr Brightside eleven times in a row. His heart gave out.', tone: '#3f4a56', base: { eye: 0, heart: 7 } },
+  { id: 'e3', who: 'You', own: true, short: 'cocktail umbrella', word: 'Cocktail umbrella', caption: 'Small, pointy, and nobody suspects the umbrella.', tone: '#6a3a33', base: { eye: 2, heart: 2 } },
+  { id: 'e4', who: 'Jo', short: 'beer mat', word: 'Beer mat', caption: 'A paper cut. A very, very deep paper cut.', tone: '#4b5a45', base: { eye: 0, heart: 3 } },
+  { id: 'e5', who: 'Marcus', short: 'pork scratchings', word: 'Pork scratchings', caption: 'He never chewed. We all warned him.', tone: '#5a4a2a', base: { eye: 1, heart: 5 } },
+  { id: 'e6', who: 'Elle', short: 'dart', word: 'Dart', caption: 'Bullseye. Bob was standing in front of the board.', tone: '#3d3f5c', base: { eye: 4, heart: 2 } },
+];
+const REACTIONS = [
+  { k: 'eye', label: 'Suspicious', d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zM9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0', onBg: '#2a2116', onFg: '#e6cf98', fill: 'none' },
+  { k: 'heart', label: 'Love it', d: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', onBg: '#a3342a', onFg: '#ffffff', fill: 'currentColor' },
+];
+const TILTS = [-2, 1.5, -1, 2, -1.5, 1];
+// Where each polaroid is pinned on the cork (128 × 150), around the question card in the middle.
+const SPOTS = [
+  { left: 14, top: 18, rot: -5 },
+  { left: 248, top: 26, rot: 4 },
+  { left: 6, top: 226, rot: 3 },
+  { left: 256, top: 232, rot: -4 },
+  { left: 20, top: 430, rot: -3 },
+  { left: 242, top: 436, rot: 5 },
+];
+const HUB = { x: 195, y: 296 };
+const PIN_ICON = 'M12 17v5M8 3h8l-1 6 3 3H6l3-3z';
+const TICK_ICON = 'M5 12.5l4.5 4.5L19 7.5';
+const YES = '#9ad2cc';
+const NO = '#f2a99d';
+const pad = (n) => String(n).padStart(2, '0');
+const whose = (e) => (e.own ? `your ${e.short}` : `${e.who}’s ${e.short}`);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const SPECKS = Array.from({ length: 30 }, (_, i) => {
+  const r = (n) => ((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
+  return { x: `${Math.round(r(1) * 384)}px`, y: `${Math.round(r(2) * 610)}px`, s: `${2 + Math.round(r(3) * 3)}px` };
+});
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { stage: 'deck', idx: 0, dx: 0, dragging: false, leaving: 0, marks: {}, vote: null, open: null, reacts: {} };
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.t);
+    clearTimeout(this.t2);
+  }
+
+  toggle(id, k) {
+    const mine = this.state.reacts[id] || {};
+    this.setState({ reacts: { ...this.state.reacts, [id]: { ...mine, [k]: !mine[k] } } });
+  }
+
+  reacts(e) {
+    const mine = this.state.reacts[e.id] || {};
+    return REACTIONS.map((r) => {
+      const on = !!mine[r.k];
+      return {
+        d: r.d,
+        on,
+        off: !!e.own,
+        count: e.base[r.k] + (on ? 1 : 0),
+        aria: `${r.label}: ${whose(e)}`,
+        bg: on ? r.onBg : 'transparent',
+        fg: on ? r.onFg : '#2a2116',
+        edge: on ? r.onBg : '#2a2116',
+        fill: on ? r.fill : 'none',
+        toggle: () => this.toggle(e.id, r.k),
+      };
+    });
+  }
+
+  // The polaroid flies off one way; the next one snaps in without a transition. After the last, the board.
+  fly(dir, mark) {
+    const s = this.state;
+    if (s.leaving || s.idx >= ENTRIES.length) return;
+    const e = ENTRIES[s.idx];
+    this.setState({ leaving: dir, dragging: false });
+    clearTimeout(this.t);
+    this.t = setTimeout(() => {
+      const idx = this.state.idx + 1;
+      const marks = mark ? { ...this.state.marks, [e.id]: mark } : this.state.marks;
+      this.setState({ leaving: 0, dx: 0, dragging: true, idx, marks, stage: idx >= ENTRIES.length ? 'board' : 'deck' });
+      clearTimeout(this.t2);
+      this.t2 = setTimeout(() => this.setState({ dragging: false }), 40);
+    }, 240);
+  }
+
+  right() {
+    const e = ENTRIES[this.state.idx];
+    if (!e || e.own) {
+      this.setState({ dx: 0, dragging: false });
+      return;
+    }
+    this.fly(1, MODE === 'pick' ? 'maybe' : 'yes');
+  }
+
+  left() {
+    const e = ENTRIES[this.state.idx];
+    if (!e) return;
+    this.fly(-1, e.own ? null : MODE === 'pick' ? 'not' : 'no');
+  }
+
+  mark(id, m) {
+    this.setState({ marks: { ...this.state.marks, [id]: m } });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const n = ENTRIES.length;
+    const pick = MODE === 'pick';
+    const e = ENTRIES[Math.min(s.idx, n - 1)];
+    const own = !!e.own;
+    const m = s.marks;
+    const others = ENTRIES.filter((x) => !x.own);
+    const yes = others.filter((x) => m[x.id] === 'yes').length;
+    const no = others.filter((x) => m[x.id] === 'no').length;
+    const left = others.length - yes - no;
+    const voted = ENTRIES.find((x) => x.id === s.vote) || null;
+    const ink = (v) => String(Math.max(0, Math.min(1, v)));
+    const tilt = TILTS[s.idx % TILTS.length];
+    const transform = s.leaving
+      ? `translateX(${s.leaving * 470}px) rotate(${tilt + s.leaving * 16}deg)`
+      : `translateX(${s.dx}px) rotate(${tilt + s.dx / 20}deg)`;
+    const o = s.open === null ? 0 : s.open;
+    const se = ENTRIES[o];
+    const sm = m[se.id];
+    return {
+      eyebrow: pick ? 'STORY MISSION · SECRET BALLOT · PICK ONE' : 'STORY MISSION · SECRET BALLOT · YES OR NO',
+      intro: pick ? 'Swipe through them all, then pin the one that did it. +2 a vote.' : 'A yes or a no for each one. Most yeses (less the noes) wins; +2 a yes.',
+      pickMode: pick,
+      yesNoMode: !pick,
+      inDeck: s.stage === 'deck',
+      onBoard: s.stage === 'board',
+      segs: ENTRIES.map((x, i) => ({ bg: i < s.idx ? '#e6cf98' : i === s.idx ? '#e9ebec' : '#62676a' })),
+      progress: `${Math.min(s.idx + 1, n)} / ${n}`,
+      showCard: s.idx < n,
+      card: {
+        aria: `${s.idx + 1} of ${n}: ${whose(e)}`,
+        tone: e.tone,
+        word: e.word,
+        caption: e.caption,
+        own,
+        byline: e.own ? `YOU · ${s.idx + 1} OF ${n}` : `${e.who.toUpperCase()} · ${s.idx + 1} OF ${n}`,
+        reacts: this.reacts(e),
+      },
+      rightWord: pick ? 'MAYBE' : 'YES',
+      leftWord: pick ? 'NOT IT' : 'NO',
+      rightInkColor: YES,
+      rightInk: ink(own ? 0 : s.dx / 90),
+      leftInk: ink(own ? 0 : -s.dx / 90),
+      cardTransform: transform,
+      cardTransition: s.dragging ? 'none' : 'transform 240ms ease',
+      down: (ev) => {
+        if (s.leaving) return;
+        this.drag = { x: ev.clientX };
+        try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (_) {}
+        this.setState({ dragging: true, dx: 0 });
+      },
+      move: (ev) => {
+        if (!this.drag) return;
+        this.setState({ dx: ev.clientX - this.drag.x });
+      },
+      up: () => {
+        if (!this.drag) return;
+        this.drag = null;
+        const dx = this.state.dx;
+        if (dx > 90) this.right();
+        else if (dx < -90) this.left();
+        else this.setState({ dragging: false, dx: 0 });
+      },
+      stop: (ev) => ev.stopPropagation(),
+      left: () => this.left(),
+      right: () => this.right(),
+      back: () => this.setState({ idx: Math.max(0, s.idx - 1), dx: 0 }),
+      noBack: s.idx === 0,
+      backDim: s.idx === 0 ? '0.4' : '1',
+      leftLabel: own ? 'NEXT' : pick ? 'NOT IT' : 'NO',
+      leftAria: own ? 'Next one' : pick ? `Not it: ${whose(e)}` : `No to ${whose(e)}`,
+      rightLabel: own ? 'YOURS' : pick ? 'MAYBE' : 'YES',
+      rightAria: own ? 'Your own entry: you can’t vote for it' : pick ? `Maybe: ${whose(e)}` : `Yes to ${whose(e)}`,
+      rightIcon: pick ? PIN_ICON : TICK_ICON,
+      rightOff: own,
+      rightDim: own ? '0.45' : '1',
+      deckLine: pick
+        ? 'Right for a maybe, left for not it. You pick one of your maybes at the end.'
+        : `Right for yes, left for no: each swipe is a vote. So far ${yes} yes · ${no} no.`,
+      specks: SPECKS,
+      strings: ENTRIES.map((x, k) => {
+        const spot = SPOTS[k];
+        const dx = spot.left + 64 - HUB.x;
+        const dy = spot.top + 75 - HUB.y;
+        const mk = m[x.id];
+        const strong = pick ? s.vote === x.id : false;
+        const faint = pick ? mk !== 'maybe' && s.vote !== x.id : mk !== 'yes';
+        const h = strong ? 3 : faint ? 1 : 2;
+        return {
+          len: `${Math.round(Math.hypot(dx, dy))}px`,
+          ang: `${(Math.atan2(dy, dx) * 180) / Math.PI}deg`,
+          top: `${HUB.y - h / 2}px`,
+          h: `${h}px`,
+          color: strong ? '#c4302b' : faint ? '#8a6538' : '#e9dfc4',
+        };
+      }),
+      photos: ENTRIES.map((x, k) => {
+        const spot = SPOTS[k];
+        const mk = m[x.id];
+        const isVote = s.vote === x.id;
+        const counts = this.reacts(x);
+        let tag = '';
+        let tagBg = '#c9a974';
+        let tagFg = '#2a2116';
+        if (x.own) tag = 'YOURS';
+        else if (pick && isVote) { tag = 'MY VOTE'; tagBg = '#c4302b'; tagFg = '#ffffff'; }
+        else if (pick && mk === 'maybe') { tag = 'MAYBE'; tagBg = '#146460'; tagFg = '#ffffff'; }
+        const stamp = pick ? '' : x.own ? '' : mk === 'yes' ? 'YES' : mk === 'no' ? 'NO' : '?';
+        return {
+          left: `${spot.left}px`,
+          top: `${spot.top}px`,
+          rot: `${spot.rot}deg`,
+          dim: pick && !x.own && mk === 'not' && !isVote ? '0.6' : '1',
+          aria: `${cap(whose(x))}: look closer`,
+          word: x.word,
+          tone: x.tone,
+          name: x.own ? 'You' : x.who,
+          eyes: counts[0].count,
+          hearts: counts[1].count,
+          hasTag: tag !== '',
+          tag,
+          tagBg,
+          tagFg,
+          hasStamp: stamp !== '',
+          stamp,
+          stampColor: stamp === 'YES' ? YES : stamp === 'NO' ? NO : '#e0d5bb',
+          pinColor: isVote ? '#c4302b' : '#c8a24a',
+          pinEdge: isVote ? '#74231c' : '#7a520a',
+          pinSize: isVote ? '20px' : '14px',
+          pinTop: isVote ? '-9px' : '-6px',
+          pinShift: isVote ? '-10px' : '-7px',
+          open: () => this.setState({ open: k }),
+        };
+      }),
+      trayLabel: pick ? 'YOUR RED PIN' : 'YOUR VOTES',
+      trayValue: pick ? (voted ? `Pinned on ${whose(voted)}` : 'Still in your hand') : `${yes} yes · ${no} no`,
+      traySub: pick
+        ? voted ? 'Move it any time until 23:40' : 'Tap one of your maybes and pin it'
+        : left > 0 ? `${left} still to judge: tap them` : 'All judged. Change any until 23:40',
+      notDone: pick ? !voted : left > 0,
+      doneDim: (pick ? voted : left === 0) ? '1' : '0.45',
+      again: () => this.setState({ stage: 'deck', idx: 0, dx: 0 }),
+      sheetOpen: s.open !== null,
+      sheet: {
+        aria: cap(whose(se)),
+        tone: se.tone,
+        word: se.word,
+        caption: se.caption,
+        byline: se.own ? 'YOU · YOUR ENTRY' : `${se.who.toUpperCase()} · EXHIBIT ${pad(o + 1)}`,
+        reacts: this.reacts(se),
+        own: !!se.own,
+        actDim: se.own ? '0.45' : '1',
+        pinLabel: se.own ? 'Your own: pin someone else’s' : s.vote === se.id ? 'Your pin is here' : voted ? 'Move my red pin here' : 'Pin my vote here',
+        isYes: sm === 'yes',
+        isNo: sm === 'no',
+        yesBg: sm === 'yes' ? '#e6cf98' : 'transparent',
+        yesFg: sm === 'yes' ? '#2a2116' : '#e6cf98',
+        noBg: sm === 'no' ? '#e9ebec' : 'transparent',
+        noFg: sm === 'no' ? '#2a2116' : '#e9ebec',
+      },
+      close: () => this.setState({ open: null }),
+      pinIt: () => this.setState({ vote: se.id, open: null, marks: { ...m, [se.id]: 'maybe' } }),
+      sayYes: () => this.mark(se.id, 'yes'),
+      sayNo: () => this.mark(se.id, 'no'),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Murder board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#e6cf98}a:hover{color:#f4ecd5}
+.mono{font-family:'Space Mono',ui-monospace,monospace}
+.disp{font-family:'Archivo Black','Archivo',system-ui,sans-serif;font-weight:400}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #e5ac17;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; background: #3d4042; color: #e9ebec; font-family: 'Archivo', system-ui, sans-serif;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0 6px;">
+    <button type="button" style="height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; border: 0; background: transparent; color: #e9ebec; font-size: 14px; font-weight: 600;">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      <span>Back to the case</span>
+    </button>
+    <p class="mono" role="timer" aria-label="8 minutes 41 seconds left to vote" style="margin: 0; display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border: 2px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 15px; font-weight: 700; transform: rotate(-2deg);">08:41<span style="font-size: 10px; font-weight: 400; letter-spacing: 0.08em;">TO VOTE</span></p>
+  </header>
+
+  <div style="padding: 2px 20px 10px;">
+    <p class="mono" style="margin: 0; font-size: 11px; letter-spacing: 0.1em; color: #b9bdc0;">STORY MISSION · SECRET BALLOT · +2 A VOTE</p>
+    <h1 class="disp" style="margin: 4px 0 0; font-size: 28px; line-height: 1.05;">Murder weapon</h1>
+  </div>
+
+  <div style="position: relative; flex: 1 1 auto; min-height: 0; background: #a9834f; box-shadow: inset 0 0 0 6px #6e5238; overflow: hidden;">
+    <div aria-hidden="true">
+      <sc-for list="{{specks}}" as="k" hint-placeholder-count="30">
+        <span style="position: absolute; left: {{k.x}}; top: {{k.y}}; width: {{k.s}}; height: {{k.s}}; border-radius: 50%; background: #8a6538;"></span>
+      </sc-for>
+      <sc-for list="{{strings}}" as="g" hint-placeholder-count="6">
+        <span style="position: absolute; left: 195px; top: {{g.top}}; width: {{g.len}}; height: {{g.h}}; background: {{g.color}}; transform: rotate({{g.ang}}); transform-origin: 0 50%;"></span>
+      </sc-for>
+    </div>
+
+    <div aria-hidden="true" class="mono" style="position: absolute; left: 150px; top: 54px; width: 90px; box-sizing: border-box; padding: 8px 8px 10px; background: #fbfaf4; color: #2a2116; font-size: 11px; font-weight: 700; line-height: 1.35; text-align: center; transform: rotate(-3deg); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);">WHAT KILLED BOB?</div>
+
+    <div aria-hidden="true" style="position: absolute; left: 141px; top: 238px; width: 108px; box-sizing: border-box; padding: 6px 6px 8px; background: #f1f0ec; color: #161718; transform: rotate(-1deg); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);">
+      <span style="position: absolute; left: 50%; top: -6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #c8a24a; border: 2px solid #7a520a; box-sizing: border-box;"></span>
+      <span style="height: 82px; display: flex; align-items: center; justify-content: center; background: #8d9294; color: #161718;">
+        <span class="disp" style="font-size: 22px;">BOB</span>
+      </span>
+      <span class="mono" style="display: block; margin-top: 6px; font-size: 10px; font-weight: 700; text-align: center;">THE VICTIM</span>
+      <span class="mono" style="position: absolute; right: -10px; top: 24px; padding: 2px 6px; border: 2px solid #8f2a22; color: #8f2a22; background: #f1f0ec; font-size: 10px; font-weight: 700; transform: rotate(12deg);">DECEASED</span>
+    </div>
+
+    <ul style="list-style: none; margin: 0; padding: 0;">
+      <sc-for list="{{photos}}" as="p" hint-placeholder-count="6">
+        <li style="position: absolute; left: {{p.left}}; top: {{p.top}}; width: 128px; transform: rotate({{p.rot}});">
+          <button type="button" aria-label="{{p.aria}}" onClick="{{p.open}}" style="position: relative; width: 128px; display: flex; flex-direction: column; gap: 6px; padding: 7px 7px 9px; border: 0; background: #f1f0ec; color: #161718; text-align: left; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);">
+            <span aria-hidden="true" style="position: absolute; left: 50%; top: {{p.pinTop}}; width: {{p.pinSize}}; height: {{p.pinSize}}; margin-left: {{p.pinShift}}; border-radius: 50%; background: {{p.pinColor}}; border: 2px solid {{p.pinEdge}}; box-sizing: border-box;"></span>
+            <span style="height: 96px; display: flex; align-items: center; justify-content: center; padding: 0 6px; background: {{p.tone}}; color: #efe6cf; text-align: center;">
+              <span class="disp" style="font-size: 14px; line-height: 1.1;">{{p.word}}</span>
+            </span>
+            <span class="mono" style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em;">{{p.name}}</span>
+            <span style="margin-top: -5px; font-size: 12px; color: #3d4042;">{{p.short}}</span>
+            <span class="mono" aria-hidden="true" style="position: absolute; right: -14px; bottom: -12px; padding: 6px 7px; background: #f3df7a; color: #2a2116; font-size: 10px; font-weight: 700; transform: rotate(7deg); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);">{{p.note}}</span>
+            <sc-if value="{{p.isVote}}" hint-placeholder-val="{{false}}">
+              <span class="mono" aria-hidden="true" style="position: absolute; left: -8px; top: 70px; padding: 3px 8px; background: #c4302b; color: #ffffff; font-size: 11px; font-weight: 700; transform: rotate(-8deg); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);">MY VOTE</span>
+            </sc-if>
+          </button>
+        </li>
+      </sc-for>
+    </ul>
+  </div>
+
+  <footer style="flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px 18px; background: #26282a;">
+    <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 30px; height: 30px; flex: none;">
+      <circle cx="12" cy="8" r="6" fill="{{trayPin}}"></circle>
+      <path d="M12 14v8" stroke="#a9adaf" fill="none" style="stroke-width: 2; stroke-linecap: round;"></path>
+    </svg>
+    <div style="flex: 1 1 auto; min-width: 0;">
+      <p class="mono" style="margin: 0; font-size: 10px; letter-spacing: 0.1em; color: #b9bdc0;">YOUR RED PIN</p>
+      <p style="margin: 2px 0 0; font-size: 15px; font-weight: 700; line-height: 1.2;">{{pinValue}}</p>
+      <p style="margin: 2px 0 0; font-size: 12px; color: #c4c8ca;">{{pinSub}}</p>
+    </div>
+    <button type="button" disabled="{{noVote}}" style="flex: none; height: 48px; padding: 0 20px; border: 2px solid #21180e; border-radius: 8px; background: #e6cf98; color: #2a2116; font-size: 15px; font-weight: 700; box-shadow: 0 3px 0 #161718; opacity: {{doneDim}};">Done</button>
+  </footer>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;">
+      <button type="button" aria-label="Back to the board" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 0; background: rgba(22, 23, 24, 0.8);"></button>
+      <section role="dialog" aria-modal="true" aria-label="{{sheet.aria}}" style="position: absolute; left: 20px; right: 20px; top: 92px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 14px; background: #f1f0ec; color: #161718; transform: rotate(-1.2deg); box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);">
+          <span aria-hidden="true" style="position: absolute; left: 50%; top: -8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: {{sheet.pin}}; border: 2px solid #4a3a24; box-sizing: border-box;"></span>
+          <div style="height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: {{sheet.tone}}; color: #efe6cf; text-align: center;">
+            <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+            <span class="disp" style="font-size: 28px; line-height: 1.05; padding: 0 24px;">{{sheet.word}}</span>
+          </div>
+          <p class="mono" style="margin: 4px 2px 0; font-size: 12px; font-weight: 700; letter-spacing: 0.04em;">{{sheet.name}}</p>
+          <p class="disp" style="margin: 0 2px; font-size: 19px; line-height: 1.15;">{{sheet.item}}</p>
+          <p style="margin: 0 2px; font-size: 14px; line-height: 1.4; color: #2f3234;">{{sheet.caption}}</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+          <sc-for list="{{sheet.notes}}" as="c" hint-placeholder-count="4">
+            <button type="button" aria-label="{{c.aria}}" aria-pressed="{{c.on}}" onClick="{{c.toggle}}" style="height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; border: 0; background: {{c.bg}}; color: {{c.fg}}; transform: rotate({{c.rot}}); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);">
+              <span style="font-size: 13px; font-weight: 700;">{{c.label}}</span>
+              <span class="mono" style="font-size: 15px; font-weight: 700;">×{{c.count}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <button type="button" disabled="{{sheet.own}}" onClick="{{pinIt}}" style="height: 50px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px solid #74231c; border-radius: 8px; background: #a3342a; color: #ffffff; font-size: 15px; font-weight: 700; box-shadow: 0 3px 0 #161718; opacity: {{sheet.pinDim}};">
+          <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px;"><circle cx="12" cy="8" r="5" fill="#ffffff"></circle><path d="M12 13v8" stroke="#ffffff" fill="none" style="stroke-width: 2; stroke-linecap: round;"></path></svg>
+          <span>{{sheet.pinLabel}}</span>
+        </button>
+        <button type="button" onClick="{{close}}" style="height: 48px; border: 2px solid #e9ebec; border-radius: 8px; background: transparent; color: #e9ebec; font-size: 15px; font-weight: 700;">Back to the board</button>
+      </section>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const ENTRIES = [
+  { id: 'e1', who: 'Priya', item: 'A pint glass', short: 'pint glass', word: 'Pint glass', caption: 'Bludgeoned with the last pint of the night. Fingerprints: everyone’s.', tone: '#5d4835', base: { ha: 4, shady: 1, iconic: 2, gasp: 0 } },
+  { id: 'e2', who: 'Sam', item: 'The jukebox', short: 'jukebox', word: 'Jukebox', caption: 'Mr Brightside eleven times in a row. His heart simply gave out.', tone: '#3f4a56', base: { ha: 6, shady: 0, iconic: 3, gasp: 1 } },
+  { id: 'e3', who: 'You', own: true, item: 'A cocktail umbrella', short: 'cocktail umbrella', word: 'Cocktail umbrella', caption: 'Small, pointy, and nobody ever suspects the umbrella.', tone: '#6a3a33', base: { ha: 2, shady: 2, iconic: 0, gasp: 1 } },
+  { id: 'e4', who: 'Jo', item: 'A beer mat', short: 'beer mat', word: 'Beer mat', caption: 'A paper cut. A very, very deep paper cut.', tone: '#4b5a45', base: { ha: 3, shady: 0, iconic: 1, gasp: 4 } },
+  { id: 'e5', who: 'Marcus', item: 'Pork scratchings', short: 'pork scratchings', word: 'Pork scratchings', caption: 'He never chewed. We all warned him.', tone: '#5a4a2a', base: { ha: 5, shady: 1, iconic: 0, gasp: 2 } },
+  { id: 'e6', who: 'Elle', item: 'A dart', short: 'dart', word: 'Dart', caption: 'Bullseye. Bob was standing in front of the board at the time.', tone: '#3d3f5c', base: { ha: 2, shady: 3, iconic: 4, gasp: 1 } },
+];
+const REACTIONS = [
+  { k: 'ha', label: 'Ha!' },
+  { k: 'shady', label: 'Shady' },
+  { k: 'iconic', label: 'Iconic' },
+  { k: 'gasp', label: 'Gasp' },
+];
+// Where each photo is pinned on the cork (its frame is 128 × 154), and Bob's photo in the middle.
+const SPOTS = [
+  { left: 14, top: 18, rot: -5 },
+  { left: 248, top: 26, rot: 4 },
+  { left: 6, top: 226, rot: 3 },
+  { left: 256, top: 232, rot: -4 },
+  { left: 20, top: 430, rot: -3 },
+  { left: 242, top: 436, rot: 5 },
+];
+const BOB = { x: 195, y: 302 };
+const NOTE_TILTS = ['-3deg', '2deg', '-1.5deg', '3deg'];
+const whose = (e) => (e.own ? `your ${e.short}` : `${e.who}’s ${e.short}`);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Cork flecks, the same every time.
+const SPECKS = Array.from({ length: 30 }, (_, i) => {
+  const r = (n) => ((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
+  return { x: `${Math.round(r(1) * 384)}px`, y: `${Math.round(r(2) * 600)}px`, s: `${2 + Math.round(r(3) * 3)}px` };
+});
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: null, vote: null, reacts: {} };
+  }
+
+  toggle(id, k) {
+    const mine = this.state.reacts[id] || {};
+    this.setState({ reacts: { ...this.state.reacts, [id]: { ...mine, [k]: !mine[k] } } });
+  }
+
+  counts(e) {
+    const mine = this.state.reacts[e.id] || {};
+    return REACTIONS.map((r) => ({ ...r, on: !!mine[r.k], count: e.base[r.k] + (mine[r.k] ? 1 : 0) }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const voted = ENTRIES.find((x) => x.id === s.vote) || null;
+    const i = s.open === null ? 0 : s.open;
+    const e = ENTRIES[i];
+    const isVote = s.vote === e.id;
+    return {
+      specks: SPECKS,
+      strings: ENTRIES.map((x, k) => {
+        const spot = SPOTS[k];
+        const dx = spot.left + 64 - BOB.x;
+        const dy = spot.top + 77 - BOB.y;
+        const on = s.vote === x.id;
+        const h = on ? 3 : 2;
+        return {
+          len: `${Math.round(Math.hypot(dx, dy))}px`,
+          ang: `${(Math.atan2(dy, dx) * 180) / Math.PI}deg`,
+          top: `${BOB.y - h / 2}px`,
+          h: `${h}px`,
+          color: on ? '#c4302b' : '#e9dfc4',
+        };
+      }),
+      photos: ENTRIES.map((x, k) => {
+        const spot = SPOTS[k];
+        const on = s.vote === x.id;
+        const best = this.counts(x).reduce((a, b) => (b.count > a.count ? b : a));
+        return {
+          left: `${spot.left}px`,
+          top: `${spot.top}px`,
+          rot: `${spot.rot}deg`,
+          aria: `${cap(whose(x))}: look closer`,
+          word: x.word,
+          tone: x.tone,
+          name: x.own ? 'YOU' : x.who.toUpperCase(),
+          short: x.short,
+          note: `${best.label.toUpperCase()} ×${best.count}`,
+          isVote: on,
+          pinColor: on ? '#c4302b' : '#c8a24a',
+          pinEdge: on ? '#74231c' : '#7a520a',
+          pinSize: on ? '20px' : '14px',
+          pinTop: on ? '-9px' : '-6px',
+          pinShift: on ? '-10px' : '-7px',
+          open: () => this.setState({ open: k }),
+        };
+      }),
+      sheetOpen: s.open !== null,
+      sheet: {
+        aria: cap(whose(e)),
+        name: e.own ? 'YOU · YOUR ENTRY' : `${e.who.toUpperCase()} · EXHIBIT ${i + 1}`,
+        item: e.item,
+        word: e.word,
+        tone: e.tone,
+        caption: e.caption,
+        pin: isVote ? '#c4302b' : '#c8a24a',
+        notes: this.counts(e).map((r, k) => ({
+          label: r.label,
+          count: r.count,
+          on: r.on,
+          aria: `${r.label} on ${whose(e)}`,
+          rot: NOTE_TILTS[k],
+          bg: r.on ? '#2a2116' : '#f3df7a',
+          fg: r.on ? '#f3df7a' : '#2a2116',
+          toggle: () => this.toggle(e.id, r.k),
+        })),
+        own: !!e.own,
+        pinLabel: e.own ? 'Your own: pin someone else’s' : isVote ? 'Your pin is here' : voted ? 'Move my red pin here' : 'Put my red pin here',
+        pinDim: e.own ? '0.45' : '1',
+      },
+      close: () => this.setState({ open: null }),
+      pinIt: () => this.setState({ vote: e.id, open: null }),
+      trayPin: voted ? '#8d9294' : '#c4302b',
+      pinValue: voted ? `Pinned on ${whose(voted)}` : 'Still in your hand',
+      pinSub: voted ? 'Move it any time until 23:40' : 'Tap a photo, then pin the one that did it',
+      noVote: !voted,
+      doneDim: voted ? '1' : '0.45',
+    };
+  }
+}
+</script>
+</body>
+</html>

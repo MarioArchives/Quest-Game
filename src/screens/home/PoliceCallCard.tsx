@@ -74,19 +74,23 @@ function OpenCall({ call, onDone }: { call: Doc<PoliceCall>; onDone(outcome: Out
   const clean = answer.trim();
   const note = fallbackNote(call);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy || timeUp || clean.length < 1) return;
+  const send = async (reply: string) => {
+    if (busy || timeUp || reply.length < 1) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await answerPoliceCall({ callId: call.id, answer: clean });
+      const result = await answerPoliceCall({ callId: call.id, answer: reply });
       onDone(result);
     } catch (err) {
       setError(friendlyError(err));
       setBusy(false);
     }
   };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void send(clean);
+  };
+  const options = call.options && call.options.length > 0 ? call.options : null;
 
   return (
     <section className="hero halftone police" aria-label={t.policeCall.One}>
@@ -103,8 +107,21 @@ function OpenCall({ call, onDone }: { call: Doc<PoliceCall>; onDone(outcome: Out
         Answer before time runs out: +{call.passPoints} if you&apos;re right, &minus;{call.failPenalty} if you&apos;re wrong or miss it
       </p>
       <Countdown endsAt={endsAt} closedText="Time's up" />
-      {me && !me.left ? (
-        <form className="police__form" onSubmit={(e) => void submit(e)}>
+      {me && !me.left && options ? (
+        <div className="police__form" role="group" aria-label="Your answer">
+          {options.map((option, i) => (
+            <Button key={option} variant="primary" block onRed className="hero__cta" disabled={busy || timeUp} onClick={() => void send(String(i + 1))}>
+              {option}
+            </Button>
+          ))}
+          {error ? (
+            <p className="hero__blocked" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      ) : me && !me.left ? (
+        <form className="police__form" onSubmit={submit}>
           <label className="visually-hidden" htmlFor="police-answer">
             Your answer
           </label>

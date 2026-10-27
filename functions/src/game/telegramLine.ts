@@ -3,22 +3,16 @@
 // reports back as the same requests Twilio sends the voice webhook. Answers come as a reply in the police chat.
 import type { GamePack } from '../shared/packs/types.js';
 import { LINE_OFFLINE_MS, TELEGRAM_SID_PREFIX, isTelegramSid, type VoiceLineKey } from '../shared/phone.js';
-import type { LineBeat, LineOrder, PoliceCall } from '../shared/types.js';
+import type { LineBeat, LineCallOrder, LineOrder, Player, PoliceCall } from '../shared/types.js';
 import type { Db } from './context.js';
+import { loadSettings } from './guards.js';
 import { PhoneLineError, type LineHealth, type PhoneLine } from './phoneLine.js';
 import { handlePoliceVoice } from './policePhone.js';
 import { isId, millis, toTs } from './util.js';
-import type { VoiceReply } from './voice.js';
+import { accusedSpeech, officerFor, type Speech, type VoiceReply } from './voice.js';
 
 /** How long the script waits for each reply in the chat, in seconds. */
 export const LINE_REPLY_SEC = 60;
-
-/** The keypad lines, as said on a Telegram call (the answer is a reply in the chat). */
-export const TELEGRAM_LINES: Record<'key-in' | 'test-key-in' | 'again', string> = {
-  'key-in': 'Reply to our message with your answer.',
-  'test-key-in': 'Reply in our chat with the code.',
-  again: "I didn't catch that. Reply with the number.",
-};
 
 /** One thing for the script to do on a call. */
 export type TelegramStep =
@@ -27,15 +21,13 @@ export type TelegramStep =
   | { hangup: true };
 
 /** An order as `poll` hands it out. */
-export interface LineOrderOut {
-  id: string;
-  kind: 'call' | 'test';
-  to: string;
-  query: Record<string, string>;
-  sid: string;
-}
+/** An order as the script gets it from a poll: a call or a test to place, or a case update to post. */
+export type LineOrderOut =
+  | { id: string; kind: 'call' | 'test'; to: string; query: Record<string, string>; sid: string }
+  | { id: string; kind: 'notice'; to: string; text: string };
 
-export type TelegramLineReply = { ok: true } | { orders: LineOrderOut[] } | { steps: TelegramStep[] };
+/** `voice`, with steps: the call's officer's edge-tts voice (null: the script's own). */
+export type TelegramLineReply = { ok: true } | { orders: LineOrderOut[] } | { steps: TelegramStep[]; voice?: string | null };
 
 /** A request the line can't take (an unknown op, a malformed event): HTTP 400. */
 export class TelegramLineError extends Error {
@@ -44,6 +36,8 @@ export class TelegramLineError extends Error {
 
 /** The most orders one poll hands out. */
 const POLL_MAX = 5;
+/** A case update older than this is dropped instead of handed out. */
+const NOTICE_MAX_AGE_MS = 10 * 60 * 1000;
 const STEPS = ['voice', 'gather', 'status'] as const;
 type EventStep = (typeof STEPS)[number];
 
@@ -73,7 +67,7 @@ export function telegramLine(db: Db, now: () => Date = () => new Date()): PhoneL
       const test = query.test !== undefined;
       const id = query.test ?? query.call;
       if (!id || !isId(id)) throw new PhoneLineError('tg-error', 'No call to place');
-      const order: LineOrder = { kind: test ? 'test' : 'call', to, query, sid: `${TELEGRAM_SID_PREFIX}${id}`, status: 'new', createdAt: toTs(now()) };
+      const order: LineCallOrder = { kind: test ? 'test' : 'call', to, query, sid: `${TELEGRAM_SID_PREFIX}${id}`, status: 'new', createdAt: toTs(now()) };
       await db.doc(`lineOrders/${id}`).set(order);
       return { sid: order.sid };
     },
@@ -104,20 +98,40 @@ async function handleEvent(db: Db, now: Date, pack: GamePack, op: Record<string,
   let about: Parameters<typeof renderTelegram>[1] = { kind: 'test' };
   if (query.call) {
     const call = isId(query.call) ? ((await db.doc(`policeCalls/${query.call}`).get()).data() as PoliceCall | undefined) : undefined;
-    about = { kind: 'call', question: call?.question ?? '' };
+    let accused: string | null = null;
+    if (call?.kind === 'tip' && call.note) {
+      const player = (await db.doc(`players/${call.uid}`).get()).data() as Player | undefined;
+      const name = (player?.displayName ?? '').trim().split(/\s+/)[0] ?? '';
+      accused = accusedSpeech(pack, await loadSettings(db), call.note, name, { seed: query.call })?.text ?? null;
+    }
+    about = { kind: 'call', question: call?.question ?? '', accused, options: call?.options };
   }
-  return { steps: renderTelegram(reply, about) };
+  // The call's officer speaks in their own voice (the same one every turn of the call).
+  const voice = officerFor(pack, query.call ?? query.test ?? '')?.telegramVoice ?? null;
+  return { steps: renderTelegram(reply, about), voice };
 }
 
 /** Takes up to five new orders, oldest first, marking them taken so no poll hands one out twice. */
 async function claimOrders(db: Db, now: Date): Promise<LineOrderOut[]> {
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(db.collection('lineOrders').where('status', '==', 'new').orderBy('createdAt', 'asc').limit(POLL_MAX));
-    for (const d of snap.docs) tx.update(d.ref, { status: 'taken', takenAt: toTs(now) });
-    return snap.docs.map((d) => {
+    const out: LineOrderOut[] = [];
+    for (const d of snap.docs) {
       const o = d.data() as LineOrder;
-      return { id: d.id, kind: o.kind, to: o.to, query: o.query, sid: o.sid };
-    });
+      if (o.kind === 'notice') {
+        // A case update that waited too long is never sent late.
+        if (now.getTime() - millis(o.createdAt) > NOTICE_MAX_AGE_MS) {
+          tx.update(d.ref, { status: 'dropped' });
+          continue;
+        }
+        tx.update(d.ref, { status: 'taken', takenAt: toTs(now) });
+        out.push({ id: d.id, kind: 'notice', to: o.to, text: o.text });
+      } else {
+        tx.update(d.ref, { status: 'taken', takenAt: toTs(now) });
+        out.push({ id: d.id, kind: o.kind, to: o.to, query: o.query, sid: o.sid });
+      }
+    }
+    return out;
   });
 }
 
@@ -132,7 +146,11 @@ export async function handleTelegramLine(db: Db, now: Date, pack: GamePack, op: 
         if (!isObject(a) || typeof a.name !== 'string') return bad('account needs a name.');
         account = { name: a.name.slice(0, 100), id: typeof a.id === 'number' ? a.id : null };
       }
-      const beat: LineBeat = { kind: 'telegram', seenAt: toTs(now), account };
+      const f = op.features;
+      if (f !== undefined && (!Array.isArray(f) || f.length > 10 || f.some((x) => typeof x !== 'string' || x.length > 32))) {
+        return bad('features must be at most 10 strings of up to 32 characters.');
+      }
+      const beat: LineBeat = { kind: 'telegram', seenAt: toTs(now), account, features: (f as string[] | undefined) ?? [] };
       await db.doc('game/line').set(beat);
       return { ok: true };
     }
@@ -145,21 +163,33 @@ export async function handleTelegramLine(db: Db, now: Date, pack: GamePack, op: 
   }
 }
 
-/** The "message" the script posts in the chat while it waits for the reply. */
-const messageFor = (about: { kind: 'call'; question: string } | { kind: 'test' }): string =>
-  about.kind === 'call' ? `Police check-in: ${about.question} Reply with the number.` : 'Reply with the code you just heard on the call.';
+/**
+ * What a reply is about: a check-in (its written question, on a tip-off what the tipper accused them of, and its options
+ * when it is multiple choice; `null` options are a typed number), or a test.
+ */
+export type ReplyAbout = { kind: 'call'; question: string; accused?: string | null; options?: readonly string[] | null } | { kind: 'test' };
 
-const TELEGRAM_LINE_KEYS: readonly VoiceLineKey[] = ['key-in', 'test-key-in', 'again'];
+/** The "message" the script posts in the chat while it waits for the reply; an "again" line, if said, leads it. */
+function messageFor(about: ReplyAbout, speech: readonly Speech[]): string {
+  if (about.kind !== 'call') return 'Reply with the code you just heard on the call.';
+  const again = speech.find((s) => s.line === 'again')?.text;
+  const head = `Police check-in: ${about.accused ? `${about.accused} ` : ''}${about.question}`;
+  const body = about.options?.length
+    ? `${head}\n${about.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}\nReply with the number.`
+    : `${head} ${about.options === null ? 'Reply with your answer.' : 'Reply with the number.'}`;
+  return again ? `${again}\n\n${body}` : body;
+}
 
 /** The voice webhook's reply as steps for the script: speech to say, a question to ask in the chat, or the hang-up. */
-export function renderTelegram(reply: VoiceReply, about: { kind: 'call'; question: string } | { kind: 'test' }): TelegramStep[] {
+export function renderTelegram(reply: VoiceReply, about: ReplyAbout): TelegramStep[] {
   return reply.map((step): TelegramStep => {
     if (step.kind === 'hangup') return { hangup: true };
     if (step.kind === 'say') return { say: step.speech.text, line: step.speech.line ?? null };
     return {
       ask: {
-        say: step.speech.map((s) => (s.line && TELEGRAM_LINE_KEYS.includes(s.line) ? TELEGRAM_LINES[s.line as keyof typeof TELEGRAM_LINES] : s.text)),
-        message: messageFor(about),
+        // The lines are already worded for the chat (voiceScript, chat: true).
+        say: step.speech.map((s) => s.text),
+        message: messageFor(about, step.speech),
         replySec: LINE_REPLY_SEC,
         next: step.next,
       },

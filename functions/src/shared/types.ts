@@ -33,6 +33,8 @@ export interface Settings {
   rejectPenalty: number;
   /** How long side-quest voting stays open. */
   voteWindowMin: number;
+  /** How everyone votes on a side quest: one vote each ('pick'), or a yes or a no on every entry ('yesno'). Copied onto a side quest when its vote opens. */
+  voteStyle: VoteStyle;
   refillOnComplete: boolean;
   revealOnComplete: boolean;
   pointsFloorZero: boolean;
@@ -41,6 +43,8 @@ export interface Settings {
   /** Points lost for not entering a side quest before its vote closes (0 = none). */
   sideQuestSkipPenalty: number;
   /** Reward choice (packs with rewardChoice): points to yourself for "clean". */
+  /** Points to a player while their own entry is on top of the log book (votes packs); 0 = none. */
+  topEntryPoints: number;
   cleanPoints: number;
   /** Reward choice: points taken from the player you frame. */
   framePoints: number;
@@ -78,6 +82,8 @@ export interface Settings {
   policeTelegram: string;
   /** That account's phone number, on the contact card players save, so their Telegram knows who's calling. Empty: none. */
   policeTelegramNumber: string;
+  /** On the Telegram line: players with a verified Telegram line get their notifications as case updates in the police chat instead of push. */
+  policeNotices: boolean;
   /** Scoring rule-set id (functions/src/shared/scoring); an unknown id falls back to the pack's default. */
   scoring: string;
   /** The rule sets' own numbers by param key (keys are unique across rule sets). */
@@ -93,6 +99,10 @@ export interface GameState {
   announcement: string | null;
   /** The game pack this game was seeded for; missing on games seeded before packs existed. */
   pack?: string | null;
+  /** When the game opens on its own (the GM's start time); kept once it has, cleared when the GM opens it by hand. */
+  opensAt?: TS | null;
+  /** The GM's last move of the start time: what it was, and when they moved it. */
+  opensMoved?: { from: TS; at: TS } | null;
 }
 
 /** admins/{uid} */
@@ -151,10 +161,12 @@ export interface Player {
 /** A player's particulars from the onboarding, each optional (`bookIn` checks them; limits in shared/booking.ts). */
 export interface Particulars {
   heightCm: number | null;
-  /** Their usual drink, in a word or two. */
-  drink: string | null;
   /** Anything that would pick them out of a crowd. */
   marks: string | null;
+  /** Their relation to the story's victim: a RelationChoice id from the pack's booking list. */
+  relation?: string | null;
+  /** Their usual drink, in a word or two (asked before relations; kept on older docs). */
+  drink?: string | null;
 }
 
 /** Above settings.confidantAbove: a trusted confidant; below settings.poiBelow: a person of interest. */
@@ -227,8 +239,12 @@ export type GlobalQuestStatus = 'live' | 'checking' | 'voting' | 'closed';
 export type GlobalQuestSource = 'timer' | 'gm-random' | 'gm-custom' | 'story';
 /** How a side quest is judged: everyone votes, or everyone who enters scores (no vote). */
 export type Judging = 'vote' | 'submit';
+/** How a vote is cast: one entry each ('pick'), or a yes or a no on every entry but your own ('yesno'). */
+export type VoteStyle = 'pick' | 'yesno';
+/** One judgement on one entry in a 'yesno' vote. */
+export type Judgement = 'yes' | 'no';
 
-/** globalQuests/{id}. Votes live server-only in globalQuests/{id}/votes/{voterUid}. */
+/** globalQuests/{id}. Votes live in globalQuests/{id}/votes/{voterUid} (functions write; only that voter may read their own). */
 export interface GlobalQuest {
   title: string;
   description: string;
@@ -270,6 +286,12 @@ export interface GlobalQuest {
   tieBonus?: number | null;
   /** When it closes, its winning entries are recorded as this fact. */
   records?: { key: string; label: string } | null;
+  /** How its vote is cast, copied from settings.voteStyle when the vote opens; missing = 'pick'. */
+  voteStyle?: VoteStyle;
+  /** A 'yesno' vote's yeses and noes per entry (submission id), published when it closes (`tally` then holds yes − no). */
+  yesNo?: Record<string, { yes: number; no: number }> | null;
+  /** The question its vote asks ("What killed Bob?"), from the story mission; missing = its title. */
+  question?: string | null;
 }
 
 /** What an entry to a story mission is: its media, whether the caption is required, and the player it names. */
@@ -292,7 +314,10 @@ export interface FactEntry {
   imagePath: string | null;
   thumbPath: string | null;
   videoPath: string | null;
+  /** Votes it got; in a 'yesno' vote, yes − no (with `yes` and `no` alongside). */
   votes: number;
+  yes?: number;
+  no?: number;
 }
 
 /**
@@ -306,6 +331,8 @@ export interface Fact {
   entries: FactEntry[];
   storyId: string | null;
   at: TS;
+  /** A mission's fact: the captions of the revealed entries that didn't win (up to 6, no repeats; the police's decoys). */
+  others?: string[];
 }
 
 /** assignments/{globalQuestId}_{uid}: the player `uid` was dealt for a mission with `entry.tag: 'assigned'`. Owner and GM read. */
@@ -318,8 +345,13 @@ export interface Assignment {
 
 /** globalQuests/{id}/votes/{voterUid} — server only */
 export interface Vote {
-  submissionId: string;
+  /** A 'pick' vote: the entry voted for. */
+  submissionId?: string;
+  /** A 'yesno' vote: the judgement on each entry judged so far (submission id → yes or no). */
+  ballot?: Record<string, Judgement>;
   createdAt: TS;
+  /** A 'yesno' vote: when it last changed. */
+  updatedAt?: TS;
 }
 
 export type SubmissionKind = 'personal' | 'global';
@@ -378,6 +410,21 @@ export interface Submission {
   videoPath?: string | null;
   /** The witness last told about this claim (the witness-change trigger compares it with witnessUid). */
   witnessNotifiedUid?: string | null;
+  /** A side-quest entry's reactions, kept by the onEntryReactionWritten trigger: who gave each (sorted uids, never the entrant). */
+  entryReactions?: EntryReactionCounts | null;
+}
+
+/** The reactions on a side-quest entry, as the trigger keeps them on the submission. */
+export interface EntryReactionCounts {
+  eye: string[];
+  heart: string[];
+}
+
+/** submissions/{id}/entryReactions/{uid}: one player's reactions to one side-quest entry (written by that player). */
+export interface EntryReaction {
+  eye: boolean;
+  heart: boolean;
+  updatedAt: TS;
 }
 
 /** The quick picks in the reaction picker. Players can also react with any single emoji from their keyboard. */
@@ -419,6 +466,8 @@ export interface TopPost {
   previousFeedId: string | null;
   /** When that previous holder took the top. */
   previousSince: TS | null;
+  /** The points paid for holding the top (what was applied), so they move with it; null or absent when none. */
+  award?: { uid: string; feedId: string; points: number } | null;
 }
 
 /** pushTokens/{sha256(token)} — a device that takes notifications. Server only. */
@@ -477,6 +526,8 @@ export const LEDGER_REASON_LIST = [
   'police-pass',
   'police-fail',
   'police-missed',
+  'top-entry',
+  'top-entry-lost',
 ] as const;
 
 export type LedgerReason = (typeof LEDGER_REASON_LIST)[number];
@@ -636,7 +687,12 @@ export interface PoliceCall {
   byUid: string | null;
   note: string | null;
   question: string;
+  /** The right answer: a number, or for a multiple-choice question the right option's number ("2"). */
   expected: string;
+  /** A multiple-choice question's options, in the order offered (1-based in `expected`); null or missing for a typed number. */
+  options?: string[] | null;
+  /** Which kind of question it was (the quiz item's kind: 'sum', 'fact', 'own', …); missing on older calls. */
+  quiz?: string | null;
   startsAt: TS;
   endsAt: TS;
   status: PoliceCallStatus;
@@ -712,7 +768,10 @@ export type SwitchMode = 'phone' | 'app' | 'probation';
  * lineOrders/{id}: a call for the police script on the Telegram line (services/telegram-police) to place: a check-in
  * (`query.call`) or a test (`query.line` + `query.test`). Functions only; the script claims them through telegramLine.
  */
-export interface LineOrder {
+export type LineOrder = LineCallOrder | LineNoticeOrder;
+
+/** A call (a check-in) or a test call for the script to place. */
+export interface LineCallOrder {
   kind: 'call' | 'test';
   /** The player's number, E.164. */
   to: string;
@@ -725,12 +784,25 @@ export interface LineOrder {
   takenAt?: TS | null;
 }
 
+/** A case update for the script to post in the player's police chat (instead of a push); it replaces the last one. */
+export interface LineNoticeOrder {
+  kind: 'notice';
+  to: string;
+  /** What the push would have said ("title: body"); the script adds the case-update prefix. */
+  text: string;
+  status: 'new' | 'taken' | 'dropped';
+  createdAt: TS;
+  takenAt?: TS | null;
+}
+
 /** game/line: the police script's last heartbeat (Telegram line). Functions write it; the GM reads it. */
 export interface LineBeat {
   kind: 'telegram';
   seenAt: TS;
   /** The Telegram account the script is logged in as. */
   account: { name: string; id: number | null } | null;
+  /** What the script can do besides calls: 'notices' (case updates in the chat; dropped while Telegram holds it back). */
+  features?: string[];
 }
 
 export interface Switchboard {

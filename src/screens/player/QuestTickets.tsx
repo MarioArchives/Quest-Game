@@ -100,10 +100,8 @@ export function SideQuestWins({ wins, entered }: { wins: SideWin[]; entered?: Si
                   {formatDelta(w.bonus)}
                   <span className="visually-hidden"> points{w.disqualified ? ', taken back' : ''}</span>
                 </span>
-                {w.votes !== null ? (
-                  <span className="pl-qt__when">
-                    {w.votes} {w.votes === 1 ? 'vote' : 'votes'}
-                  </span>
+                {w.words ? (
+                  <span className="pl-qt__when">{w.words}</span>
                 ) : null}
               </div>
             </li>
@@ -117,7 +115,7 @@ export function SideQuestWins({ wins, entered }: { wins: SideWin[]; entered?: Si
             <span key={e.id}>
               {i > 0 ? ' · ' : ''}
               <span className="pl-also__title">{e.title}</span>
-              {e.votes !== null ? ` (${e.votes} ${e.votes === 1 ? 'vote' : 'votes'})` : ''}
+              {e.words ? ` (${e.words})` : ''}
             </span>
           ))}
         </p>

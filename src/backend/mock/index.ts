@@ -10,6 +10,7 @@ import { runSwitchboard } from '../../../functions/src/game/phones.ts';
 import { simulatedLine } from '../../../functions/src/game/simulatedLine.ts';
 import { runStandings } from '../../../functions/src/game/standing.ts';
 import { runTick } from '../../../functions/src/game/globals.ts';
+import { runOpening } from '../../../functions/src/game/startTime.ts';
 import { buildDemo, type DemoGame } from '../../../functions/src/shared/demo/index.ts';
 import { defaultSettingsFor } from '../../../functions/src/shared/packs/index.ts';
 import { GameError } from '../../../functions/src/shared/store/errors.ts';
@@ -130,6 +131,7 @@ export function createMockBackend({ pack, now = () => new Date(), rng = Math.ran
   }
 
   async function tick() {
+    await runOpening(store, now(), rng, pack);
     await runTick(store, now(), rng, pack);
     await runPeriodics(store, now(), rng, pack);
     await runStandings(store, now(), pack);

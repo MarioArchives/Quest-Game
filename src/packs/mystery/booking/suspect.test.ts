@@ -59,14 +59,14 @@ describe('the booking sheet', () => {
     expect(sheetNumber('alice')).not.toBe(sheetNumber('bob'));
   });
 
-  it('sends height, drink and marks to bookIn, blank marks as nothing', () => {
-    expect(particularsOf({ name: 'Sam', phone: '', noPhone: false, heightCm: 180, drink: 'Gin', marks: '  ' })).toEqual({ heightCm: 180, drink: 'Gin', marks: null });
-    expect(particularsOf({ name: 'Sam', phone: '', noPhone: true, heightCm: 160, drink: null, marks: ' A scar ' })).toEqual({ heightCm: 160, drink: null, marks: 'A scar' });
+  it('sends height, relation to the victim and marks to bookIn, blank marks as nothing', () => {
+    expect(particularsOf({ name: 'Sam', phone: '', noPhone: false, heightCm: 180, relation: 'lover', marks: '  ' })).toEqual({ heightCm: 180, relation: 'lover', marks: null });
+    expect(particularsOf({ name: 'Sam', phone: '', noPhone: true, heightCm: 160, relation: null, marks: ' A scar ' })).toEqual({ heightCm: 160, relation: null, marks: 'A scar' });
   });
 });
 
 describe('the booking kept on this tab', () => {
-  const draft: Draft = { name: 'Sam', phone: '07700 900417', noPhone: false, heightCm: 180, drink: 'Gin', marks: '' };
+  const draft: Draft = { name: 'Sam', phone: '07700 900417', noPhone: false, heightCm: 180, relation: 'best-friend', marks: '' };
   beforeEach(() => {
     const items = new Map<string, string>();
     globalThis.sessionStorage = {
@@ -94,6 +94,15 @@ describe('the booking kept on this tab', () => {
     expect(loadSaved('sam', 1000)).toBeNull();
     sessionStorage.setItem('booking:sam', 'not json');
     expect(loadSaved('sam', 1000)).toBeNull();
+  });
+
+  it('a booking kept from before relations (with a drink) comes back with no relation', () => {
+    sessionStorage.setItem('booking:sam', JSON.stringify({ draft: { name: 'Sam', phone: '', noPhone: false, heightCm: 180, drink: 'Gin', marks: '' }, step: 'prints', since: 1000 }));
+    const saved = loadSaved('sam', 1000)!;
+    expect(saved.draft.relation).toBeNull();
+    expect('drink' in saved.draft).toBe(false);
+    sessionStorage.setItem('booking:sam', JSON.stringify({ draft: { ...draft, relation: 7 }, step: 'prints', since: 1000 }));
+    expect(loadSaved('sam', 1000)!.draft.relation).toBeNull();
   });
 
   it('never throws when the browser keeps nothing', () => {

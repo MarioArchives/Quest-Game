@@ -17,12 +17,14 @@ export const DEFAULT_SETTINGS: Settings = {
   fraudPenalty: 50,
   rejectPenalty: 25,
   voteWindowMin: 20,
+  voteStyle: 'pick',
   /** Five quest slots per game: completing a quest does not deal a new one (fails, exposures and rerolls do). */
   refillOnComplete: false,
   revealOnComplete: true,
   pointsFloorZero: false,
   guessLimit: 0,
   sideQuestSkipPenalty: 0,
+  topEntryPoints: 0,
   cleanPoints: 50,
   framePoints: 50,
   autoSideQuests: true,
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   policeCallerName: 'Police',
   policeTelegram: '',
   policeTelegramNumber: '',
+  policeNotices: false,
   scoring: 'classic',
   scoringParams: {},
 };

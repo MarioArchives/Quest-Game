@@ -152,7 +152,7 @@ const chunks = <T>(list: T[], size: number): T[][] => {
 };
 
 /** The uids a plan is addressed to, minus the excluded actor. */
-async function recipientsOf(db: Db, plan: PushPlan): Promise<string[]> {
+export async function recipientsOf(db: Db, plan: PushPlan): Promise<string[]> {
   let uids: string[];
   if (plan.to === 'players') {
     // Players the GM marked as left hear nothing more from the game.

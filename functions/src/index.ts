@@ -18,6 +18,7 @@ import { CALLABLES, type Services } from './game/callables.js';
 import type { Ctx } from './game/context.js';
 import { runPeriodics } from './game/checkins.js';
 import { runTick } from './game/globals.js';
+import { runOpening } from './game/startTime.js';
 import { runPolice } from './game/police.js';
 import type { PhoneLine } from './game/phoneLine.js';
 import { runSwitchboard } from './game/phones.js';
@@ -26,7 +27,8 @@ import { simulatedLine } from './game/simulatedLine.js';
 import { handleTelegramLine, telegramLine as makeTelegramLine } from './game/telegramLine.js';
 import { renderTwiml, voiceOf } from './game/voice.js';
 import { runStandings } from './game/standing.js';
-import { makeSender, sendPush, type PushSender } from './game/push.js';
+import { deliverPush } from './game/notices.js';
+import { makeSender, type PushSender } from './game/push.js';
 import { TRIGGERS, type TriggerDef, type TriggerEnv } from './game/triggers.js';
 import { getPack, validatePack } from './shared/packs/index.js';
 
@@ -77,7 +79,7 @@ const pushSender = (): PushSender =>
 
 const services: Services = {
   sendPush: async (plan) => {
-    await sendPush(db, pushSender(), plan);
+    await deliverPush(db, pushSender(), plan, new Date());
   },
   wipeFiles,
   phone: phoneLine,
@@ -126,6 +128,8 @@ export const setPlayerLeft = callable('setPlayerLeft');
 export const adjustPoints = callable('adjustPoints');
 export const grantRerolls = callable('grantRerolls');
 export const setGameStatus = callable('setGameStatus');
+export const setStartTime = callable('setStartTime');
+export const openOnTime = callable('openOnTime');
 export const resolveReward = callable('resolveReward');
 export const setCharacter = callable('setCharacter');
 export const answerCheckin = callable('answerCheckin');
@@ -167,8 +171,12 @@ export const onPoliceCallCreated = onDocumentCreated(
 export const onFeedReactionWritten = onDocumentWritten(trigger('onFeedReactionWritten').pattern, async (event) => {
   await trigger('onFeedReactionWritten').run(db, event.params, triggerEnv());
 });
+export const onEntryReactionWritten = onDocumentWritten(trigger('onEntryReactionWritten').pattern, async (event) => {
+  await trigger('onEntryReactionWritten').run(db, event.params, triggerEnv());
+});
 
 export const globalQuestTick = onSchedule({ schedule: 'every 5 minutes', timeZone: PACK.timeZone, secrets: phoneSecrets }, async () => {
+  await runOpening(db, new Date(), Math.random, PACK);
   await runTick(db, new Date(), Math.random, PACK);
   await runPeriodics(db, new Date(), Math.random, PACK);
   await runStandings(db, new Date(), PACK);
@@ -216,12 +224,13 @@ export const devTick =
   process.env.FUNCTIONS_EMULATOR === 'true'
     ? onRequest(async (_req, res) => {
         try {
+          const opening = await runOpening(db, new Date(), Math.random, PACK);
           const sideQuests = await runTick(db, new Date(), Math.random, PACK);
           const checkins = await runPeriodics(db, new Date(), Math.random, PACK);
           const standings = await runStandings(db, new Date(), PACK);
           const police = await runPolice(db, new Date(), Math.random, PACK);
           const switchboard = await runSwitchboard(db, new Date(), PACK, phoneLine());
-          res.json({ ...sideQuests, checkins, standings, police, switchboard });
+          res.json({ opening, ...sideQuests, checkins, standings, police, switchboard });
         } catch (err) {
           logger.error('devTick failed', err);
           res.status(500).json({ error: err instanceof Error ? err.message : String(err) });

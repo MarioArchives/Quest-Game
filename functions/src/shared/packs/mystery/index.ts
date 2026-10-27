@@ -7,8 +7,9 @@ import quests from './quests.json' with { type: 'json' };
 export const mystery: GamePack = {
   id: 'mystery',
   name: 'Mystery Pub Crawl',
-  // Only what matters on the night; the GM also hears about join requests, entries to check and switchboard alerts.
-  pushKinds: ['global-open', 'story-beat', 'voting-open', 'witness', 'standing-gained', 'join', 'checking', 'police-line'],
+  // Only what matters on the night (status: the start time moving, the game opening, pause and resume); the GM also hears
+  // about join requests, entries to check and switchboard alerts.
+  pushKinds: ['status', 'global-open', 'story-beat', 'voting-open', 'witness', 'standing-gained', 'join', 'checking', 'police-line'],
   reactions: 'votes',
   description: 'The murder of Bob, a pub crawl full of suspects, and evidence to tamper with.',
   terms: {
@@ -36,9 +37,12 @@ export const mystery: GamePack = {
     rejectPenalty: 5,
     guessLimit: 3,
     sideQuestSkipPenalty: 5,
+    topEntryPoints: 5,
     cleanPoints: 5,
     framePoints: 5,
     pointsFloorZero: false,
+    // A yes or a no on every entry (the polaroid deck), not one pick each.
+    voteStyle: 'yesno',
     // Standings and police check-ins: above 10 a trusted confidant, below -10 a person of interest.
     confidantAbove: 10,
     poiBelow: -10,
@@ -54,28 +58,104 @@ export const mystery: GamePack = {
     policePhone: true,
     // Who rings when phone calls are on (the name on the contact card too).
     policeCallerName: 'Manchester Metropolitan Police',
+    // Case updates go to players' police chat on Telegram instead of as push, when the line can take them.
+    policeNotices: true,
     autoSideQuests: true,
   },
   gmQuickPoints: 1,
-  // The police on the phone (phone calls on): a desk sergeant's wording, read out by Polly until the GM records
-  // the lines into src/packs/mystery/public/audio/police/<line>.mp3 and lists them in `recordings`.
+  // The police on the phone and in the Telegram chat: an officer of the Major Incident Team on Operation Last Orders, who
+  // says what they were tipped off about and why they ring, then asks a question from the bank below. Read out by Polly
+  // until the GM records the lines into src/packs/mystery/public/audio/police/<line>.mp3 and lists them in `recordings`
+  // (a recorded line is one fixed wording without {officer}). The organisation is invented: no real force is named.
   policeVoice: {
     voice: { voice: 'Polly.Brian', language: 'en-GB' },
+    officers: [
+      { name: 'Detective Inspector Margaret Hollings', telegramVoice: 'en-GB-SoniaNeural' },
+      { name: 'Detective Sergeant Alan Whitworth', telegramVoice: 'en-GB-RyanNeural' },
+      { name: 'Detective Constable Priya Marsh', telegramVoice: 'en-GB-LibbyNeural' },
+      { name: 'Desk Sergeant Lorraine Cottam', telegramVoice: 'en-GB-SoniaNeural' },
+      { name: 'Police Constable Gareth Openshaw', telegramVoice: 'en-GB-ThomasNeural' },
+    ],
     lines: {
-      'intro-watch': "Evening, {name}. {caller} here. You're a person of interest, so this is a quick sobriety check.",
-      'intro-tip': "{caller} here. We've had a tip-off about you, {name}. Let's see how sober you are.",
+      'intro-tip': [
+        'Good evening, {name}. This is {officer} of the {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded.',
+        'Evening, {name}. {officer} here, {caller}, Major Incident Team. I am calling about Operation Last Orders, the death of Bob. This call is being recorded.',
+        "{name}? Good. This is {officer}, {caller}, Major Incident Team, working Operation Last Orders, the death of Bob. I'm recording this call.",
+      ],
+      'intro-watch': [
+        'Good evening, {name}. This is {officer} of the {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
+        'Evening, {name}. {officer} here, {caller}, Major Incident Team, on Operation Last Orders, the death of Bob. This call is being recorded. You are on our watch list tonight.',
+        "{name}? This is {officer}, {caller}, Major Incident Team. Operation Last Orders, the death of Bob. I'm recording this call, and you are on our watch list tonight.",
+      ],
+      accused: [
+        'We have been tipped off that you have been {accusation}.',
+        "I'll be straight with you. We have been tipped off that you have been {accusation}.",
+        'Information has reached us. We have been tipped off that you have been {accusation}.',
+      ],
+      purpose: [
+        'For now, we just want to see how well you are handling your drink.',
+        "For now, all I need is to see how well you are handling your drink.",
+        'This is only a check on how well you are handling your drink, for now.',
+      ],
+      ask: ['Here is your question. {question}', 'Question for you. {question}'],
       'key-in': 'Key in your answer, then press hash.',
       again: "I didn't catch that. Once more.",
-      pass: 'Correct. Stay out of trouble. Goodbye.',
-      fail: "That's not right. We'll be making a note of that. Goodbye.",
-      'no-answer': "Nothing? I'll mark that as a missed check-in. Goodbye.",
+      pass: [
+        "That's correct. Thank you for your cooperation. Mind how you go.",
+        'Correct. That matches what we have. Thank you, and mind how you go.',
+      ],
+      fail: [
+        "That's not what we have on file. We'll be making a note of that.",
+        "That doesn't match our records. We'll be noting it down.",
+      ],
+      'no-answer': [
+        "No response. I'm recording that as a failure to assist police enquiries.",
+        "Nothing? I'll log that as a failure to assist police enquiries.",
+      ],
       closed: 'This check-in is closed. Goodbye.',
       moved: "The line's bad, so your check-in is waiting in the app. Goodbye.",
       'test-intro': '{caller}, testing your line. Your code is',
       'test-pass': "Got it. We'll be in touch. Goodbye.",
       'test-fail': "That's not the code. Try again from the app. Goodbye.",
     },
+    chatLines: {
+      ask: ['Can you answer in the chat: {question}', 'Reply in the chat with your answer: {question}'],
+    },
     recordings: [],
+  },
+  // What the police ask: sums (twice as often), the victim, what the story has settled, the standings, the bar they are
+  // in (decoys are Manchester bars that are not on the route, so a hidden stop never leaks), the watch list and what
+  // each player said at the booking desk.
+  policeQuiz: [
+    { kind: 'sum', weight: 2 },
+    { kind: 'fixed', ask: 'Who was the victim?', answer: 'Bob', decoys: ['Rob', 'Bill', 'Barry', 'Dave'] },
+    { kind: 'fact', fact: 'timeOfDeath', ask: 'What time was Bob killed?', decoys: 'times' },
+    { kind: 'fact', fact: 'weapon', ask: 'What was the murder weapon?' },
+    { kind: 'fact', fact: 'scene', ask: 'Where was Bob killed?' },
+    { kind: 'standing', pick: 'lowest', ask: "Who's our prime suspect right now?" },
+    { kind: 'standing', pick: 'highest', ask: "Who's our most trusted informant right now?" },
+    {
+      kind: 'stop',
+      ask: 'Which bar are you in?',
+      decoys: ["Albert's Schloss", 'The Whiskey Jar', 'Soup Kitchen', 'Night & Day Cafe', 'The Castle Hotel', 'Odd Bar'],
+    },
+    { kind: 'watch-count', ask: 'How many people are on our watch list?' },
+    { kind: 'own', field: 'relation', ask: 'What did you tell us your relation to Bob was?' },
+    { kind: 'own', field: 'height', ask: 'How tall did you tell us you were?' },
+    { kind: 'whose', field: 'relation', ask: 'Who told us they were {value}?' },
+  ],
+  // What the booking desk asks about each player's relation to Bob (the police ask about it too).
+  booking: {
+    relations: [
+      { id: 'lover', label: 'Lover', phrase: "Bob's lover" },
+      { id: 'ex', label: 'Ex', phrase: "Bob's ex" },
+      { id: 'sidepiece', label: 'Sidepiece', phrase: "Bob's sidepiece" },
+      { id: 'best-friend', label: 'Best friend', phrase: "Bob's best friend" },
+      { id: 'boss', label: 'Boss', phrase: "Bob's boss" },
+      { id: 'parent', label: 'Parent', phrase: "Bob's parent" },
+      { id: 'sibling', label: 'Sibling', phrase: "Bob's brother or sister" },
+      { id: 'complicated', label: "It's complicated", phrase: 'on complicated terms with Bob' },
+    ],
   },
   // The periodic mission a seed starts with: a roll call four times a night, an hour apart, 15 minutes to answer
   // with a photo or a comment, 5 off for missing one. The GM edits it, stops it or adds more in the GM console.

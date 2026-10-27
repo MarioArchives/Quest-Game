@@ -1,7 +1,7 @@
 // A game pack: everything that makes one game different from another while the engine stays the same.
 // This is the rules half (wording, features, catalogue, defaults), shared by the functions, the app and the
 // scripts. The look half (theme, art, long copy, public files) lives in src/packs/<id>/.
-import type { VoiceLineKey } from '../phone.ts';
+import type { ChatLineKey, VoiceLineKey } from '../phone.ts';
 import type { AwardKey, Settings, StoryEntry, Venue } from '../types.ts';
 
 /** A periodic mission a pack starts with: a path-safe id and what the GM would set on it. */
@@ -16,14 +16,59 @@ export interface PeriodicSeed {
 }
 
 /** Packs with police: how the police sound on a phone call (settings.policePhone). */
+/** One wording, or variants: a call picks one (the same one again on a retry). */
+export type LineText = string | readonly string[];
+
+/** An officer who makes the calls ({officer} in a line); `telegramVoice` is their edge-tts voice on the Telegram line. */
+export interface Officer {
+  name: string;
+  telegramVoice?: string;
+}
+
 export interface PoliceVoice {
   /** Twilio's <Say> voice and language; default Polly.Brian in en-GB. */
   voice?: { voice: string; language: string };
-  /** Lines reworded for the pack: {caller} (settings.policeCallerName), {name} (the player's first name), {check} (a police check-in). */
-  lines?: Partial<Record<VoiceLineKey, string>>;
-  /** Lines the GM recorded as src/packs/<id>/public/audio/police/<line>.mp3, played instead of read out. */
+  /**
+   * Lines reworded for the pack: {caller} (settings.policeCallerName), {name} (the player's first name), {check} (a
+   * police check-in), {officer} (the call's officer), and {question} / {accusation} where a line has them.
+   */
+  lines?: Partial<Record<VoiceLineKey, LineText>>;
+  /** The lines said instead on a line answered in the chat (Telegram): asking for a reply rather than a key press. */
+  chatLines?: Partial<Record<ChatLineKey, LineText>>;
+  /** Who makes the calls; one is picked per call. */
+  officers?: Officer[];
+  /** Lines the GM recorded as src/packs/<id>/public/audio/police/<line>.mp3, played instead of read out (one wording, no {officer}). */
   recordings?: VoiceLineKey[];
 }
+
+/** One relation a player can say they had to the story's victim at the booking desk. */
+export interface RelationChoice {
+  /** Stored on the player's particulars; kebab-case. */
+  id: string;
+  /** The chip's word ("Best friend"). */
+  label: string;
+  /** How the police say it ("Bob's best friend"). */
+  phrase: string;
+}
+
+/** What the police may ask on a check-in (GamePack.policeQuiz); `weight` (1–10, default 1) makes one likelier. */
+export type PoliceQuizItem = { weight?: number } & (
+  | { kind: 'sum' }
+  /** A fixed question: the answer and its decoys. */
+  | { kind: 'fixed'; ask: string; answer: string; decoys: string[] }
+  /** facts/{fact}: its value (decoys a list, or 'times' near a time), or one of its winning entries (decoys the others). */
+  | { kind: 'fact'; fact: string; ask: string; decoys?: string[] | 'times' }
+  /** The playing player with the lowest or highest points (no tie). */
+  | { kind: 'standing'; pick: 'lowest' | 'highest'; ask: string }
+  /** The latest revealed stop that has started; decoys are other bars (never the route's own). */
+  | { kind: 'stop'; ask: string; decoys: string[] }
+  /** How many persons of interest there are (a typed number). */
+  | { kind: 'watch-count'; ask: string }
+  /** Something the player gave at the booking desk. */
+  | { kind: 'own'; field: 'relation' | 'height'; ask: string }
+  /** The one other player who gave this relation ({value}: its phrase). */
+  | { kind: 'whose'; field: 'relation'; ask: string }
+);
 
 /** A noun as the game says it, lower case unless it is an acronym ("GM"). Plurals are spelled out. */
 export interface Noun {
@@ -93,6 +138,8 @@ export interface StoryQuest {
   votePoints?: number | null;
   /** What each of several tied top entries gets; missing = the full points. */
   tieBonus?: number | null;
+  /** Missions judged by a vote: the question the vote asks ("What killed Bob?"), copied onto the side quest; missing = the title. */
+  question?: string;
   /** When it closes, its winning entries are recorded as this fact (facts/{key}). */
   records?: { key: string; label: string };
   /** Announcements: the fact recorded when it fires. */
@@ -136,6 +183,10 @@ export interface MapConfig {
 }
 
 export interface GamePack {
+  /** The booking desk's choices: the relations to the victim a player can give. */
+  booking?: { relations?: RelationChoice[] };
+  /** What the police may ask on a check-in; without it, a sum. */
+  policeQuiz?: PoliceQuizItem[];
   /** Lower-case, path-safe: `lancaster`, `starter`. */
   id: string;
   /** The game's name: page title, manifest, push fallback title. */

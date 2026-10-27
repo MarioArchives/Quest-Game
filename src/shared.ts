@@ -58,6 +58,11 @@ export type {
   SubmissionStatus,
   Stop,
   Venue,
+  Vote,
+  VoteStyle,
+  Judgement,
+  EntryReaction,
+  EntryReactionCounts,
   Wrap,
 } from '../functions/src/shared/types';
 export type { ParamSpec } from '../functions/src/shared/scoring/types';
@@ -66,13 +71,18 @@ export { LEDGER_REASON_LIST, REACTION_EMOJI } from '../functions/src/shared/type
 export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/settings';
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
-export { VOTABLE_FEED_TYPES, canHoldTop, takesVote } from '../functions/src/shared/feedVotes';
-export { tallyVotes } from '../functions/src/shared/votes';
+export { TOP_FEED_TYPES, VOTABLE_FEED_TYPES, canHoldTop, isVotableAbout, takesVote } from '../functions/src/shared/feedVotes';
+export { ballotComplete, entryVotesText, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../functions/src/shared/votes';
+export type { BallotTally } from '../functions/src/shared/votes';
+export { ENTRY_REACTIONS, canReact } from '../functions/src/shared/entryReactions';
+export { answerOf, choiceLabel } from '../functions/src/shared/policeQuiz';
+export type { EntryReactionKind } from '../functions/src/shared/entryReactions';
 export { drawTemplate } from '../functions/src/shared/draw';
 export { PERIODIC_LIMITS, periodicDone, periodicProblems } from '../functions/src/shared/periodics';
 export { describePhoneError, describeTestResult, formatPhone, isSimulatedSid, isTelegramSid, LINE_OFFLINE_MS, normalisePhone, policeVCard } from '../functions/src/shared/phone';
 export type { SimulatedAction, SimulatedTurn } from '../functions/src/shared/phone';
 export { DRINK_MAX, HEIGHT_MAX_CM, HEIGHT_MIN_CM, MARKS_MAX, needsBooking } from '../functions/src/shared/booking';
+export { startPost } from '../functions/src/shared/startTime';
 
 /** A Firestore document with its id. */
 export type Doc<T> = T & { id: string };

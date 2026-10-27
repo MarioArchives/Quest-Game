@@ -5,6 +5,7 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { formatAgo } from '../../lib/time';
 import { t } from '../../pack';
+import { entryVotesText } from '../../shared';
 
 /** The side quests you entered, and how each is going. You can change an entry until entries close. */
 export function SideQuestEntries() {
@@ -42,8 +43,8 @@ export function SideQuestEntries() {
             status = `Won +${quest.bonusPoints}`;
             tone = 'tag--ink';
           } else {
-            const votes = quest.tally?.[s.id];
-            status = typeof votes === 'number' ? `Lost the vote · ${votes} ${votes === 1 ? 'vote' : 'votes'}` : 'No win';
+            const words = entryVotesText(quest, s.id);
+            status = words ? `Lost the vote · ${words}` : 'No win';
           }
           const editable = quest?.status === 'live' && s.status !== 'rejected' && state.status === 'active';
           return (

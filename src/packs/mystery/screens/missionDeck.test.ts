@@ -155,6 +155,13 @@ describe('the rules on a folder', () => {
     expect(missionRule({ judging: 'vote', bonusPoints: 5, fastestBonus: 1 }, 0)).toBe('Most votes wins +5, the fastest entry +1');
   });
 
+  it('a yes/no vote mission says how it is won (plan "Voting takeover…", edge case 17)', () => {
+    expect(missionRule({ bonusPoints: 5 }, 5, 'yesno')).toBe('Most yes (less no) wins +5 · −5 if you don’t');
+    expect(missionRule({ judging: 'vote', bonusPoints: 5, fastestBonus: 1 }, 0, 'yesno')).toBe('Most yes (less no) wins +5, the fastest entry +1');
+    expect(missionRule({ judging: 'submit', bonusPoints: 3 }, 0, 'yesno')).toBe('+3 each');
+    expect(missionRule({ bonusPoints: 5 }, 0, 'pick')).toBe('Most votes wins +5');
+  });
+
   it('a periodic mission', () => {
     expect(checkinRule(5)).toBe('−5 if you don’t · one answer, a photo or a comment');
     expect(checkinRule(0)).toBe('No fine · one answer, a photo or a comment');

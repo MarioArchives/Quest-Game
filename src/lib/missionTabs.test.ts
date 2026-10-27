@@ -166,6 +166,12 @@ describe('filedRule', () => {
     expect(filedRule({ bonusPoints: 5 }, 5)).toBe('Most votes won +5. Ties all won. No entry cost −5.');
     expect(filedRule({ judging: 'vote', bonusPoints: 5, fastestBonus: 2 }, 0)).toBe('Most votes won +5, the fastest entry +2. Ties all won.');
   });
+
+  it('says how a yes/no vote was won (plan "Voting takeover…", edge case 17)', () => {
+    expect(filedRule({ bonusPoints: 5, voteStyle: 'yesno' }, 5)).toBe('Most yes (less no) won +5. Ties all won. No entry cost −5.');
+    expect(filedRule({ bonusPoints: 5, fastestBonus: 2, voteStyle: 'yesno' }, 0)).toBe('Most yes (less no) won +5, the fastest entry +2. Ties all won.');
+    expect(filedRule({ judging: 'submit', bonusPoints: 3, voteStyle: 'yesno' }, 0)).toBe('No vote: every entry earned +3.');
+  });
 });
 
 describe('missionResult', () => {
@@ -182,6 +188,33 @@ describe('missionResult', () => {
     ]);
     expect(r.entered).toEqual(['maya', 'priya', 'sam']);
     expect(r.fastest).toBeNull();
+  });
+
+  it('puts each count in words', () => {
+    const m = mission('q', 1, { winningSubmissionIds: ['s2'], tally: { s1: 1, s2: 3, s3: 0 } });
+    const r = missionResult(m, entries, []);
+    expect(r.leads.map((l) => l.words)).toEqual(['3 votes']);
+    expect(r.votes.map((v) => v.words)).toEqual(['3 votes', '1 vote']);
+  });
+
+  it('a yes/no vote: its winners, then every entry judged, highest yes − no first, with its yeses and noes (edge case 17)', () => {
+    const m = mission('q', 1, {
+      voteStyle: 'yesno',
+      winningSubmissionIds: ['s2'],
+      tally: { s1: -1, s2: 2, s3: 0 },
+      yesNo: { s1: { yes: 0, no: 1 }, s2: { yes: 2, no: 0 }, s3: { yes: 0, no: 0 } },
+    });
+    const r = missionResult(m, entries, []);
+    expect(r.leads.map((l) => [l.entry.uid, l.votes, l.words])).toEqual([['priya', 2, '2 yes · 0 no']]);
+    expect(r.votes.map((v) => [v.entry.uid, v.votes, v.words])).toEqual([
+      ['priya', 2, '2 yes · 0 no'],
+      ['maya', -1, '0 yes · 1 no'],
+    ]);
+  });
+
+  it('a yes/no vote where yeses and noes cancel out still lists the entry', () => {
+    const m = mission('q', 1, { voteStyle: 'yesno', winningSubmissionIds: [], tally: { s1: 0, s2: 0, s3: 0 }, yesNo: { s1: { yes: 1, no: 1 } } });
+    expect(missionResult(m, entries, []).votes.map((v) => [v.entry.uid, v.votes, v.words])).toEqual([['maya', 0, '1 yes · 1 no']]);
   });
 
   it('names a Vote’s fastest entry when it paid a bonus and did not win', () => {

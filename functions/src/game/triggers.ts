@@ -7,6 +7,7 @@ import { handleAdminCreated, handleJoinRequestCreated } from './join.js';
 import { dialPoliceCall } from './policePhone.js';
 import { planForFeed } from './push.js';
 import { handlePlayerWritten } from './standing.js';
+import { recountEntryReactions } from './entryReactions.js';
 import { handleReactionWritten } from './reactions.js';
 import { handleSubmissionCreated, handleSubmissionWritten } from './submissions.js';
 
@@ -105,6 +106,15 @@ export const TRIGGERS: readonly TriggerDef[] = [
     on: 'write',
     async run(db, params, env) {
       await handleReactionWritten(db, params.feedId, env.now, env.pack);
+    },
+  },
+  // A side-quest entry's eye and heart reactions: keep who gave which on the entry.
+  {
+    name: 'onEntryReactionWritten',
+    pattern: 'submissions/{submissionId}/entryReactions/{uid}',
+    on: 'write',
+    async run(db, params) {
+      await recountEntryReactions(db, params.submissionId);
     },
   },
 ];

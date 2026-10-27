@@ -40,6 +40,10 @@ describe('CALLABLES', () => {
     expect(Object.keys(CALLABLES)).toContain('bookIn');
   });
 
+  it('includes the start time: the GM setting it, and an app opening the game at zero (countdown plan)', () => {
+    expect(Object.keys(CALLABLES)).toEqual(expect.arrayContaining(['setStartTime', 'openOnTime']));
+  });
+
   it('every entry has a handler', () => {
     for (const [name, def] of Object.entries(CALLABLES)) expect(typeof def.run, name).toBe('function');
   });
@@ -58,9 +62,10 @@ describe('CALLABLES', () => {
 });
 
 describe('TRIGGERS', () => {
-  it('are the five document triggers on the same paths as before, plus every player write (standings), new police calls and every submission write (a changed witness)', () => {
+  it('are the five document triggers on the same paths as before, plus every player write (standings), new police calls, every submission write (a changed witness) and every reaction to an entry', () => {
     expect(TRIGGERS.map((t) => [t.name, t.pattern, t.on]).sort()).toEqual([
       ['onAdminCreated', 'admins/{uid}', 'create'],
+      ['onEntryReactionWritten', 'submissions/{submissionId}/entryReactions/{uid}', 'write'],
       ['onFeedCreated', 'feed/{feedId}', 'create'],
       ['onFeedReactionWritten', 'feed/{feedId}/reactions/{uid}', 'write'],
       ['onJoinRequestCreated', 'joinRequests/{uid}', 'create'],

@@ -31,6 +31,8 @@ const PATHS = {
   menu: ['M4 7h16M4 12h16M4 17h16'],
   ballot: ['M5 4h14v16H5z', 'M9 9l2 2 4-4', 'M9 16h6'],
   trophy: ['M8 4h8v6a4 4 0 0 1-8 0V4z', 'M8 6H4v2a3 3 0 0 0 4 2.8', 'M16 6h4v2a3 3 0 0 1-4 2.8', 'M12 14v4M8 20h8'],
+  /** A clock face (the start time's countdown). */
+  clock: ['M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'M12 8v4.5l3 1.8'],
   edit: ['M4 20h4L19 9l-4-4L4 16v4z', 'M13 7l4 4'],
   /** A telephone handset (the trusted confidant's pin and the tip line). */
   phone: ['M6.6 3.5h2.9l1.8 4.7-1.9 1.7a14 14 0 0 0 4.7 4.7l1.7-1.9 4.7 1.8v2.9a2 2 0 0 1-2 2C10.5 19.4 4.6 13.5 4.6 5.5a2 2 0 0 1 2-2Z'],

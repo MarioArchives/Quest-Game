@@ -1,0 +1,12 @@
+/* The vote takeover covers the whole app: above the tab bar (20) and the tip line (40), below sheets (50), the photo
+   viewer (60), the camera (70) and toasts (80). */
+.vote-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+}
+.vote-layer:focus { outline: none; }

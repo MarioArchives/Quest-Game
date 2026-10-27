@@ -14,7 +14,15 @@ export function takesVote(post: Pick<FeedItem, 'type' | 'uid' | 'actorUid'>, vot
   );
 }
 
-/** Whether a post can hold the top entry at all (a votable type about a player). */
+/** The entries that can hold the top of the log book: a player's own (a frame or an exposure is about them, not by them). */
+export const TOP_FEED_TYPES = ['approved', 'checkin-answer', 'global-won'] as const;
+
+/** Whether a post can hold the top entry at all (one of a player's own entries). */
 export function canHoldTop(post: Pick<FeedItem, 'type' | 'uid'>): boolean {
+  return !!post.uid && (TOP_FEED_TYPES as readonly string[]).includes(post.type);
+}
+
+/** Whether a post is a votable entry about a player (what "Yours · credible n · doubtful n" is shown on). */
+export function isVotableAbout(post: Pick<FeedItem, 'type' | 'uid'>): boolean {
   return !!post.uid && (VOTABLE_FEED_TYPES as readonly string[]).includes(post.type);
 }

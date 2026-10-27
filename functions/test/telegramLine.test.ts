@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { endGame } from '../src/game/endGame.js';
 import type { PhoneLine } from '../src/game/phoneLine.js';
 import { testPoliceLine } from '../src/game/phones.js';
-import { answerPoliceCall, runPolice, stalledPhoneCode } from '../src/game/police.js';
+import { answerPoliceCall, runPolice, stalledPhoneCode, tipOffPolice } from '../src/game/police.js';
 import { dialPoliceCall, handlePoliceVoice } from '../src/game/policePhone.js';
 import { resetGame } from '../src/game/reset.js';
 import { handlePlayerWritten } from '../src/game/standing.js';
@@ -16,14 +16,13 @@ import {
   handleTelegramLine,
   LINE_REPLY_SEC,
   renderTelegram,
-  TELEGRAM_LINES,
   telegramLine,
   type TelegramLineReply,
   type TelegramStep,
 } from '../src/game/telegramLine.js';
-import type { VoiceReply } from '../src/game/voice.js';
+import { DEFAULT_CHAT_LINES, type VoiceReply } from '../src/game/voice.js';
 import type { GamePack } from '../src/shared/packs/types.js';
-import { isTelegramSid, LINE_OFFLINE_MS, TELEGRAM_GIVE_UP_MS } from '../src/shared/phone.js';
+import { isTelegramSid, LINE_OFFLINE_MS, spokenQuestion, TELEGRAM_GIVE_UP_MS } from '../src/shared/phone.js';
 import type { PhoneStatus, PoliceCallPhone, Settings, Switchboard } from '../src/shared/types.js';
 import { addMin, allDocs, constRng, ctx, getData, ledgerFor, seedAdmin, seedGame, seedPlayer, T0, toMillis, ts, useEmulatorDb } from './helpers.js';
 import { testPack } from './packs.js';
@@ -193,9 +192,9 @@ describe('a check-in call on Telegram', () => {
     expect(ask!.replySec).toBe(LINE_REPLY_SEC);
     expect(ask!.next).toMatchObject({ call: c.id, step: 'gather', try: '1' });
     expect(ask!.say.join(' ')).toContain('Test Constabulary');
-    expect(ask!.say[ask!.say.length - 1]).toBe(TELEGRAM_LINES['key-in']);
-    expect(TELEGRAM_LINES['key-in']).toMatch(/reply/i);
-    expect(TELEGRAM_LINES['key-in']).not.toMatch(/hash|key in/i);
+    expect(ask!.say[ask!.say.length - 1]).toBe(DEFAULT_CHAT_LINES.ask.replace('{question}', spokenQuestion(c.question)));
+    expect(ask!.say.join(' ')).toMatch(/reply/i);
+    expect(ask!.say.join(' ')).not.toMatch(/hash|key in/i);
   });
 
   it('a right reply passes with the pass points', async () => {
@@ -232,7 +231,8 @@ describe('a check-in call on Telegram', () => {
     await pickUp(c);
     const again = steps(await reply(c, '', '1'));
     const [ask] = asks(again);
-    expect(ask!.say).toContain(TELEGRAM_LINES.again);
+    expect(ask!.say).toContain(DEFAULT_CHAT_LINES.again);
+    expect(ask!.message.startsWith(DEFAULT_CHAT_LINES.again)).toBe(true);
     expect(ask!.next).toMatchObject({ call: c.id, step: 'gather', try: '2' });
     expect((await call(c.id)).status).toBe('open');
     expect(lines(steps(await reply(c, '', '2')))).toContain('no-answer');
@@ -364,7 +364,7 @@ describe('the test call on Telegram', () => {
     const t = await ringTest();
     const [ask] = asks(steps(await event(t.sid, t.query, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' })));
     expect(ask!.say.join(' ')).toContain(t.code.split('').join(', '));
-    expect(ask!.say[ask!.say.length - 1]).toBe(TELEGRAM_LINES['test-key-in']);
+    expect(ask!.say[ask!.say.length - 1]).toBe(DEFAULT_CHAT_LINES['test-key-in']);
     expect(ask!.message).not.toContain(t.code);
     expect(ask!.message).toMatch(/code/i);
     const done = steps(await event(t.sid, t.query, 'gather', { CallStatus: 'in-progress', Digits: t.code }, '1'));
@@ -422,17 +422,39 @@ describe('late and stray events', () => {
   });
 });
 
+describe('a tip-off on Telegram (the accusation)', () => {
+  it('the police say it after the intro, and the chat message leads with it before the question', async () => {
+    await setup();
+    await line('carol');
+    await beat();
+    await db().doc('players/bob').update({ points: 15 });
+    const { callId } = await tipOffPolice(db(), as('bob', T0), { targetUid: 'carol', note: 'Being a silly patotie' });
+    await dialPoliceCall(db(), callId, T0, PACK, tg());
+    const { phone, question } = await call(callId);
+    const s = steps(await pickUp({ id: callId, sid: phone.sid as string }));
+    const [ask] = asks(s);
+    expect(ask!.say.join(' ')).toContain('You have been accused of being a silly patotie.');
+    expect(ask!.message).toBe(`Police check-in: You have been accused of being a silly patotie. ${question} Reply with the number.`);
+  });
+
+  it('a check-in that is not a tip-off keeps the plain message', async () => {
+    await setup();
+    const c = await ringingCall();
+    const [ask] = asks(steps(await pickUp(c)));
+    expect(ask!.message).toBe(`Police check-in: ${c.question} Reply with the number.`);
+  });
+});
+
 describe('rendering a reply for Telegram', () => {
   const gather = (speech: Array<{ text: string; line?: string }>, next: Record<string, string>): VoiceReply =>
     [{ kind: 'gather', speech: speech as never, next, timeoutSec: 8 }] as VoiceReply;
 
-  it('swaps the keypad lines for replies in the chat and keeps the pack’s own lines', () => {
+  it('says each line as the game words it (the chat wording is chosen where the lines are made), with the written question', () => {
     const steps = renderTelegram(
       gather(
         [
           { text: 'Evening, Alice. Test Constabulary here.', line: 'intro-watch' },
-          { text: "What's seven times eight?" },
-          { text: 'Key in your answer, then press hash.', line: 'key-in' },
+          { text: "Can you answer in the chat: What's seven times eight?", line: 'ask' },
         ],
         { call: 'c1', step: 'gather', try: '1' },
       ),
@@ -441,7 +463,7 @@ describe('rendering a reply for Telegram', () => {
     expect(steps).toEqual([
       {
         ask: {
-          say: ['Evening, Alice. Test Constabulary here.', "What's seven times eight?", TELEGRAM_LINES['key-in']],
+          say: ['Evening, Alice. Test Constabulary here.', "Can you answer in the chat: What's seven times eight?"],
           message: expect.stringContaining("What's 7 × 8?"),
           replySec: LINE_REPLY_SEC,
           next: { call: 'c1', step: 'gather', try: '1' },
@@ -450,30 +472,167 @@ describe('rendering a reply for Telegram', () => {
     ]);
   });
 
-  it('says "again" and the test line the Telegram way, keeps plain lines and the hang-up', () => {
+  it('lists a multiple-choice question\'s options in the chat, numbered, and asks for the number', () => {
+    const [step] = renderTelegram(gather([{ text: 'Who was the victim?', line: 'ask' }], { call: 'c1', step: 'gather', try: '1' }), {
+      kind: 'call',
+      question: 'Who was the victim?',
+      options: ['Rob', 'Bob', 'Bill'],
+    });
+    const message = (step as { ask: { message: string } }).ask.message;
+    expect(message).toMatch(/Who was the victim\?/);
+    expect(message).toMatch(/1\. Rob[\s\S]*2\. Bob[\s\S]*3\. Bill/);
+    expect(message).toMatch(/Reply with the number\.$/);
+  });
+
+  it('a typed number asks for the answer', () => {
+    const [step] = renderTelegram(gather([{ text: 'Q', line: 'ask' }], { call: 'c1', step: 'gather', try: '1' }), { kind: 'call', question: 'How many?', options: null });
+    expect((step as { ask: { message: string } }).ask.message).toMatch(/How many\?.*Reply with your answer\.$/s);
+  });
+
+  it('asking again: the message leads with the "again" line', () => {
+    const again = renderTelegram(gather([{ text: DEFAULT_CHAT_LINES.again, line: 'again' }], { call: 'c1', step: 'gather', try: '2' }), { kind: 'call', question: 'Q?' });
+    expect(asks(again)[0]!.message.startsWith(DEFAULT_CHAT_LINES.again)).toBe(true);
+  });
+
+  it('keeps plain lines and the hang-up, and a test never writes its code', () => {
     const reply: VoiceReply = [
       { kind: 'say', speech: { text: 'Correct. Goodbye.', line: 'pass' } },
       { kind: 'hangup' },
     ] as VoiceReply;
     expect(renderTelegram(reply, { kind: 'call', question: 'Q' })).toEqual([{ say: 'Correct. Goodbye.', line: 'pass' }, { hangup: true }]);
-    const again = renderTelegram(gather([{ text: 'Once more.', line: 'again' }], { call: 'c1', step: 'gather', try: '2' }), { kind: 'call', question: 'Q?' });
-    expect(asks(again)[0]!.say).toEqual([TELEGRAM_LINES.again]);
-    expect(TELEGRAM_LINES.again).toMatch(/reply/i);
     const test = renderTelegram(
       gather(
         [
           { text: 'Testing your line. Your code is', line: 'test-intro' },
           { text: '4, 8, 2' },
-          { text: 'Key it in now.', line: 'test-key-in' },
+          { text: DEFAULT_CHAT_LINES['test-key-in'], line: 'test-key-in' },
         ],
         { line: 'alice', test: 't1', step: 'gather', try: '1' },
       ),
       { kind: 'test' },
     );
     const ask = asks(test)[0]!;
-    expect(ask.say).toEqual(['Testing your line. Your code is', '4, 8, 2', TELEGRAM_LINES['test-key-in']]);
-    expect(TELEGRAM_LINES['test-key-in']).toMatch(/reply|chat/i);
+    expect(ask.say).toEqual(['Testing your line. Your code is', '4, 8, 2', DEFAULT_CHAT_LINES['test-key-in']]);
     expect(ask.message).not.toMatch(/4\D*8\D*2/);
+  });
+});
+
+// Plan "Police that sound official, a question bank, …", edge cases 5 and 10.
+describe('multiple choice on Telegram', () => {
+  const QUIZ: GamePack = testPack({ features: { police: true }, policeQuiz: [{ kind: 'fixed', ask: 'Who was the victim?', answer: 'Bob', decoys: ['Rob', 'Bill'] }] });
+
+  /** Alice's check-in with the victim question, handed to the line and picked up. */
+  async function choiceCall() {
+    await setup();
+    await line('alice');
+    await beat();
+    await db().doc('players/alice').update({ points: -15 });
+    await handlePlayerWritten(db(), 'alice', T0, constRng(0), QUIZ);
+    const [c] = await calls();
+    await dialPoliceCall(db(), c!.id, T0, QUIZ, tg());
+    const k = await call(c!.id);
+    const out = { id: c!.id, sid: k.phone.sid as string, options: k.options as string[], expected: k.expected as string };
+    const [ask] = asks(steps(await pickUp(out)));
+    return { ...out, ask: ask! };
+  }
+
+  it('the chat lists the options and asks for the number', async () => {
+    const c = await choiceCall();
+    expect(c.options).toHaveLength(3);
+    c.options.forEach((o, i) => expect(c.ask.message).toContain(`${i + 1}. ${o}`));
+    expect(c.ask.message).toMatch(/Reply with the number\.$/);
+  });
+
+  it.each([['the number', (c: { expected: string }) => c.expected], ['bob.', () => 'bob.'], ['The Bob', () => 'The Bob'], ['option N', (c: { expected: string }) => `option ${c.expected}`]])(
+    'a reply of %s passes',
+    async (_label, replyOf) => {
+      const c = await choiceCall();
+      expect(lines(steps(await reply(c, replyOf(c))))).toContain('pass');
+      expect(await call(c.id)).toMatchObject({ status: 'passed', answer: c.expected });
+    },
+  );
+
+  it('nonsense asks again, then is missed with the smaller fine', async () => {
+    const c = await choiceCall();
+    const [again] = asks(steps(await reply(c, 'no idea mate', '1')));
+    expect(again!.next).toMatchObject({ try: '2' });
+    expect(lines(steps(await reply(c, 'still no idea', '2')))).toContain('no-answer');
+    expect(await call(c.id)).toMatchObject({ status: 'missed' });
+    expect(await policeLedger('alice')).toEqual([['police-missed', -1]]);
+  });
+
+  it("a wrong option fails with the smaller fine", async () => {
+    const c = await choiceCall();
+    const wrong = c.options.findIndex((o) => o !== 'Bob') + 1;
+    expect(lines(steps(await reply(c, String(wrong))))).toContain('fail');
+    expect(await policeLedger('alice')).toEqual([['police-fail', -1]]);
+  });
+});
+
+describe("the call's officer on Telegram", () => {
+  it("the reply carries the officer's voice for the script", async () => {
+    const OFFICERS: GamePack = testPack({
+      features: { police: true },
+      policeVoice: { officers: [{ name: 'DS One', telegramVoice: 'en-GB-RyanNeural' }, { name: 'DC Two', telegramVoice: 'en-GB-SoniaNeural' }] },
+    });
+    await setup();
+    const c = await ringingCall();
+    const out = (await handleTelegramLine(db(), addMin(T0, 0.5), OFFICERS, {
+      op: 'event',
+      sid: c.sid,
+      query: { call: c.id },
+      step: 'voice',
+      params: { CallStatus: 'in-progress', AnsweredBy: 'human' },
+    })) as { steps: TelegramStep[]; voice?: string | null };
+    expect(['en-GB-RyanNeural', 'en-GB-SoniaNeural']).toContain(out.voice);
+    const again = (await handleTelegramLine(db(), addMin(T0, 0.6), OFFICERS, {
+      op: 'event',
+      sid: c.sid,
+      query: { call: c.id },
+      step: 'gather',
+      try: '1',
+      params: { CallStatus: 'in-progress', Digits: '' },
+    })) as { voice?: string | null };
+    expect(again.voice).toBe(out.voice);
+  });
+
+  it('without officers there is no voice', async () => {
+    await setup();
+    const c = await ringingCall();
+    const out = (await pickUp(c)) as { voice?: string | null };
+    expect(out.voice ?? null).toBeNull();
+  });
+});
+
+describe('case updates for the script', () => {
+  const notice = (id: string, createdAt: Date, to = NUMBER.alice!) =>
+    db().doc(`lineOrders/${id}`).set({ kind: 'notice', to, text: 'New group event: Hats only!', status: 'new', createdAt: ts(createdAt) });
+
+  it('the poll hands out case updates with the calls, as {id, kind, to, text}', async () => {
+    await setup();
+    await notice('n1', T0);
+    const c = await ringingCall();
+    const got = (await poll(addMin(T0, 1))) as { orders: Array<Record<string, unknown>> };
+    expect(got.orders).toContainEqual({ id: 'n1', kind: 'notice', to: NUMBER.alice, text: 'New group event: Hats only!' });
+    expect(got.orders.some((o) => o.sid === c.sid)).toBe(true);
+    expect((await getData(db(), 'lineOrders/n1'))!.status).toBe('taken');
+  });
+
+  it('a case update older than 10 minutes is dropped, never sent late', async () => {
+    await setup();
+    await notice('old', addMin(T0, -11));
+    const got = (await poll(T0)) as { orders: unknown[] };
+    expect(got.orders).toEqual([]);
+    expect((await getData(db(), 'lineOrders/old'))!.status).toBe('dropped');
+  });
+
+  it("the heartbeat keeps what the script says it can do", async () => {
+    await setup();
+    await op({ op: 'heartbeat', account: { name: 'Test Constabulary', id: 42 }, features: ['notices'] }, T0);
+    expect((await getData(db(), 'game/line'))!.features).toEqual(['notices']);
+    await op({ op: 'heartbeat', account: { name: 'Test Constabulary', id: 42 } }, addMin(T0, 1));
+    expect((await getData(db(), 'game/line'))!.features ?? []).toEqual([]);
+    await expect(op({ op: 'heartbeat', account: { name: 'X' }, features: 'notices' }, T0)).rejects.toThrow();
   });
 });
 

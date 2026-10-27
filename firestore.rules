@@ -140,8 +140,11 @@ service cloud.firestore {
     match /globalQuests/{id} {
       allow read: if isPlayerOrGM();
       allow write: if isGM();
-      // globalQuests/{id}/votes/*: secret ballots, no client access at all (default deny; this match
-      // does not cascade to subcollections).
+      // globalQuests/{id}/votes/*: secret ballots. A voter may get (not list) their own doc, so the app can show where
+      // their ballot stands; nobody reads another's, and only functions write (this match does not cascade).
+      match /votes/{voterUid} {
+        allow get: if signedIn() && request.auth.uid == voterUid;
+      }
     }
 
     // ---------- submissions ----------
@@ -175,7 +178,24 @@ service cloud.firestore {
         && resource.data.status == 'pending'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['witnessUid'])
         && validWitness(request.resource.data.witnessUid, resource.data.uid);
-      // No comments or reactions under submissions (reactions live on feed posts; there are no comments).
+      // No comments under submissions. A side-quest entry takes an eye and a heart from each player but its entrant
+      // (the doc id is the reactor's uid); the onEntryReactionWritten trigger keeps who gave which on the entry. The
+      // fields mirror ENTRY_REACTIONS (functions/src/shared/entryReactions.ts); a test checks the two agree. Log book
+      // reactions live on feed posts.
+      match /entryReactions/{reactorUid} {
+        allow create, update: if isPlayer()
+          && request.auth.uid == reactorUid
+          && request.resource.data.keys().hasOnly(['eye', 'heart', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['eye', 'heart', 'updatedAt'])
+          && request.resource.data.eye is bool
+          && request.resource.data.heart is bool
+          && request.resource.data.updatedAt == request.time
+          && get(/databases/$(db)/documents/submissions/$(id)).data.kind == 'global'
+          && get(/databases/$(db)/documents/submissions/$(id)).data.status == 'approved'
+          && get(/databases/$(db)/documents/submissions/$(id)).data.uid != request.auth.uid;
+        allow read: if isPlayerOrGM();
+        allow delete: if isPlayer() && request.auth.uid == reactorUid;
+      }
     }
 
     // ---------- server-written collections ----------

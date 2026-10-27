@@ -37,6 +37,10 @@
 .appbar__title { font-size: 30px; line-height: 1; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .appbar__right { display: flex; align-items: center; gap: 8px; flex: none; }
 .appbar__points { border-width: 0; padding: 6px 10px; font-size: 16px; }
+/* The start time's countdown in the points chip's place: a clock, red in the last ten minutes. */
+.appbar__points--count { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+/* Doubled so it wins over a pack theme's own .appbar__points colours. */
+.appbar__points.appbar__points--final { background: var(--urgent); color: var(--on-urgent); }
 /* The points chip, with the tip line's phone joined to its left (packs with police). */
 .appbar__score { display: inline-flex; align-items: stretch; flex: none; }
 .appbar__score .appbar__points { display: inline-flex; align-items: center; }
@@ -52,6 +56,14 @@
   padding: 8px var(--page-x) 32px;
 }
 .app__main:focus { outline: none; }
+/* A swipe between tabs: the new screen slides in from the side the finger moved towards (see useTabSwipe). */
+.app__main--from-right { animation: app-main-from-right 250ms ease-out; }
+.app__main--from-left { animation: app-main-from-left 250ms ease-out; }
+@keyframes app-main-from-right { from { opacity: 0; transform: translateX(24px); } }
+@keyframes app-main-from-left { from { opacity: 0; transform: translateX(-24px); } }
+@media (prefers-reduced-motion: reduce) {
+  .app__main--from-right, .app__main--from-left { animation: none; }
+}
 .app__loader { margin: 64px auto; }
 
 .tabbar {

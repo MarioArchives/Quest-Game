@@ -13,7 +13,8 @@ export interface Draft {
   phone: string;
   noPhone: boolean;
   heightCm: number;
-  drink: string | null;
+  /** One of the pack's booking relation ids. */
+  relation: string | null;
   marks: string;
 }
 
@@ -57,7 +58,7 @@ const pad = (n: number, width: number) => String(n).padStart(width, '0');
 export const sheetNumber = (seed: string): string => pad(hashText(`sheet:${seed}`) % 10_000, 4);
 
 /** What goes to `bookIn` from the draft. */
-export const particularsOf = (draft: Draft): Particulars => ({ heightCm: draft.heightCm, drink: draft.drink, marks: draft.marks.trim() || null });
+export const particularsOf = (draft: Draft): Particulars => ({ heightCm: draft.heightCm, relation: draft.relation, marks: draft.marks.trim() || null });
 
 /* ---------------------------------------------------------------- kept on this tab while they go through it */
 
@@ -80,7 +81,9 @@ export function loadSaved(uid: string, since: number): Saved | null {
     if (saved.since !== since) return null;
     const d = saved.draft;
     if (!d || typeof d.name !== 'string' || typeof d.phone !== 'string' || typeof d.heightCm !== 'number' || typeof d.marks !== 'string') return null;
-    const draft: Draft = { ...d, noPhone: d.noPhone === true, drink: typeof d.drink === 'string' ? d.drink : null };
+    // A booking kept from when the desk asked for a drink has no relation.
+    const { drink: _drink, ...rest } = d as Draft & { drink?: unknown };
+    const draft: Draft = { ...rest, noPhone: d.noPhone === true, relation: typeof d.relation === 'string' ? d.relation : null };
     return { draft, step: String(saved.step ?? ''), photoDone: saved.photoDone === true, since };
   } catch {
     return null;

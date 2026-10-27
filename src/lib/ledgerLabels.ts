@@ -29,5 +29,7 @@ export function ledgerLabels(t: TermForms, voice: LedgerVoice): Record<LedgerRea
     'police-pass': `Passed a ${t.policeCall.one}`,
     'police-fail': `Failed a ${t.policeCall.one}`,
     'police-missed': `Missed a ${t.policeCall.one}`,
+    'top-entry': `Top of the ${t.feed.one}`,
+    'top-entry-lost': `Lost the top of the ${t.feed.one}`,
   };
 }

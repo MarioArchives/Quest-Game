@@ -33,6 +33,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -193,6 +194,76 @@ class Replies:
             future.cancel()
 
 
+# ---------- case updates and the officers' voices ----------
+
+CASE_UPDATE_PREFIX = '⚠️ Case update ⚠️ - '
+NOTICE_PAUSE_S = 3600
+NOTICE_GAP_S = 1  # at least this long between two case updates sent
+FLOOD_SLEEP_MAX_S = 60  # Telethon sleeps through a FloodWait up to this itself; a longer one pauses case updates
+VOICE_NAME = re.compile(r'[a-z]{2}-[A-Z]{2}-[A-Za-z]+Neural')
+
+
+def case_update_text(text: str) -> str:
+    """A case update as posted in the police chat: the prefix, then what the game sent."""
+    return CASE_UPDATE_PREFIX + text
+
+
+def stale_case_updates(messages: list, keep_id: int) -> list:
+    """The ids of the earlier case updates to delete: the police's own messages (`out`) starting with the prefix,
+    except the one just sent (`keep_id`). `messages` are dicts with id, out and text (text may be None)."""
+    return [m['id'] for m in messages if m.get('out') and m['id'] != keep_id and (m.get('text') or '').startswith(CASE_UPDATE_PREFIX)]
+
+
+def order_lane(order: dict) -> str | None:
+    """Which queue an order from the game goes to: 'call' (a check-in or a test call), 'notice' (a case update), or
+    None for a kind this script doesn't know (skipped)."""
+    kind = order.get('kind')
+    if kind in ('call', 'test'):
+        return 'call'
+    if kind == 'notice':
+        return 'notice'
+    return None
+
+
+def valid_voice(name) -> bool:
+    """An edge-tts voice name the script will use (e.g. en-GB-RyanNeural); anything else falls back to its own."""
+    return isinstance(name, str) and VOICE_NAME.fullmatch(name) is not None
+
+
+class UserCache:
+    """Players found by number, so each contact is looked up (imported) once a run."""
+
+    def __init__(self) -> None:
+        self.users: dict = {}
+
+    async def find(self, number: str, resolver):
+        """The user for `number`, from `resolver(number)` the first time; a miss (None) isn't kept."""
+        if number in self.users:
+            return self.users[number]
+        user = await resolver(number)
+        if user is not None:
+            self.users[number] = user
+        return user
+
+
+class NoticeGate:
+    """Whether case updates go out: paused for an hour after Telegram pushes back (a long FloodWait or PeerFlood),
+    during which the heartbeat stops offering them, so the game falls back to push."""
+
+    def __init__(self) -> None:
+        self.until = 0.0
+
+    def pause(self, now: float, seconds: float = NOTICE_PAUSE_S) -> None:
+        self.until = now + seconds
+
+    def open(self, now: float) -> bool:
+        return now >= self.until
+
+    def features(self, now: float) -> list:
+        """What the heartbeat offers besides calls: ['notices'] while open, [] while paused."""
+        return ['notices'] if self.open(now) else []
+
+
 def serve_config(env) -> tuple[str, str]:
     """The game's telegramLine URL and the shared secret; exits without them."""
     url, secret = env.get('TELEGRAM_LINE_URL', '').strip(), env.get(LINE_SECRET, '').strip()
@@ -345,6 +416,10 @@ class Line:
         self.tasks: set[asyncio.Task] = set()
         self.calls = None
         self.silence = silent_clip()
+        self.users = UserCache()
+        self.gate = NoticeGate()
+        self.outbox = asyncio.Lock()  # case updates go out one at a time, never holding a call's lock
+        self.last_notice = 0.0
 
     async def send(self, payload: dict) -> dict | None:
         return await asyncio.to_thread(post_signed, self.url, self.secret, payload)
@@ -360,6 +435,7 @@ class Line:
         from pytgcalls import PyTgCalls
         from pytgcalls.types import ChatUpdate, StreamEnded, Update
 
+        self.tg.flood_sleep_threshold = FLOOD_SLEEP_MAX_S  # Telethon waits out short FloodWaits itself
         self.calls = PyTgCalls(self.tg)
 
         @self.calls.on_update()
@@ -388,7 +464,7 @@ class Line:
 
     async def heartbeat_loop(self, account: dict) -> None:
         while True:
-            await self.send({'op': 'heartbeat', 'account': account})
+            await self.send({'op': 'heartbeat', 'account': account, 'features': self.gate.features(time.time())})
             await asyncio.sleep(HEARTBEAT_S)
 
     async def poll_loop(self) -> None:
@@ -403,12 +479,19 @@ class Line:
     # ----- one order -----
 
     async def run_order(self, order: dict) -> None:
+        lane = order_lane(order)
+        if lane == 'notice':
+            await self.send_notice(order)
+            return
+        if lane != 'call':
+            log(f'  skipping an order of unknown kind {order.get("kind")!r}')
+            return
         lock = self.locks.setdefault(order['to'], asyncio.Lock())  # one call at a time to a player
         async with lock:
             user_id = None
             outcome = 'failed'
             try:
-                user = await resolve(self.tg, order['to'])
+                user = await self.users.find(order['to'], lambda number: resolve(self.tg, number))
                 if user is None:
                     outcome = 'not-found'
                 else:
@@ -430,20 +513,60 @@ class Line:
                 await self.event(order, 'status', outcome_params(outcome))
             log(f'{order["sid"]} ({order["kind"]}): {outcome}')
 
+    async def send_notice(self, order: dict) -> None:
+        """Posts a case update in the player's police chat and deletes the earlier ones, so only the latest stays.
+        Never raises: a failure is logged, and a flood pushes the whole feature into a pause."""
+        from telethon import errors
+
+        if not self.gate.open(time.time()):
+            log(f'  notice {order.get("id")}: case updates are paused, skipped')
+            return
+        try:
+            async with self.outbox:
+                wait = self.last_notice + NOTICE_GAP_S - time.monotonic()
+                if wait > 0:
+                    await asyncio.sleep(wait)
+                try:
+                    user = await self.users.find(order['to'], lambda number: resolve(self.tg, number))
+                    if user is None:
+                        log(f'  notice {order.get("id")}: no Telegram account for the player')
+                        return
+                    msg = await self.tg.send_message(user, case_update_text(order['text']))
+                    recent = [{'id': m.id, 'out': bool(m.out), 'text': m.message} async for m in self.tg.iter_messages(user, limit=50, from_user='me')]
+                    stale = stale_case_updates(recent, msg.id)
+                    if stale:
+                        await self.tg.delete_messages(user, stale, revoke=True)
+                    log(f'  notice {order.get("id")}: sent' + (f', {len(stale)} earlier removed' if stale else ''))
+                finally:
+                    self.last_notice = time.monotonic()
+        except asyncio.CancelledError:
+            raise
+        except errors.FloodWaitError as err:
+            self.gate.pause(time.time())
+            log(f'  notice {order.get("id")}: FloodWait {getattr(err, "seconds", "?")}s, case updates paused for an hour')
+        except errors.PeerFloodError:
+            self.gate.pause(time.time())
+            log(f'  notice {order.get("id")}: PeerFlood, case updates paused for an hour')
+        except Exception as err:  # noqa: BLE001 (the loop never stops)
+            log(f'  notice {order.get("id")}: {type(err).__name__}: {err}')
+
     async def converse(self, order: dict, user) -> str:
         """Rings, speaks, asks and reports. Returns 'completed' or the outcome that stopped it."""
         await self.event(order, 'status', {'CallStatus': 'ringing'})
         state = self.live[user.id] = Live()
+        voice = self.voice  # this call's officer, once the game names one
         outcome = await self.dial(user)
         if outcome != 'answered':
             return outcome
         reply = await self.event(order, 'voice', {'CallStatus': 'in-progress', 'AnsweredBy': 'human'})
         while reply is not None:
+            if valid_voice(reply.get('voice')):
+                voice = reply['voice']
             parts = split_steps(reply.get('steps', []))
             ask = parts['ask']
             if not state.hung_up.is_set():  # still on the call: say it
                 for line in parts['say'] + (ask or {}).get('say', []):
-                    if not await self.speak_live(user, line):
+                    if not await self.speak_live(user, line, voice):
                         break
             if ask is None:
                 if parts['say']:
@@ -482,12 +605,12 @@ class Line:
             return 'privacy'
         return 'answered'
 
-    async def speak_live(self, user, line: str) -> bool:
+    async def speak_live(self, user, line: str, voice: str | None = None) -> bool:
         """Says one line on the live call and waits for it to end. False if the player hung up."""
         from pytgcalls.types import MediaStream
 
         state = self.live[user.id]
-        audio = await speak(line, self.voice)
+        audio = await speak(line, voice or self.voice)
         try:
             state.ended.clear()
             await self.calls.play(user.id, MediaStream(str(audio), video_flags=MediaStream.Flags.IGNORE))

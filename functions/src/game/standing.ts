@@ -11,7 +11,7 @@ import type { Db } from './context.js';
 import { addFeed } from './feed.js';
 import { isQuietHours } from './globals.js';
 import { loadSettings, loadState } from './guards.js';
-import { openPoliceCall } from './police.js';
+import { openPoliceCall, questionFor, readQuizSource } from './police.js';
 import { flushLines, noLines, readLineBook } from './policeLines.js';
 import { millis } from './util.js';
 
@@ -54,10 +54,11 @@ export async function handlePlayerWritten(db: Db, uid: string, now: Date, rng: (
     const busy = watch ? (await tx.get(db.collection('policeCalls').where('uid', '==', uid))).docs.some((d) => d.get('status') === 'open') : true;
     // With phone calls on, the call rings their line when it can.
     const book = watch && !busy ? await readLineBook(tx, db, settings, [uid]) : noLines();
+    const quiz = watch && !busy ? await readQuizSource(tx, db, pack, now) : null;
 
     writeStanding(tx, db, now, t, uid, player, next);
     if (watch && !busy) {
-      openPoliceCall(tx, db, now, rng, t, settings, { uid, name: player.displayName, kind: 'watch' }, book);
+      openPoliceCall(tx, db, now, questionFor(pack, quiz, uid, rng), t, settings, { uid, name: player.displayName, kind: 'watch' }, book);
       flushLines(tx, db, now, t, book);
     }
   });

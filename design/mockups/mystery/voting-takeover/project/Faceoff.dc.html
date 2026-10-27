@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Face-off</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#e6cf98}a:hover{color:#f4ecd5}
+.mono{font-family:'Space Mono',ui-monospace,monospace}
+.disp{font-family:'Archivo Black','Archivo',system-ui,sans-serif;font-weight:400}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #e5ac17;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; background: #3d4042; color: #e9ebec; font-family: 'Archivo', system-ui, sans-serif;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0 6px;">
+    <button type="button" style="height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; border: 0; background: transparent; color: #e9ebec; font-size: 14px; font-weight: 600;">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      <span>Back to the case</span>
+    </button>
+    <p class="mono" role="timer" aria-label="8 minutes 41 seconds left to vote" style="margin: 0; display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border: 2px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 15px; font-weight: 700; transform: rotate(-2deg);">08:41<span style="font-size: 10px; font-weight: 400; letter-spacing: 0.08em;">TO VOTE</span></p>
+  </header>
+
+  <div style="padding: 2px 20px 0;">
+    <p class="mono" style="margin: 0; font-size: 11px; letter-spacing: 0.1em; color: #b9bdc0;">MURDER WEAPON · FACE-OFF</p>
+    <h1 class="disp" style="margin: 4px 0 0; font-size: 26px; line-height: 1.05;">{{heading}}</h1>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 12px 20px 0;">
+    <span class="mono" style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #e6cf98;">{{roundText}}</span>
+    <div aria-hidden="true" style="display: flex; gap: 4px;">
+      <sc-for list="{{pips}}" as="p" hint-placeholder-count="4">
+        <span style="width: 22px; height: 6px; border-radius: 3px; background: {{p.bg}};"></span>
+      </sc-for>
+    </div>
+    <span style="flex: 1 1 auto;"></span>
+    <span class="mono" style="font-size: 10px; letter-spacing: 0.08em; color: #b9bdc0;">WINNER STAYS ON</span>
+  </div>
+
+  <sc-if value="{{inPlay}}" hint-placeholder-val="{{true}}">
+    <div style="position: relative; display: flex; flex-direction: column; gap: 18px; padding: 12px 16px 0;">
+      <sc-for list="{{pair}}" as="x" hint-placeholder-count="2">
+        <article aria-label="{{x.aria}}" style="display: flex; flex-direction: column; gap: 8px; padding: 8px; background: #e6cf98; color: #2a2116; border-radius: 10px; box-shadow: 0 4px 0 #26282a;">
+          <button type="button" aria-label="{{x.pickAria}}" onClick="{{x.choose}}" style="position: relative; height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; border: 0; border-radius: 6px; background: {{x.tone}}; color: #efe6cf; text-align: center;">
+            <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+            <span class="disp" style="font-size: 26px; line-height: 1.05; padding: 0 24px;">{{x.word}}</span>
+            <span class="mono" style="position: absolute; left: 8px; top: 8px; padding: 3px 8px; background: #c9a974; color: #2a2116; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">{{x.corner}}</span>
+            <span style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: rgba(22, 23, 24, 0.78); border-radius: 0 0 6px 6px; text-align: left;">
+              <span style="flex: 1 1 auto; font-size: 14px; font-weight: 700; color: #f1f0ec;">{{x.title}}</span>
+              <span class="mono" style="padding: 4px 10px; border: 2px solid #e6cf98; border-radius: 14px; color: #e6cf98; font-size: 11px; font-weight: 700;">THIS ONE</span>
+            </span>
+          </button>
+          <p style="margin: 0; padding: 0 4px; height: 36px; overflow: hidden; font-size: 13px; line-height: 1.35; color: #3a2e1c;">{{x.caption}}</p>
+          <div style="display: flex; gap: 6px;">
+            <sc-for list="{{x.chips}}" as="c" hint-placeholder-count="4">
+              <button type="button" title="{{c.label}}" aria-label="{{c.aria}}" aria-pressed="{{c.on}}" onClick="{{c.toggle}}" style="flex: 1 1 0; min-width: 0; height: 40px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0; border: 2px solid #2a2116; border-radius: 20px; background: {{c.bg}}; color: {{c.fg}};">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px;"><path d="{{c.d}}"></path></svg>
+                <span style="font-size: 12px; font-weight: 700;">{{c.label}}</span>
+                <span class="mono" style="font-size: 12px; font-weight: 700;">{{c.count}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </article>
+      </sc-for>
+      <span class="disp" aria-hidden="true" style="position: absolute; left: 50%; top: 273px; width: 52px; height: 52px; margin-left: -26px; display: flex; align-items: center; justify-content: center; border: 4px solid #3d4042; border-radius: 50%; background: #a3342a; color: #ffffff; font-size: 17px; box-sizing: border-box;">VS</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 0;">
+      <article aria-label="{{champ.aria}}" style="display: flex; flex-direction: column; gap: 8px; padding: 8px 8px 12px; background: #e6cf98; color: #2a2116; border-radius: 10px; box-shadow: 0 4px 0 #26282a;">
+        <div style="position: relative; height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; background: {{champ.tone}}; color: #efe6cf; text-align: center;">
+          <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+          <span class="disp" style="font-size: 32px; line-height: 1.05; padding: 0 24px;">{{champ.word}}</span>
+          <span class="mono" style="position: absolute; right: 12px; top: 14px; padding: 4px 10px; border: 3px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 16px; font-weight: 700; letter-spacing: 0.06em; transform: rotate(6deg);">{{champ.stamp}}</span>
+        </div>
+        <h2 class="disp" style="margin: 2px 4px 0; font-size: 22px; line-height: 1.1;">{{champ.title}}</h2>
+        <p style="margin: 0 4px; font-size: 14px; line-height: 1.4; color: #3a2e1c;">{{champ.caption}}</p>
+        <div style="display: flex; gap: 6px; padding: 2px 0 0;">
+          <sc-for list="{{champ.chips}}" as="c" hint-placeholder-count="4">
+            <button type="button" title="{{c.label}}" aria-label="{{c.aria}}" aria-pressed="{{c.on}}" onClick="{{c.toggle}}" style="flex: 1 1 0; min-width: 0; height: 40px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0; border: 2px solid #2a2116; border-radius: 20px; background: {{c.bg}}; color: {{c.fg}};">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px;"><path d="{{c.d}}"></path></svg>
+              <span style="font-size: 12px; font-weight: 700;">{{c.label}}</span>
+              <span class="mono" style="font-size: 12px; font-weight: 700;">{{c.count}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </article>
+      <p style="margin: 2px 4px 0; font-size: 14px; line-height: 1.4; color: #d4d7d9;">{{champLine}}</p>
+      <sc-if value="{{notCast}}" hint-placeholder-val="{{true}}">
+        <button type="button" onClick="{{castIt}}" style="height: 52px; border: 2px solid #21180e; border-radius: 8px; background: #e6cf98; color: #2a2116; font-size: 16px; font-weight: 700; box-shadow: 0 4px 0 #26282a;">{{castLabel}}</button>
+      </sc-if>
+      <sc-if value="{{isCast}}" hint-placeholder-val="{{false}}">
+        <button type="button" style="height: 52px; border: 2px solid #21180e; border-radius: 8px; background: #e6cf98; color: #2a2116; font-size: 16px; font-weight: 700; box-shadow: 0 4px 0 #26282a;">Done · back to the case</button>
+      </sc-if>
+      <button type="button" onClick="{{restart}}" style="height: 48px; border: 2px solid #e9ebec; border-radius: 8px; background: transparent; color: #e9ebec; font-size: 15px; font-weight: 700;">Run it again</button>
+    </div>
+  </sc-if>
+
+  <div style="margin-top: auto; padding: 10px 20px 18px; border-top: 2px solid #26282a;">
+    <p style="margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 13px; color: #d4d7d9;">
+      <span class="mono" style="font-size: 10px; letter-spacing: 0.1em; color: #b9bdc0;">KNOCKED OUT</span>
+      <sc-for list="{{out}}" as="o" hint-placeholder-count="2">
+        <span style="text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #e98679;">{{o.name}}</span>
+      </sc-for>
+      <sc-if value="{{noneOut}}" hint-placeholder-val="{{false}}">
+        <span>Nobody yet</span>
+      </sc-if>
+    </p>
+    <p style="margin: 6px 0 0; font-size: 12px; color: #b9bdc0;">Your cocktail umbrella sits this one out: you can’t vote for your own.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const ENTRIES = [
+  { id: 'e1', who: 'Priya', item: 'A pint glass', short: 'pint glass', word: 'Pint glass', caption: 'Bludgeoned with the last pint of the night. Fingerprints: everyone’s.', tone: '#5d4835', base: { ha: 4, shady: 1, iconic: 2, gasp: 0 } },
+  { id: 'e2', who: 'Sam', item: 'The jukebox', short: 'jukebox', word: 'Jukebox', caption: 'Mr Brightside eleven times in a row. His heart simply gave out.', tone: '#3f4a56', base: { ha: 6, shady: 0, iconic: 3, gasp: 1 } },
+  { id: 'e3', who: 'You', own: true, item: 'A cocktail umbrella', short: 'cocktail umbrella', word: 'Cocktail umbrella', caption: 'Small, pointy, and nobody ever suspects the umbrella.', tone: '#6a3a33', base: { ha: 2, shady: 2, iconic: 0, gasp: 1 } },
+  { id: 'e4', who: 'Jo', item: 'A beer mat', short: 'beer mat', word: 'Beer mat', caption: 'A paper cut. A very, very deep paper cut.', tone: '#4b5a45', base: { ha: 3, shady: 0, iconic: 1, gasp: 4 } },
+  { id: 'e5', who: 'Marcus', item: 'Pork scratchings', short: 'pork scratchings', word: 'Pork scratchings', caption: 'He never chewed. We all warned him.', tone: '#5a4a2a', base: { ha: 5, shady: 1, iconic: 0, gasp: 2 } },
+  { id: 'e6', who: 'Elle', item: 'A dart', short: 'dart', word: 'Dart', caption: 'Bullseye. Bob was standing in front of the board at the time.', tone: '#3d3f5c', base: { ha: 2, shady: 3, iconic: 4, gasp: 1 } },
+];
+const REACTIONS = [
+  { k: 'ha', label: 'Ha!', d: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M8 14c1.2 1.8 2.5 2.6 4 2.6s2.8-.8 4-2.6M9 9.5h.01M15 9.5h.01' },
+  { k: 'shady', label: 'Shady', d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zM9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0' },
+  { k: 'iconic', label: 'Iconic', d: 'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z' },
+  { k: 'gasp', label: 'Gasp', d: 'M12 4v10M12 19h.01' },
+];
+// Your own entry sits out: the face-off runs on everyone else's.
+const CONTENDERS = ENTRIES.filter((e) => !e.own);
+const ROUNDS = CONTENDERS.length - 1;
+const whose = (e) => `${e.who}’s ${e.short}`;
+const FRESH = { champ: 0, next: 1, round: 1, wins: {}, out: [], done: false };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { ...FRESH, vote: null, reacts: {} };
+  }
+
+  toggle(id, k) {
+    const mine = this.state.reacts[id] || {};
+    this.setState({ reacts: { ...this.state.reacts, [id]: { ...mine, [k]: !mine[k] } } });
+  }
+
+  chips(e) {
+    const mine = this.state.reacts[e.id] || {};
+    return REACTIONS.map((r) => {
+      const on = !!mine[r.k];
+      return {
+        label: r.label,
+        d: r.d,
+        on,
+        count: e.base[r.k] + (on ? 1 : 0),
+        aria: `${r.label} on ${whose(e)}`,
+        bg: on ? '#2a2116' : 'transparent',
+        fg: on ? '#e6cf98' : '#2a2116',
+        toggle: () => this.toggle(e.id, r.k),
+      };
+    });
+  }
+
+  choose(side) {
+    const s = this.state;
+    const winner = side === 0 ? s.champ : s.next;
+    const loser = side === 0 ? s.next : s.champ;
+    const wins = { ...s.wins, [winner]: (s.wins[winner] || 0) + 1 };
+    const out = [...s.out, loser];
+    if (s.next + 1 >= CONTENDERS.length) this.setState({ champ: winner, wins, out, done: true });
+    else this.setState({ champ: winner, next: s.next + 1, round: s.round + 1, wins, out });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const top = CONTENDERS[s.champ];
+    const bottom = CONTENDERS[Math.min(s.next, CONTENDERS.length - 1)];
+    const topWins = s.wins[s.champ] || 0;
+    const voted = ENTRIES.find((x) => x.id === s.vote) || null;
+    const isCast = s.done && s.vote === top.id;
+    const side = (e, k, corner) => ({
+      aria: `${corner}: ${whose(e)}`,
+      pickAria: `${whose(e)} is more damning: it stays on`,
+      corner,
+      title: `${e.who} · ${e.item}`,
+      word: e.word,
+      tone: e.tone,
+      caption: e.caption,
+      chips: this.chips(e),
+      choose: () => this.choose(k),
+    });
+    return {
+      heading: s.done ? 'Your champion' : 'Which one did it?',
+      roundText: s.done ? `ALL ${ROUNDS} ROUNDS` : `ROUND ${s.round} OF ${ROUNDS}`,
+      pips: Array.from({ length: ROUNDS }, (_, k) => ({
+        bg: s.done || k < s.round - 1 ? '#e6cf98' : k === s.round - 1 ? '#e9ebec' : '#62676a',
+      })),
+      inPlay: !s.done,
+      done: s.done,
+      pair: [
+        side(top, 0, s.round === 1 ? 'EXHIBIT A' : `STAYS ON · ${topWins} ${topWins === 1 ? 'WIN' : 'WINS'}`),
+        side(bottom, 1, 'CHALLENGER'),
+      ],
+      champ: {
+        aria: `Your champion: ${whose(top)}`,
+        stamp: isCast ? 'VOTE CAST' : 'CHAMPION',
+        title: `${top.who} · ${top.item}`,
+        word: top.word,
+        tone: top.tone,
+        caption: top.caption,
+        chips: this.chips(top),
+      },
+      champLine: isCast
+        ? 'Votes stay secret until 23:40. Run it again if you change your mind.'
+        : voted
+          ? `Your vote is still on ${whose(voted)}. Cast this one to move it.`
+          : `It beat ${s.wins[s.champ] || 0} of the others head to head. Cast your vote to make it count.`,
+      notCast: !isCast,
+      isCast,
+      castLabel: voted ? `Move my vote to ${whose(top)}` : `Cast my vote: ${whose(top)}`,
+      castIt: () => this.setState({ vote: top.id }),
+      restart: () => this.setState({ ...FRESH }),
+      out: s.out.map((k) => ({ name: CONTENDERS[k].who })),
+      noneOut: s.out.length === 0,
+    };
+  }
+}
+</script>
+</body>
+</html>

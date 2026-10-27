@@ -8,10 +8,11 @@ import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import { termForms, type TermForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
 import { isTelegramSid, PHONE_GIVE_UP_MS, PHONE_SILENT_MS, TELEGRAM_GIVE_UP_MS } from '../shared/phone.js';
-import { cooldownLeftMs, isRightAnswer, policeQuestion } from '../shared/police.js';
+import { cooldownLeftMs, isRightAnswer } from '../shared/police.js';
+import { answerOf, quizQuestion, type QuizQuestion, type QuizSource } from '../shared/policeQuiz.js';
 import { standingOf } from '../shared/standing.js';
 import type { DocRef, Txn } from '../shared/store/types.js';
-import type { PoliceCall, PoliceCallKind, PoliceCallPhone, Player, Settings } from '../shared/types.js';
+import type { Fact, PoliceCall, PoliceCallKind, PoliceCallPhone, Player, Settings, Stop } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { addFeed } from './feed.js';
 import { isQuietHours } from './globals.js';
@@ -33,6 +34,30 @@ const NOTE_MAX = 200;
 const ANSWER_MAX = 20;
 
 /**
+ * What a question may draw on, read when a call opens: the facts the story settled, the route and the players. Reads
+ * only, so call it before any write; reads nothing (null) when the pack has no quiz. `players` saves a read when the
+ * caller already has them.
+ */
+export async function readQuizSource(tx: Txn, db: Db, pack: GamePack, now: Date, players?: Map<string, Player>): Promise<QuizSource | null> {
+  if (!pack.policeQuiz) return null;
+  const facts = (await tx.get(db.collection('facts'))).docs.map((d) => d.data() as Fact);
+  const stops = pack.features.stops ? (await tx.get(db.collection('stops'))).docs.map((d) => d.data() as Stop) : [];
+  const all = players ?? (await readPlayers(tx, db));
+  const settings = await loadSettings(db, tx);
+  return {
+    players: [...all].map(([uid, p]) => ({ uid, name: p.displayName, points: p.points, playing: isPlaying(p), particulars: p.particulars ?? null })),
+    facts,
+    stops: stops.map((s) => ({ name: s.name, order: s.order, revealed: s.revealed, startsAtMs: s.startsAt ? millis(s.startsAt) : null })),
+    settings: { confidantAbove: settings.confidantAbove, poiBelow: settings.poiBelow },
+    relations: pack.booking?.relations ?? [],
+    nowMs: now.getTime(),
+  };
+}
+
+/** The question for a call on `uid`: from the pack's bank (`src` from readQuizSource), else a sum. */
+export const questionFor = (pack: GamePack, src: QuizSource | null, uid: string, rng: () => number): QuizQuestion => quizQuestion(pack.policeQuiz, src, uid, rng);
+
+/**
  * Opens a call on `uid` and posts it (the post pushes to that player only). Writes only: the caller has checked the
  * call is due and read nothing the writes depend on. A watch call also sets the player's lastCheckedAt; a tip's
  * sender's lastSnitchedAt is the caller's to set. With a `book` (phone calls), the call rings when the player has a
@@ -42,14 +67,14 @@ export function openPoliceCall(
   tx: Txn,
   db: Db,
   now: Date,
-  rng: () => number,
+  q: QuizQuestion,
   t: TermForms,
   settings: Settings,
   call: { uid: string; name: string; kind: PoliceCallKind; by?: { uid: string; name: string }; note?: string },
   book?: LineBook,
 ): string {
   const ref = db.collection('policeCalls').doc();
-  const { question, expected } = policeQuestion(rng);
+  const { question, expected } = q;
   const route = book ? routeFor(book, call.uid) : { channel: 'app' as const, fallbackReason: null, trial: false };
   if (route.trial) claimTrial(book!, ref.id);
   const phone: PoliceCallPhone | null =
@@ -63,6 +88,8 @@ export function openPoliceCall(
     note: call.note ?? null,
     question,
     expected,
+    ...(q.options ? { options: q.options } : {}),
+    quiz: q.quiz,
     startsAt: toTs(now),
     endsAt: toTs(new Date(now.getTime() + settings.policeWindowMin * MIN_MS)),
     status: 'open',
@@ -189,6 +216,7 @@ export async function runPolice(db: Db, now: Date, rng: () => number, pack: Game
     const nowMs = now.getTime();
     const open = (await tx.get(db.collection('policeCalls').where('status', '==', 'open'))).docs;
     const players = await readPlayers(tx, db);
+    const quiz = await readQuizSource(tx, db, pack, now, players);
     // Calls already ringing still settle when the GM has just switched phone calls off.
     const book = await readLineBook(tx, db, settings, 'all', open.some((d) => d.get('channel') === 'phone'));
     const scoring = scoringFor(pack, settings, state, now);
@@ -225,7 +253,7 @@ export async function runPolice(db: Db, now: Date, rng: () => number, pack: Game
         if (!isPlaying(player) || stillOpen.has(uid) || standingOf(player.points, settings) !== 'poi') continue;
         const last = player.lastCheckedAt ? millis(player.lastCheckedAt) : null;
         if (cooldownLeftMs(last, settings.policeEveryMin, nowMs) > 0) continue;
-        result.opened.push(openPoliceCall(tx, db, now, rng, t, settings, { uid, name: player.displayName, kind: 'watch' }, book));
+        result.opened.push(openPoliceCall(tx, db, now, questionFor(pack, quiz, uid, rng), t, settings, { uid, name: player.displayName, kind: 'watch' }, book));
       }
     }
     flushLines(tx, db, now, t, book);
@@ -266,7 +294,9 @@ export async function answerPoliceCall(
     if (c.status !== 'open' || ctx.now.getTime() >= millis(c.endsAt)) fail('failed-precondition', `Time's up for this one.`);
     if (c.channel === 'phone') fail('failed-precondition', 'The police are ringing your phone: answer it there. If the call never gets through, it comes here.');
     const settings = await loadSettings(db, tx);
-    return scoreAnswer(tx, db, ctx.now, t, scoringFor(ctx.pack, settings, state, ctx.now), { ref: snap.ref, data: c }, player, data.answer);
+    // A multiple-choice answer is an option's number or its text; what's stored is the option's number.
+    const answer = c.options?.length ? answerOf(data.answer, c.options) || data.answer : data.answer;
+    return scoreAnswer(tx, db, ctx.now, t, scoringFor(ctx.pack, settings, state, ctx.now), { ref: snap.ref, data: c }, player, answer);
   });
 }
 
@@ -281,7 +311,7 @@ export async function tipOffPolice(db: Db, ctx: Ctx, data: { targetUid?: unknown
     const targetUid = asId(data.targetUid, 'targetUid');
     if (targetUid === uid) fail('invalid-argument', `You can't tip off the police about yourself.`);
     const note = typeof data.note === 'string' ? data.note.trim() : '';
-    if (note.length < 1 || note.length > NOTE_MAX) fail('invalid-argument', `Say what you saw, in 1 to ${NOTE_MAX} characters.`);
+    if (note.length < 1 || note.length > NOTE_MAX) fail('invalid-argument', `Say what they're accused of, in 1 to ${NOTE_MAX} characters.`);
     const settings = await loadSettings(db, tx);
     // Judged on the points they have right now, not the stored standing.
     if (standingOf(player.points, settings) !== 'confidant') fail('permission-denied', `Only a ${t.confidant.one} can tip off the police.`);
@@ -295,12 +325,13 @@ export async function tipOffPolice(db: Db, ctx: Ctx, data: { targetUid?: unknown
     const theirs = await tx.get(db.collection('policeCalls').where('uid', '==', targetUid));
     if (theirs.docs.some((d) => d.get('status') === 'open')) fail('failed-precondition', `${target.displayName} is already being questioned.`);
     const book = await readLineBook(tx, db, settings, [targetUid]);
+    const quiz = await readQuizSource(tx, db, ctx.pack, ctx.now);
 
     const callId = openPoliceCall(
       tx,
       db,
       ctx.now,
-      ctx.rng ?? Math.random,
+      questionFor(ctx.pack, quiz, targetUid, ctx.rng ?? Math.random),
       t,
       settings,
       { uid: targetUid, name: target.displayName, kind: 'tip', by: { uid, name: player.displayName }, note },

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LOCKER_TABS, linesAlarm, lockerSummary, missionKind, runningFor, stepTab, tagNumber, tonightJobs, waited, type JobsInput } from './lockerLib';
+import { Stamp } from '../../../../functions/src/shared/store/stamp.ts';
+import { LOCKER_TABS, askBeforeMove, deskCounts, linesAlarm, lockerSummary, missionKind, nudge, runningFor, untilLabel, stepTab, tagNumber, tonightJobs, waited, type JobsInput } from './lockerLib';
 
 describe('tagNumber', () => {
   it('is stable and four digits', () => {
@@ -117,4 +118,47 @@ describe('waited', () => {
     expect(waited(2 * 3_600_000)).toBe('2 h');
   });
   it('never goes negative', () => expect(waited(-60_000)).toBe('just now'));
+});
+
+describe('the start time on the case strip (countdown plan edge case 21)', () => {
+  const NIGHT = Date.parse('2026-11-07T19:00:00Z');
+  const booked = { bookedAt: Stamp.fromMillis(NIGHT - 86_400_000) };
+  const atDesk = { bookedAt: null };
+  /** A player doc from before the booking desk: no bookedAt at all, so nothing to book. */
+  const older = {};
+
+  it('nudge adds whole minutes, either way', () => {
+    expect(nudge(NIGHT, 15)).toBe(Date.parse('2026-11-07T19:15:00Z'));
+    expect(nudge(NIGHT, 30)).toBe(Date.parse('2026-11-07T19:30:00Z'));
+    expect(nudge(NIGHT, -15)).toBe(Date.parse('2026-11-07T18:45:00Z'));
+  });
+
+  it('asks before a move only once someone has booked in', () => {
+    expect(askBeforeMove([])).toBe(false);
+    expect(askBeforeMove([atDesk, atDesk])).toBe(false);
+    expect(askBeforeMove([atDesk, booked])).toBe(true);
+    expect(askBeforeMove([older])).toBe(true);
+  });
+
+  it('a player who left does not count as booked', () => {
+    expect(askBeforeMove([{ ...booked, left: 'out' as const }, atDesk])).toBe(false);
+  });
+
+  it('counts who is booked and who is still at the desk, leaving out anyone who left', () => {
+    expect(deskCounts([])).toEqual({ booked: 0, atDesk: 0 });
+    expect(deskCounts([booked, booked, older, atDesk, { ...booked, left: 'frozen' as const }, { ...atDesk, left: 'out' as const }])).toEqual({ booked: 3, atDesk: 1 });
+  });
+});
+
+describe('untilLabel', () => {
+  it('reads days and hours, then hours and minutes, then minutes, rounded down', () => {
+    expect(untilLabel((11 * 24 + 21) * 3_600_000 + 5 * 60_000)).toBe('11 days 21 h');
+    expect(untilLabel(24 * 3_600_000)).toBe('1 day 0 h');
+    expect(untilLabel(74 * 60_000 + 59_000)).toBe('1 h 14 min');
+    expect(untilLabel(9 * 60_000)).toBe('9 min');
+  });
+  it('says now at or past zero', () => {
+    expect(untilLabel(59_000)).toBe('now');
+    expect(untilLabel(-60_000)).toBe('now');
+  });
 });

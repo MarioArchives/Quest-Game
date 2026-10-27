@@ -270,6 +270,16 @@ describe('E27. the side-quest tick', () => {
     await m.tick();
     expect(await docs(m, 'globalQuests')).toEqual([]);
   });
+
+  it('opens a game waiting in the lobby once its start time has passed (countdown plan edge case 15)', async () => {
+    const m = mock();
+    await m.store.doc('game/state').update({ status: 'lobby', startedAt: null, opensAt: Stamp.fromMillis(NOW.getTime() + 60_000) });
+    await m.tick();
+    expect(await read(m, 'game/state')).toMatchObject({ status: 'lobby' });
+    await m.store.doc('game/state').update({ opensAt: Stamp.fromMillis(NOW.getTime() - 60_000) });
+    await m.tick();
+    expect(await read(m, 'game/state')).toMatchObject({ status: 'active' });
+  });
 });
 
 describe('E28. files', () => {

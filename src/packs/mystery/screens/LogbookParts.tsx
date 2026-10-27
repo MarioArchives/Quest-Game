@@ -156,6 +156,7 @@ export function TopCard({
   top,
   entry,
   previous,
+  payout,
   clock,
   onOpen,
 }: {
@@ -163,6 +164,8 @@ export function TopCard({
   entry: TopEntry | null;
   /** The card that held it before: its title and score as they stand now (null score when it left the log). */
   previous: { title: string; score: number | null } | null;
+  /** "+5 to Sam" while the top's points are with someone (null: none, or the case is closed). */
+  payout?: string | null;
   clock: (ms: number) => string;
   onOpen(feedId: string): void;
 }) {
@@ -198,6 +201,7 @@ export function TopCard({
       <span className="lb-card__f">
         <span className="lb-cnt--good">Credible {top.up}</span>
         <span className="lb-cnt--bad">Doubtful {top.down}</span>
+        {payout ? <span className="lb-cnt--good">{payout}</span> : null}
         {since ? <span>{since}</span> : null}
       </span>
     </>
@@ -308,6 +312,7 @@ export function CatchUpPile({ order, voting, onClose }: { order: PileEntry[]; vo
             <div
               className={`lb-pile__card${dx > 24 ? ' is-good' : dx < -24 ? ' is-bad' : ''}`}
               style={dx ? { transform: `translateX(${dx}px) rotate(${dx / 30}deg)` } : undefined}
+              data-own-swipe=""
               onPointerDown={down}
               onPointerMove={move}
               onPointerUp={up}

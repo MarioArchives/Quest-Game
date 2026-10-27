@@ -1,5 +1,5 @@
 // Pure helpers for the Evidence Locker (the mystery pack's GM console).
-import type { GlobalQuest, Reward, Switchboard } from '../../../shared';
+import type { GlobalQuest, Player, Reward, Switchboard } from '../../../shared';
 
 /** The locker's four folder tabs, in order; Tonight opens first. */
 export const LOCKER_TABS = ['tonight', 'suspects', 'missions', 'setup'] as const;
@@ -97,4 +97,36 @@ export function runningFor(ms: number): string {
   const h = Math.floor(total / 60);
   const m = total % 60;
   return h === 0 ? `${m}m` : m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+export type Booking = Pick<Player, 'bookedAt' | 'left'>;
+
+/** The start time moved by whole minutes (negative moves it earlier). */
+export function nudge(opensAtMs: number, minutes: number): number {
+  return opensAtMs + minutes * 60_000;
+}
+
+const isBooked = (p: Booking) => p.left == null && p.bookedAt !== null;
+
+/** Moving the start time asks first once anyone has booked in (an older doc without bookedAt counts as booked). */
+export function askBeforeMove(players: Booking[]): boolean {
+  return players.some(isBooked);
+}
+
+/** Who has booked in and who is still at the desk; anyone who left is in neither. */
+export function deskCounts(players: Booking[]): { booked: number; atDesk: number } {
+  const here = players.filter((p) => p.left == null);
+  const booked = here.filter(isBooked).length;
+  return { booked, atDesk: here.length - booked };
+}
+
+/** How long until a start time, for the GM: "11 days 21 h", "1 h 14 min", "9 min" (rounded down; "now" at zero or past). */
+export function untilLabel(ms: number): string {
+  const total = Math.floor(ms / 60_000);
+  if (total <= 0) return 'now';
+  const days = Math.floor(total / 1440);
+  const h = Math.floor((total % 1440) / 60);
+  const m = total % 60;
+  if (days > 0) return `${days} ${days === 1 ? 'day' : 'days'} ${h} h`;
+  return h === 0 ? `${m} min` : `${h} h ${m} min`;
 }

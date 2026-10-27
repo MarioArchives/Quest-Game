@@ -1,6 +1,6 @@
 // Engine plan edge cases 9-11 (app side): tabs and GM sections follow the pack's features.
 import { describe, expect, it } from 'vitest';
-import { gmSectionsFor, litTab, tabLabels, tabsFor } from './nav';
+import { gmSectionsFor, isTabSwipe, litTab, swipeBlocked, swipeTab, tabLabels, tabsFor, type SwipeNode, type TabId } from './nav';
 
 const ALL_ON = { guesses: true, sideQuests: true, map: true };
 
@@ -107,5 +107,54 @@ describe('litTab', () => {
 
   it('keeps Home lit on the map when the pack hosts the map in its Home screen', () => {
     expect(litTab('/map', true)).toBe('home');
+  });
+});
+
+describe('swiping between tabs (plan "swipe between tabs", edge cases S1–S3)', () => {
+  const PLAYER: TabId[] = ['home', 'feed', 'account'];
+  const GM: TabId[] = ['home', 'feed', 'account', 'gm', 'wrap'];
+
+  it('S1. a left swipe goes to the next tab, a right swipe to the one before', () => {
+    expect(swipeTab(PLAYER, 'home', -80)).toBe('feed');
+    expect(swipeTab(PLAYER, 'feed', -80)).toBe('account');
+    expect(swipeTab(PLAYER, 'account', 80)).toBe('feed');
+    expect(swipeTab(PLAYER, 'feed', 80)).toBe('home');
+  });
+
+  it('S1. never wraps round, and goes nowhere from a screen that is not a tab', () => {
+    expect(swipeTab(PLAYER, 'home', 80)).toBeNull();
+    expect(swipeTab(PLAYER, 'account', -80)).toBeNull();
+    expect(swipeTab(PLAYER, null, -80)).toBeNull();
+    expect(swipeTab(PLAYER, 'gm', -80)).toBeNull();
+  });
+
+  it('S1. follows whatever tabs this person has (the GM, the wrap, a Map tab)', () => {
+    expect(swipeTab(GM, 'account', -80)).toBe('gm');
+    expect(swipeTab(GM, 'gm', -80)).toBe('wrap');
+    expect(swipeTab(['home', 'map', 'account'], 'home', -80)).toBe('map');
+  });
+
+  it.each([
+    ['60 px across, quick', { dx: 60, dy: 0, ms: 200 }, true],
+    ['the other way', { dx: -60, dy: 10, ms: 200 }, true],
+    ['59 px', { dx: 59, dy: 0, ms: 200 }, false],
+    ['twice as far across as down', { dx: 80, dy: 40, ms: 300 }, true],
+    ['mostly down (a scroll)', { dx: 80, dy: 41, ms: 300 }, false],
+    ['700 ms', { dx: 120, dy: 0, ms: 700 }, true],
+    ['slower (a drag)', { dx: 120, dy: 0, ms: 701 }, false],
+  ])('S2. %s', (_label, gesture, want) => {
+    expect(isTabSwipe(gesture)).toBe(want);
+  });
+
+  const plain: SwipeNode = { ownSwipe: false, scrollsX: false, field: false, slider: false, dialog: false };
+
+  it('S3. a gesture that starts on plain content is free to switch tabs', () => {
+    expect(swipeBlocked([])).toBe(false);
+    expect(swipeBlocked([plain, plain, plain])).toBe(false);
+  });
+
+  it.each(['ownSwipe', 'scrollsX', 'field', 'slider', 'dialog'] as const)('S3. one that starts in (or inside) something with %s is left alone', (key) => {
+    expect(swipeBlocked([{ ...plain, [key]: true }])).toBe(true);
+    expect(swipeBlocked([plain, plain, { ...plain, [key]: true }])).toBe(true);
   });
 });

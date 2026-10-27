@@ -69,3 +69,29 @@ export function litTab(pathname: string, ownMap = false): TabId | null {
       return null;
   }
 }
+
+/** The tab a swipe leads to: a finger moving left (dx < 0) goes on, right goes back; nowhere past either end. */
+export function swipeTab(tabs: readonly TabId[], lit: TabId | null, dx: number): TabId | null {
+  const at = lit === null ? -1 : tabs.indexOf(lit);
+  if (at < 0 || dx === 0) return null;
+  return tabs[dx < 0 ? at + 1 : at - 1] ?? null;
+}
+
+/** Whether a touch was a quick, mostly sideways flick (not a scroll or a slow drag). */
+export function isTabSwipe({ dx, dy, ms }: { dx: number; dy: number; ms: number }): boolean {
+  return Math.abs(dx) >= 60 && Math.abs(dx) >= 2 * Math.abs(dy) && ms <= 700;
+}
+
+/** One element from where a gesture started up to the screen, as plain data. */
+export interface SwipeNode {
+  ownSwipe: boolean;
+  scrollsX: boolean;
+  field: boolean;
+  slider: boolean;
+  dialog: boolean;
+}
+
+/** A gesture that starts in something that uses sideways movement itself is not ours to take. */
+export function swipeBlocked(chain: readonly SwipeNode[]): boolean {
+  return chain.some((n) => n.ownSwipe || n.scrollsX || n.field || n.slider || n.dialog);
+}

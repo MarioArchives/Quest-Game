@@ -63,6 +63,7 @@
 .entry__who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry__caption { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .entry__vote { margin-top: auto; }
+.entry__judge { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; }
 .entry .btn--primary { box-shadow: none; font-size: 16px; }
 
 /* the picker sheet */

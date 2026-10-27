@@ -8,7 +8,7 @@ import { routeSeedStops } from '../route.ts';
 import { Stamp } from '../store/stamp.ts';
 import type { DocData } from '../store/types.ts';
 import type { Settings } from '../types.ts';
-import { BOTS, hashString, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES } from './bots.ts';
+import { BOTS, hashString, particularsFor, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES } from './bots.ts';
 import { posterSvg } from './poster.ts';
 
 export interface DemoFile {
@@ -133,7 +133,7 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         rerollsUsed: bot.rerolls,
         questsCompleted: bot.done.length,
         bookedAt: at(238),
-        particulars: bot.particulars,
+        particulars: particularsFor(bot, pack.booking?.relations),
         ...(character ? { character: { name: character.name, role: character.role } } : {}),
       },
     ]);

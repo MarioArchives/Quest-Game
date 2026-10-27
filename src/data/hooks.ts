@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { backend } from '../backend';
 import { querySpecKey } from '../backend/query';
 import type { QuerySpec } from '../backend/types';
@@ -36,6 +36,38 @@ export function useDocument<T = Record<string, unknown>>(path: string | null): D
   }, [path]);
 
   return state;
+}
+
+export interface DocumentsState<T> {
+  /** Each path's doc (null: it doesn't exist), once its first snapshot has arrived. */
+  data: Map<string, Doc<T> | null>;
+  /** Until every path has had its first snapshot. */
+  loading: boolean;
+}
+
+/** Live documents by path, one listener each; re-subscribes only when the set of paths changes. Missing docs are null. */
+export function useDocuments<T = Record<string, unknown>>(paths: readonly string[]): DocumentsState<T> {
+  const key = paths.join('\n');
+  const [got, setGot] = useState<{ key: string; docs: Map<string, Doc<T> | null> }>({ key, docs: new Map() });
+
+  useEffect(() => {
+    const list = key ? key.split('\n') : [];
+    setGot({ key, docs: new Map() });
+    const stops = list.map((path) =>
+      backend().data.watchDoc<T>(
+        path,
+        (data) => setGot((prev) => (prev.key === key ? { key, docs: new Map(prev.docs).set(path, data) } : prev)),
+        () => setGot((prev) => (prev.key === key ? { key, docs: new Map(prev.docs).set(path, null) } : prev)),
+      ),
+    );
+    return () => stops.forEach((stop) => stop());
+  }, [key]);
+
+  return useMemo(() => {
+    const docs = got.key === key ? got.docs : new Map<string, Doc<T> | null>();
+    const count = key ? key.split('\n').length : 0;
+    return { data: docs, loading: docs.size < count };
+  }, [got, key]);
 }
 
 export interface ListState<T> {

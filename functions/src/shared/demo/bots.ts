@@ -17,6 +17,8 @@ export interface Bot {
   offset: [number, number];
   /** What they told the onboarding (they're all through it). */
   particulars: Particulars;
+  /** Which of the pack's booking relations they gave (an index into its list, wrapped), in packs that have one. */
+  relationAt: number;
 }
 
 export const BOTS: Bot[] = [
@@ -31,6 +33,7 @@ export const BOTS: Bot[] = [
     rerolls: 0,
     offset: [0.0003, -0.0007],
     particulars: { heightCm: 168, drink: 'Gin', marks: 'A laugh you can hear across the room' },
+    relationAt: 0,
   },
   {
     uid: 'demo-sam',
@@ -42,6 +45,7 @@ export const BOTS: Bot[] = [
     rerolls: 1,
     offset: [-0.0004, 0.0005],
     particulars: { heightCm: 183, drink: 'Pint', marks: 'Never without his green jacket' },
+    relationAt: 3,
   },
   {
     uid: 'demo-priya',
@@ -54,6 +58,7 @@ export const BOTS: Bot[] = [
     rerolls: 0,
     offset: [0.0008, 0.0004],
     particulars: { heightCm: 160, drink: 'Cocktail', marks: null },
+    relationAt: 6,
   },
   {
     uid: 'demo-jonah',
@@ -63,6 +68,7 @@ export const BOTS: Bot[] = [
     rerolls: 2,
     offset: [-0.0009, -0.0003],
     particulars: { heightCm: 191, drink: 'Soft', marks: 'A scar through his left eyebrow' },
+    relationAt: 1,
   },
 ];
 
@@ -120,4 +126,10 @@ export function shuffled<T>(list: T[], rng: () => number): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+/** A bot's particulars: in a pack with relations the drink gives way to a relation id; otherwise as written. */
+export function particularsFor(bot: Bot, relations: ReadonlyArray<{ id: string }> | undefined): Particulars {
+  if (!relations?.length) return bot.particulars;
+  return { ...bot.particulars, drink: null, relation: relations[bot.relationAt % relations.length].id };
 }

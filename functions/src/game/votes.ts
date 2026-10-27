@@ -1,6 +1,7 @@
 import { termForms } from '../shared/packs/terms.js';
 import type { Txn } from '../shared/store/types.js';
-import type { Assignment, GlobalQuest, GlobalQuestStatus, Player, Submission } from '../shared/types.js';
+import { ballotComplete, voteStyleOf } from '../shared/votes.js';
+import type { Assignment, GlobalQuest, GlobalQuestStatus, Judgement, Player, Submission, Vote } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { parseEvidence } from './evidence.js';
 import { addFeed } from './feed.js';
@@ -11,6 +12,8 @@ import { asId, millis, toTs } from './util.js';
 import {
   closeWithTally,
   attachPosts,
+  type Entry,
+  type Quest,
   eligibleVoters,
   isUnchecked,
   moveOn,
@@ -32,7 +35,7 @@ const NOTE_MAX = 500;
 export async function castVote(
   db: Db,
   ctx: Ctx,
-  data: { globalQuestId?: unknown; submissionId?: unknown },
+  data: { globalQuestId?: unknown; submissionId?: unknown; vote?: unknown },
 ): Promise<{ closed: boolean }> {
   const t = termForms(ctx.pack.terms);
   if (!ctx.pack.features.sideQuests) fail('failed-precondition', `${t.sideQuest.Many} are not part of this game.`);
@@ -55,17 +58,59 @@ export async function castVote(
     if (!target) fail('invalid-argument', `That is not an entry in this ${t.sideQuest.one}.`);
     if (target.data.uid === uid) fail('permission-denied', 'You cannot vote for your own entry.');
 
+    const yesNo = voteStyleOf(gq) === 'yesno';
+    if (!yesNo && data.vote !== undefined) fail('invalid-argument', 'This is a one-vote pick: say which entry, not yes or no.');
+    if (yesNo) return castJudgement(db, ctx, tx, { id: questId, ref: questRef, gq }, entries, submissionId, data.vote);
+
     const votes = await readVotes(tx, db, questId);
     const players = await readPlayers(tx, db);
     const settings = await loadSettings(db, tx);
     const state = await loadState(db, tx);
-    votes.set(uid, submissionId);
+    votes.set(uid, { submissionId, createdAt: toTs(ctx.now) });
 
     tx.set(db.doc(`globalQuests/${questId}/votes/${uid}`), { submissionId, createdAt: toTs(ctx.now) });
-    const allVoted = eligibleVoters(players, entries).every((voter) => votes.has(voter));
+    const allVoted = eligibleVoters(players, entries).every((voter) => votes.get(voter)?.submissionId !== undefined);
     if (allVoted) closeWithTally(tx, db, ctx.now, ctx.pack, scoringFor(ctx.pack, settings, state, ctx.now), { id: questId, ref: questRef, gq }, entries, votes, players);
     return { closed: allVoted };
   });
+}
+
+/**
+ * A yes or a no on one entry of a yes/no vote. Only the voter's own vote doc is read, so judgements sent at the same time
+ * don't make the transactions conflict; the other votes and the players are read only once this ballot is complete,
+ * which is when it can be the last one in.
+ */
+async function castJudgement(
+  db: Db,
+  ctx: Ctx,
+  tx: Txn,
+  q: Quest,
+  entries: Entry[],
+  submissionId: string,
+  judgement: unknown,
+): Promise<{ closed: boolean }> {
+  const uid = ctx.uid!;
+  if (judgement !== 'yes' && judgement !== 'no') fail('invalid-argument', 'Say yes or no.');
+  const voteRef = db.doc(`globalQuests/${q.id}/votes/${uid}`);
+  const prev = (await tx.get(voteRef)).data() as Vote | undefined;
+  const ballot = { ...(prev?.ballot ?? {}), [submissionId]: judgement as Judgement };
+  const stamp = toTs(ctx.now);
+  const mine = { ballot, createdAt: prev?.createdAt ?? stamp, updatedAt: stamp };
+  if (!ballotComplete(ballot, entries.map((e) => ({ id: e.id, uid: e.data.uid })), uid)) {
+    tx.set(voteRef, mine);
+    return { closed: false };
+  }
+  const votes = await readVotes(tx, db, q.id);
+  const players = await readPlayers(tx, db);
+  const settings = await loadSettings(db, tx);
+  const state = await loadState(db, tx);
+  votes.set(uid, mine);
+  tx.set(voteRef, mine);
+  const done = eligibleVoters(players, entries).every((voter) =>
+    ballotComplete(votes.get(voter)?.ballot, entries.map((e) => ({ id: e.id, uid: e.data.uid })), voter) && votes.has(voter),
+  );
+  if (done) closeWithTally(tx, db, ctx.now, ctx.pack, scoringFor(ctx.pack, settings, state, ctx.now), q, entries, votes, players);
+  return { closed: done };
 }
 
 /**

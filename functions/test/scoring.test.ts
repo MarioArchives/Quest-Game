@@ -18,6 +18,7 @@ import type { ScoreContext, ScoreEvent, ScoreLine, ScoringRules } from '../src/s
 import { DEFAULT_SETTINGS } from '../src/shared/settings.js';
 import type { Settings } from '../src/shared/types.js';
 import { DARE_TERMS } from './packs.js';
+import { getPack } from '../src/shared/packs/index.js';
 
 const HOUR = 3_600_000;
 const START = new Date('2026-10-10T10:00:00Z');
@@ -558,5 +559,45 @@ describe('Story missions and police check-ins, in every rule set (plan edge case
     expect(participants({ kind: 'sideQuestFastest', uid: 'bob', bonus: 3 })).toEqual(['bob']);
     expect(participants({ kind: 'policePassed', uid: 'carol', points: 3 })).toEqual(['carol']);
     expect(participants({ kind: 'policeFailed', uid: 'carol', penalty: 2, missed: true })).toEqual(['carol']);
+  });
+});
+
+describe('Yes/no votes in the House rules, in every rule set (plan "Voting takeover…", edge case 6)', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  const ALL = { guesses: true, sideQuests: true, map: true };
+  const rows = (id: string, settings: Settings) => {
+    const rules = RULESETS[id]!;
+    return rules.describe(settings, resolveParams(rules, undefined), termForms(DARE_TERMS), ALL).map(([l, v]) => `${l}: ${v}`).join('\n');
+  };
+
+  it.each(ids)('%s says a yes/no vote is won on the yeses less the noes, and keeps the old line for one vote each', (id) => {
+    expect(rows(id, { ...SETTINGS, voteStyle: 'yesno' })).toMatch(/\+100 for the most yes votes less the noes \(ties all win\)/);
+    const pick = rows(id, { ...SETTINGS, voteStyle: 'pick' });
+    expect(pick).toMatch(/\+100 for the most votes \(ties all win\)/);
+    expect(pick).not.toMatch(/noes/);
+  });
+});
+
+describe('the top of the log book (plan "+5 for the log book\'s top entry", edge case 13)', () => {
+  const ids = ['classic', 'countdown', 'heist'];
+  const WITH: Settings = { ...SETTINGS, topEntryPoints: 5 };
+  const run = (rules: ScoringRules, e: ScoreEvent) => scoreEvent(rules, e, sctx(rules, { settings: WITH, startedAt: START, now: at(30) }));
+  const rows = (id: string, settings: Settings) => {
+    const rules = RULESETS[id]!;
+    return rules.describe(settings, resolveParams(rules, undefined), termForms(getPack('mystery').terms)).map(([l, v]) => `${l}: ${v}`).join('\n');
+  };
+
+  it.each(ids)('%s pays the points to that player, never decayed, never a transfer', (id) => {
+    expect(run(RULESETS[id]!, { kind: 'topEntry', uid: 'alice', points: 5 })).toEqual([pts('alice', 5, 'top-entry')]);
+    expect(run(RULESETS[id]!, { kind: 'topEntry', uid: 'alice', points: 0 })).toEqual([]);
+  });
+
+  it('names one player', () => {
+    expect(participants({ kind: 'topEntry', uid: 'alice', points: 5 })).toEqual(['alice']);
+  });
+
+  it.each(ids)('%s lists it in the house rules only when it pays', (id) => {
+    expect(rows(id, WITH)).toMatch(/Top of the log book: \+5 while your entry holds it/);
+    expect(rows(id, { ...WITH, topEntryPoints: 0 })).not.toMatch(/Top of the log book/);
   });
 });

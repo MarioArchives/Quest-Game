@@ -13,7 +13,7 @@ export type ScoreEvent =
   | { kind: 'fraudFine'; uid: string }
   | { kind: 'guessRight'; guesser: string; target: string }
   | { kind: 'guessWrong'; guesser: string; target: string }
-  /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints (or its tieBonus when tied). */
+  /** One winning entry of a side quest; `bonus` is the side quest's bonusPoints (or its tieBonus when tied). `votes` is its vote count, or in a yes/no vote yes − no. */
   | { kind: 'sideQuestWon'; uid: string; bonus: number; votes: number }
   /** The votes an entry got, on a side quest that pays for each one (`perVote`, its votePoints). */
   | { kind: 'sideQuestVotes'; uid: string; votes: number; perVote: number }
@@ -30,6 +30,8 @@ export type ScoreEvent =
   | { kind: 'policePassed'; uid: string; points: number }
   /** A police check-in answered wrong, or (`missed`) not answered in time; `penalty` is what it opened with. */
   | { kind: 'policeFailed'; uid: string; penalty: number; missed: boolean }
+  /** The player's own entry took the top of the log book: `points` for its player. */
+  | { kind: 'topEntry'; uid: string; points: number }
   /** Reward choice: the owner clears their name. */
   | { kind: 'rewardClean'; uid: string }
   /** Reward choice: the owner (`uid`) frames `target`. Only the target's points should change. */

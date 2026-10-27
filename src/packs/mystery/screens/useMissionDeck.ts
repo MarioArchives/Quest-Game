@@ -9,7 +9,7 @@ import { judgingOf, skipFine } from '../../../lib/judging';
 import { needsYou, tonight, wasIn, yourMark, type Mark, type YourPart } from '../../../lib/missionTabs';
 import { clockTime } from '../../../lib/time';
 import { features, pack, t, zone } from '../../../pack';
-import { readVote } from '../../../screens/home/SideQuestCard';
+import { useVoteTakeover } from '../../../screens/vote/VoteLayer';
 import { useSession } from '../../../session/SessionProvider';
 import type { Checkin, Doc, Fact, Periodic } from '../../../shared';
 import type { Mission } from './MissionBinder';
@@ -74,7 +74,7 @@ export interface Deck {
   story: { open: DeckMission[]; filed: FiledMission[]; sealed: number[]; total: number; notes: StoryNote[]; facts: Doc<Fact>[] };
   /** Something open asks you for an entry, an answer or a vote. */
   needsYou: boolean;
-  /** Call after a vote is cast (votes are remembered on this device only). */
+  /** Call after a vote is cast on the plain vote card (a GM who doesn't play). */
   voted(): void;
 }
 
@@ -87,6 +87,7 @@ export function useMissionDeck(): Deck {
   const factsQ = useQuery<Fact>(features.sideQuests && (pack.catalogue.story?.length ?? 0) > 0 ? { path: 'facts' } : null);
   const periodics = useQuery<Periodic>(features.checkins && isAdmin ? { path: 'periodics' } : null);
   const now = useNow(30_000);
+  const { progressFor } = useVoteTakeover();
   const [votes, setVotes] = useState(0);
   const uid = user?.uid ?? null;
 
@@ -109,7 +110,7 @@ export function useMissionDeck(): Deck {
       entryIds: mySubmissions
         .filter((s) => s.kind === 'global' && s.questId === m.id && (s.status === 'sealed' || s.status === 'approved'))
         .map((s) => s.id),
-      voted: m.status === 'voting' && readVote(uid, m.id) !== null,
+      voted: m.status === 'voting' && progressFor(m.id)?.finished === true,
       canVote: approved.some((s) => s.kind === 'global' && s.questId === m.id && s.uid !== uid),
       wasIn: me ? wasIn(tsMs(me.joinedAt), me.left ? tsMs(me.leftAt) || null : null, m.startsMs) : false,
     });
@@ -207,8 +208,8 @@ export function useMissionDeck(): Deck {
       story: { open: of('story'), filed: filed.story, sealed, total: story.length, notes, facts: factsQ.data },
       needsYou: sorted.some((m) => m.needsYou),
     };
-    // `votes` re-reads this device's votes after one is cast.
-  }, [uid, me, state.startedAt, state.status, globalQuests, mySubmissions, approved, settings, feed, checkins.data, periodics.data, factsQ.data, now, votes]);
+    // `votes` is bumped by the GM's plain vote card; a player's progress comes from `progressFor`.
+  }, [uid, progressFor, me, state.startedAt, state.status, globalQuests, mySubmissions, approved, settings, feed, checkins.data, periodics.data, factsQ.data, now, votes]);
 
   return { ...deck, voted: () => setVotes((n) => n + 1) };
 }

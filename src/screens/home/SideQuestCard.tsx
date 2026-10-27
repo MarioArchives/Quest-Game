@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { castVote, friendlyError } from '../../api';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { EvidenceSheet, type EvidenceTarget } from '../../components/EvidenceSheet';
 import { Icon } from '../../components/Icon';
 import { PhotoThumb } from '../../components/PhotoViewer';
-import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
+import { useBallot } from '../../data/useBallot';
 import { tsMs, useNow } from '../../data/hooks';
 import { gmChecks, judgingOf, submitRule, voteReward } from '../../lib/judging';
 import { formatCountdown } from '../../lib/time';
 import { useSession } from '../../session/SessionProvider';
 import { EntryVideo, TaggedLine } from '../../components/EntryVideo';
-import type { Doc, GlobalQuest, Submission } from '../../shared';
+import type { Doc, GlobalQuest, Judgement, Submission } from '../../shared';
 import { t } from '../../pack';
 
 export function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string }) {
@@ -256,21 +255,8 @@ export function CheckingCard({ quest, eyebrow }: { quest: Doc<GlobalQuest>; eyeb
   );
 }
 
-const voteKey = (uid: string, questId: string) => `fq:vote:${uid}:${questId}`;
-
-/** The entry this player voted for in that side quest, as remembered on this device (votes are secret on the server). */
-export function readVote(uid: string | null, questId: string): string | null {
-  if (!uid) return null;
-  try {
-    return localStorage.getItem(voteKey(uid, questId));
-  } catch {
-    return null;
-  }
-}
-
 /** `onVote` hears of each vote counted from this card (e.g. so a pack's tab can stop asking for one). */
 export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>; eyebrow?: ReactNode; onVote?: (submissionId: string) => void }) {
-  const toast = useToast();
   const { user, player } = useSession();
   const { approved, playersById } = useGame();
   const uid = user?.uid ?? null;
@@ -282,29 +268,13 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
         .sort((a, b) => a.id.localeCompare(b.id)),
     [approved, quest.id],
   );
-  // Votes are secret on the server, so the pick is remembered here, on this device.
-  const [pick, setPick] = useState<string | null>(() => readVote(uid, quest.id));
-  const [busyId, setBusyId] = useState<string | null>(null);
-  useEffect(() => setPick(readVote(uid, quest.id)), [uid, quest.id]);
+  // Your own vote is read from your vote doc (votes are secret from everyone else); a new one shows at once.
+  const ballot = useBallot(quest, entries);
+  const yesNo = ballot.style === 'yesno';
 
-  const vote = async (entry: Doc<Submission>) => {
-    if (!uid) return;
-    setBusyId(entry.id);
-    try {
-      const { closed } = await castVote({ globalQuestId: quest.id, submissionId: entry.id });
-      setPick(entry.id);
-      try {
-        localStorage.setItem(voteKey(uid, quest.id), entry.id);
-      } catch {
-        /* the pick just won't survive a reload */
-      }
-      onVote?.(entry.id);
-      toast(closed ? `That was the last vote. The result is in the ${t.feed.one}.` : 'Vote counted. You can change it until voting ends.', 'success');
-    } catch (err) {
-      toast(friendlyError(err), 'error');
-    } finally {
-      setBusyId(null);
-    }
+  const vote = (entry: Doc<Submission>, judgement?: Judgement) => {
+    void ballot.vote(entry.id, judgement);
+    onVote?.(entry.id);
   };
 
   return (
@@ -316,7 +286,7 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
       <div className="hero__row">
         {quest.votingEndsAt ? <Countdown endsAt={tsMs(quest.votingEndsAt)} closedText="Counting" /> : null}
         <p className="hero__rule hero__rule--right">
-          Most votes wins +{quest.bonusPoints}
+          {yesNo ? 'Most yes (less no)' : 'Most votes'} wins +{quest.bonusPoints}
           {(quest.fastestBonus ?? 0) > 0 ? <>, the fastest entry +{quest.fastestBonus}</> : null}
           <br />
           Ties all win
@@ -329,10 +299,11 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
           {entries.map((entry) => {
             const who = playersById.get(entry.uid);
             const own = entry.uid === uid;
-            const picked = pick === entry.id;
+            const picked = ballot.pick === entry.id;
+            const said = ballot.judged[entry.id];
             const name = who?.displayName ?? 'A player';
             return (
-              <li key={entry.id} className={`entry${picked ? ' is-picked' : ''}`}>
+              <li key={entry.id} className={`entry${picked || said === 'yes' ? ' is-picked' : ''}`}>
                 {entry.videoPath ? (
                   <EntryVideo videoPath={entry.videoPath} thumbPath={entry.thumbPath} label={`${name}'s video`} />
                 ) : entry.thumbPath ? (
@@ -347,18 +318,34 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
                 {(entry.thumbPath || entry.videoPath) && entry.caption ? <p className="entry__caption">{entry.caption}</p> : null}
                 <TaggedLine uid={entry.taggedUid} />
                 {player ? (
-                  <Button
-                    small
-                    block
-                    variant={picked ? 'primary' : 'secondary'}
-                    className="entry__vote"
-                    busy={busyId === entry.id}
-                    disabled={own || busyId !== null}
-                    aria-pressed={picked}
-                    onClick={() => void vote(entry)}
-                  >
-                    {own ? 'Your entry' : picked ? 'Your vote' : 'Vote'}
-                  </Button>
+                  yesNo ? (
+                    <div className="entry__judge">
+                      {(['no', 'yes'] as const).map((j) => (
+                        <Button
+                          key={j}
+                          small
+                          variant={said === j ? 'primary' : 'secondary'}
+                          disabled={own}
+                          aria-pressed={said === j}
+                          onClick={() => vote(entry, j)}
+                        >
+                          {j === 'yes' ? 'Yes' : 'No'}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <Button
+                      small
+                      block
+                      variant={picked ? 'primary' : 'secondary'}
+                      className="entry__vote"
+                      disabled={own}
+                      aria-pressed={picked}
+                      onClick={() => vote(entry)}
+                    >
+                      {own ? 'Your entry' : picked ? 'Your vote' : 'Vote'}
+                    </Button>
+                  )
                 ) : null}
               </li>
             );

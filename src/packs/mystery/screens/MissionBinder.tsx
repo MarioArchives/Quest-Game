@@ -28,11 +28,13 @@ import {
 import { clockTime } from '../../../lib/time';
 import { pack, t, zone } from '../../../pack';
 import { firstName } from '../../../screens/home/FeedPost';
-import { CheckingCard, LiveCard, VotingCard, readVote } from '../../../screens/home/SideQuestCard';
+import { CheckingCard, LiveCard } from '../../../screens/home/SideQuestCard';
+import { useVoteTakeover } from '../../../screens/vote/VoteLayer';
 import { useSession } from '../../../session/SessionProvider';
 import { EntryVideo, TaggedLine } from '../../../components/EntryVideo';
 import type { Doc, GlobalQuest, LedgerEntry, Submission } from '../../../shared';
 import { Paperclip, Stamp } from './CaseKit';
+import { VotingFront } from './MissionStack';
 import './binder.css';
 
 /** How long a newly fired mission's tab stays red and sticking out. */
@@ -52,7 +54,8 @@ export function MissionBinder() {
   const { user } = useSession();
   const { globalQuests, state, approved, mySubmissions, me } = useGame();
   const uid = user?.uid ?? null;
-  // A vote is remembered on this device only; a vote cast here bumps this so the tabs read it again.
+  const { progressFor } = useVoteTakeover();
+  // The plain vote card (a GM who doesn't play) bumps this so the tabs read again.
   const [votes, setVotes] = useState(0);
 
   const startedMs = tsMs(state.startedAt) || null;
@@ -65,14 +68,13 @@ export function MissionBinder() {
         entryIds: mySubmissions
           .filter((s) => s.kind === 'global' && s.questId === mission.id && (s.status === 'sealed' || s.status === 'approved'))
           .map((s) => s.id),
-        voted: mission.status === 'voting' && readVote(uid, mission.id) !== null,
+        voted: mission.status === 'voting' && progressFor(mission.id)?.finished === true,
         canVote: approved.some((s) => s.kind === 'global' && s.questId === mission.id && s.uid !== uid),
         wasIn: me ? wasIn(tsMs(me.joinedAt), me.left ? tsMs(me.leftAt) || null : null, mission.startsMs) : false,
       };
       return { mission, number, you, needsYou: needsYou(mission, you), mark: yourMark(mission, you) };
     });
-    // `votes` re-reads this device's votes after one is cast.
-  }, [globalQuests, startedMs, mySubmissions, approved, me, uid, votes]);
+  }, [globalQuests, startedMs, mySubmissions, approved, me, uid, votes, progressFor]);
 
   // ---- which tab is open ----
   // Until you touch the binder it follows what needs you most (so it settles as your entries and votes load). Once the
@@ -284,7 +286,7 @@ function MissionPage({ tab, onVote }: { tab: BinderTab; onVote: () => void }) {
   if (m.status === 'checking') return <CheckingCard quest={m} eyebrow={eyebrow} />;
   if (m.status === 'voting') {
     // A Submit mission is scored as it closes: it never has a vote to show.
-    return judgingOf(m) === 'vote' ? <VotingCard quest={m} eyebrow={eyebrow} onVote={onVote} /> : <p className="mb-res__none">Being scored.</p>;
+    return judgingOf(m) === 'vote' ? <VotingFront quest={m} eyebrow={eyebrow} onVote={onVote} /> : <p className="mb-res__none">Being scored.</p>;
   }
   return <FiledResult mission={m} label={`No. ${tab.number}`} />;
 }
@@ -322,14 +324,14 @@ export function FiledResult({ mission: m, label }: { mission: Mission; label: st
       <p className="mb-res__rule">{filedRule(m, skipFine(m, settings))}</p>
 
       {result.leads.length > 0 ? (
-        result.leads.map(({ entry, votes }) => <Lead key={entry.id} entry={entry} votes={votes} name={name(entry.uid)} />)
+        result.leads.map(({ entry, words }) => <Lead key={entry.id} entry={entry} words={words} name={name(entry.uid)} />)
       ) : (
         <p className="mb-res__none">{entries.length === 0 ? 'No entries on file.' : 'No winner.'}</p>
       )}
 
       {result.votes.length > 0 || result.fastest ? (
         <p className="mb-res__tally">
-          {result.votes.length > 0 ? <>Votes &middot; {result.votes.map((v) => `${name(v.entry.uid)} ${v.votes}`).join(' · ')}</> : null}
+          {result.votes.length > 0 ? <>Votes &middot; {result.votes.map((v) => `${name(v.entry.uid)} ${v.words}`).join(' · ')}</> : null}
           {result.votes.length > 0 && result.fastest ? <br /> : null}
           {result.fastest ? <>Fastest entry &middot; {name(result.fastest.uid)}</> : null}
         </p>
@@ -373,11 +375,11 @@ export function FiledResult({ mission: m, label }: { mission: Mission; label: st
 }
 
 /** The entry that leads a result: its print (or its words), a stamp, who, their caption and what it earned. */
-function Lead({ entry, votes, name }: { entry: Entry; votes: number | null; name: string }) {
+function Lead({ entry, words, name }: { entry: Entry; words: string | null; name: string }) {
   const { playersById } = useGame();
   const who = playersById.get(entry.uid);
   const points = entry.pointsAwarded ?? 0;
-  const stamp = votes !== null ? `Winner · ${votes} ${votes === 1 ? 'vote' : 'votes'}` : entry.createdMs ? `Fastest · ${clockTime(entry.createdMs, zone)}` : 'Fastest';
+  const stamp = words !== null ? `Winner · ${words}` : entry.createdMs ? `Fastest · ${clockTime(entry.createdMs, zone)}` : 'Fastest';
   return (
     <div className="mb-res__win">
       {entry.videoPath ? (

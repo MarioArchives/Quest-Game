@@ -16,6 +16,9 @@
   /* Text and fills that sit on an ink or an accent surface. */
   --on-ink: #ffffff;
   --on-accent: #ffffff;
+  /* A countdown in its last minutes (the app bar chip). */
+  --urgent: #b3261e;
+  --on-urgent: #ffffff;
 
   --line: 2px solid var(--ink);
   --hairline: 1px solid var(--ink);

@@ -29,11 +29,39 @@ describe('the settings form', () => {
     expect(foldSummary('police', form)).not.toMatch(/Telegram/);
   });
 
+  it('keeps the way of voting (plan "Voting takeover…", edge case 16), reading anything unknown as one vote each', () => {
+    const s = defaultSettingsFor(getPack('mystery'));
+    expect(fromSettings(s).voteStyle).toBe('yesno');
+    expect(fromSettings(defaultSettingsFor(getPack('lancaster'))).voteStyle).toBe('pick');
+    expect(saved({ ...s, voteStyle: 'pick' })).toEqual(sameAs({ ...s, voteStyle: 'pick' }));
+    expect(toSettings({ ...fromSettings(s), voteStyle: 'pick' }).voteStyle).toBe('pick');
+    expect(fromSettings({ ...s, voteStyle: 'ranked' as never }).voteStyle).toBe('pick');
+    expect(fromSettings({ ...s, voteStyle: undefined as never }).voteStyle).toBe('pick');
+  });
+
+  it('carries the case-updates switch (plan "Police that sound official…", edge case 12)', () => {
+    const s = defaultSettingsFor(getPack('mystery'));
+    expect(fromSettings(s).policeNotices).toBe(true);
+    expect(fromSettings(defaultSettingsFor(getPack('lancaster'))).policeNotices).toBe(false);
+    expect(toSettings({ ...fromSettings(s), policeNotices: false }).policeNotices).toBe(false);
+    expect(saved({ ...s, policeNotices: false })).toEqual(sameAs({ ...s, policeNotices: false }));
+    const form = fromSettings({ ...s, policeTelegram: 'MancMetPolice' });
+    expect(foldSummary('police', { ...form, policeNotices: true })).toMatch(/case updates/);
+    expect(foldSummary('police', { ...form, policeNotices: false })).not.toMatch(/case updates/);
+  });
+
   it('carries the smaller Telegram fine, and refuses a negative one', () => {
     const form = fromSettings(defaultSettingsFor(getPack('mystery')));
     expect((form.numbers as Record<string, string>).policeHeardPenalty).toBe('2');
     expect(validateSettingsForm({ ...form, numbers: { ...form.numbers, policeHeardPenalty: '-1' } as never })).toHaveProperty('policeHeardPenalty');
     expect(toSettings({ ...form, numbers: { ...form.numbers, policeHeardPenalty: '1' } as never }).policeHeardPenalty).toBe(1);
+  });
+
+  it('carries the points for the top of the log book, from 0 to 100 (plan "+5 for the log book\'s top entry", edge case 14)', () => {
+    const form = fromSettings(defaultSettingsFor(getPack('mystery')));
+    expect((form.numbers as Record<string, string>).topEntryPoints).toBe('5');
+    for (const bad of ['-1', '101', '2.5']) expect(validateSettingsForm({ ...form, numbers: { ...form.numbers, topEntryPoints: bad } as never }), bad).toHaveProperty('topEntryPoints');
+    expect(toSettings({ ...form, numbers: { ...form.numbers, topEntryPoints: '3' } as never }).topEntryPoints).toBe(3);
   });
 
   it('keeps the random-drop switch, the standing lines and the police numbers as edited', () => {
@@ -102,6 +130,8 @@ describe('a fold\'s summary line', () => {
     confidantAbove: 10,
     poiBelow: -10,
     scoring: 'classic',
+    voteStyle: 'pick',
+    policeNotices: false,
     refillOnComplete: false,
     revealOnComplete: true,
     pointsFloorZero: true,
@@ -123,6 +153,7 @@ describe('a fold\'s summary line', () => {
     expect(foldSummary('hands', { ...form, numbers: { ...form.numbers, rerollLimit: '1' } })).toBe('3 dealt · 1 reroll');
     expect(foldSummary('guessing', { ...form, numbers: { ...form.numbers, wrongGuessCost: '2', guessLimit: '0' } })).toBe('+5 / −2 · no limit');
     expect(foldSummary('sideQuests', { ...form, numbers: { ...form.numbers, globalIntervalMax: '20' } })).toBe('every 20 min');
+    expect(foldSummary('sideQuests', { ...form, voteStyle: 'yesno' })).toBe('every 20–40 min · yes or no');
     expect(foldSummary('police', { ...form, policePhone: false })).toBe('every 30 min · phone off');
     expect(foldSummary('standings', { ...form, standing: { confidantAbove: '', poiBelow: '' } })).toBe('off');
     expect(foldSummary('standings', { ...form, standing: { confidantAbove: '15', poiBelow: '' } })).toBe('above 15 · below off');

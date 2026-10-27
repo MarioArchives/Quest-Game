@@ -8,12 +8,12 @@ import { fail, requireUid } from './guards.js';
 import { toTs } from './util.js';
 
 /**
- * Callable: the caller's own particulars (height, drink, marks; each optional) onto their player doc, and `bookedAt`
+ * Callable: the caller's own particulars (height, relation, marks; each optional) onto their player doc, and `bookedAt`
  * the first time. Only a player (so not before the GM's approval) still in the game; booking in again just updates them.
  */
 export async function bookIn(db: Db, ctx: Ctx, data: { particulars?: unknown }): Promise<{ booked: true }> {
   const uid = requireUid(ctx);
-  const checked = checkParticulars(data?.particulars);
+  const checked = checkParticulars(data?.particulars, ctx.pack.booking);
   if ('problem' in checked) fail('invalid-argument', checked.problem);
   return db.runTransaction(async (tx) => {
     const ref = db.doc(`players/${uid}`);

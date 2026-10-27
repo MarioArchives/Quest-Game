@@ -1,0 +1,100 @@
+/*
+ * The sealed case file (SealedFile.tsx): the Missions folder's front while a start time is set. The label and the
+ * wax sit on the file at fixed places (the file is as tall as the label and the twine need); the countdown and the
+ * meeting point flow below the twine.
+ */
+.ms1 { position: relative; flex: none; margin: 0 -6px; }
+.ms1__tabs { position: relative; height: 28px; }
+.ms1__tab {
+  position: absolute; bottom: -3px; left: 6px; z-index: 2; height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px;
+  border-radius: 6px 6px 0 0; background: var(--manila); border: 1.5px solid var(--kraft-line); border-bottom: 0;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--manila-ink);
+}
+.ms1__tab b { color: var(--warn); font-variant-numeric: tabular-nums; }
+
+.sf { position: relative; display: flex; flex-direction: column; min-height: 362px; padding: 196px 14px 14px; background: var(--manila); border: 1.5px solid var(--kraft-line); box-shadow: 0 3px 0 var(--sh-tag); overflow: hidden; }
+.sf .cf-clip { right: 14px; top: -10px; z-index: 4; }
+.sf--open { background: var(--manila-tab); }
+
+/* the label: the force, the case, and when the file may be opened */
+.sf__label {
+  position: absolute; z-index: 1; left: 14px; top: 16px; width: min(242px, calc(100% - 100px)); padding: 10px 12px 11px;
+  background: var(--print); color: var(--manila-ink); box-shadow: 0 2px 0 var(--sh-tag); transform: rotate(-1.2deg);
+}
+.sf__honey { position: absolute; right: 8px; top: 8px; width: 40px; height: 35px; color: var(--stamp-plain); opacity: 0.85; transform: rotate(9deg); }
+.sf__force { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); padding-right: 40px; }
+.sf__case { margin-top: 3px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.sf__title { margin-top: 2px; font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.05; }
+.sf__warn { margin-top: 8px; padding-top: 7px; border-top: 1.5px dashed var(--twine-dark); font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--stamp-bad); }
+.sf__when { position: relative; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; margin-top: 2px; }
+.sf__when b { position: relative; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; }
+.sf__when span { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+.sf__when .was { color: var(--manila-sub); }
+/* the old time, struck through in red pen, and the new one written beside it */
+.sf__when .was::after { content: ''; position: absolute; left: -3px; right: -3px; top: 52%; height: 3px; background: var(--pen-red); transform: rotate(-8deg); border-radius: 2px; }
+.sf__when .sf__pen { display: inline-block; margin-left: 2px; font-family: var(--hand); font-weight: 700; font-size: 38px; line-height: 0.8; color: var(--pen-red); transform: rotate(-5deg); white-space: nowrap; }
+.sf__date { margin-top: 1px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--stamp-bad); }
+.sf__amend {
+  position: absolute; z-index: 1; right: 6px; top: 40px; text-align: center; padding: 2px 8px; border: 2.5px solid var(--stamp-bad); color: var(--stamp-bad); background: var(--red-wash);
+  transform: rotate(-7deg); font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1.25; letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* the twine round the file, and the wax where it crosses */
+.sf__tw { position: absolute; z-index: 2; background: var(--twine); box-shadow: 1px 1px 0 var(--sh-tab); }
+.sf__tw--h { left: 0; right: 0; top: 178px; height: 4px; }
+.sf__tw--v { right: 40px; top: 0; bottom: 0; width: 4px; }
+.sf__tw--cut-l { right: 92px; }
+.sf__tw--cut-r { left: calc(100% - 78px); right: 0; }
+.sf__tw--cut-t { bottom: auto; height: 160px; }
+.sf__tw--cut-b { top: 202px; }
+.wax {
+  position: absolute; z-index: 3; right: 4px; top: 146px; width: 70px; height: 70px; border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
+  background: radial-gradient(circle at 36% 32%, var(--wax-hi), var(--wax) 46%, var(--wax-deep)); box-shadow: 0 3px 0 var(--sh-tag);
+  display: flex; align-items: center; justify-content: center;
+}
+.wax::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; border: 2px solid var(--wax-deep); opacity: 0.7; }
+.wax svg { position: relative; width: 38px; height: 38px; color: var(--wax-deep); opacity: 0.85; }
+.wax--a { clip-path: polygon(0 0, 52% 0, 44% 22%, 56% 40%, 42% 58%, 54% 78%, 46% 100%, 0 100%); transform: translate(-8px, 4px) rotate(-14deg); }
+.wax--b { clip-path: polygon(52% 0, 100% 0, 100% 100%, 46% 100%, 54% 78%, 42% 58%, 56% 40%, 44% 22%); transform: translate(10px, -3px) rotate(12deg); }
+
+/* the countdown and the meeting point below the twine */
+.sf__low { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; gap: 6px; }
+.sf__count { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; color: var(--manila-ink); }
+.sf__big { font-family: var(--display); font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sf__huge { font-family: var(--display); font-size: 70px; line-height: 0.95; letter-spacing: -1px; font-variant-numeric: tabular-nums; color: var(--stamp-bad); }
+.sf__u { margin-right: 6px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.sf__sub { font-family: var(--mono); font-size: 11.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--manila-sub); }
+.sf__meet { margin-top: auto; padding-top: 14px; padding-right: 76px; font-family: var(--mono); font-size: 10.5px; line-height: 1.4; color: var(--manila-sub); }
+.sf__meet b { color: var(--manila-ink); }
+/* stop 01 hung on the twine once the GM reveals it */
+.mtag {
+  position: relative; margin-top: auto; padding: 9px 12px 9px 40px; background: var(--kraft); background-image: linear-gradient(180deg, var(--glass-40), transparent 70%); color: var(--manila-ink);
+  clip-path: polygon(20px 0, 100% 0, 100% 100%, 20px 100%, 0 calc(100% - 20px), 0 20px); filter: drop-shadow(0 2px 0 var(--sh-tag));
+}
+.sf__low > .mtag { margin-top: 12px; }
+.mtag__eye { position: absolute; left: 12px; top: 50%; margin-top: -8px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--eyelet); background: var(--manila); box-shadow: 0 0 0 1px var(--eyelet-edge); }
+.mtag__k { font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--manila-sub); }
+.mtag__t { font-family: var(--display); font-size: 17px; line-height: 1.15; overflow-wrap: anywhere; }
+.mtag__t span { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+
+/* zero: the seal broken, the twine cut, the flap lifted and OPENED stamped across */
+.sf__opened { position: absolute; z-index: 1; left: 14px; right: 14px; top: 228px; }
+.sf__opened h3 { font-family: var(--display); font-weight: 400; font-size: 29px; line-height: 1; }
+.sf__opened p { margin-top: 6px; font-family: var(--mono); font-size: 11.5px; line-height: 1.45; color: var(--manila-sub); }
+.sf__open {
+  position: absolute; z-index: 4; left: 16px; bottom: 18px; padding: 3px 12px; border: 3.5px solid var(--stamp-bad); color: var(--stamp-bad); background: var(--red-wash);
+  transform: rotate(-8deg); font-family: var(--display); font-size: 22px; letter-spacing: 2px; text-transform: uppercase;
+}
+.sf__lift2 { position: absolute; z-index: 5; right: -1.5px; top: -1.5px; width: 96px; height: 96px; background: var(--print); background-image: repeating-linear-gradient(180deg, transparent 0 11px, var(--sh-tag) 11px 12px); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.sf__lift { position: absolute; z-index: 6; right: -1.5px; top: -1.5px; width: 96px; height: 96px; background: linear-gradient(45deg, var(--kraft) 0%, var(--manila-tab) 70%); clip-path: polygon(0 0, 0 100%, 100% 100%); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .wax--a { animation: sf-split-a 600ms ease-out; }
+  .wax--b { animation: sf-split-b 600ms ease-out; }
+  .sf__open { animation: sf-stamp 300ms 400ms ease-in both; }
+  .sf__opened, .sf__lift, .sf__lift2 { animation: sf-in 400ms 300ms ease-out both; }
+  @keyframes sf-split-a { from { transform: none; } }
+  @keyframes sf-split-b { from { transform: none; } }
+  @keyframes sf-stamp { from { opacity: 0; transform: rotate(-8deg) scale(1.6); } }
+  @keyframes sf-in { from { opacity: 0; } }
+}

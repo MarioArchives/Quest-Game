@@ -1,6 +1,6 @@
 // Edge case 41: "last seen" labels, staleness and countdowns.
 import { describe, expect, it } from 'vitest';
-import { clockTime, dayAndTime, dayDate, dayName, formatAgo, formatCountdown, isStale } from './time';
+import { clockTime, dayAndTime, dayChoices, dayDate, dayName, formatAgo, formatCountdown, isStale, zonedMs } from './time';
 
 const now = Date.parse('2026-10-10T14:00:00Z');
 const MIN = 60_000;
@@ -80,5 +80,57 @@ describe("times in the pack's zone and locale (engine plan E8)", () => {
 
   it('follows the locale', () => {
     expect(dayName(MS, { timeZone: 'Europe/Paris', locale: 'fr-FR' })).toBe('samedi');
+  });
+});
+
+describe('zonedMs: a wall-clock date and time in a zone (countdown plan edge case 19)', () => {
+  const LONDON = { timeZone: 'Europe/London' };
+
+  it('reads a winter evening in London as GMT', () => {
+    expect(zonedMs('2026-11-07', '19:00', LONDON)).toBe(Date.parse('2026-11-07T19:00:00Z'));
+  });
+
+  it('reads a summer evening in London as BST', () => {
+    expect(zonedMs('2026-10-24', '19:00', LONDON)).toBe(Date.parse('2026-10-24T18:00:00Z'));
+  });
+
+  it('is right on both sides of the clocks going back (02:00 BST on 25 Oct 2026)', () => {
+    expect(zonedMs('2026-10-25', '00:30', LONDON)).toBe(Date.parse('2026-10-24T23:30:00Z'));
+    expect(zonedMs('2026-10-25', '12:00', LONDON)).toBe(Date.parse('2026-10-25T12:00:00Z'));
+  });
+
+  it('works for any zone', () => {
+    expect(zonedMs('2026-11-07', '19:00', { timeZone: 'America/New_York' })).toBe(Date.parse('2026-11-08T00:00:00Z'));
+  });
+
+  it.each([
+    ['no date', '', '19:00'],
+    ['month 13', '2026-13-01', '19:00'],
+    ['30 February', '2026-02-30', '12:00'],
+    ['hour 25', '2026-11-07', '25:00'],
+    ['minute 60', '2026-11-07', '19:60'],
+    ['words', '2026-11-07', '7pm'],
+  ])('is null for %s', (_label, date, hhmm) => {
+    expect(zonedMs(date, hhmm, LONDON)).toBeNull();
+  });
+});
+
+describe('dayChoices: today and the next days in the zone (countdown plan edge case 20)', () => {
+  const LONDON = { timeZone: 'Europe/London' };
+
+  it('lists today and the next n days', () => {
+    expect(dayChoices(Date.parse('2026-11-07T12:00:00Z'), LONDON, 3)).toEqual(['2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10']);
+  });
+
+  it("rolls over at London's midnight, not UTC's", () => {
+    // 23:30 UTC on Sat 10 Oct is 00:30 on Sunday in London (BST).
+    expect(dayChoices(Date.parse('2026-10-10T23:30:00Z'), LONDON, 1)).toEqual(['2026-10-11', '2026-10-12']);
+    // 23:30 UTC on Sat 7 Nov is still Saturday in London (GMT).
+    expect(dayChoices(Date.parse('2026-11-07T23:30:00Z'), LONDON, 1)).toEqual(['2026-11-07', '2026-11-08']);
+  });
+
+  it('never lists a day twice across the 25-hour day when the clocks go back', () => {
+    // 00:30 BST on Sun 25 Oct.
+    expect(dayChoices(Date.parse('2026-10-24T23:30:00Z'), LONDON, 3)).toEqual(['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28']);
   });
 });

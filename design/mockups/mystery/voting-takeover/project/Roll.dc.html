@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Evidence roll</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#e6cf98}a:hover{color:#f4ecd5}
+.mono{font-family:'Space Mono',ui-monospace,monospace}
+.disp{font-family:'Archivo Black','Archivo',system-ui,sans-serif;font-weight:400}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #e5ac17;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; background: #3d4042; color: #e9ebec; font-family: 'Archivo', system-ui, sans-serif;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0 6px;">
+    <button type="button" style="height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; border: 0; background: transparent; color: #e9ebec; font-size: 14px; font-weight: 600;">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      <span>Back to the case</span>
+    </button>
+    <p class="mono" role="timer" aria-label="8 minutes 41 seconds left to vote" style="margin: 0; display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border: 2px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 15px; font-weight: 700; transform: rotate(-2deg);">08:41<span style="font-size: 10px; font-weight: 400; letter-spacing: 0.08em;">TO VOTE</span></p>
+  </header>
+
+  <div style="padding: 2px 20px 0;">
+    <p class="mono" style="margin: 0; font-size: 11px; letter-spacing: 0.1em; color: #b9bdc0;">STORY MISSION · SECRET BALLOT</p>
+    <h1 class="disp" style="margin: 4px 0 0; font-size: 28px; line-height: 1.05;">Murder weapon</h1>
+    <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.35; color: #d4d7d9;">The most voted becomes the murder weapon. +2 a vote to whoever found it.</p>
+  </div>
+
+  <nav aria-label="Jump to an exhibit" style="display: flex; align-items: center; gap: 6px; padding: 12px 16px 10px; border-bottom: 2px solid #26282a;">
+    <span class="mono" style="font-size: 10px; letter-spacing: 0.1em; color: #b9bdc0; width: 56px;">EXHIBITS</span>
+    <sc-for list="{{jumps}}" as="j" hint-placeholder-count="6">
+      <a href="{{j.href}}" aria-label="{{j.aria}}" class="mono" style="width: 44px; height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid #8d9294; border-radius: 4px; background: {{j.bg}}; color: {{j.fg}}; font-size: 14px; font-weight: 700; text-decoration: none;">{{j.num}}</a>
+    </sc-for>
+  </nav>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 16px 16px 24px; scroll-behavior: smooth;">
+    <sc-for list="{{exhibits}}" as="x" hint-placeholder-count="3">
+      <article id="{{x.anchor}}" aria-label="{{x.aria}}" style="flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 14px; background: #f1f0ec; color: #161718; border-radius: 4px; box-shadow: 0 4px 0 #26282a; transform: rotate({{x.tilt}});">
+        <div style="position: relative; height: 230px; background: {{x.tone}}; color: #efe6cf; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center;">
+          <span class="mono" style="font-size: 10px; letter-spacing: 0.14em; color: #e0d5bb;">[ PHOTO ]</span>
+          <span class="disp" style="font-size: 28px; line-height: 1.05; padding: 0 24px;">{{x.word}}</span>
+          <sc-if value="{{x.isVote}}" hint-placeholder-val="{{false}}">
+            <span class="mono" aria-hidden="true" style="position: absolute; right: 14px; bottom: 16px; padding: 4px 12px; border: 3px solid #f2a99d; border-radius: 3px; color: #f2a99d; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; transform: rotate(-7deg);">MY VOTE</span>
+          </sc-if>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 0;">
+          <span class="mono" style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #5a5f62;">EXHIBIT {{x.num}}</span>
+          <span style="flex: 1 1 auto;"></span>
+          <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{x.tint}}; color: #161718; font-size: 12px; font-weight: 700;">{{x.initial}}</span>
+          <span style="font-size: 14px; font-weight: 700;">{{x.name}}</span>
+        </div>
+        <h2 class="disp" style="margin: 0; padding: 0 4px; font-size: 20px; line-height: 1.15;">{{x.item}}</h2>
+        <p style="margin: 0; padding: 0 4px; font-size: 14px; line-height: 1.45; color: #2f3234;">{{x.caption}}</p>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 4px 4px 0;">
+          <sc-for list="{{x.chips}}" as="c" hint-placeholder-count="4">
+            <button type="button" aria-label="{{c.aria}}" aria-pressed="{{c.on}}" onClick="{{c.toggle}}" style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 2px solid #161718; border-radius: 6px; background: {{c.bg}}; color: {{c.fg}};">
+              <span style="display: flex; align-items: center; gap: 4px;">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px;"><path d="{{c.d}}"></path></svg>
+                <span class="mono" style="font-size: 13px; font-weight: 700;">{{c.count}}</span>
+              </span>
+              <span style="font-size: 11px; font-weight: 600;">{{c.label}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <button type="button" disabled="{{x.own}}" aria-pressed="{{x.isVote}}" onClick="{{x.voteIt}}" style="margin: 4px 4px 0; height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px solid {{x.edge}}; border-radius: 8px; background: {{x.btnBg}}; color: {{x.btnFg}}; font-size: 15px; font-weight: 700; box-shadow: {{x.btnShadow}};">
+          <sc-if value="{{x.isVote}}" hint-placeholder-val="{{false}}">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; stroke-width: 2.6;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          </sc-if>
+          <span>{{x.btnLabel}}</span>
+        </button>
+      </article>
+    </sc-for>
+    <p class="mono" style="margin: 4px 0 0; text-align: center; font-size: 11px; letter-spacing: 0.08em; color: #b9bdc0;">END OF THE EXHIBITS</p>
+  </div>
+
+  <footer style="flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px 18px; background: #e6cf98; color: #2a2116; box-shadow: 0 -4px 0 #26282a;">
+    <div style="flex: 1 1 auto; min-width: 0;">
+      <p class="mono" style="margin: 0; font-size: 10px; letter-spacing: 0.1em; color: #5b4a33;">YOUR VOTE</p>
+      <p style="margin: 2px 0 0; font-size: 16px; font-weight: 700; line-height: 1.2;">{{voteValue}}</p>
+      <p style="margin: 2px 0 0; font-size: 12px; color: #5b4a33;">{{voteSub}}</p>
+    </div>
+    <button type="button" disabled="{{noVote}}" style="flex: none; height: 48px; padding: 0 20px; border: 2px solid #21180e; border-radius: 8px; background: #3a2e1c; color: #e6cf98; font-size: 15px; font-weight: 700; box-shadow: 0 3px 0 rgba(42, 33, 22, 0.4); opacity: {{doneDim}};">Done</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const ENTRIES = [
+  { id: 'e1', who: 'Priya', item: 'A pint glass', short: 'pint glass', word: 'Pint glass', caption: 'Bludgeoned with the last pint of the night. Fingerprints: everyone’s.', tone: '#5d4835', tint: '#e3d5c8', base: { ha: 4, shady: 1, iconic: 2, gasp: 0 } },
+  { id: 'e2', who: 'Sam', item: 'The jukebox', short: 'jukebox', word: 'Jukebox', caption: 'Mr Brightside eleven times in a row. His heart simply gave out.', tone: '#3f4a56', tint: '#cfd8dc', base: { ha: 6, shady: 0, iconic: 3, gasp: 1 } },
+  { id: 'e3', who: 'You', own: true, item: 'A cocktail umbrella', short: 'cocktail umbrella', word: 'Cocktail umbrella', caption: 'Small, pointy, and nobody ever suspects the umbrella.', tone: '#6a3a33', tint: '#e6d3d8', base: { ha: 2, shady: 2, iconic: 0, gasp: 1 } },
+  { id: 'e4', who: 'Jo', item: 'A beer mat', short: 'beer mat', word: 'Beer mat', caption: 'A paper cut. A very, very deep paper cut.', tone: '#4b5a45', tint: '#d6e4d9', base: { ha: 3, shady: 0, iconic: 1, gasp: 4 } },
+  { id: 'e5', who: 'Marcus', item: 'Pork scratchings', short: 'pork scratchings', word: 'Pork scratchings', caption: 'He never chewed. We all warned him.', tone: '#5a4a2a', tint: '#e8e2c9', base: { ha: 5, shady: 1, iconic: 0, gasp: 2 } },
+  { id: 'e6', who: 'Elle', item: 'A dart', short: 'dart', word: 'Dart', caption: 'Bullseye. Bob was standing in front of the board at the time.', tone: '#3d3f5c', tint: '#d9d6ea', base: { ha: 2, shady: 3, iconic: 4, gasp: 1 } },
+];
+const REACTIONS = [
+  { k: 'ha', label: 'Ha!', d: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M8 14c1.2 1.8 2.5 2.6 4 2.6s2.8-.8 4-2.6M9 9.5h.01M15 9.5h.01' },
+  { k: 'shady', label: 'Shady', d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zM9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0' },
+  { k: 'iconic', label: 'Iconic', d: 'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z' },
+  { k: 'gasp', label: 'Gasp', d: 'M12 4v10M12 19h.01' },
+];
+const TILTS = ['-0.6deg', '0.5deg', '-0.3deg', '0.7deg', '-0.5deg', '0.4deg'];
+const pad = (n) => String(n).padStart(2, '0');
+const whose = (e) => (e.own ? `your ${e.short}` : `${e.who}’s ${e.short}`);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { vote: null, reacts: {} };
+  }
+
+  toggle(id, k) {
+    const mine = this.state.reacts[id] || {};
+    this.setState({ reacts: { ...this.state.reacts, [id]: { ...mine, [k]: !mine[k] } } });
+  }
+
+  chips(e) {
+    const mine = this.state.reacts[e.id] || {};
+    return REACTIONS.map((r) => {
+      const on = !!mine[r.k];
+      return {
+        label: r.label,
+        d: r.d,
+        on,
+        count: e.base[r.k] + (on ? 1 : 0),
+        aria: `${r.label} on ${whose(e)}`,
+        bg: on ? '#161718' : 'transparent',
+        fg: on ? '#f1f0ec' : '#161718',
+        toggle: () => this.toggle(e.id, r.k),
+      };
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const voted = ENTRIES.find((x) => x.id === s.vote) || null;
+    return {
+      jumps: ENTRIES.map((x, i) => ({
+        href: `#ex-${x.id}`,
+        num: String(i + 1),
+        aria: `Exhibit ${i + 1}: ${whose(x)}`,
+        bg: s.vote === x.id ? '#e6cf98' : 'transparent',
+        fg: s.vote === x.id ? '#2a2116' : '#e9ebec',
+      })),
+      exhibits: ENTRIES.map((x, i) => {
+        const isVote = s.vote === x.id;
+        return {
+          anchor: `ex-${x.id}`,
+          aria: `Exhibit ${i + 1}: ${whose(x)}`,
+          num: pad(i + 1),
+          tilt: TILTS[i % TILTS.length],
+          tone: x.tone,
+          tint: x.tint,
+          word: x.word,
+          initial: x.own ? 'Y' : x.who.charAt(0),
+          name: x.own ? 'You' : x.who,
+          item: x.item,
+          caption: x.caption,
+          chips: this.chips(x),
+          own: !!x.own,
+          isVote,
+          btnLabel: x.own ? 'Your entry · you can’t vote for it' : isVote ? 'Your vote' : s.vote ? 'Move my vote here' : 'Vote for this',
+          btnBg: isVote ? '#3a2e1c' : 'transparent',
+          btnFg: isVote ? '#e6cf98' : x.own ? '#5a5f62' : '#2a2116',
+          edge: isVote ? '#21180e' : x.own ? '#a9adaf' : '#3a2e1c',
+          btnShadow: isVote ? '0 3px 0 rgba(42, 33, 22, 0.4)' : 'none',
+          voteIt: () => this.setState({ vote: x.id }),
+        };
+      }),
+      voteValue: voted ? cap(whose(voted)) : 'Not cast yet',
+      voteSub: voted ? 'Change it any time until 23:40' : 'Scroll the exhibits and pick one',
+      noVote: !voted,
+      doneDim: voted ? '1' : '0.45',
+    };
+  }
+}
+</script>
+</body>
+</html>

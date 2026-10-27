@@ -13,7 +13,7 @@ import { sideQuestProblem, type SideQuestDraft } from '../../lib/sideQuestDraft'
 import { formatAgo, formatCountdown } from '../../lib/time';
 import { t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
-import type { Doc, GlobalQuest, Submission } from '../../shared';
+import { entryVotesText, votesText, type Doc, type GlobalQuest, type Submission } from '../../shared';
 import { NoteSheet, clockTime, useRunner } from './common';
 import { DrawSheet } from './DrawSheet';
 import { SideQuestFields } from './SideQuestFields';
@@ -191,7 +191,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
     <ul className="gm-list">
       {entries.map((entry) => {
         const who = playersById.get(entry.uid);
-        const votes = showVotes ? (quest.tally?.[entry.id] ?? 0) : null;
+        const votes = showVotes ? (entryVotesText(quest, entry.id) ?? votesText({ votes: 0 })) : null;
         const won = winners.has(entry.id);
         const late = tsMs(entry.createdAt) >= tsMs(quest.endsAt);
         return (
@@ -209,9 +209,7 @@ function EntryList({ entries, quest, showVotes = false }: { entries: Doc<Submiss
                 {canCheck && entry.uid === user?.uid ? <span className="tag tag--tint">Yours</span> : null}
                 {!canCheck && entry.status === 'sealed' ? <span className="tag tag--tint">Hidden until voting</span> : null}
                 {votes !== null ? (
-                  <span className="tag tag--ink">
-                    {votes} {votes === 1 ? 'vote' : 'votes'}
-                  </span>
+                  <span className="tag tag--ink">{votes}</span>
                 ) : null}
               </p>
               {entry.caption ? <p className="gm-entry__caption">&ldquo;{entry.caption}&rdquo;</p> : null}
@@ -378,13 +376,15 @@ function CheckingQuest({ quest }: { quest: Doc<GlobalQuest> }) {
 }
 
 function VotingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
+  const { settings } = useGame();
   const entries = useEntries(quest.id);
   const [ending, setEnding] = useState(false);
   const endsAt = tsMs(quest.votingEndsAt);
+  const yesNo = (quest.voteStyle ?? settings.voteStyle) === 'yesno';
 
   return (
     <>
-      <p className="eyebrow">Voting · +{quest.bonusPoints} to the winner</p>
+      <p className="eyebrow">Voting{yesNo ? ' · yes or no' : ''} · +{quest.bonusPoints} to the winner</p>
       <h3 className="gm-q-title">{quest.title}</h3>
       <p className="gm-q-facts">
         <span className="gm-q-clock" role="timer">
@@ -407,7 +407,7 @@ function VotingQuest({ quest, now }: { quest: Doc<GlobalQuest>; now: number }) {
           }}
         >
           <p>
-            The votes for <strong>&ldquo;{quest.title}&rdquo;</strong> are counted now. The entry with the most votes gets{' '}
+            The votes for <strong>&ldquo;{quest.title}&rdquo;</strong> are counted now. The entry with the {yesNo ? 'most yeses (less the noes)' : 'most votes'} gets{' '}
             <strong>+{quest.bonusPoints}</strong>; a tie pays everyone tied in full, and no votes means no winner.
           </p>
         </ConfirmSheet>

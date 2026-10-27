@@ -79,3 +79,72 @@ class ServeConfig(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# Plan "Police that sound official, a question bank, …", edge case 11.
+class CaseUpdates(unittest.TestCase):
+    def test_posted_with_the_prefix(self):
+        self.assertEqual(pc.case_update_text('New group event: Hats only!'), '⚠️ Case update ⚠️ - New group event: Hats only!')
+
+    def test_deletes_the_earlier_case_updates_only_keeping_the_new_one(self):
+        p = pc.CASE_UPDATE_PREFIX
+        messages = [
+            {'id': 1, 'out': True, 'text': p + 'old'},
+            {'id': 2, 'out': False, 'text': p + 'the player typed it'},
+            {'id': 3, 'out': True, 'text': 'Police check-in: Who was the victim?'},
+            {'id': 4, 'out': True, 'text': p + 'older'},
+            {'id': 5, 'out': True, 'text': p + 'new'},
+            {'id': 6, 'out': True, 'text': None},
+        ]
+        self.assertEqual(sorted(pc.stale_case_updates(messages, keep_id=5)), [1, 4])
+        self.assertEqual(pc.stale_case_updates([], keep_id=5), [])
+
+
+class Routing(unittest.TestCase):
+    def test_orders_go_to_their_queue(self):
+        self.assertEqual(pc.order_lane({'kind': 'call'}), 'call')
+        self.assertEqual(pc.order_lane({'kind': 'test'}), 'call')
+        self.assertEqual(pc.order_lane({'kind': 'notice'}), 'notice')
+        self.assertIsNone(pc.order_lane({'kind': 'nope'}))
+        self.assertIsNone(pc.order_lane({}))
+
+
+class Voices(unittest.TestCase):
+    def test_only_edge_tts_voice_names_are_used(self):
+        self.assertTrue(pc.valid_voice('en-GB-RyanNeural'))
+        self.assertTrue(pc.valid_voice('en-GB-SoniaNeural'))
+        self.assertFalse(pc.valid_voice('Brian'))
+        self.assertFalse(pc.valid_voice('en-GB-Ryan'))
+        self.assertFalse(pc.valid_voice(None))
+        self.assertFalse(pc.valid_voice('en-GB-RyanNeural; rm -rf /'))
+
+
+class Users(unittest.TestCase):
+    def test_a_number_is_looked_up_once_and_a_miss_is_tried_again(self):
+        async def go():
+            cache = pc.UserCache()
+            calls = []
+
+            async def resolver(number):
+                calls.append(number)
+                return None if number == '+447700900002' else {'id': 1}
+
+            self.assertEqual(await cache.find('+447700900001', resolver), {'id': 1})
+            self.assertEqual(await cache.find('+447700900001', resolver), {'id': 1})
+            self.assertIsNone(await cache.find('+447700900002', resolver))
+            self.assertIsNone(await cache.find('+447700900002', resolver))
+            self.assertEqual(calls, ['+447700900001', '+447700900002', '+447700900002'])
+
+        asyncio.run(go())
+
+
+class NoticePause(unittest.TestCase):
+    def test_a_flood_pauses_case_updates_for_an_hour_and_the_heartbeat_stops_offering_them(self):
+        gate = pc.NoticeGate()
+        self.assertTrue(gate.open(1000))
+        self.assertEqual(gate.features(1000), ['notices'])
+        gate.pause(1000)
+        self.assertFalse(gate.open(1000 + 3599))
+        self.assertEqual(gate.features(1000 + 3599), [])
+        self.assertTrue(gate.open(1000 + 3601))
+        self.assertEqual(gate.features(1000 + 3601), ['notices'])

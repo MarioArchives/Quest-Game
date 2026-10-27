@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { bookIn } from '../src/game/booking.js';
 import { requestJoin, reviewJoinRequest } from '../src/game/join.js';
 import { checkParticulars, DRINK_MAX, HEIGHT_MAX_CM, HEIGHT_MIN_CM, MARKS_MAX, needsBooking } from '../src/shared/booking.js';
+import { getPack, validatePack } from '../src/shared/packs/index.js';
 import { addMin, ctx, expectCode, getData, getPlayer, seedAdmin, seedGame, seedPersonalTemplates, seedPlayer, T0, toMillis, useEmulatorDb } from './helpers.js';
+import { testPack } from './packs.js';
 
 const db = useEmulatorDb('demo-fq-booking');
 
@@ -124,5 +126,71 @@ describe('needsBooking', () => {
     expect(checkParticulars(undefined)).toEqual({ particulars: { heightCm: null, drink: null, marks: null } });
     expect(checkParticulars({ heightCm: 170, drink: 'Wine' })).toEqual({ particulars: { heightCm: 170, drink: 'Wine', marks: null } });
     expect(checkParticulars({ heightCm: 90 })).toEqual({ problem: expect.stringMatching(/from 120 to 230/) });
+  });
+});
+
+// Plan "Police that sound official, a question bank, …", edge case 8: the booking desk asks for a relation to the
+// victim (the pack's list) instead of a drink.
+describe('a relation to the victim', () => {
+  const RELATIONS = [
+    { id: 'lover', label: 'Lover', phrase: "Bob's lover" },
+    { id: 'best-friend', label: 'Best friend', phrase: "Bob's best friend" },
+  ];
+  const REL = testPack({ booking: { relations: RELATIONS } });
+  const book = (particulars: unknown, now = T0) => bookIn(db(), ctx('sam', now, undefined, undefined, REL), { particulars });
+
+  it("keeps one of the pack's relations, and clears it again", async () => {
+    await approvedSam();
+    await book({ heightCm: 183, relation: 'best-friend', marks: 'A green jacket' });
+    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: 183, relation: 'best-friend', drink: null, marks: 'A green jacket' });
+    await book({ heightCm: 183, relation: null, marks: 'A green jacket' }, addMin(T0, 5));
+    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: 183, relation: null, drink: null, marks: 'A green jacket' });
+  });
+
+  it('a pack with a relation list still takes a drink from an older app', async () => {
+    await approvedSam();
+    await book({ heightCm: null, drink: 'Gin', marks: null });
+    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: null, relation: null, drink: 'Gin', marks: null });
+  });
+
+  it("refuses a relation that isn't on the list, or isn't text", async () => {
+    await approvedSam();
+    await expectCode(book({ relation: 'nemesis' }), 'invalid-argument');
+    await expectCode(book({ relation: 7 }), 'invalid-argument');
+    expect((await getPlayer(db(), 'sam')).bookedAt).toBeNull();
+  });
+
+  it('a pack without a relation list refuses one, and keeps its particulars as before', async () => {
+    await approvedSam();
+    await expectCode(bookIn(db(), ctx('sam'), { particulars: { relation: 'lover' } }), 'invalid-argument');
+    await bookIn(db(), ctx('sam'), { particulars: SAM });
+    expect((await getPlayer(db(), 'sam')).particulars).toEqual(SAM);
+  });
+
+  it('checkParticulars, on its own', () => {
+    expect(checkParticulars({ relation: 'lover' }, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: 'lover', drink: null, marks: null } });
+    expect(checkParticulars({ relation: '' }, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: null, drink: null, marks: null } });
+    expect(checkParticulars({ relation: 'nemesis' }, { relations: RELATIONS })).toEqual({ problem: expect.stringMatching(/relation/i) });
+    expect(checkParticulars({ relation: 'lover' })).toEqual({ problem: expect.stringMatching(/relation/i) });
+    expect(checkParticulars(null, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: null, drink: null, marks: null } });
+  });
+});
+
+describe("the mystery pack's booking desk", () => {
+  it('offers exactly these relations to Bob, in this order', () => {
+    expect(getPack('mystery').booking?.relations?.map((r) => r.label)).toEqual(['Lover', 'Ex', 'Sidepiece', 'Best friend', 'Boss', 'Parent', 'Sibling', "It's complicated"]);
+    for (const r of getPack('mystery').booking!.relations!) {
+      expect(r.id).toMatch(/^[a-z][a-z0-9-]*$/);
+      expect(r.phrase).toMatch(/Bob/);
+    }
+  });
+
+  it('validatePack refuses a bad relation list', () => {
+    const bad = (relations: unknown) => validatePack(testPack({ booking: { relations: relations as never } })).join('\n');
+    expect(bad([{ id: 'a', label: 'A', phrase: 'a' }])).toMatch(/relation/i);
+    expect(bad([{ id: 'a', label: 'A', phrase: 'a' }, { id: 'a', label: 'B', phrase: 'b' }])).toMatch(/relation|duplicate/i);
+    expect(bad([{ id: 'Bad Id', label: 'A', phrase: 'a' }, { id: 'b', label: 'B', phrase: 'b' }])).toMatch(/relation|id/i);
+    expect(bad([{ id: 'a', label: ' ', phrase: 'a' }, { id: 'b', label: 'B', phrase: 'b' }])).toMatch(/relation|label/i);
+    expect(bad([{ id: 'a', label: 'A', phrase: 'x'.repeat(41) }, { id: 'b', label: 'B', phrase: 'b' }])).toMatch(/relation|phrase/i);
   });
 });

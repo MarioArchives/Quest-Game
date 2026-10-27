@@ -57,3 +57,36 @@ export function dayDate(ms: number, zone: Zone): string {
 export function dayName(ms: number, zone: Zone): string {
   return fmt(zone, { weekday: 'long' }).format(ms);
 }
+
+/** The zone's offset from UTC at an instant, in ms (what the wall clock shows minus the instant). */
+function offsetAt(ms: number, timeZone: string): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
+      .formatToParts(ms)
+      .map((x) => [x.type, Number(x.value)]),
+  ) as Record<string, number>;
+  return Date.UTC(p.year!, p.month! - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+
+/** A wall-clock 'YYYY-MM-DD' and 'HH:MM' in the zone as an instant; null if either is not a real date or time. */
+export function zonedMs(date: string, hhmm: string, zone: Pick<Zone, 'timeZone'>): number | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const t = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!d || !t) return null;
+  const [y, mo, da, h, mi] = [d[1], d[2], d[3], t[1], t[2]].map(Number) as [number, number, number, number, number];
+  if (h > 23 || mi > 59) return null;
+  const asUtc = Date.UTC(y, mo - 1, da, h, mi);
+  const back = new Date(asUtc);
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== da) return null;
+  // Settle on the offset that holds at the answer (two passes cover a clock change nearby).
+  let guess = asUtc - offsetAt(asUtc, zone.timeZone);
+  guess = asUtc - offsetAt(guess, zone.timeZone);
+  return guess;
+}
+
+/** Today and the next n dates ('YYYY-MM-DD') in the zone, each once (a 25-hour day is still one day). */
+export function dayChoices(nowMs: number, zone: Pick<Zone, 'timeZone'>, n: number): string[] {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: zone.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowMs);
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  return Array.from({ length: n + 1 }, (_, i) => new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
+}

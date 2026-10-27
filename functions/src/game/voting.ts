@@ -4,7 +4,7 @@
 import type { DocRef, Txn } from '../shared/store/types.js';
 import { termForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
-import { tallyVotes } from '../shared/votes.js';
+import { tallyBallots, tallyVotes, voteStyleOf, votesText } from '../shared/votes.js';
 import type { ScoreEvent } from '../shared/scoring/types.js';
 import type { FactEntry, GlobalQuest, GlobalQuestStatus, Player, Settings, Submission, Vote } from '../shared/types.js';
 import type { Db } from './context.js';
@@ -60,10 +60,10 @@ export async function readAllEntries(tx: Txn, db: Db): Promise<Map<string, Entry
   return byQuest;
 }
 
-/** voterUid → the submission they voted for. */
-export async function readVotes(tx: Txn, db: Db, questId: string): Promise<Map<string, string>> {
+/** voterUid → their vote doc (a pick's submissionId, or a yes/no ballot). */
+export async function readVotes(tx: Txn, db: Db, questId: string): Promise<Map<string, Vote>> {
   const snap = await tx.get(db.collection(`globalQuests/${questId}/votes`));
-  return new Map(snap.docs.map((d) => [d.id, (d.data() as Vote).submissionId]));
+  return new Map(snap.docs.map((d) => [d.id, d.data() as Vote]));
 }
 
 export async function readPlayers(tx: Txn, db: Db): Promise<Map<string, Player>> {
@@ -98,7 +98,11 @@ export function eligibleVoters(players: Map<string, Player>, entries: Entry[]): 
  */
 export function startVoting(tx: Txn, db: Db, now: Date, settings: Settings, q: Quest, entries: Entry[]): void {
   revealEntries(tx, entries);
-  tx.update(q.ref, { status: 'voting', votingEndsAt: toTs(new Date(now.getTime() + settings.voteWindowMin * MIN_MS)) });
+  tx.update(q.ref, {
+    status: 'voting',
+    votingEndsAt: toTs(new Date(now.getTime() + settings.voteWindowMin * MIN_MS)),
+    voteStyle: voteStyleOf({ voteStyle: settings.voteStyle }),
+  });
   addFeed(tx, db, now, {
     type: 'voting-open',
     text: `Voting is open: ${q.gq.title}`,
@@ -358,9 +362,20 @@ export function openVoteNow(
 
 /**
  * Writes the fact a mission with `records` settles when it closes: its winning entries (every tied one, with their votes), or
- * none when nobody won. Replaces any earlier run's. Does nothing for a mission that records nothing.
+ * none when nobody won, and the captions of those who entered and didn't win. Replaces any earlier run's. Does nothing for a mission that records nothing.
  */
-export function recordFact(tx: Txn, db: Db, now: Date, q: Quest, winners: Entry[], counts: Record<string, number>, players: Map<string, Player>): void {
+export function recordFact(
+  tx: Txn,
+  db: Db,
+  now: Date,
+  q: Quest,
+  winners: Entry[],
+  counts: Record<string, number>,
+  players: Map<string, Player>,
+  split?: { yes: Record<string, number>; no: Record<string, number> },
+  /** The revealed entries: the captions of those that didn't win are kept as `others`. */
+  entered: Entry[] = [],
+): void {
   const records = q.gq.records;
   if (!records) return;
   const entries: FactEntry[] = winners.map((e) => ({
@@ -372,8 +387,12 @@ export function recordFact(tx: Txn, db: Db, now: Date, q: Quest, winners: Entry[
     thumbPath: e.data.thumbPath ?? null,
     videoPath: e.data.videoPath ?? null,
     votes: counts[e.id] ?? 0,
+    ...(split ? { yes: split.yes[e.id] ?? 0, no: split.no[e.id] ?? 0 } : {}),
   }));
-  tx.set(db.doc(`facts/${records.key}`), { key: records.key, label: records.label, value: null, entries, storyId: q.gq.storyId ?? null, at: toTs(now) });
+  // What the others entered (up to 6 captions, no repeats): the police's decoys when they ask about this fact.
+  const won = new Set(winners.map((e) => e.id));
+  const others = [...new Set(entered.filter((e) => !won.has(e.id)).map((e) => e.data.caption?.trim() ?? '').filter(Boolean))].slice(0, 6);
+  tx.set(db.doc(`facts/${records.key}`), { key: records.key, label: records.label, value: null, entries, storyId: q.gq.storyId ?? null, at: toTs(now), others });
 }
 
 /** Close a side quest nobody entered (or one ended early): no winners. */
@@ -424,14 +443,20 @@ export function closeWithTally(
   scoring: Scoring,
   q: Quest,
   entries: Entry[],
-  votes: Map<string, string>,
+  votes: Map<string, Vote>,
   players: Map<string, Player>,
 ): void {
   const t = termForms(pack.terms);
   // Only revealed entries can be voted for or win.
   entries = revealedEntries(entries);
   recordMotives(tx, db, now, q, entries);
-  const { counts, winners } = tallyVotes([...votes.values()], entries.map((e) => e.id));
+  const ids = entries.map((e) => e.id);
+  const yesNo = voteStyleOf(q.gq) === 'yesno';
+  // Pick: counts are votes. Yes/no: counts are the net (yes − no), with the yeses and noes alongside.
+  const ballots = yesNo ? tallyBallots([...votes.values()].map((v) => v.ballot ?? {}), ids) : null;
+  const { counts, winners } = ballots
+    ? { counts: ballots.net, winners: ballots.winners }
+    : tallyVotes([...votes.values()].map((v) => v.submissionId).filter((id): id is string => typeof id === 'string'), ids);
   const winnerUids: string[] = [];
   const winningSubmissionIds: string[] = [];
   const balances = balancesOf(players);
@@ -440,8 +465,10 @@ export function closeWithTally(
   // A mission that pays for each vote pays every entry that got one, winner or not.
   const perVote = q.gq.votePoints ?? 0;
   if (perVote > 0) {
-    for (const entry of entries.filter((e) => counts[e.id] > 0)) {
-      const paid = payOut(tx, db, now, scoring, { kind: 'sideQuestVotes', uid: entry.data.uid, votes: counts[entry.id], perVote }, balances, { ref: entry.id, by: 'system' });
+    // (A yes/no vote pays per yes, whatever the net.)
+    const paying = ballots ? ballots.yes : counts;
+    for (const entry of entries.filter((e) => paying[e.id] > 0)) {
+      const paid = payOut(tx, db, now, scoring, { kind: 'sideQuestVotes', uid: entry.data.uid, votes: paying[entry.id], perVote }, balances, { ref: entry.id, by: 'system' });
       awards.set(entry.id, paid);
     }
   }
@@ -463,7 +490,7 @@ export function closeWithTally(
     awards.set(entry.id, applied);
     addFeed(tx, db, now, {
       type: 'global-won',
-      text: `${player?.displayName ?? 'Someone'} won the ${t.sideQuest.one} "${q.gq.title}" with ${counts[entry.id]} ${counts[entry.id] === 1 ? 'vote' : 'votes'}`,
+      text: `${player?.displayName ?? 'Someone'} won the ${t.sideQuest.one} "${q.gq.title}" with ${ballots ? votesText({ yes: ballots.yes[entry.id], no: ballots.no[entry.id] }) : votesText({ votes: counts[entry.id] })}`,
       uid,
       ref: entry.id,
       submissionId: entry.id,
@@ -476,7 +503,7 @@ export function closeWithTally(
       caption: entry.data.caption ?? null,
     });
   }
-  recordFact(tx, db, now, q, won, counts, players);
+  recordFact(tx, db, now, q, won, counts, players, ballots ?? undefined, entries);
 
   // A story mission also pays its fastest entry, who need not be a winner.
   const unchecked = isUnchecked(q.gq);
@@ -486,7 +513,14 @@ export function closeWithTally(
     const entry = entries.find((e) => e.id === id)!;
     tx.update(entry.ref, { pointsAwarded: (entry.data.pointsAwarded ?? 0) + paid });
   }
-  tx.update(q.ref, { status: 'closed', winnerUids, winningSubmissionIds, tally: counts, ...(unchecked ? { fastestSubmissionId: fastest?.id ?? null } : {}) });
+  tx.update(q.ref, {
+    status: 'closed',
+    winnerUids,
+    winningSubmissionIds,
+    tally: counts,
+    ...(ballots ? { yesNo: Object.fromEntries(ids.map((id) => [id, { yes: ballots.yes[id], no: ballots.no[id] }])) } : {}),
+    ...(unchecked ? { fastestSubmissionId: fastest?.id ?? null } : {}),
+  });
   penaliseSkippers(tx, db, now, scoring, q, entries, players, balances);
 }
 

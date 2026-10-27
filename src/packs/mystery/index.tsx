@@ -31,6 +31,8 @@ const look: PackLook = {
     ...((records) => ({ join: records, waiting: records, rejected: records }))(lazy(() => import('./booking/RecordsCheck'))),
     // The booking desk, once the GM has let them in and before the game.
     onboarding: lazy(() => import('./booking/Booking')),
+    // A vote that needs you takes over the whole app: polaroids to swipe, then a cork board to choose on.
+    vote: lazy(() => import('./screens/PolaroidVote')),
   },
   error: { title: 'This page has been tampered with', body: 'Something broke on our side. Reload, or go back to the board.', home: 'Back to the board' },
   reward: { title: 'Evidence secured', clean: 'Destroy', frame: 'Frame', pickTitle: 'Frame who?' },

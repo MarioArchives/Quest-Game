@@ -1,7 +1,7 @@
 // The booking desk (the mystery pack's onboarding, from the UI mocks' booking desk): what a player goes through once the
 // GM has let them in, before the game. The records check clears them, then the interview room (a lamp swung into their
 // face: "Who are you?"), their particulars on a manila booking sheet (their display name; their mobile for the police
-// line when phone calls are on; height, poison and distinguishing marks), a typed letter from the police, their right
+// line when phone calls are on; height, relation to the victim and distinguishing marks), a typed letter from the police, their right
 // thumb on a livescan machine (press and hold; nothing is read, the print is made up from the player), the file with
 // the inked print and the photographer's room for the mugshot (their real profile photo), and, with phone calls on, the
 // police's calling card to save and a test call to their mobile; or, with the police on Telegram (settings.policeTelegram),
@@ -47,7 +47,7 @@ import './booking.css';
 
 type Step = 'cleared' | 'room' | 'particulars' | 'letter' | 'prints' | 'booked' | 'photo' | 'number' | 'call' | 'open';
 
-const POISONS = ['Pint', 'Wine', 'Gin', 'Cocktail', 'Shots', 'Soft'];
+const RELATIONS = pack.booking?.relations ?? [];
 /** The step tabs; the letter counts as the start of the prints, the test call (last of all) with the booking. */
 const STEPS: { id: Step; label: string }[] = [
   { id: 'particulars', label: 'Particulars' },
@@ -87,7 +87,7 @@ export default function Booking() {
         phone: '',
         noPhone: false,
         heightCm: player?.particulars?.heightCm ?? 175,
-        drink: player?.particulars?.drink ?? null,
+        relation: player?.particulars?.relation ?? null,
         marks: player?.particulars?.marks ?? '',
       },
   );
@@ -473,26 +473,26 @@ function ParticularsSheet({
         </Field>
 
         <fieldset className="bk-field">
-          <legend className="bk-label">Poison of choice</legend>
+          <legend className="bk-label">Relation to the victim</legend>
           <div className="bk-chips">
-            {POISONS.map((p) => (
-              <label key={p} className={`bk-chip${who.drink === p ? ' is-on' : ''}`}>
+            {RELATIONS.map((r) => (
+              <label key={r.id} className={`bk-chip${who.relation === r.id ? ' is-on' : ''}`}>
                 <input
                   className="bk-sr"
                   type="radio"
-                  name={`poison-${uid}`}
-                  value={p}
-                  checked={who.drink === p}
+                  name={`relation-${uid}`}
+                  value={r.id}
+                  checked={who.relation === r.id}
                   onChange={() => {
                     buzz(6);
-                    set('drink', p);
+                    set('relation', r.id);
                   }}
                   // Tapping the one already picked takes it back off.
                   onClick={() => {
-                    if (who.drink === p) set('drink', null);
+                    if (who.relation === r.id) set('relation', null);
                   }}
                 />
-                {p}
+                {r.label}
               </label>
             ))}
           </div>
@@ -929,7 +929,7 @@ function BookedFile({
               <Fact label="Height">
                 {who.heightCm} cm · {feetInches(who.heightCm)}
               </Fact>
-              <Fact label="Poison">{who.drink ?? 'Won’t say'}</Fact>
+              <Fact label="Relation">{RELATIONS.find((r) => r.id === who.relation)?.label ?? 'Won’t say'}</Fact>
             </dl>
           </div>
           {who.marks.trim() ? (

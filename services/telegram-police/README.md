@@ -67,6 +67,18 @@ From your own Telegram account (on your phone, not the spare one):
 - `--ring 25` is how long it rings; `--max 60` caps the call once picked up.
 - It prints one outcome: `answered`, `hung-up`, `no-answer`, `declined`, `busy`, `privacy` (their settings don't let this account call them), `not-found` or `failed`.
 
+## Case updates, officers' voices and updating the VM
+
+- **Case updates.** When the game offers them (the heartbeat sends `features: ['notices']`), `serve` also takes `notice` orders and posts each one in the player's police chat as `⚠️ Case update ⚠️ - <text>`. Only the latest is kept: after sending, it deletes the police's own earlier messages in that chat that start with the same prefix (for both sides, `revoke`). Check-in messages and the player's own messages are never touched. Case updates go out one at a time, at least a second apart, and never wait on a call.
+- **Flood protection.** Telethon sleeps through FloodWaits up to 60 s itself. A longer wait, or a `PeerFloodError`, pauses case updates for an hour: the heartbeat then sends `features: []`, so the game falls back to push, and any notice that still arrives is skipped. Calls are not affected. Each number is looked up once per run.
+- **Officers' voices.** A reply from the game may name an edge-tts voice (`en-GB-RyanNeural` form; anything else is ignored). It is used for every line said on that call; without one the script's own voice is used.
+- **After changing the script**, copy it to the VM and restart the service:
+
+```sh
+gcloud compute scp police_call.py telegram-police-line-vm:~/police-line/ --zone us-central1-a --project musical-mischief
+sudo systemctl restart police-line   # on the VM
+```
+
 ## Good to know
 
 - **Message first.** Telegram is wary of new accounts that ring strangers. Calls go most smoothly to people who have messaged the police account, or who have it in their contacts; the booking desk will have each player send it a message.

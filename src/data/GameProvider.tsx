@@ -14,10 +14,11 @@ import {
   type Reward,
   type Settings,
   type Submission,
+  type Vote,
 } from '../shared';
 import { features } from '../pack';
 import { useSession } from '../session/SessionProvider';
-import { tsMs, useDocument, useQuery } from './hooks';
+import { tsMs, useDocument, useDocuments, useQuery } from './hooks';
 
 export type RankedPlayer = Doc<Player> & { rank: number };
 
@@ -69,6 +70,13 @@ export interface GameValue {
   myMotive: Doc<Motive> | null;
   /** The signed-in player's open police check-in (packs with police), or null. */
   myPoliceCall: Doc<PoliceCall> | null;
+  /**
+   * The signed-in player's own vote on each side quest in voting (players only; null: nothing cast yet). Votes are
+   * secret, so this is the only way to know what you have cast.
+   */
+  myBallots: Map<string, Vote | null>;
+  /** True until every one of `myBallots` has had its first snapshot. */
+  myBallotsLoading: boolean;
 }
 
 /** How many of the newest feed posts the app keeps live. */
@@ -113,6 +121,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
   const motiveDoc = useDocument<Motive>(features.characters && uid && isPlayer ? `motives/${uid}` : null);
 
+  // My own vote doc on each side quest in voting (the rules let a voter get only their own).
+  const votingIds = (globalQ.data ?? []).filter((g) => g.status === 'voting').map((g) => g.id).sort();
+  const ballotPaths = uid && isPlayer ? votingIds.map((id) => `globalQuests/${id}/votes/${uid}`) : [];
+  const ballotsQ = useDocuments<Vote>(ballotPaths);
+
   const value = useMemo<GameValue>(() => {
     const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsDoc.data ?? {}) };
     const sorted = [...playersQ.data].sort(
@@ -150,6 +163,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       witnessRequests: [...witnessQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
       myRewards: [...rewardsQ.data].sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)),
       myMotive: motiveDoc.data,
+      myBallots: new Map(votingIds.map((id) => [id, ballotsQ.data.get(`globalQuests/${id}/votes/${uid}`) ?? null])),
+      myBallotsLoading: ballotsQ.loading,
       myPoliceCall: [...policeQ.data].sort((a, b) => tsMs(a.startsAt) - tsMs(b.startsAt))[0] ?? null,
     };
   }, [
@@ -170,6 +185,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     feedQ.data,
     feedQ.loading,
     feedQ.error,
+    ballotsQ.data,
+    ballotsQ.loading,
+    votingIds.join(','),
     uid,
   ]);
 

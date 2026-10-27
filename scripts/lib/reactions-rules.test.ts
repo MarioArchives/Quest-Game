@@ -2,6 +2,7 @@
 // offers one the rules would refuse. (Any emoji is allowed; REACTION_EMOJI is just the picker's quick set.)
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ENTRY_REACTIONS } from '../../functions/src/shared/entryReactions.ts';
 import { VOTABLE_FEED_TYPES } from '../../functions/src/shared/feedVotes.ts';
 import { REACTION_EMOJI } from '../../functions/src/shared/types.ts';
 import { REACTION_MAX_CODE_POINTS } from '../../src/lib/emoji.ts';
@@ -27,5 +28,17 @@ describe('vote reactions', () => {
     expect(match, 'votable list not found in firestore.rules').not.toBeNull();
     const listed = [...match![1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
     expect([...listed].sort()).toEqual([...VOTABLE_FEED_TYPES].sort());
+  });
+});
+
+describe('entry reactions (plan "Voting takeover…", edge case 12)', () => {
+  it('firestore.rules takes exactly ENTRY_REACTIONS, and the time, on a reaction to an entry', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    const block = rules.match(/match \/entryReactions\/\{reactorUid\}\s*\{([\s\S]*?)\n\s*\}/);
+    expect(block, 'the entryReactions match not found in firestore.rules').not.toBeNull();
+    const only = block![1].match(/hasOnly\(\[([^\]]+)\]\)/);
+    expect(only, 'no hasOnly([...]) in the entryReactions match').not.toBeNull();
+    const listed = [...only![1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    expect([...listed].sort()).toEqual([...ENTRY_REACTIONS, 'updatedAt'].sort());
   });
 });

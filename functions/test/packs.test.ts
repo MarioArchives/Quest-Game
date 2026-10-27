@@ -584,3 +584,50 @@ describe('E22 (defaults). settings for a pack', () => {
     expect(s.fraudPenalty).toBe(DEFAULT_SETTINGS.fraudPenalty);
   });
 });
+
+describe('the way of voting and the vote’s question (plan "Voting takeover…", edge case 1)', () => {
+  it('the engine votes one each; the mystery pack votes yes or no on every entry', () => {
+    expect(DEFAULT_SETTINGS.voteStyle).toBe('pick');
+    expect(defaultSettingsFor(getPack('lancaster')).voteStyle).toBe('pick');
+    expect(defaultSettingsFor(getPack('starter')).voteStyle).toBe('pick');
+    expect(defaultSettingsFor(getPack('mystery')).voteStyle).toBe('yesno');
+  });
+
+  it("the mystery pack's voted story missions ask their questions", () => {
+    const story = getPack('mystery').catalogue.story ?? [];
+    const asks = Object.fromEntries(story.filter((s) => s.question).map((s) => [s.id, s.question]));
+    expect(asks).toEqual({
+      's-incriminating': 'Most damning?',
+      's-old-days': 'Best memory of Bob?',
+      's-weapon': 'What killed Bob?',
+      's-alibi': 'Best alibi?',
+      's-scene': 'Where did it happen?',
+    });
+  });
+
+  const withStory = (story: unknown[]) => {
+    const p = testPack();
+    return { ...p, catalogue: { ...p.catalogue, story: story as NonNullable<GamePack['catalogue']['story']> } };
+  };
+  const vote = { id: 's-vote', title: 'The weapon', description: 'x', judging: 'vote' as const };
+
+  it('accepts a question on a mission judged by a vote, and none at all', () => {
+    expect(validatePack(withStory([{ ...vote, question: 'What killed Bob?' }]))).toEqual([]);
+    expect(validatePack(withStory([vote]))).toEqual([]);
+  });
+
+  it.each([
+    ['a blank question', [{ ...vote, question: '  ' }], 's-vote'],
+    ['a question that is not words', [{ ...vote, question: 42 }], 's-vote'],
+    ['a question over 60 characters', [{ ...vote, question: 'W'.repeat(61) }], 's-vote'],
+    ['a question on a mission judged by submission', [{ ...vote, judging: 'submit', question: 'Who?' }], 's-vote'],
+    [
+      'a question on an announcement',
+      [{ id: 's-note', kind: 'announce', title: 'Note', description: 'x', question: 'Who?' }],
+      's-note',
+    ],
+  ])('rejects %s, naming the mission and the question', (_label, story, id) => {
+    const problems = validatePack(withStory(story));
+    expect(problems.some((line) => line.includes(id) && /question/i.test(line)), problems.join('\n')).toBe(true);
+  });
+});

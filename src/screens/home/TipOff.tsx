@@ -1,6 +1,7 @@
 // "Tip off the police" (packs with police). Open to a live trusted confidant, once per cooldown; anyone else sees why
 // not. The button on another player's page opens TipOffSheet for them; the tip line on the points chip opens it
-// without anyone, so it asks who first. Either way the sheet takes a note and sends the tip.
+// without anyone, so it asks who first. Either way the sheet takes what they're accused of (the police read it out on
+// the call) and sends the tip.
 import { useId, useState } from 'react';
 import { friendlyError, tipOffPolice } from '../../api';
 import { Avatar } from '../../components/Avatar';
@@ -11,9 +12,9 @@ import { useGame } from '../../data/GameProvider';
 import { tsMs, useNow } from '../../data/hooks';
 import { signed } from '../../lib/standingBars';
 import { firstName } from '../../lib/standings';
-import { tipWaitMs, waitMinutes } from '../../lib/tipLine';
+import { accusedPreview, tipWaitMs, waitMinutes } from '../../lib/tipLine';
 import { standingOf } from '../../../functions/src/shared/standing.ts';
-import { features, t } from '../../pack';
+import { features, pack, t } from '../../pack';
 import { useSession } from '../../session/SessionProvider';
 import type { RankedPlayer } from '../../data/GameProvider';
 import './standing.css';
@@ -65,7 +66,7 @@ export interface TipOffSheetProps {
   onClose(): void;
 }
 
-/** The tip-off sheet: who (unless given), what they've been doing (1–200 characters), then send. */
+/** The tip-off sheet: who (unless given), what they're accused of (1–200 characters, read out on the call), then send. */
 export function TipOffSheet({ target, onClose }: TipOffSheetProps) {
   const { user } = useSession();
   const { activePlayers, playersById, settings } = useGame();
@@ -136,7 +137,7 @@ export function TipOffSheet({ target, onClose }: TipOffSheetProps) {
   return (
     <BottomSheet
       title={`Tip off the police about ${who.displayName}`}
-      subtitle={`They get a ${t.policeCall.one}: a sum to answer in ${settings.policeWindowMin} min. Right ${signed(settings.policePassPoints)}, wrong or missed ${signed(-settings.policeFailPenalty)}.`}
+      subtitle={`They get a ${t.policeCall.one}: a question to answer in ${settings.policeWindowMin} min. Right ${signed(settings.policePassPoints)}, wrong or missed ${signed(-settings.policeFailPenalty)}.`}
       onClose={onClose}
       locked={busy}
     >
@@ -153,18 +154,24 @@ export function TipOffSheet({ target, onClose }: TipOffSheetProps) {
       )}
       <div className="field">
         <label className="field__label" htmlFor={noteId}>
-          What have they been doing?
+          What have they been up to?
         </label>
         <textarea
           id={noteId}
           className="textarea"
           maxLength={NOTE_MAX}
           value={note}
-          placeholder="Has been doing something odd"
+          placeholder="hogging the jukebox"
+          aria-describedby={`${noteId}-said`}
           // Picked on the sheet a moment ago: straight on to the note.
           autoFocus={!target}
           onChange={(e) => setNote(e.target.value)}
         />
+        <p className="tipoff__said" id={`${noteId}-said`}>
+          The police will say: &ldquo;
+          {accusedPreview(pack.policeVoice?.lines?.accused, note, firstName(who?.displayName ?? ''), settings.policeCallerName?.trim() || 'the police')}
+          &rdquo;
+        </p>
         <span className="field__hint">{NOTE_MAX - note.length} characters left</span>
       </div>
       {error ? (

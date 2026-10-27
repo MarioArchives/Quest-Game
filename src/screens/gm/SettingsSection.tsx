@@ -5,8 +5,8 @@ import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/Toast';
 import { useGame } from '../../data/GameProvider';
-import { features, t, zone } from '../../pack';
-import { RULESETS } from '../../shared';
+import { features, reactionStyle, t, zone } from '../../pack';
+import { RULESETS, type VoteStyle } from '../../shared';
 import {
   foldSummary,
   fromSettings,
@@ -19,6 +19,11 @@ import {
   type SettingsForm,
   type StandingKey,
 } from './settingsForm';
+
+const VOTE_STYLES: { id: VoteStyle; name: string; hint: string }[] = [
+  { id: 'pick', name: 'Pick one', hint: 'Each player votes for one entry. Most votes wins.' },
+  { id: 'yesno', name: 'Yes or no', hint: 'A yes or a no on every entry. Most yeses (less the noes) wins; points per vote are paid per yes.' },
+];
 
 interface NumField {
   key: NumKey;
@@ -53,6 +58,9 @@ const GROUPS: Group[] = [
       { key: 'sideQuestPoints', label: `${t.sideQuest.One} win`, hint: 'Default bonus for the winner' },
       { key: 'rejectPenalty', label: `Rejected ${t.claim.one} fine`, hint: `Lost when a ${t.witness.one} rejects a ${t.claim.one}` },
       { key: 'fraudPenalty', label: 'Fraud fine', hint: `Taken on top of the ${t.claim.one}’s points` },
+      ...(reactionStyle === 'votes'
+        ? [{ key: 'topEntryPoints' as const, label: `Top of the ${t.feed.one}`, hint: `While a player’s own entry is on top of the ${t.feed.one}` }]
+        : []),
     ],
   },
   {
@@ -285,6 +293,29 @@ export function SettingsSection({ folds = false }: { folds?: boolean } = {}) {
               ) : null}
             </div>
           ) : null}
+          {group.id === 'sideQuests' ? (
+            <div className="gm-quiet">
+              <span className="gm-setting__label">How everyone votes</span>
+              <div className="gm-choice" role="radiogroup" aria-label="How everyone votes">
+                {VOTE_STYLES.map((v) => (
+                  <label key={v.id} className={`gm-choice__opt${form.voteStyle === v.id ? ' is-selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="voteStyle"
+                      value={v.id}
+                      className="visually-hidden"
+                      checked={form.voteStyle === v.id}
+                      disabled={busy}
+                      onChange={() => setForm((f) => ({ ...f, voteStyle: v.id }))}
+                    />
+                    <strong>{v.name}</strong>
+                    <span className="gm-setting__hint">{v.hint}</span>
+                  </label>
+                ))}
+              </div>
+              <span className="gm-setting__hint">An open vote keeps its way.</span>
+            </div>
+          ) : null}
           {group.id === 'police' ? (
             <div className="gm-quiet">
               <div className="gm-setting">
@@ -382,6 +413,21 @@ export function SettingsSection({ folds = false }: { folds?: boolean } = {}) {
                 ) : (
                   <span className="gm-setting__hint">The police on Telegram by number, for an account without a username; and on the contact card players save. Blank for none</span>
               )}
+              </div>
+              <div className="gm-setting">
+                <label className="gm-setting__text" htmlFor="set-police-notices">
+                  <span className="gm-setting__label">Case updates in the police chat</span>
+                  <span className="gm-setting__hint">Players with a Telegram line get their notifications there instead of push</span>
+                </label>
+                <button
+                  id="set-police-notices"
+                  type="button"
+                  role="switch"
+                  className="switch"
+                  aria-checked={form.policeNotices}
+                  disabled={busy}
+                  onClick={() => setForm((f) => ({ ...f, policeNotices: !f.policeNotices }))}
+                />
               </div>
             </div>
           ) : null}

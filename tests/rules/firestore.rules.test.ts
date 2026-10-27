@@ -329,7 +329,7 @@ describe('5. reading and changing submissions', () => {
   });
 });
 
-describe('V3. no comments, and no reactions on submissions', () => {
+describe('V3. no comments, and no emoji under submissions', () => {
   it('nobody can comment anywhere', async () => {
     const comment = (uid: string) => ({ uid, text: 'Great photo', createdAt: serverTimestamp() });
     await assertFails(setDoc(doc(as('bob'), 'submissions/approvedA/comments/c1'), comment('bob')));
@@ -337,8 +337,77 @@ describe('V3. no comments, and no reactions on submissions', () => {
     await assertFails(setDoc(doc(as('bob'), 'feed/f1/comments/c1'), comment('bob')));
   });
 
-  it('reactions on submissions are refused (they live on feed posts now)', async () => {
+  it('emoji reactions on submissions are refused (they live on feed posts)', async () => {
     await assertFails(setDoc(doc(as('carol'), 'submissions/approvedA/reactions/carol'), { emoji: '🔥', createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(as('carol'), 'submissions/entryA/reactions/carol'), { emoji: '🔥', createdAt: serverTimestamp() }));
+  });
+});
+
+// Plan "Voting takeover: polaroid swipe, the cork board, and yes/no voting", edge case 11.
+describe('V3b. reactions to a side-quest entry: an eye and a heart', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      const entry = (uid: string, status: string) => ({
+        uid, kind: 'global', questId: 'gq1', imagePath: `submissions/${uid}/e.jpg`, thumbPath: `submissions/${uid}/e_thumb.jpg`,
+        caption: 'c', createdAt: T, status,
+      });
+      await setDoc(doc(db, 'submissions/entryA'), entry('alice', 'approved'));
+      await setDoc(doc(db, 'submissions/sealedA'), entry('alice', 'sealed'));
+      await setDoc(doc(db, 'submissions/pendingG'), entry('alice', 'pending'));
+      await setDoc(doc(db, 'submissions/rejectedG'), entry('alice', 'rejected'));
+      await setDoc(doc(db, 'submissions/entryA/entryReactions/bob'), { eye: true, heart: false, updatedAt: T });
+    });
+  });
+  const mark = (eye: unknown, heart: unknown, extra: Record<string, unknown> = {}) => ({ eye, heart, updatedAt: serverTimestamp(), ...extra });
+
+  it("a player sets, changes and takes back their own on someone else's entry; players and the GM read them", async () => {
+    await assertSucceeds(setDoc(doc(as('carol'), 'submissions/entryA/entryReactions/carol'), mark(true, false)));
+    await assertSucceeds(setDoc(doc(as('carol'), 'submissions/entryA/entryReactions/carol'), mark(true, true)));
+    await assertSucceeds(setDoc(doc(as('carol'), 'submissions/entryA/entryReactions/carol'), mark(false, false)));
+    await assertSucceeds(getDocs(collection(as('alice'), 'submissions/entryA/entryReactions')));
+    await assertSucceeds(getDocs(collection(as('gm'), 'submissions/entryA/entryReactions')));
+    await assertSucceeds(deleteDoc(doc(as('carol'), 'submissions/entryA/entryReactions/carol')));
+  });
+
+  it('signed-out users read none', async () => {
+    await assertFails(getDocs(collection(anon(), 'submissions/entryA/entryReactions')));
+  });
+
+  it.each([
+    ['their own entry', 'alice', 'entryA'],
+    ['a sealed entry', 'carol', 'sealedA'],
+    ['a pending entry', 'carol', 'pendingG'],
+    ['a thrown-out entry', 'carol', 'rejectedG'],
+    ['a personal claim', 'carol', 'approvedA'],
+    ['an entry that does not exist', 'carol', 'nope'],
+  ])('refuses a reaction to %s', async (_label, uid, sid) => {
+    await assertFails(setDoc(doc(as(uid), `submissions/${sid}/entryReactions/${uid}`), mark(true, false)));
+  });
+
+  it.each([
+    ['an extra field', mark(true, false, { emoji: '🔥' })],
+    ['eye as words', mark('yes', false)],
+    ['heart as a number', mark(false, 1)],
+    ['no heart', { eye: true, updatedAt: serverTimestamp() }],
+    ['no time', { eye: true, heart: false }],
+    ['a time of its own', { eye: true, heart: false, updatedAt: T }],
+  ])('refuses a doc with %s', async (_label, data) => {
+    await assertFails(setDoc(doc(as('carol'), 'submissions/entryA/entryReactions/carol'), data));
+  });
+
+  it("refuses writing or taking back another player's, and anyone who isn't playing", async () => {
+    await assertFails(setDoc(doc(as('carol'), 'submissions/entryA/entryReactions/bob'), mark(false, true)));
+    await assertFails(deleteDoc(doc(as('carol'), 'submissions/entryA/entryReactions/bob')));
+    await assertFails(setDoc(doc(as('gm'), 'submissions/entryA/entryReactions/gm'), mark(true, true)));
+    await assertFails(setDoc(doc(as('stranger'), 'submissions/entryA/entryReactions/stranger'), mark(true, true)));
+  });
+
+  it("no client writes the counts kept on the entry, the entrant's own included", async () => {
+    const counts = { entryReactions: { eye: ['alice'], heart: [] } };
+    await assertFails(updateDoc(doc(as('alice'), 'submissions/entryA'), counts));
+    await assertFails(updateDoc(doc(as('bob'), 'submissions/entryA'), counts));
+    await assertFails(updateDoc(doc(as('gm'), 'submissions/entryA'), counts));
   });
 });
 
@@ -388,14 +457,37 @@ describe('V2. reactions on feed posts', () => {
   });
 });
 
-describe('V4. side-quest votes are secret', () => {
-  it('no client can read or write votes, not even the GM', async () => {
+// Plan "Voting takeover: polaroid swipe, the cork board, and yes/no voting", edge case 10.
+describe('V4. side-quest votes are secret, except to the voter', () => {
+  beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (c) => {
       await setDoc(doc(c.firestore(), 'globalQuests/gq1/votes/bob'), { submissionId: 'approvedA', createdAt: T });
+      await setDoc(doc(c.firestore(), 'globalQuests/gq1/votes/carol'), { ballot: { approvedA: 'yes' }, createdAt: T, updatedAt: T });
     });
-    await assertFails(getDoc(doc(as('bob'), 'globalQuests/gq1/votes/bob')));
+  });
+
+  it('a voter reads their own vote doc, cast or not yet', async () => {
+    await assertSucceeds(getDoc(doc(as('bob'), 'globalQuests/gq1/votes/bob')));
+    await assertSucceeds(getDoc(doc(as('carol'), 'globalQuests/gq1/votes/carol')));
+    await assertSucceeds(getDoc(doc(as('alice'), 'globalQuests/gq1/votes/alice')));
+  });
+
+  it("nobody reads another player's vote, not even the GM", async () => {
+    await assertFails(getDoc(doc(as('alice'), 'globalQuests/gq1/votes/bob')));
+    await assertFails(getDoc(doc(as('gm'), 'globalQuests/gq1/votes/bob')));
+    await assertFails(getDoc(doc(anon(), 'globalQuests/gq1/votes/bob')));
+  });
+
+  it('nobody lists the votes, not even the GM or a voter', async () => {
     await assertFails(getDocs(collection(as('gm'), 'globalQuests/gq1/votes')));
-    await assertFails(setDoc(doc(as('carol'), 'globalQuests/gq1/votes/carol'), { submissionId: 'approvedA', createdAt: serverTimestamp() }));
+    await assertFails(getDocs(collection(as('bob'), 'globalQuests/gq1/votes')));
+    await assertFails(getDocs(query(collection(as('bob'), 'globalQuests/gq1/votes'), where('submissionId', '==', 'approvedA'))));
+  });
+
+  it('no client writes a vote, their own included', async () => {
+    await assertFails(setDoc(doc(as('carol'), 'globalQuests/gq1/votes/carol'), { ballot: { approvedA: 'no' }, createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(as('alice'), 'globalQuests/gq1/votes/alice'), { submissionId: 'approvedA', createdAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(as('bob'), 'globalQuests/gq1/votes/bob')));
   });
 });
 

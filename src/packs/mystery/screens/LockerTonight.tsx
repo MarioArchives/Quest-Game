@@ -2,7 +2,7 @@
 // most urgent first, each with its buttons (the phone lines, the door, statements, entries to check, the next story
 // mission), the confirmed statements to overrule if staged, the group mission running now and the bulletin.
 import { useMemo, useState } from 'react';
-import { endGame, fireGlobalQuest, reviewJoinRequest, reviewSubmission, setGameStatus } from '../../../api';
+import { endGame, fireGlobalQuest, reviewJoinRequest, reviewSubmission, setGameStatus, setStartTime } from '../../../api';
 import { Button } from '../../../components/Button';
 import { ConfirmSheet } from '../../../components/ConfirmSheet';
 import { Icon } from '../../../components/Icon';
@@ -10,8 +10,9 @@ import { Loader } from '../../../components/Loader';
 import { useToast } from '../../../components/Toast';
 import { useGame } from '../../../data/GameProvider';
 import { tsMs, useNow } from '../../../data/hooks';
+import { dayDate } from '../../../lib/time';
 import { switchboardLabel, testProgress } from '../../../lib/policeLine';
-import { features, t } from '../../../pack';
+import { features, t, zone } from '../../../pack';
 import { Announcement } from '../../../screens/gm/GameSection';
 import { useGmData } from '../../../screens/gm/GmData';
 import { STORY, useStory } from '../../../screens/gm/StorySection';
@@ -20,7 +21,8 @@ import { useSession } from '../../../session/SessionProvider';
 import type { Doc, GlobalQuest, JoinRequest, Submission } from '../../../shared';
 import { Folder, Stamp, Strung, Tag, TagTop, tiltFor } from './CaseKit';
 import { JobTag, LinesButtons, MissionHead, at, missionTab, useEntries, useLongRunMissions, useRunningMission, useStreakLine, type Lines, type LockerNav } from './LockerParts';
-import { runningFor, tonightJobs, waited, type JobKind } from './lockerLib';
+import { askBeforeMove, deskCounts, nudge, runningFor, tonightJobs, untilLabel, waited, type JobKind } from './lockerLib';
+import { MoveStartSheet, StartTimeSheet, zonePlace } from './StartTimeSheet';
 
 export type Job = { kind: JobKind; id: string };
 
@@ -116,31 +118,49 @@ export function Tonight({ jobs, lines, nav }: { jobs: Job[]; lines: Lines; nav: 
 
 const STATUS_LABEL = { lobby: 'Case not open', active: 'Case open', paused: 'Case paused', ended: 'Case closed' } as const;
 
-/** The case's state on a manila strip, with pause or resume and close beside it (reset is in Setup). */
+/** The case's state on a manila strip, with pause or resume and close beside it (reset is in Setup). While the case is
+ * not open it also holds the start time: set it, nudge it, clear it, or open now. */
 function CaseStrip() {
-  const { state, globalQuests } = useGame();
+  const { state, globalQuests, players } = useGame();
   const { pendingSubs } = useGmData();
   const { busyKey, run } = useRunner();
+  const toast = useToast();
   const now = useNow(60_000);
   const [closing, setClosing] = useState(false);
+  const [sheet, setSheet] = useState<'set' | 'open' | null>(null);
+  const [moving, setMoving] = useState<number | null | undefined>(undefined);
   const status = state.status;
   const started = tsMs(state.startedAt);
   const ended = tsMs(state.endedAt);
+  const opensAt = state.opensAt ? tsMs(state.opensAt) : 0;
   const live = globalQuests.find((g) => g.status === 'live' && !g.longRun);
   const voting = globalQuests.filter((g) => g.status === 'voting');
   const checking = globalQuests.filter((g) => g.status === 'checking' && !g.longRun);
   const setStatus = (next: 'active' | 'paused', ok: string) => void run(`status:${next}`, () => setGameStatus({ status: next }), ok);
+  const timed = status === 'lobby' && opensAt > 0;
+  // A move or a clear asks first once suspects have booked in (they have seen the time); before that it just happens.
+  const change = (to: number | null) => {
+    if (askBeforeMove(players)) return setMoving(to);
+    void run('start', () => setStartTime({ at: to, tell: false }), to === null ? 'Start time cleared.' : `Start moved to ${clockTime(to)}.`);
+  };
+  const desk = deskCounts(players);
 
   return (
-    <section className="gl-cs" aria-label="The case">
+    <section className={`gl-cs${timed ? ' gl-cs--timed' : ''}`} aria-label="The case">
       <div className="gl-cs__t">
         <b>{STATUS_LABEL[status]}</b>
         <i>
           {status === 'ended' && ended
             ? `Closed ${clockTime(ended)}`
-            : started
-              ? `Since ${clockTime(started)} · running ${runningFor((ended || now) - started)}`
-              : 'Not started yet'}
+            : timed
+              ? 'Opens itself at zero'
+              : status === 'lobby'
+                ? 'Opens when you say'
+                : started
+                  ? opensAt > 0
+                    ? `Since ${clockTime(started)} · opened itself`
+                    : `Since ${clockTime(started)} · running ${runningFor((ended || now) - started)}`
+                  : 'Not started yet'}
         </i>
       </div>
       {status === 'active' ? (
@@ -151,7 +171,7 @@ function CaseStrip() {
         <Button className="gl-btn gl-btn--sm" busy={busyKey === 'status:active'} disabled={busyKey !== null} onClick={() => setStatus('active', 'Back on.')}>
           Resume
         </Button>
-      ) : status === 'lobby' ? (
+      ) : status === 'lobby' && !timed ? (
         <Button className="gl-btn gl-btn--sm gl-btn--teal" busy={busyKey === 'status:active'} disabled={busyKey !== null} onClick={() => setStatus('active', 'The case is open.')}>
           Open case
         </Button>
@@ -160,6 +180,67 @@ function CaseStrip() {
         <Button className="gl-btn gl-btn--sm gl-btn--warn" onClick={() => setClosing(true)}>
           Close
         </Button>
+      ) : null}
+      {status === 'lobby' && !timed ? (
+        <button type="button" className="gl-cs__set" onClick={() => setSheet('set')}>
+          <Icon name="clock" size={20} />
+          <span>
+            <b>Set a start time</b>
+            <i>Suspects get a countdown, and at zero the case opens itself.</i>
+          </span>
+          <Icon name="chevron" size={18} strokeWidth={2.4} />
+        </button>
+      ) : null}
+      {timed ? (
+        <>
+          <div className="gl-cs__when">
+            <button type="button" className="gl-cs__time" aria-label={`Start time ${clockTime(opensAt)}, change it`} onClick={() => setSheet('set')}>
+              {clockTime(opensAt)}
+              <Icon name="edit" size={16} strokeWidth={2.4} />
+            </button>
+            <span className="gl-cs__in">
+              <small>{opensAt > now ? 'in' : ''}</small>
+              {untilLabel(opensAt - now)}
+            </span>
+          </div>
+          <p className="gl-cs__day">
+            {dayDate(opensAt, zone)} · {zonePlace}
+          </p>
+          <div className="gl-cs__btns">
+            <Button className="gl-btn gl-btn--sm" disabled={busyKey !== null} onClick={() => change(nudge(opensAt, 15))}>
+              +15
+            </Button>
+            <Button className="gl-btn gl-btn--sm" disabled={busyKey !== null} onClick={() => change(nudge(opensAt, 30))}>
+              +30
+            </Button>
+            <Button className="gl-btn gl-btn--sm gl-btn--teal" busy={busyKey === 'status:active'} disabled={busyKey !== null} onClick={() => setSheet('open')}>
+              Open now
+            </Button>
+          </div>
+          <p className="gl-cs__foot">
+            <span>
+              {desk.booked} booked · {desk.atDesk} at the desk
+            </span>
+            <button type="button" className="gl-cs__clear" disabled={busyKey !== null} onClick={() => change(null)}>
+              Clear
+            </button>
+          </p>
+        </>
+      ) : null}
+      {sheet === 'set' ? <StartTimeSheet opensAtMs={opensAt || null} players={players} onClose={() => setSheet(null)} /> : null}
+      {moving !== undefined && opensAt > 0 ? <MoveStartSheet fromMs={opensAt} toMs={moving === null ? null : moving} onClose={() => setMoving(undefined)} /> : null}
+      {sheet === 'open' ? (
+        <ConfirmSheet
+          title="Open the case now?"
+          confirmLabel="Open the case"
+          onClose={() => setSheet(null)}
+          onConfirm={async () => {
+            await setGameStatus({ status: 'active' });
+            toast('The case is open.', 'success');
+          }}
+        >
+          <p>The countdown stops and the missions open for everyone, ahead of {clockTime(opensAt)}.</p>
+        </ConfirmSheet>
       ) : null}
       {closing ? (
         <ConfirmSheet

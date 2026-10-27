@@ -1,6 +1,6 @@
 // The tip line on the points chip: hidden, ready, cooling down or locked, with the edges at the line and the clock.
 import { describe, expect, it } from 'vitest';
-import { tipLineState, tipWaitMs, waitMinutes, type TipLineInput } from './tipLine';
+import { accusedPreview, tipLineState, tipWaitMs, waitMinutes, type TipLineInput } from './tipLine';
 
 const MIN = 60_000;
 const NOW = Date.UTC(2026, 9, 17, 20, 24);
@@ -106,5 +106,25 @@ describe('waitMinutes', () => {
     expect(waitMinutes(MIN + 1)).toBe(2);
     expect(waitMinutes(23 * MIN)).toBe(23);
     expect(waitMinutes(0)).toBe(1);
+  });
+});
+
+describe('accusedPreview', () => {
+  it('shows the tipper what the police will say, as they type', () => {
+    expect(accusedPreview(undefined, 'Being a silly patotie', 'Sam', 'Test Constabulary')).toBe('You have been accused of being a silly patotie.');
+    expect(accusedPreview(undefined, '', 'Sam', 'X')).toBe('You have been accused of …');
+    expect(accusedPreview('{name}, {caller} says you were caught {accusation}.', 'dancing!', 'Sam', 'Test Constabulary')).toBe(
+      'Sam, Test Constabulary says you were caught dancing.',
+    );
+  });
+});
+
+describe("accusedPreview with a pack's variants", () => {
+  it('shows the first variant, and an officer as "an officer"', () => {
+    expect(accusedPreview(['We have been tipped off that you have been {accusation}.', 'Word is you have been {accusation}.'], 'hogging the jukebox', 'Sam', 'X')).toBe(
+      'We have been tipped off that you have been hogging the jukebox.',
+    );
+    expect(accusedPreview('{officer} here: you have been {accusation}.', 'been hogging the jukebox', 'Sam', 'X')).toBe('an officer here: you have been hogging the jukebox.');
+    expect(accusedPreview(['{accusation}, says {caller}.'], '', 'Sam', 'Test Constabulary')).toBe('…, says Test Constabulary.');
   });
 });

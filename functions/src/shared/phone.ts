@@ -17,12 +17,15 @@ export const CALLER_NAME_MAX = 40;
 
 /**
  * Every line the police say on a call. A pack can reword any of them (GamePack.police.lines) or record it as
- * public/audio/police/<line>.mp3 (GamePack.police.recordings), which is played instead of read out. The question and
- * a test call's code are always read out.
+ * public/audio/police/<line>.mp3 (GamePack.police.recordings), which is played instead of read out. The question, a
+ * test call's code and the accusation on a tip-off ('accused': what the tipper wrote) are always read out.
  */
 export const VOICE_LINES = [
   'intro-watch',
   'intro-tip',
+  'accused',
+  'purpose',
+  'ask',
   'key-in',
   'again',
   'pass',
@@ -39,6 +42,36 @@ export const VOICE_LINES = [
 export type VoiceLineKey = (typeof VOICE_LINES)[number];
 
 export const isVoiceLine = (key: string): key is VoiceLineKey => (VOICE_LINES as readonly string[]).includes(key);
+
+/** The engine's 'accused' line (what the police say after a tip-off's intro); a pack may reword it. */
+export const ACCUSED_LINE = 'You have been accused of {accusation}.';
+
+/** Lines that change with every call, so they are always read out and can't be recorded. */
+export const READ_OUT_LINES: readonly VoiceLineKey[] = ['accused', 'ask'];
+
+/** The lines said differently on a line answered in the chat (Telegram): asking for a reply rather than a key press. */
+export const CHAT_LINES = ['ask', 'again', 'test-key-in'] as const;
+export type ChatLineKey = (typeof CHAT_LINES)[number];
+
+/** A multiple-choice question's options as said on a keypad call: "Press 1 for Bob, 2 for Rob, or 3 for Bill." */
+export function spokenChoices(options: readonly string[]): string {
+  const parts = options.map((o, i) => `${i + 1} for ${o}`);
+  const last = parts.pop();
+  if (last === undefined) return '';
+  return `Press ${parts.length ? `${parts.join(', ')}, or ` : ''}${last}.`;
+}
+
+/**
+ * A tip-off's note as the end of "You have been accused of …": one line, no leading "of" or "been", no closing stop, and a
+ * capital dropped from an ordinary first word ("Being a silly patotie" → "being a silly patotie"; "DUI" and "I" stay).
+ * Blank, or not text: ''.
+ */
+export function accusation(note: unknown): string {
+  if (typeof note !== 'string') return '';
+  let s = note.trim().replace(/\s+/g, ' ').replace(/^(?:of\s+)?(?:been\s+)?/i, '').replace(/[\s.!?…]+$/u, '');
+  if (/^[A-Z][a-z]/.test(s)) s = s.charAt(0).toLowerCase() + s.slice(1);
+  return s;
+}
 
 /** Country calling codes for the regions a pack's locale may name, so "07700 900123" can be read without a "+". */
 const CALLING_CODES: Readonly<Record<string, string>> = {

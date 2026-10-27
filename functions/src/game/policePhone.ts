@@ -7,7 +7,8 @@
 // is the player's: missed, with its fine. Every handler is idempotent, because Twilio retries.
 import { termForms, type TermForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
-import { answeredByMachine, callStatusMeaning, isTelegramSid, spokenQuestion } from '../shared/phone.js';
+import { answeredByMachine, callStatusMeaning, isTelegramSid, spokenChoices, spokenQuestion } from '../shared/phone.js';
+import { answerOf } from '../shared/policeQuiz.js';
 import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import type { DocRef, Txn } from '../shared/store/types.js';
 import type { GameState, Player, PoliceCall, PoliceCallPhone, Settings } from '../shared/types.js';
@@ -19,7 +20,7 @@ import { GATHER_TIMEOUT_SEC, testGather, testStatus, testVoice } from './phones.
 import { chargeMissed, scoreAnswer } from './police.js';
 import { flushLines, noteOutcome, readLineBook, releaseTrial, resendToApp, type LineBook } from './policeLines.js';
 import { isId, toTs } from './util.js';
-import { voiceScript, type Speech, type VoiceReply } from './voice.js';
+import { accusedSpeech, voiceScript, type Speech, type VoiceReply } from './voice.js';
 
 /** One transaction on a check-in call: everything the phone handlers might need, read before any write. */
 interface CallTx {
@@ -148,15 +149,26 @@ export async function dialPoliceCall(db: Db, callId: string, now: Date, pack: Ga
 
 const firstName = (name: string | undefined) => (name ?? '').trim().split(/\s+/)[0] ?? '';
 
-/** The question, asked on the keypad: `attempt` 1, or 2 after silence. */
-function askQuestion(c: CallTx, attempt: number, lead: Speech[]): VoiceReply {
-  const say = voiceScript(c.pack, c.settings);
+/** How the call's lines are chosen: steady for the call (its id), and in the chat's words on a Telegram call. */
+const voiceOpts = (c: CallTx, sid: string | null | undefined) => ({ seed: c.ref.id, chat: isTelegramSid(sid ?? c.phone?.sid) });
+
+/**
+ * The question, asked: `attempt` 1, or 2 after silence. On a keypad call a multiple-choice question reads its options
+ * and takes one digit; a typed number is keyed in. On the chat the question is all (the reply is the answer).
+ */
+function askQuestion(c: CallTx, attempt: number, lead: Speech[], sid: string | null | undefined): VoiceReply {
+  const opts = voiceOpts(c, sid);
+  const say = voiceScript(c.pack, c.settings, opts);
+  const options = c.call.options?.length ? c.call.options : null;
+  const keypadChoice = options && !opts.chat;
+  const after: Speech[] = opts.chat ? [] : options ? [{ text: spokenChoices(options) }] : [say('key-in')];
   return [
     {
       kind: 'gather',
-      speech: [...lead, { text: spokenQuestion(c.call.question) }, say('key-in')],
+      speech: [...lead, say('ask', '', { question: spokenQuestion(c.call.question) }), ...after],
       next: { call: c.ref.id, step: 'gather', try: String(attempt) },
       timeoutSec: GATHER_TIMEOUT_SEC,
+      ...(keypadChoice ? { numDigits: 1 } : {}),
     },
   ];
 }
@@ -166,7 +178,8 @@ const sayAndHangUp = (speech: Speech): VoiceReply => [{ kind: 'say', speech }, {
 /** Twilio's first request once the call is answered: the intro and the question (voicemail is hung up on and missed). */
 async function callVoice(db: Db, now: Date, pack: GamePack, callId: string, params: Record<string, string>): Promise<VoiceReply> {
   const reply = await withCall(db, now, pack, callId, (c): VoiceReply => {
-    const say = voiceScript(pack, c.settings);
+    const opts = voiceOpts(c, params.CallSid);
+    const say = voiceScript(pack, c.settings, opts);
     if (!c.phone || otherCall(c.phone, params.CallSid)) return [{ kind: 'hangup' }];
     if (c.call.status === 'open' && c.call.channel !== 'phone') return sayAndHangUp(say('moved'));
     if (!ringing(c)) return sayAndHangUp(say('closed'));
@@ -182,16 +195,18 @@ async function callVoice(db: Db, now: Date, pack: GamePack, callId: string, para
     }
     c.tx.update(c.ref, { phone });
     const name = firstName(c.player?.displayName);
-    return askQuestion(c, 1, [say(c.call.kind === 'tip' ? 'intro-tip' : 'intro-watch', name)]);
+    // A tip-off says what the tipper wrote straight after its intro; both then say why they ring.
+    const tip = c.call.kind === 'tip';
+    const accused = tip ? accusedSpeech(pack, c.settings, c.call.note, name, voiceOpts(c, phone.sid)) : null;
+    return askQuestion(c, 1, [say(tip ? 'intro-tip' : 'intro-watch', name), ...(accused ? [accused] : []), say('purpose', name)], phone.sid);
   });
   return reply ?? [{ kind: 'hangup' }];
 }
 
 /** The keypad answer (or silence: ask once more, then it counts as missed). */
 async function callGather(db: Db, now: Date, pack: GamePack, callId: string, params: Record<string, string>, attempt: number): Promise<VoiceReply> {
-  const digits = (params.Digits ?? '').replace(/\D/g, '');
   const reply = await withCall(db, now, pack, callId, (c): VoiceReply => {
-    const say = voiceScript(pack, c.settings);
+    const say = voiceScript(pack, c.settings, voiceOpts(c, params.CallSid));
     if (!c.phone || otherCall(c.phone, params.CallSid)) return [{ kind: 'hangup' }];
     // Twilio asking again after the answer was scored hears the same verdict, and nothing is scored twice.
     if (c.call.status === 'passed') return sayAndHangUp(say('pass'));
@@ -204,10 +219,15 @@ async function callGather(db: Db, now: Date, pack: GamePack, callId: string, par
       return sayAndHangUp(say('closed'));
     }
     const phone: PoliceCallPhone = { ...c.phone, sid: c.phone.sid ?? params.CallSid ?? null, heardAt: toTs(now) };
+    // The answer: on Telegram the reply's text (an option by number or words), on a keypad the digits keyed.
+    const options = c.call.options?.length ? c.call.options : null;
+    const raw = params.Digits ?? '';
+    const keyed = raw.replace(/\D/g, '');
+    const digits = isTelegramSid(phone.sid) ? answerOf(raw, options) : options ? (Number(keyed) >= 1 && Number(keyed) <= options.length ? keyed : '') : keyed;
     if (digits === '') {
       if (attempt < 2) {
         c.tx.update(c.ref, { phone });
-        return askQuestion(c, attempt + 1, [say('again')]);
+        return askQuestion(c, attempt + 1, [say('again')], phone.sid);
       }
       missed(c, { ...phone, result: 'no-digits' }, heardFine(c, phone.sid));
       return sayAndHangUp(say('no-answer'));

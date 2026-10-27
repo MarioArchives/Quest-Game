@@ -359,6 +359,107 @@ describe('what Twilio says, mapped (never connected is the system’s, no answer
   });
 });
 
+// Plan "Police that sound official, a question bank, …", edge cases 3 and 4.
+describe('the order of a call', () => {
+  type Gather = Extract<VoiceReply[number], { kind: 'gather' }>;
+  const linesOf = (reply: VoiceReply) => (reply[0] as Gather).speech.map((s) => s.line ?? null);
+
+  it('a watch call: the intro, the purpose, the question, then key-in', async () => {
+    await setup();
+    const id = await ringingCall();
+    const reply = await answerCall(id, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' });
+    expect(linesOf(reply)).toEqual(['intro-watch', 'purpose', 'ask', 'key-in']);
+    expect(said(reply)).toMatch(/Just a quick check\. What's 2 times 2\?/);
+  });
+
+  it('a tip-off: the intro, the accusation, the purpose, the question', async () => {
+    await setup();
+    await line('carol');
+    await db().doc('players/bob').update({ points: 15 });
+    const { callId } = await tipOffPolice(db(), as('bob', T0), { targetUid: 'carol', note: 'hogging the jukebox' });
+    await dial(callId, fakeLine());
+    const reply = await answerCall(callId, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' });
+    expect(linesOf(reply)).toEqual(['intro-tip', null, 'purpose', 'ask', 'key-in']);
+    expect((reply[0] as Gather).speech[1]!.text).toMatch(/hogging the jukebox/);
+  });
+
+  it('a tip-off with no note on file says no accusation', async () => {
+    await setup();
+    await line('carol');
+    await db().doc('players/bob').update({ points: 15 });
+    const { callId } = await tipOffPolice(db(), as('bob', T0), { targetUid: 'carol', note: 'x' });
+    await db().doc(`policeCalls/${callId}`).update({ note: null });
+    await dial(callId, fakeLine());
+    const reply = await answerCall(callId, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' });
+    expect(linesOf(reply)).toEqual(['intro-tip', 'purpose', 'ask', 'key-in']);
+  });
+
+  it('asking again after silence: "again" and the question, without the intro, the accusation or the purpose', async () => {
+    await setup();
+    const id = await ringingCall();
+    await answerCall(id, 'voice');
+    const again = await answerCall(id, 'gather', { Digits: '' });
+    expect(linesOf(again)).toEqual(['again', 'ask', 'key-in']);
+  });
+
+  it('a multiple-choice question on the keypad: the options said, one digit, no key-in; the right digit passes', async () => {
+    const QUIZ: GamePack = testPack({ features: { police: true }, policeQuiz: [{ kind: 'fixed', ask: 'Who was the victim?', answer: 'Bob', decoys: ['Rob', 'Bill'] }] });
+    await setup();
+    await line('alice');
+    await db().doc('players/alice').update({ points: -15 });
+    await handlePlayerWritten(db(), 'alice', T0, constRng(0), QUIZ);
+    const [c] = await callsFor('alice');
+    expect(c!.options).toHaveLength(3);
+    expect(c!.options).toContain('Bob');
+    await dial(c!.id, fakeLine(), T0, QUIZ);
+    const sid = (await call(c!.id)).phone.sid as string;
+    const reply = await voice({ call: c!.id, step: 'voice' }, { CallSid: sid, CallStatus: 'in-progress', AnsweredBy: 'human' }, addMin(T0, 0.5), QUIZ);
+    const gather = reply[0] as Gather;
+    expect(gather.numDigits).toBe(1);
+    expect(linesOf(reply)).not.toContain('key-in');
+    expect(said(reply)).toMatch(/Who was the victim\? Press 1 for \w+, 2 for \w+, or 3 for \w+\./);
+    const right = String(c!.options.indexOf('Bob') + 1);
+    const done = await voice({ call: c!.id, step: 'gather', try: '1' }, { CallSid: sid, Digits: right }, addMin(T0, 1), QUIZ);
+    expect(said(done)).toMatch(/Correct/);
+    expect(await call(c!.id)).toMatchObject({ status: 'passed', answer: right });
+  });
+});
+
+describe('a tip-off read out (the accusation)', () => {
+  /** Bob (a confidant) tips off the police about Carol, whose line is verified; the call is dialled. */
+  async function tipCall(note: string) {
+    await setup();
+    await line('carol');
+    await db().doc('players/bob').update({ points: 15 });
+    const { callId } = await tipOffPolice(db(), as('bob', T0), { targetUid: 'carol', note });
+    await dial(callId, fakeLine());
+    return callId;
+  }
+
+  it('after the tip-off intro the police say what the tipper accused them of, then ask the question', async () => {
+    const id = await tipCall('Being a silly patotie');
+    const reply = await answerCall(id, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' });
+    expect(said(reply)).toMatch(/tip-off about you, Carol\. You have been accused of being a silly patotie\. Just a quick check\. What's/);
+    const gather = reply[0] as Extract<VoiceReply[number], { kind: 'gather' }>;
+    expect(gather.speech[0]!.line).toBe('intro-tip');
+    expect(gather.speech[1]).toEqual({ text: 'You have been accused of being a silly patotie.' });
+  });
+
+  it('asking again after silence does not repeat it', async () => {
+    const id = await tipCall('Being a silly patotie');
+    await answerCall(id, 'voice');
+    const again = await answerCall(id, 'gather', { Digits: '' });
+    expect(said(again)).not.toMatch(/accused/);
+  });
+
+  it('a check-in that is not a tip-off accuses nobody', async () => {
+    await setup();
+    const id = await ringingCall();
+    const reply = await answerCall(id, 'voice', { CallStatus: 'in-progress', AnsweredBy: 'human' });
+    expect(said(reply)).not.toMatch(/accused/);
+  });
+});
+
 describe('the voice webhook asks and scores', () => {
   it('answered: the intro and the question, gathered on the keypad', async () => {
     await setup();

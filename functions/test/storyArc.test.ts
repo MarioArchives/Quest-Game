@@ -472,6 +472,39 @@ describe('facts recorded from winners (edge case 19)', () => {
     ]);
   });
 
+  it("keeps the captions of the entries that didn't win, once each, for the police's decoys", async () => {
+    await setup();
+    await seedPlayer(db(), 'dave');
+    const id = await fire('s-weapon');
+    const a = await enter('alice', id, addMin(T0, 1), { caption: 'The dart' });
+    await enter('bob', id, addMin(T0, 2), { caption: 'A pint glass' });
+    await enter('carol', id, addMin(T0, 3), { caption: 'A pint glass' });
+    await tick(addMin(T0, 41));
+    const entries = (await allDocs(db(), 'submissions')).filter((x) => x.questId === id);
+    const bob = entries.find((x) => x.uid === 'bob')!.id;
+    for (const voter of ['bob', 'carol', 'dave']) await vote(voter, id, a, addMin(T0, 42));
+    await vote('alice', id, bob, addMin(T0, 43));
+    expect((await quest(id)).status).toBe('closed');
+    const f = (await fact('weapon'))!;
+    expect(f.entries.map((e: { caption: string }) => e.caption)).toEqual(['The dart']);
+    expect(f.others).toEqual(['A pint glass']);
+  });
+
+  it('keeps at most six of them', async () => {
+    await setup();
+    const extra = ['dave', 'erin', 'fay', 'gus', 'hal', 'ida', 'jo'];
+    for (const uid of extra) await seedPlayer(db(), uid);
+    const id = await fire('s-weapon');
+    const a = await enter('alice', id, addMin(T0, 1), { caption: 'The winner' });
+    for (const [i, uid] of extra.entries()) await enter(uid, id, addMin(T0, 2 + i * 0.1), { caption: `Thing ${i}` });
+    await tick(addMin(T0, 41));
+    for (const voter of ['bob', 'carol']) await vote(voter, id, a, addMin(T0, 42));
+    await tick(addMin(T0, 62));
+    const f = (await fact('weapon'))!;
+    expect(f.others).toHaveLength(6);
+    expect(f.others).not.toContain('The winner');
+  });
+
   it('tied winners are all recorded', async () => {
     await setup();
     const id = await fire('s-weapon');

@@ -9,7 +9,7 @@ import { PhotoThumb } from '../../../components/PhotoViewer';
 import { useGame } from '../../../data/GameProvider';
 import { tsMs, useNow } from '../../../data/hooks';
 import type { Exhibit } from '../../../lib/exhibits';
-import { t, zone } from '../../../pack';
+import { pack, t, zone } from '../../../pack';
 import { caseNumber, surnameInitial } from '../dossier';
 import { standingWord } from '../../../screens/home/StandingBadge';
 import type { Particulars, PlayerStanding } from '../../../shared';
@@ -173,7 +173,9 @@ export function Stat({ label, score, negative, children }: { label: string; scor
 export function ParticularsSlip({ uid, particulars }: { uid: string; particulars: Particulars | null | undefined }) {
   const print = useMemo(() => makePrint(uid), [uid]);
   if (!particulars) return null;
-  const { heightCm, drink, marks } = particulars;
+  const { heightCm, relation, drink, marks } = particulars;
+  // An unknown id is shown as it is; a doc from before relations that only has a drink keeps its Poison row.
+  const relationLabel = relation ? (pack.booking?.relations?.find((r) => r.id === relation)?.label ?? relation) : null;
   return (
     <div className="mf-parts">
       <div className="mf-parts__print">
@@ -189,10 +191,17 @@ export function ParticularsSlip({ uid, particulars }: { uid: string; particulars
             </dd>
           </div>
         ) : null}
-        <div>
-          <dt>Poison</dt>
-          <dd>{drink ?? 'Won’t say'}</dd>
-        </div>
+        {drink && !relation ? (
+          <div>
+            <dt>Poison</dt>
+            <dd>{drink}</dd>
+          </div>
+        ) : (
+          <div>
+            <dt>Relation</dt>
+            <dd>{relationLabel ?? 'Won’t say'}</dd>
+          </div>
+        )}
         {marks ? (
           <div className="mf-parts__marks">
             <dt>Marks</dt>

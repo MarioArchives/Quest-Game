@@ -1,6 +1,6 @@
 // Pure helpers for the Log book (the mystery pack's Feed): Credible / Doubtful votes, the "to stamp" counts, the pick
 // of a stop, the catch-up pile's order and the words on the top card. No React here; the screen only draws what these say.
-import { canHoldTop, takesVote } from '../../../shared';
+import { isVotableAbout, takesVote } from '../../../shared';
 
 export type Vote = 1 | -1;
 
@@ -41,7 +41,7 @@ export function stampCounts(post: VotePost, uid: string, pending: Pending = {}):
 
 /** Entries of yours that others can vote on: they show "Yours · credible n · doubtful n" and no stamps. */
 export function isYours(post: VotePost, uid: string): boolean {
-  return canHoldTop({ type: post.type as never, uid: post.uid ?? null }) && (post.uid === uid || post.actorUid === uid);
+  return isVotableAbout({ type: post.type as never, uid: post.uid ?? null }) && (post.uid === uid || post.actorUid === uid);
 }
 
 /** Entries you can still stamp: they take your vote and you haven't voted on them. */

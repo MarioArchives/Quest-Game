@@ -54,7 +54,7 @@
 
 /* ---------- Tonight: the case strip ---------- */
 .gl-cs {
-  display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 12px; min-width: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px 8px 12px; min-width: 0;
   background: var(--manila); color: var(--manila-ink); border-top: 3px solid var(--manila-tab); box-shadow: var(--shadow);
 }
 .gl-cs__t { flex: 1; min-width: 0; }
@@ -63,6 +63,63 @@
   display: block; font-family: var(--mono); font-size: 10px; font-style: normal; font-weight: 700; letter-spacing: 0.4px; line-height: 1.35;
   text-transform: uppercase; color: var(--manila-sub);
 }
+
+/* The start time on the strip, while the case is not open: a dashed way in, or the time with its nudges. */
+.gl-cs__set {
+  flex: 1 0 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 4px; padding: 8px 10px; text-align: left; cursor: pointer;
+  background: none; border: 2px dashed var(--kraft-line); color: var(--manila-ink);
+}
+.gl-cs__set > span { flex: 1; min-width: 0; }
+.gl-cs__set b { display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.8px; text-transform: uppercase; }
+.gl-cs__set i { display: block; font-size: 12.5px; font-style: normal; line-height: 1.35; color: var(--manila-sub); }
+.gl-cs__set:focus-visible, .gl-cs__time:focus-visible, .gl-cs__clear:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.gl-cs__when { flex: 1 0 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.gl-cs__time {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--manila-ink);
+  font-family: var(--display); font-weight: 400; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.gl-cs__in { display: flex; align-items: baseline; gap: 5px; font-family: var(--display); font-size: 22px; color: var(--manila-ink); text-align: right; }
+.gl-cs__in small { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--manila-sub); }
+.gl-cs__day { flex: 1 0 100%; margin-top: -4px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--manila-sub); }
+.gl-cs__btns { flex: 1 0 100%; display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 6px; margin-top: 4px; }
+.gl-cs__btns .gl-btn { min-width: 0; }
+.gl-cs__foot {
+  flex: 1 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--twine-dark);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--manila-sub);
+}
+.gl-cs__clear {
+  min-height: 44px; min-width: 44px; padding: 0 4px; background: none; border: 0; cursor: pointer; color: var(--stamp-bad);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* The start-time sheet and the "move the start?" sheet. */
+.gl-st { display: flex; flex-direction: column; gap: 10px; }
+.gl-st__h { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.gl-st__days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.gl-st__chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; padding: 4px 2px; cursor: pointer;
+  background: var(--card); color: var(--ink); border: 2px solid var(--ink); font-family: var(--mono); font-size: 12px; font-weight: 700; line-height: 1.25;
+}
+.gl-st__chip small { font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.gl-st__chip[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
+.gl-st__chip[aria-pressed='true'] small { color: inherit; }
+.gl-st__time { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: stretch; }
+.gl-st__step {
+  min-height: 52px; cursor: pointer; background: var(--card); color: var(--ink); border: 2px solid var(--ink); font-family: var(--mono); font-size: 14px; font-weight: 700;
+}
+.gl-st__clock { display: grid; place-items: center; min-height: 52px; border: 2px solid var(--ink); background: var(--card); font-family: var(--display); font-weight: 400; font-size: 34px; font-variant-numeric: tabular-nums; }
+.gl-st__sum { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.gl-st__sum b { color: var(--ink); }
+.gl-st__tell { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
+.gl-st__tell b { display: block; font-size: 15px; }
+.gl-st__tell i { display: block; font-family: var(--mono); font-size: 11px; font-style: normal; color: var(--muted); }
+.gl-st__tell .switch { flex: none; }
+.gl-st__push { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--card); border: 1px solid var(--rule); font-size: 13px; line-height: 1.35; }
+.gl-st__push b { font-size: 12px; }
+.gl-st__move { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 12px; border: 2px solid var(--ink); background: var(--card); }
+.gl-st__move s { font-family: var(--display); font-size: 22px; color: var(--muted); text-decoration-color: var(--pen-red); text-decoration-thickness: 3px; }
+.gl-st__move b { font-family: var(--display); font-weight: 400; font-size: 32px; font-variant-numeric: tabular-nums; }
+.gl-st__move em { margin-left: auto; font-family: var(--mono); font-size: 12px; font-weight: 700; font-style: normal; color: var(--muted); }
 
 /* ---------- Tonight: needs you, the jobs on the twine ---------- */
 .gl-wl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 20px 0 4px; color: var(--walltext); }

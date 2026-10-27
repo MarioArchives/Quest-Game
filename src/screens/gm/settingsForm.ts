@@ -2,7 +2,7 @@
 // Kept free of the pack and React so it can be tested on its own.
 import { CALLER_NAME_MAX, normalisePhone } from '../../../functions/src/shared/phone.ts';
 import { standingSettingsProblem } from '../../../functions/src/shared/standing.ts';
-import { RULESETS, type ParamSpec, type Settings } from '../../shared';
+import { RULESETS, type ParamSpec, type Settings, type VoteStyle } from '../../shared';
 import { telegramUsername } from '../../lib/telegram';
 
 export type NumKey =
@@ -22,6 +22,7 @@ export type NumKey =
   | 'voteWindowMin'
   | 'guessLimit'
   | 'sideQuestSkipPenalty'
+  | 'topEntryPoints'
   | 'cleanPoints'
   | 'framePoints'
   | 'policeEveryMin'
@@ -53,6 +54,7 @@ export const LIMITS: Record<NumKey, [min: number, max: number]> = {
   globalWindowMin: [1, 180],
   voteWindowMin: [1, 180],
   sideQuestSkipPenalty: [0, 10000],
+  topEntryPoints: [0, 100],
   cleanPoints: [0, 10000],
   framePoints: [0, 10000],
   policeEveryMin: [1, 1440],
@@ -74,6 +76,8 @@ export interface SettingsForm {
   standing: Record<StandingKey, string>;
   /** Scoring rule-set id. */
   scoring: string;
+  /** How everyone votes on a side quest. */
+  voteStyle: VoteStyle;
   /** Every rule set's params as typed, by param key; only the chosen rule set's are shown and saved. */
   params: Record<string, string>;
   quietOn: boolean;
@@ -90,6 +94,8 @@ export interface SettingsForm {
   telegram: string;
   /** That account's phone number, as typed (with its country code); blank for none. */
   telegramNumber: string;
+  /** Players with a Telegram line get case updates in the police chat instead of push. */
+  policeNotices: boolean;
 }
 
 const RULESET_LIST = Object.values(RULESETS);
@@ -104,6 +110,7 @@ export function fromSettings(s: Settings): SettingsForm {
     numbers,
     standing: { confidantAbove: s.confidantAbove == null ? '' : String(s.confidantAbove), poiBelow: s.poiBelow == null ? '' : String(s.poiBelow) },
     scoring: rulesFor(s.scoring).id,
+    voteStyle: s.voteStyle === 'yesno' ? 'yesno' : 'pick',
     params,
     quietOn: s.quietHours !== null,
     quietStart: s.quietHours?.start ?? '01:00',
@@ -114,6 +121,7 @@ export function fromSettings(s: Settings): SettingsForm {
     callerName: s.policeCallerName,
     telegram: s.policeTelegram ?? '',
     telegramNumber: s.policeTelegramNumber ?? '',
+    policeNotices: s.policeNotices === true,
   };
 }
 
@@ -174,12 +182,14 @@ export function foldSummary(id: FoldId, form: SettingsForm): string {
       const odds = n('correctGuessReward') === n('wrongGuessCost') ? `±${n('correctGuessReward')}` : `+${n('correctGuessReward')} / −${n('wrongGuessCost')}`;
       return `${odds} · ${n('guessLimit') === '0' ? 'no limit' : `${n('guessLimit')} each`}`;
     }
-    case 'sideQuests':
-      return n('globalIntervalMin') === n('globalIntervalMax') ? `every ${n('globalIntervalMin')} min` : `every ${n('globalIntervalMin')}–${n('globalIntervalMax')} min`;
+    case 'sideQuests': {
+      const every = n('globalIntervalMin') === n('globalIntervalMax') ? `every ${n('globalIntervalMin')} min` : `every ${n('globalIntervalMin')}–${n('globalIntervalMax')} min`;
+      return form.voteStyle === 'yesno' ? `${every} · yes or no` : every;
+    }
     case 'rewards':
       return `+${n('cleanPoints')} / −${n('framePoints')}`;
     case 'police':
-      return `every ${n('policeEveryMin')} min · phone ${form.policePhone ? 'on' : 'off'}${telegramUsername(form.telegram) || normalisePhone(form.telegramNumber, '') ? ' · Telegram' : ''}`;
+      return `every ${n('policeEveryMin')} min · phone ${form.policePhone ? 'on' : 'off'}${telegramUsername(form.telegram) || normalisePhone(form.telegramNumber, '') ? ' · Telegram' : ''}${form.policeNotices ? ' · case updates' : ''}`;
     case 'standings': {
       const above = form.standing.confidantAbove.trim();
       const below = form.standing.poiBelow.trim();
@@ -213,6 +223,7 @@ export function toSettings(form: SettingsForm): Settings {
     voteWindowMin: n('voteWindowMin'),
     guessLimit: n('guessLimit'),
     sideQuestSkipPenalty: n('sideQuestSkipPenalty'),
+    topEntryPoints: n('topEntryPoints'),
     cleanPoints: n('cleanPoints'),
     framePoints: n('framePoints'),
     refillOnComplete: form.flags.refillOnComplete,
@@ -232,7 +243,9 @@ export function toSettings(form: SettingsForm): Settings {
     policeCallerName: form.callerName.trim(),
     policeTelegram: telegramUsername(form.telegram) ?? '',
     policeTelegramNumber: normalisePhone(form.telegramNumber, '') ?? '',
+    policeNotices: form.policeNotices,
     scoring: form.scoring,
+    voteStyle: form.voteStyle,
     scoringParams: Object.fromEntries(rulesFor(form.scoring).params.map((p) => [p.key, Number(form.params[p.key]!.trim())])),
   };
 }

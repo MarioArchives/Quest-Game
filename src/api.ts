@@ -1,7 +1,7 @@
 // Typed wrappers around the server callables (functions region europe-west2).
 import { backend } from './backend';
 import { ApiError, toApiError } from './lib/apiError';
-import type { GameStatus, GlobalQuestStatus, Judging, Particulars, PhoneStatus, SimulatedAction, SimulatedTurn, SubmissionStatus, Switchboard, SwitchMode } from './shared';
+import type { GameStatus, GlobalQuestStatus, Judgement, Judging, Particulars, PhoneStatus, SimulatedAction, SimulatedTurn, SubmissionStatus, Switchboard, SwitchMode } from './shared';
 
 export { ApiError, toApiError };
 
@@ -64,8 +64,11 @@ export const addEvidence = (data: EvidenceInput & { submissionId: string }) =>
 export const enterSideQuest = (data: EvidenceInput & { globalQuestId: string }) =>
   call<typeof data, { submissionId: string; checking: boolean; late: boolean }>('enterSideQuest', data);
 
-/** Vote for an entry (not your own). Re-voting replaces your vote; `closed` is true if that was the last vote. */
-export const castVote = (data: { globalQuestId: string; submissionId: string }) =>
+/**
+ * Vote for an entry (not your own). Pick one: re-voting replaces your vote. Yes or no: `vote` is the judgement on that
+ * entry (changing one replaces it). `closed` is true if that was the last vote.
+ */
+export const castVote = (data: { globalQuestId: string; submissionId: string; vote?: Judgement }) =>
   call<typeof data, { closed: boolean }>('castVote', data);
 
 /** GM: live -> checking (or voting, or closed if nobody entered), checking -> voting, or voting -> closed (tally). */
@@ -175,6 +178,12 @@ export const grantRerolls = (data: { uid: string; delta: number }) =>
 
 export const setGameStatus = (data: { status: Extract<GameStatus, 'active' | 'paused'> }) =>
   call<typeof data, { status: GameStatus }>('setGameStatus', data);
+
+/** GM: when the game opens on its own (ms, a whole minute ahead), or null to open it by hand; `tell` posts it to everyone. */
+export const setStartTime = (data: { at: number | null; tell?: boolean }) => call<typeof data, { opensAt: number | null }>('setStartTime', data);
+
+/** Any player's app at zero: opens the game if the server's clock agrees, else says how long is left. */
+export const openOnTime = () => call<Record<string, never>, { opened: boolean; inMs: number | null }>('openOnTime', {});
 
 export const endGame = () => call<Record<string, never>, { players: number }>('endGame', {});
 
