@@ -108,12 +108,14 @@ interface SheetProps {
   pickedId: string | null;
   judged: Readonly<Record<string, Judgement>>;
   disabled: boolean;
+  /** A no here would leave the ballot without a single yes (noLeavesNoYes): it can't be cast. */
+  noBlocked?: boolean;
   onVote(entry: Doc<Submission>, judgement?: Judgement): void;
   onClose(): void;
 }
 
 /** The sheet over the board: a pinned polaroid, big, with the eye and the heart and your vote on it. */
-export function EntrySheet({ style, entry, number, pickedId, judged, disabled, onVote, onClose }: SheetProps) {
+export function EntrySheet({ style, entry, number, pickedId, judged, disabled, noBlocked = false, onVote, onClose }: SheetProps) {
   const ref = useRef<HTMLElement>(null);
   const name = useEntryName(entry);
   // Focus goes into the sheet and back to what opened it.
@@ -152,7 +154,7 @@ export function EntrySheet({ style, entry, number, pickedId, judged, disabled, o
           </button>
         ) : (
           <div className="vt-act-pair" role="group" aria-label="Your vote on this one">
-            <button type="button" className="vt-act vt-act--no" aria-pressed={said === 'no'} disabled={disabled} onClick={() => onVote(entry, 'no')}>
+            <button type="button" className="vt-act vt-act--no" aria-pressed={said === 'no'} disabled={disabled || noBlocked} onClick={() => onVote(entry, 'no')}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -164,6 +166,11 @@ export function EntrySheet({ style, entry, number, pickedId, judged, disabled, o
               </svg>
               <span>Yes</span>
             </button>
+            {noBlocked && said !== 'no' ? (
+              <p className="vt-hint vt-hint--sheet" role="status">
+                Say yes to at least one. To say no here, say yes to another first.
+              </p>
+            ) : null}
           </div>
         )}
         <button type="button" className="vt-back" onClick={onClose}>

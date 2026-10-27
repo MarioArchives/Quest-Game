@@ -287,14 +287,14 @@ describe('the count (edge case 5)', () => {
   it('wins on yes − no, not on the most yeses', async () => {
     const { id, subs, at, ends } = await openVote(['alice', 'bob'], { players: ['alice', 'bob', 'carol', 'dave', 'erin', 'fay'] });
     const { alice: a, bob: b } = subs as Record<string, string>;
-    // alice: 3 yes, 2 no (net 1). bob: 2 yes, no noes (net 2).
+    // alice: 3 yes, 2 no (net 1). bob: 2 yes, no noes (net 2). (Each no comes with a yes: the rule of at least one.)
     await judge('bob', id, a, 'yes', at(1));
     await judge('carol', id, a, 'yes', at(1));
     await judge('dave', id, a, 'yes', at(1));
-    await judge('erin', id, a, 'no', at(1));
-    await judge('fay', id, a, 'no', at(1));
-    await judge('carol', id, b, 'yes', at(2));
-    await judge('dave', id, b, 'yes', at(2));
+    await judge('erin', id, b, 'yes', at(1));
+    await judge('fay', id, b, 'yes', at(1));
+    await judge('erin', id, a, 'no', at(2));
+    await judge('fay', id, a, 'no', at(2));
     await tick(addMin(ends, 1));
     const q = await quest(id);
     expect(q.yesNo).toEqual({ [a]: { yes: 3, no: 2 }, [b]: { yes: 2, no: 0 } });
@@ -344,16 +344,19 @@ describe('the count (edge case 5)', () => {
 });
 
 describe('what it pays (edge case 6)', () => {
-  /** alice: 2 yes, 1 no (net 1, wins). bob: 1 yes, 2 no (net −1). carol, dave and erin don't enter; dave doesn't vote either. */
+  /**
+   * alice: 2 yes, 1 no (net 1, wins). bob: 1 yes, 2 no (net −1). carol, dave and erin don't enter; dave doesn't vote
+   * either. alice and bob each have only the other's entry to judge, so a no alone is fine for them.
+   */
   async function scored() {
     const run = await openVote(['alice', 'bob'], { players: ['alice', 'bob', 'carol', 'dave', 'erin'] });
     const { alice: a, bob: b } = run.subs as Record<string, string>;
-    await judge('bob', run.id, a, 'yes', run.at(1));
     await judge('carol', run.id, a, 'yes', run.at(1));
-    await judge('erin', run.id, a, 'no', run.at(1));
-    await judge('alice', run.id, b, 'yes', run.at(1));
+    await judge('erin', run.id, a, 'yes', run.at(1));
+    await judge('bob', run.id, a, 'no', run.at(1));
+    await judge('erin', run.id, b, 'yes', run.at(1));
+    await judge('alice', run.id, b, 'no', run.at(1));
     await judge('carol', run.id, b, 'no', run.at(1));
-    await judge('erin', run.id, b, 'no', run.at(1));
     await tick(addMin(run.ends, 1));
     return run;
   }
@@ -470,5 +473,48 @@ describe('one vote each, as before (edge case 9)', () => {
     expect(q.winnerUids).toEqual(['alice']);
     expect((await feedOf(db(), 'global-won'))[0]!.text).toMatch(/with 2 votes$/);
     expect(await reasons('alice')).toEqual([['global-votes', 4], ['global-win', 2]]);
+  });
+});
+
+describe('at least one yes', () => {
+  it('refuses the no that would finish a ballot without a yes, and keeps the ballot as it was', async () => {
+    const { id, subs, at } = await openVote(['alice', 'bob'], { players: ['alice', 'bob', 'carol', 'dave'] });
+    await judge('carol', id, subs.alice!, 'no', at(1));
+    await expectCode(judge('carol', id, subs.bob!, 'no', at(2)), 'failed-precondition');
+    expect((await voteDoc(id, 'carol'))!.ballot).toEqual({ [subs.alice!]: 'no' });
+    // A yes finishes it.
+    expect(await judge('carol', id, subs.bob!, 'yes', at(3))).toMatchObject({ closed: false });
+    expect((await voteDoc(id, 'carol'))!.ballot).toEqual({ [subs.alice!]: 'no', [subs.bob!]: 'yes' });
+  });
+
+  it('refuses turning your only yes into a no', async () => {
+    const { id, subs, at } = await openVote(['alice', 'bob'], { players: ['alice', 'bob', 'carol', 'dave'] });
+    await judge('carol', id, subs.alice!, 'no', at(1));
+    await judge('carol', id, subs.bob!, 'yes', at(1));
+    await expectCode(judge('carol', id, subs.bob!, 'no', at(2)), 'failed-precondition');
+    // With another yes it may go.
+    await judge('carol', id, subs.alice!, 'yes', at(3));
+    expect(await judge('carol', id, subs.bob!, 'no', at(4))).toMatchObject({ closed: false });
+  });
+
+  it('lets a no on the only entry you can judge stand', async () => {
+    const { id, subs, at } = await openVote(['alice', 'bob'], { players: ['alice', 'bob', 'carol', 'dave'] });
+    expect(await judge('bob', id, subs.alice!, 'no', at(1))).toMatchObject({ closed: false });
+    expect((await voteDoc(id, 'bob'))!.ballot).toEqual({ [subs.alice!]: 'no' });
+  });
+
+  it('counts nothing from a ballot without a yes, so leaving the last entry unjudged gets round nothing', async () => {
+    const { id, subs, at, ends } = await openVote(['alice', 'bob', 'carol'], { players: ['alice', 'bob', 'carol', 'dave'] });
+    const { alice: a, bob: b, carol: c } = subs as Record<string, string>;
+    // dave says no to alice and bob and stops before carol's: none of it counts.
+    await judge('dave', id, a, 'no', at(1));
+    await judge('dave', id, b, 'no', at(1));
+    // bob's no on alice counts, beside his yes on carol.
+    await judge('bob', id, a, 'no', at(1));
+    await judge('bob', id, c, 'yes', at(1));
+    await tick(addMin(ends, 1));
+    const q = await quest(id);
+    expect(q.yesNo).toEqual({ [a]: { yes: 0, no: 1 }, [b]: { yes: 0, no: 0 }, [c]: { yes: 1, no: 0 } });
+    expect(q.winnerUids).toEqual(['carol']);
   });
 });

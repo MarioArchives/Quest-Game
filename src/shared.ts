@@ -72,7 +72,7 @@ export { DEFAULT_SETTINGS, DISPLAY_NAME_MAX } from '../functions/src/shared/sett
 export { competitionRanks } from '../functions/src/shared/ranking';
 export { rerollAllowance, rerollsLeft } from '../functions/src/shared/rerolls';
 export { TOP_FEED_TYPES, VOTABLE_FEED_TYPES, agreedWith, canHoldTop, isVotableAbout, takesVote, verdictOf } from '../functions/src/shared/feedVotes';
-export { ballotComplete, entryVotesText, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../functions/src/shared/votes';
+export { ballotComplete, entryVotesText, lacksAYes, noLeavesNoYes, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../functions/src/shared/votes';
 export type { BallotTally } from '../functions/src/shared/votes';
 export { ENTRY_REACTIONS, canReact } from '../functions/src/shared/entryReactions';
 export { answerOf, choiceLabel } from '../functions/src/shared/policeQuiz';

@@ -143,3 +143,11 @@
 @media (prefers-reduced-motion: reduce) {
   .vt-card { transition: none !important; }
 }
+
+/* At least one yes: the line over the deck's buttons when a no can't be cast here, and on the board's sheet. */
+.vt-hint { position: relative; z-index: 2; margin: 14px 16px -8px; font-family: var(--mono); font-size: 12px; font-weight: 700; line-height: 1.35; text-align: center; color: var(--vt-yes); }
+.vt-hint.is-nudged { animation: vt-nudge 0.35s ease-out; }
+.vt-hint--sheet { grid-column: 1 / -1; margin: 0; }
+.vt-round[aria-disabled='true'] { opacity: 0.45; }
+@keyframes vt-nudge { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .vt-hint.is-nudged { animation: none; } }

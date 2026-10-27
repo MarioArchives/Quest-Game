@@ -76,6 +76,33 @@ export function ballotComplete(
     });
 }
 
+/**
+ * A yes/no voter has to say yes to at least one entry when there are two or more of other players' to judge (with only
+ * one, a no is fine). Whether `ballot` breaks that: none of the voter's judgements is a yes. castVote refuses a judgement
+ * that would complete a ballot like that, and the tally counts nothing from one (so leaving the last entry unjudged
+ * doesn't get round it).
+ */
+export function lacksAYes(
+  ballot: Readonly<Record<string, unknown>> | null | undefined,
+  entries: readonly { id: string; uid: string }[],
+  voter: string,
+): boolean {
+  const others = entries.filter((e) => e.uid !== voter);
+  if (others.length < 2) return false;
+  return !others.some((e) => ballot != null && Object.prototype.hasOwnProperty.call(ballot, e.id) && ballot[e.id] === 'yes');
+}
+
+/** Whether a no on `submissionId` would finish `voter`'s ballot without a single yes (see lacksAYes): it can't be cast. */
+export function noLeavesNoYes(
+  ballot: Readonly<Record<string, unknown>> | null | undefined,
+  entries: readonly { id: string; uid: string }[],
+  voter: string,
+  submissionId: string,
+): boolean {
+  const next = { ...(ballot ?? {}), [submissionId]: 'no' };
+  return ballotComplete(next, entries, voter) && lacksAYes(next, entries, voter);
+}
+
 /** "1 vote", "5 votes"; for a yes/no count "3 yes · 1 no". */
 export function votesText(count: { votes: number } | { yes: number; no: number }): string {
   if ('votes' in count) return `${count.votes} ${count.votes === 1 ? 'vote' : 'votes'}`;

@@ -26,18 +26,22 @@ interface Props {
   index: number;
   /** Counting: no vote can be cast. */
   disabled: boolean;
+  /** A no here would finish the ballot without a single yes (noLeavesNoYes): it can't be cast, and a hint says so. */
+  noBlocked?: boolean;
   /** The card left to the right (yes / maybe) or the left (no / not it). Then the screen moves on. */
   onJudge(entry: Doc<Submission>, dir: 'left' | 'right'): void;
   onBack(): void;
 }
 
-export function VoteDeck({ style, deck, index, disabled, onJudge, onBack }: Props) {
+export function VoteDeck({ style, deck, index, disabled, noBlocked = false, onJudge, onBack }: Props) {
   const entry = deck[index];
   const labels = deckLabels(style);
   const openPhoto = usePhotoViewer();
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [leaving, setLeaving] = useState<0 | 1 | -1>(0);
+  // Shown after a no that can't be cast (or straight away on the card where only a yes is left).
+  const [nudged, setNudged] = useState(false);
   const drag = useRef<{ x: number; y: number; target: EventTarget | null; moved: number } | null>(null);
   const timers = useRef<number[]>([]);
   const name = useEntryName(entry ?? deck[0]!);
@@ -47,6 +51,7 @@ export function VoteDeck({ style, deck, index, disabled, onJudge, onBack }: Prop
   useEffect(() => {
     setDx(0);
     setLeaving(0);
+    setNudged(false);
   }, [entry?.id]);
 
   if (!entry) return null;
@@ -54,6 +59,12 @@ export function VoteDeck({ style, deck, index, disabled, onJudge, onBack }: Prop
 
   const fly = (dir: 1 | -1) => {
     if (leaving || disabled) return;
+    if (dir === -1 && noBlocked) {
+      setNudged(true);
+      setDragging(false);
+      setDx(0);
+      return;
+    }
     const commit = () => {
       // The next card snaps in at rest, with no transition.
       setDragging(true);
@@ -140,6 +151,11 @@ export function VoteDeck({ style, deck, index, disabled, onJudge, onBack }: Prop
         </div>
       </div>
 
+      {noBlocked ? (
+        <p className={`vt-hint${nudged ? ' is-nudged' : ''}`} role="status">
+          Say yes to at least one: this one, or go back and change one.
+        </p>
+      ) : null}
       <div className="vt-buttons">
         <div className="vt-btn">
           <button type="button" className="vt-round vt-round--back" aria-label="Back to the last one" disabled={index === 0 || disabled} onClick={onBack}>
@@ -150,7 +166,14 @@ export function VoteDeck({ style, deck, index, disabled, onJudge, onBack }: Prop
           <span>BACK</span>
         </div>
         <div className="vt-btn">
-          <button type="button" className="vt-round vt-round--left" aria-label={`${labels.left}: ${name}’s entry`} disabled={disabled} onClick={() => fly(-1)}>
+          <button
+            type="button"
+            className="vt-round vt-round--left"
+            aria-label={`${labels.left}: ${name}’s entry${noBlocked ? '. Say yes to at least one first' : ''}`}
+            aria-disabled={noBlocked || undefined}
+            disabled={disabled}
+            onClick={() => fly(-1)}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>

@@ -4,7 +4,7 @@
 import type { DocRef, Txn } from '../shared/store/types.js';
 import { termForms } from '../shared/packs/terms.js';
 import type { GamePack } from '../shared/packs/types.js';
-import { tallyBallots, tallyVotes, voteStyleOf, votesText } from '../shared/votes.js';
+import { lacksAYes, tallyBallots, tallyVotes, voteStyleOf, votesText } from '../shared/votes.js';
 import type { ScoreEvent } from '../shared/scoring/types.js';
 import type { FactEntry, GlobalQuest, GlobalQuestStatus, Player, Settings, Submission, Vote } from '../shared/types.js';
 import type { Db } from './context.js';
@@ -452,8 +452,12 @@ export function closeWithTally(
   recordMotives(tx, db, now, q, entries);
   const ids = entries.map((e) => e.id);
   const yesNo = voteStyleOf(q.gq) === 'yesno';
-  // Pick: counts are votes. Yes/no: counts are the net (yes − no), with the yeses and noes alongside.
-  const ballots = yesNo ? tallyBallots([...votes.values()].map((v) => v.ballot ?? {}), ids) : null;
+  // Pick: counts are votes. Yes/no: counts are the net (yes − no), with the yeses and noes alongside. A ballot without a
+  // single yes (where the voter had two or more to judge) counts for nothing: noes only weigh beside a yes.
+  const listed = entries.map((e) => ({ id: e.id, uid: e.data.uid }));
+  const ballots = yesNo
+    ? tallyBallots([...votes].filter(([voter, v]) => !lacksAYes(v.ballot, listed, voter)).map(([, v]) => v.ballot ?? {}), ids)
+    : null;
   const { counts, winners } = ballots
     ? { counts: ballots.net, winners: ballots.winners }
     : tallyVotes([...votes.values()].map((v) => v.submissionId).filter((id): id is string => typeof id === 'string'), ids);

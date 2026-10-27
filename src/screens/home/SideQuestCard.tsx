@@ -11,7 +11,7 @@ import { gmChecks, judgingOf, submitRule, voteReward } from '../../lib/judging';
 import { formatCountdown } from '../../lib/time';
 import { useSession } from '../../session/SessionProvider';
 import { EntryVideo, TaggedLine } from '../../components/EntryVideo';
-import type { Doc, GlobalQuest, Judgement, Submission } from '../../shared';
+import { noLeavesNoYes, type Doc, type GlobalQuest, type Judgement, type Submission } from '../../shared';
 import { t } from '../../pack';
 
 export function Countdown({ endsAt, closedText }: { endsAt: number; closedText: string }) {
@@ -271,6 +271,10 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
   // Your own vote is read from your vote doc (votes are secret from everyone else); a new one shows at once.
   const ballot = useBallot(quest, entries);
   const yesNo = ballot.style === 'yesno';
+  // At least one yes: a no that would finish the ballot without one can't be cast.
+  const listed = entries.map((e) => ({ id: e.id, uid: e.uid }));
+  const noBlocked = (entryId: string) => yesNo && !!uid && noLeavesNoYes(ballot.judged, listed, uid, entryId);
+  const needsYes = entries.some((e) => e.uid !== uid && ballot.judged[e.id] !== 'no' && noBlocked(e.id));
 
   const vote = (entry: Doc<Submission>, judgement?: Judgement) => {
     void ballot.vote(entry.id, judgement);
@@ -325,7 +329,7 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
                           key={j}
                           small
                           variant={said === j ? 'primary' : 'secondary'}
-                          disabled={own}
+                          disabled={own || (j === 'no' && noBlocked(entry.id))}
                           aria-pressed={said === j}
                           onClick={() => vote(entry, j)}
                         >
@@ -352,6 +356,11 @@ export function VotingCard({ quest, eyebrow, onVote }: { quest: Doc<GlobalQuest>
           })}
         </ul>
       )}
+      {needsYes ? (
+        <p className="hero__blocked" role="status">
+          Say yes to at least one entry.
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import { termForms } from '../shared/packs/terms.js';
 import type { Txn } from '../shared/store/types.js';
-import { ballotComplete, voteStyleOf } from '../shared/votes.js';
+import { ballotComplete, lacksAYes, voteStyleOf } from '../shared/votes.js';
 import type { Assignment, GlobalQuest, GlobalQuestStatus, Judgement, Player, Submission, Vote } from '../shared/types.js';
 import type { Ctx, Db } from './context.js';
 import { parseEvidence } from './evidence.js';
@@ -94,9 +94,12 @@ async function castJudgement(
   const voteRef = db.doc(`globalQuests/${q.id}/votes/${uid}`);
   const prev = (await tx.get(voteRef)).data() as Vote | undefined;
   const ballot = { ...(prev?.ballot ?? {}), [submissionId]: judgement as Judgement };
+  const listed = entries.map((e) => ({ id: e.id, uid: e.data.uid }));
+  // At least one yes: the ballot can't be finished (or kept finished) with noes only.
+  if (ballotComplete(ballot, listed, uid) && lacksAYes(ballot, listed, uid)) fail('failed-precondition', 'Say yes to at least one entry.');
   const stamp = toTs(ctx.now);
   const mine = { ballot, createdAt: prev?.createdAt ?? stamp, updatedAt: stamp };
-  if (!ballotComplete(ballot, entries.map((e) => ({ id: e.id, uid: e.data.uid })), uid)) {
+  if (!ballotComplete(ballot, listed, uid)) {
     tx.set(voteRef, mine);
     return { closed: false };
   }

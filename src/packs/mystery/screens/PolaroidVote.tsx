@@ -7,7 +7,7 @@ import { useNow, tsMs } from '../../../data/hooks';
 import { useBallot } from '../../../data/useBallot';
 import { formatCountdown } from '../../../lib/time';
 import { useSession } from '../../../session/SessionProvider';
-import { entryVotesText, type Doc, type Judgement } from '../../../shared';
+import { entryVotesText, noLeavesNoYes, type Doc, type Judgement } from '../../../shared';
 import type { Submission } from '../../../shared';
 import type { VoteScreenProps } from '../../types';
 import { Polaroid, useEntryName } from './Polaroid';
@@ -50,6 +50,9 @@ export default function PolaroidVote({ quest, entries, putAside, done }: VoteScr
 
   const [openId, setOpenId] = useState<string | null>(null);
   const pickedId = style === 'pick' ? ballot.pick : null;
+  // At least one yes: a no that would finish the ballot without one can't be cast.
+  const listed = useMemo(() => entries.map((e) => ({ id: e.id, uid: e.uid })), [entries]);
+  const noBlocked = (entryId: string) => style === 'yesno' && noLeavesNoYes(ballot.judged, listed, uid, entryId);
 
   const judge = (entry: Doc<Submission>, dir: 'left' | 'right') => {
     if (counting) return;
@@ -106,6 +109,7 @@ export default function PolaroidVote({ quest, entries, putAside, done }: VoteScr
             deck={deck}
             index={clampIndex(stage.index, deck.length)}
             disabled={counting}
+            noBlocked={noBlocked(deck[clampIndex(stage.index, deck.length)]!.id)}
             onJudge={judge}
             onBack={() => setWhere({ stage: 'deck', index: Math.max(0, clampIndex(stage.index, deck.length) - 1) })}
           />
@@ -132,6 +136,7 @@ export default function PolaroidVote({ quest, entries, putAside, done }: VoteScr
           pickedId={pickedId}
           judged={ballot.judged}
           disabled={counting}
+          noBlocked={noBlocked(opened.id)}
           onVote={voteOn}
           onClose={() => setOpenId(null)}
         />

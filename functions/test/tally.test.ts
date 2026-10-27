@@ -1,7 +1,7 @@
 // The shared vote helpers (plan "Voting takeover: polaroid swipe, the cork board, and yes/no voting", edge cases 5
 // and 7): counting yes/no ballots, a complete ballot, and a vote in words. Pure: no store.
 import { describe, expect, it } from 'vitest';
-import { ballotComplete, entryVotesText, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../src/shared/votes.js';
+import { ballotComplete, entryVotesText, lacksAYes, noLeavesNoYes, tallyBallots, tallyVotes, votesText, voteStyleOf } from '../src/shared/votes.js';
 
 describe('voteStyleOf', () => {
   it("is 'yesno' only when the side quest says so; anything else votes as before", () => {
@@ -147,5 +147,36 @@ describe('entryVotesText', () => {
     expect(entryVotesText(q, 'a')).toBe('3 yes · 1 no');
     expect(entryVotesText(q, 'b')).toBe('0 yes · 1 no');
     expect(entryVotesText(q, 'c')).toBe('0 yes · 0 no');
+  });
+});
+
+describe('at least one yes', () => {
+  const entries = [
+    { id: 'a', uid: 'alice' },
+    { id: 'b', uid: 'bob' },
+    { id: 'c', uid: 'carol' },
+  ];
+
+  it('a voter with two or more entries to judge lacks a yes until they say one', () => {
+    expect(lacksAYes({}, entries, 'dave')).toBe(true);
+    expect(lacksAYes({ a: 'no', b: 'no' }, entries, 'dave')).toBe(true);
+    expect(lacksAYes({ a: 'no', c: 'yes' }, entries, 'dave')).toBe(false);
+    // Their own entry doesn't count, and a yes on it wouldn't either.
+    expect(lacksAYes({ a: 'yes', b: 'no', c: 'no' }, entries, 'alice')).toBe(true);
+  });
+
+  it('with one entry to judge (or none) there is nothing to break', () => {
+    const two = entries.slice(0, 2);
+    expect(lacksAYes({ b: 'no' }, two, 'alice')).toBe(false);
+    expect(lacksAYes({}, [{ id: 'a', uid: 'alice' }], 'alice')).toBe(false);
+  });
+
+  it('blocks only the no that would finish a ballot without a yes', () => {
+    expect(noLeavesNoYes({ a: 'no', b: 'no' }, entries, 'dave', 'c')).toBe(true);
+    expect(noLeavesNoYes({ a: 'no' }, entries, 'dave', 'b')).toBe(false);
+    // Turning the only yes into a no, on a finished ballot.
+    expect(noLeavesNoYes({ a: 'no', b: 'no', c: 'yes' }, entries, 'dave', 'c')).toBe(true);
+    expect(noLeavesNoYes({ a: 'yes', b: 'no', c: 'yes' }, entries, 'dave', 'c')).toBe(false);
+    expect(noLeavesNoYes({}, entries.slice(0, 2), 'alice', 'b')).toBe(false);
   });
 });
