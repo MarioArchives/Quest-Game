@@ -91,7 +91,7 @@ function Pass({ player }: { player: RankedPlayer }) {
   return (
     <div className="mf">
       <BackLink />
-      <Folder tab={`Suspect file · ${firstName(name)}`} clip="tab" label={`${name}'s profile`} className="mf-suspect">
+      <Folder tab={`Suspect file · ${firstName(name)}`} clip="tab" label={`${name}'s profile`} className="mf-suspect" tour="suspect-head">
         <StandingBand points={player.points} left={!!player.left} />
         <SuspectHead
           photo={player.photoURL ?? null}

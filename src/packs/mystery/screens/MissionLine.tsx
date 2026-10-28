@@ -273,7 +273,7 @@ export function MissionLine({ uid, hand, rerollsLeft, rerollsTotal }: { uid: str
                 const replaced = tone === 'exposed' ? replacementIndex(tags.map((x) => ({ id: x.quest.id, dealtAt: x.dealtAt })), { id, at: tag.at }) : -1;
                 const points = claim?.pointsAwarded ?? quest.points ?? settings.questPoints;
                 return (
-                  <div key={id} className="ml-item" data-quest={id} role="group" aria-roledescription="slide" aria-label={`No. ${tag.number} of ${tags.length}`} inert={i !== at}>
+                  <div key={id} className="ml-item" data-quest={id} data-tour={i === at ? 'mission' : undefined} role="group" aria-roledescription="slide" aria-label={`No. ${tag.number} of ${tags.length}`} inert={i !== at}>
                     <div className="ml-tw" style={{ transform: `rotate(${tiltFor(id) * 2}deg)` }}>
                       <div className={`ml-flip${isOver ? ' is-over' : ''}`}>
                         <article className={`ml-tag ml-tag--${tone}`} inert={isOver}>
@@ -361,7 +361,7 @@ export function MissionLine({ uid, hand, rerollsLeft, rerollsTotal }: { uid: str
                               ) : null}
                               <div className="cf-foot">
                                 <span className="ml-small">{claim?.thumbPath || claim?.caption ? `On your post in the ${t.feed.one}` : `Shows on your post in the ${t.feed.one}`}</span>
-                                <span className="cf-pts cf-pts--pos">+{points}</span>
+                                {points > 0 ? <span className="cf-pts cf-pts--pos">+{points}</span> : null}
                               </div>
                             </div>
                           ) : (

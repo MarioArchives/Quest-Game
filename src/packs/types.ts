@@ -139,6 +139,15 @@ export interface VoteScreenProps {
   done(): void;
 }
 
+/** What the engine hands a pack's layer over the app (`PackLook.layer`). */
+export interface PackLayerProps {
+  /**
+   * The layer covers the app (true) or no longer does (false): the app underneath is inert meanwhile, so neither the
+   * keyboard nor a screen reader reaches it. Set it back to false before the layer goes.
+   */
+  setCovering(on: boolean): void;
+}
+
 export interface PackLook {
   /**
    * The loading mark, drawn inside a 64x64 viewBox: a `<g className="loader__plate">` of filled shapes and a
@@ -210,6 +219,12 @@ export interface PackLook {
     picker: LazyExoticComponent<ComponentType<FramePickerProps>>;
     hint?: LazyExoticComponent<ComponentType<FrameHintProps>>;
   };
+  /**
+   * Something of the pack's own drawn over the whole app (a walkthrough, say), loaded lazily and mounted once in the app
+   * frame for signed-in screens, after the vote layer. It renders nothing until it has something to show; while it
+   * covers the app it says so with `setCovering`. Packs without one: nothing changes.
+   */
+  layer?: LazyExoticComponent<ComponentType<PackLayerProps>>;
   /** The words on the router's error page (a crash or a failed chunk load); the engine has plain defaults. */
   error?: { title: string; body: string; /** The label of the link back to the home screen (default "Back home"). */ home?: string };
 }

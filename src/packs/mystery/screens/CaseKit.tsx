@@ -17,16 +17,19 @@ export function Folder({
   clip = true,
   className,
   label,
+  tour,
 }: {
   tab?: ReactNode;
   children: ReactNode;
   clip?: boolean | 'tab';
   className?: string;
   label?: string;
+  /** Its name for the torch tour (data-tour), which lights it. */
+  tour?: string;
 }) {
   const onTab = clip === 'tab' && !!tab;
   return (
-    <section className={`cf-folder${className ? ` ${className}` : ''}`} aria-label={label}>
+    <section className={`cf-folder${className ? ` ${className}` : ''}`} aria-label={label} data-tour={tour}>
       {tab ? (
         <span className={`cf-folder__tab${onTab ? ' cf-folder__tab--clip' : ''}`}>
           {tab}
@@ -55,9 +58,9 @@ export function Stamp({ tone = 'plain', children, className }: { tone?: StampTon
 }
 
 /** One twine line down the left, with tags hung from it; it runs behind everything, from behind the folder above. */
-export function Strung({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
+export function Strung({ children, className, label, tour }: { children: ReactNode; className?: string; label?: string; tour?: string }) {
   return (
-    <ul className={`cf-strung${className ? ` ${className}` : ''}`} aria-label={label}>
+    <ul className={`cf-strung${className ? ` ${className}` : ''}`} aria-label={label} data-tour={tour}>
       {children}
     </ul>
   );
@@ -97,6 +100,10 @@ export function TagTop({ left, right }: { left: ReactNode; right?: ReactNode }) 
 }
 
 /** A ruled index card (white, a red header rule), e.g. the GM's "needs your signature" counts. */
-export function IndexCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={`cf-card${className ? ` ${className}` : ''}`}>{children}</div>;
+export function IndexCard({ children, className, tour }: { children: ReactNode; className?: string; tour?: string }) {
+  return (
+    <div className={`cf-card${className ? ` ${className}` : ''}`} data-tour={tour}>
+      {children}
+    </div>
+  );
 }

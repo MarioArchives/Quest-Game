@@ -1,0 +1,108 @@
+/* The torch tour's kraft tags on twine (HangTag.tsx), the offer tied on under the sealed file's wax seal, and "How
+   tonight works" in My file. Used on the live page and, inlined, in the tour's shadow root (tour.css has the rest).
+   Small text keeps 4.5:1: dark inks on kraft. Never a CSS mask or a drop-shadow filter on a tag: over its text, Chrome on
+   some GPUs leaves ghosts of the tag on the page (its hole is cut by a clip-path, its shadow cast by a box behind it). */
+
+.tr-ic { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- the hanging tags ---- */
+
+.tr-ht { position: absolute; transform: rotate(var(--rot, 0deg)); transform-origin: calc(50% + 2px) -20px; user-select: none; -webkit-user-select: none; }
+.tr-ht button { -webkit-tap-highlight-color: transparent; }
+/* Its shadow, a hard edge and a soft fall below, cast by a box behind the body that keeps clear of the clipped corners. */
+.tr-ht__shape { position: relative; }
+.tr-ht__shape::before {
+  content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: 26px; bottom: 0;
+  box-shadow: 0 4px 0 var(--wall-shadow), 0 12px 16px var(--tag-fall);
+}
+.tr-ht--flip .tr-ht__shape::before { left: 26px; right: 26px; top: 0; }
+.tr-ht__body {
+  position: relative; display: flex; flex-direction: column; min-height: calc(var(--w, 210px) * 1.16); padding: 24px 15px 12px;
+  background: linear-gradient(180deg, var(--glass-25), transparent 55%), var(--kraft); color: var(--manila-ink);
+  /* its outline, the clipped corners and the hole, is a clip-path set by HangTag.tsx */
+}
+.tr-ht__body > [role='dialog'] { flex: 1; display: flex; flex-direction: column; }
+/* Turned over, for a tag above what it's tied to: the shape, the hole and the rig mirrored, eyelet at the foot; the
+   words stay upright, the stop number moving down either side of the eyelet. */
+.tr-ht--flip { transform-origin: calc(50% + 2px) calc(100% + 20px); }
+.tr-ht--flip .tr-ht__body { padding: 14px 15px 24px; }
+.tr-ht--flip .tr-ht__rig { top: auto; bottom: -40px; transform: scaleY(-1); }
+.tr-ht--flip .tr-ht__sec { margin-top: 2px; }
+.tr-ht--flip .tr-ht__foot { order: 2; }
+.tr-ht--flip .tr-ht__no { order: 3; margin-top: 12px; }
+.tr-ht__rig { position: absolute; z-index: 2; left: calc(50% - 30px); top: -40px; width: 60px; height: 90px; overflow: visible; pointer-events: none; }
+.tr-rig__twine, .tr-rig__twist, .tr-rig__shade, .tr-rig__deep, .tr-rig__hi, .tr-rig__fray, .tr-rig__shine, .tr-rig__dark, .tr-rig__lip { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.tr-rig__twine { stroke: var(--twine); }
+.tr-rig__twist { stroke: var(--twine-dark); stroke-dasharray: 1.2 2.5; stroke-linecap: butt; }
+.tr-rig__shade { stroke: var(--twine-shade); }
+.tr-rig__deep { stroke: var(--twine-deep); }
+.tr-rig__hi { stroke: var(--twine-hi); stroke-width: 0.8; }
+.tr-rig__fray { stroke: var(--twine-dark); stroke-width: 0.8; }
+.tr-rig__knot { fill: var(--twine); stroke: var(--twine-shade); stroke-width: 0.8; }
+.tr-rig__knotfill-deep { fill: var(--twine-deep); }
+.tr-rig__washer-shadow { fill: var(--sh-tag); }
+.tr-rig__washer { fill: var(--kraft-back); stroke: var(--kraft-line); stroke-width: 0.7; }
+.tr-rig__stitch { fill: none; stroke: var(--kraft-line); stroke-width: 0.5; stroke-dasharray: 1.4 1.4; opacity: 0.8; }
+.tr-rig__ring { fill: var(--eyelet); stroke: var(--eyelet-edge); stroke-width: 0.8; }
+.tr-rig__shine { stroke: var(--shine); stroke-width: 1.1; opacity: 0.6; }
+.tr-rig__dark { stroke: var(--eyelet-edge); stroke-width: 1.3; opacity: 0.9; }
+.tr-rig__lip { stroke: var(--eyelet-edge); stroke-width: 1.4; }
+/* The stop number either side of the eyelet; the heading in type; what it says in handwriting. */
+.tr-ht__no { display: flex; justify-content: space-between; margin: 0; font: 700 10px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--kraft-sub); }
+.tr-ht__sec { margin: 17px 0 0; padding-bottom: 6px; border-bottom: 1.5px dashed var(--kraft-line); font: 700 11px/1.2 var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+.tr-ht__t { margin: 7px 0 0; font: 700 22px/1.02 var(--hand); }
+/* The eye and the heart in the tag's handwriting, drawn as the log book draws them. */
+.tr-mk { display: inline-block; width: 0.8em; height: 0.8em; margin: 0 0.05em; vertical-align: -0.08em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tr-mk--heart { fill: currentColor; }
+.tr-ht__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: auto 0 0; padding-top: 10px; }
+.tr-ht__back, .tr-ht__later {
+  min-height: 40px; padding: 0 6px 0 0; border: 0; background: none; color: var(--kraft-sub); cursor: pointer;
+  font: 700 11px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase;
+}
+.tr-ht__back:disabled { visibility: hidden; }
+.tr-ht__later { min-height: 34px; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+.tr-ht__go {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 0 12px; border: 0; background: var(--manila-ink);
+  color: var(--manila); cursor: pointer; font: 700 11px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+}
+.tr-ht__go .tr-ic { width: 14px; height: 14px; }
+.tr-ht__go:focus-visible, .tr-ht__back:focus-visible, .tr-ht__later:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.tr-ht__stack { display: flex; flex-direction: column; align-items: stretch; gap: 2px; margin: auto 0 0; padding-top: 12px; }
+.tr-ht__stack .tr-ht__go { padding: 0 8px; letter-spacing: 0.6px; }
+
+/* ---- the offer, tied on under the sealed file's wax seal (or on its own tack under the mission stack) ---- */
+
+/* Under the seal (the file's .wax is z-index 3 in the same stacking context, so the knot hides), over the rest. */
+.tr-offer { z-index: 2; }
+/* On the mission stack: in the page's flow under the folders, so it covers none of them, its knot under a brass tack. */
+.tr-offer-pin { position: relative; margin: 4px 6px 0; }
+.tr-offer-pin__tack { position: absolute; z-index: 3; top: 4px; left: calc(50% - 7px); width: 18px; height: 18px; }
+.tr-offer-pin__tack::before {
+  content: ''; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 50%; border: 0.9px solid var(--pin-gold-edge);
+  background: radial-gradient(circle at 35% 32%, var(--bee-gold), var(--pin-gold) 55%, var(--pin-gold-edge)); box-shadow: 1.6px 2.2px 0 var(--sh-tab);
+}
+.tr-offer-pin__tack::after { content: ''; position: absolute; left: 5.5px; top: 5.5px; width: 3.4px; height: 3.4px; border-radius: 50%; background: var(--shine); opacity: 0.65; }
+.tr-offer .tr-ht__t { margin-top: 10px; }
+.tr-offer .tr-ht__stack { padding-top: 6px; }
+.tr-offer .tr-ht__later { min-height: 30px; }
+.tr-offer.is-gone { animation: tr-drop 0.42s ease-in forwards; pointer-events: none; }
+@keyframes tr-drop { to { opacity: 0; transform: translate3d(0, 70px, 0) rotate(9deg); } }
+
+/* ---- "How tonight works", strung in My file with the case-file kit (cf-…) ---- */
+
+.tr-tourcard .cf-tag { gap: 9px; }
+.tr-tourcard-wrap { display: flex; flex-direction: column; }
+.tr-tourcard__t { margin: 0; font: 400 21px/1.05 var(--display); }
+.tr-tourcard__fine { margin: 0; font: 400 11px/1.4 var(--mono); color: var(--kraft-sub); }
+.tr-parts { display: flex; flex-wrap: wrap; gap: 7px; }
+.tr-part {
+  min-height: 36px; padding: 0 12px; border: 2px solid var(--manila-ink); border-radius: 18px; background: var(--print); color: var(--manila-ink);
+  font: 700 11.5px/1 var(--mono); cursor: pointer;
+}
+.tr-part:active { background: var(--manila-ink); color: var(--manila); }
+.tr-part:focus-visible, .tr-tourcard .cf-btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
+.tr-tourcard .cf-btn { cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-offer.is-gone { animation: none; opacity: 0; }
+}

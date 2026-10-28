@@ -353,3 +353,45 @@ describe('M7. a GM fraud override undoes the reward', () => {
     expect(await rewards()).toEqual([]);
   });
 });
+
+describe('M8. a mission that pays only through its reward (questPoints 0, the mystery pack)', () => {
+  const ONLY_REWARD = { questPoints: 0, cleanPoints: 5, framePoints: 5, fraudPenalty: 5 };
+
+  it('confirming pays nothing by itself: no quest line, nothing awarded, a zero-point post, and the reward waits', async () => {
+    await setup(ONLY_REWARD);
+    await confirmed();
+    const alice = await getPlayer(db(), 'alice');
+    expect(alice.points).toBe(0);
+    expect(alice.questsCompleted).toBe(1);
+    expect(await ledgerFor(db(), 'alice')).toEqual([]);
+    expect(await getData(db(), 'submissions/s1')).toMatchObject({ status: 'approved', pointsAwarded: 0 });
+    expect((await feedOf(db(), 'approved'))[0]).toMatchObject({ uid: 'alice', points: 0 });
+    expect(await getData(db(), 'rewards/s1')).toMatchObject({ uid: 'alice', status: 'pending' });
+  });
+
+  it('then destroying the evidence is the +5', async () => {
+    await setup(ONLY_REWARD);
+    await confirmed();
+    expect(await use('alice', { rewardId: 's1', choice: 'clean' })).toEqual({ status: 'cleaned', points: 5 });
+    expect((await getPlayer(db(), 'alice')).points).toBe(5);
+    expect((await ledgerFor(db(), 'alice')).map((l) => [l.reason, l.delta])).toEqual([['cleared', 5]]);
+  });
+
+  it('or framing someone is the −5 to them, and nothing to you', async () => {
+    await setup(ONLY_REWARD);
+    await confirmed();
+    await use('alice', { rewardId: 's1', choice: 'frame', targetUid: 'carol' });
+    expect((await getPlayer(db(), 'carol')).points).toBe(95);
+    expect((await getPlayer(db(), 'alice')).points).toBe(0);
+  });
+
+  it('a fraud override takes back the used clean and fines, with nothing to take back for the mission', async () => {
+    await setup(ONLY_REWARD);
+    await confirmed();
+    await use('alice', { rewardId: 's1', choice: 'clean' });
+    await fraud();
+    expect((await getData(db(), 'rewards/s1'))?.status).toBe('void');
+    expect((await getPlayer(db(), 'alice')).points).toBe(-5);
+    expect(sortedDeltas(await ledgerFor(db(), 'alice'))).toEqual([-5, -5, 5]);
+  });
+});

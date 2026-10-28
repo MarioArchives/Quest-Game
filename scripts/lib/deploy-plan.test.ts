@@ -17,6 +17,8 @@ import {
   prodAlias,
   reminders,
   secretsNeeded,
+  snapshotDrift,
+  snapshotWarning,
   USAGE,
 } from './deploy-plan.mjs';
 
@@ -245,5 +247,32 @@ describe('D14. asking first', () => {
 
   it('without a terminal and without --yes it refuses', () => {
     expect(consentProblem({ tty: false, yes: false, dryRun: false })).toMatch(/--yes/);
+  });
+});
+
+describe('D15. the tour snapshot’s freshness (advisory)', () => {
+  const source = { files: { 'src/a.tsx': '111', 'src/b.css': '222' } };
+
+  it('nothing when the screens it was taken from are as they were', () => {
+    const drift = snapshotDrift(source, { 'src/a.tsx': '111', 'src/b.css': '222' });
+    expect(drift).toEqual([]);
+    expect(snapshotWarning(drift, 'mystery')).toBeNull();
+  });
+
+  it('names what changed, was added or went', () => {
+    const drift = snapshotDrift(source, { 'src/a.tsx': '999', 'src/c.tsx': '333' });
+    expect(drift).toEqual(['src/a.tsx', 'src/b.css', 'src/c.tsx']);
+    const line = snapshotWarning(drift, 'mystery');
+    expect(line).toContain('src/a.tsx');
+    expect(line).toContain('scripts/packs/mystery/snapshot-tour.mjs');
+  });
+
+  it('shortens a long list', () => {
+    const now = Object.fromEntries(['a', 'b', 'c', 'd', 'e'].map((f) => [`src/${f}.css`, 'x']));
+    expect(snapshotWarning(snapshotDrift({ files: {} }, now), 'mystery')).toContain('and 2 more');
+  });
+
+  it('a pack without a snapshot has nothing to compare', () => {
+    expect(snapshotDrift(null, { 'src/a.tsx': '1' })).toEqual([]);
   });
 });

@@ -7,6 +7,8 @@
 @import '@fontsource/archivo/latin-500.css';
 @import '@fontsource/archivo/latin-600.css';
 @import '@fontsource/caveat/latin-600.css';
+/* the torch tour's tags are handwritten in the bold */
+@import '@fontsource/caveat/latin-700.css';
 /* The bee on a button (kept apart: the boot test reads theme.css for the loader's own line colour). */
 @import './buttons.css';
 
@@ -94,6 +96,26 @@
   --sh-deep: rgba(0, 0, 0, 0.45);
   --dim: rgba(22, 23, 24, 0.62);
   --mono:'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  /* The torch tour (tour/): the dark room it puts out the lights to, with its rules and type; the twine's shade, its
+     deep side and its highlight; the brass tacks; the torch's rim and the dark round it; the red pen and its pale halo;
+     the progress track; the tags' gloss, their fall of shadow and the eyelet's shine. */
+  --room: #0d0e0f;
+  --room-text: #efe9d6;
+  --room-rule: rgba(239, 233, 214, 0.14);
+  --room-edge: rgba(239, 233, 214, 0.55);
+  --twine-shade: #6f5b3e;
+  --twine-deep: #3a2f20;
+  --twine-hi: rgba(244, 236, 213, 0.5);
+  --pin-gold: #c8a24a;
+  --pin-gold-edge: #7a520a;
+  --torch: rgba(242, 239, 228, 0.28);
+  --torch-dark: rgba(13, 14, 15, 0.8);
+  --marker: #c4302b;
+  --marker-halo: rgba(241, 240, 236, 0.85);
+  --track: rgba(239, 233, 214, 0.2);
+  --glass-25: rgba(255, 255, 255, 0.25);
+  --tag-fall: rgba(0, 0, 0, 0.55);
+  --shine: #ffffff;
 
   /* engine tokens */
   --paper: #f1f0ec;

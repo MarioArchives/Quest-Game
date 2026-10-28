@@ -128,7 +128,7 @@ export function TopCard({
   const hidden = useCountsHidden(entry?.item ?? null, entry?.item ? myVote(entry.item, user?.uid ?? '', voting?.pending) : null);
   if (!top || !top.feedId) {
     return (
-      <section className="lb-top lb-top--quiet" aria-label="Most hearts tonight">
+      <section className="lb-top lb-top--quiet" aria-label="Most hearts tonight" data-tour="top-card">
         <p>No hearts yet</p>
       </section>
     );
@@ -167,7 +167,7 @@ export function TopCard({
   );
 
   return (
-    <section className={`lb-top${under ? ' lb-top--swap' : ''}`} aria-label="Most hearts tonight">
+    <section className={`lb-top${under ? ' lb-top--swap' : ''}`} aria-label="Most hearts tonight" data-tour="top-card">
       {under ? (
         <div className="lb-under">
           <s>{under}</s>

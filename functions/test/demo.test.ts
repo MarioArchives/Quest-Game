@@ -181,17 +181,31 @@ describe('M23. demo characters and rewards', () => {
     expect(at(d, 'players/demo-maya')?.character ?? null).toBeNull();
   });
 
-  it('with the reward choice on, every approved personal claim has a pending reward for its owner', () => {
+  it('with the reward choice on, every approved personal claim has its reward, already used to destroy the evidence', () => {
     const d = demo(testPack({ features: { rewardChoice: true } }));
     const approved = d.docs.filter((x) => /^submissions\/[^/]+$/.test(x.path) && x.data.kind === 'personal' && x.data.status === 'approved');
     expect(approved.length).toBeGreaterThan(0);
     const rewards = d.docs.filter((x) => x.path.startsWith('rewards/'));
     expect(rewards.map((x) => x.path).sort()).toEqual(approved.map((x) => `rewards/${x.path.split('/')[1]}`).sort());
+    const settings = defaultSettingsFor(testPack({ features: { rewardChoice: true } }));
     for (const r of rewards) {
-      const sub = approved.find((x) => x.path === `submissions/${r.path.split('/')[1]}`)!;
-      expect(r.data).toMatchObject({ uid: sub.data.uid, submissionId: r.path.split('/')[1], status: 'pending' });
+      const id = r.path.split('/')[1];
+      const sub = approved.find((x) => x.path === `submissions/${id}`)!;
+      expect(r.data).toMatchObject({ uid: sub.data.uid, submissionId: id, status: 'cleaned', applied: settings.cleanPoints, targetUid: null });
       expect(r.data.createdAt).toBeInstanceOf(Stamp);
+      expect(r.data.resolvedAt).toBeInstanceOf(Stamp);
+      expect(at(d, `pointsLedger/ledger-${id}-cleared`)).toMatchObject({ uid: sub.data.uid, delta: settings.cleanPoints, reason: 'cleared', ref: id });
     }
+  });
+
+  it('a pack whose quests pay only through the reward (questPoints 0) scores them by the reward alone, with no zero lines', () => {
+    const pack = testPack({ features: { rewardChoice: true } });
+    const settings = { ...defaultSettingsFor(pack), questPoints: 0, cleanPoints: 5 };
+    const d = buildDemo({ pack, settings, nowMs: Date.parse('2026-10-24T21:00:00Z') });
+    const ledger = d.docs.filter((x) => x.path.startsWith('pointsLedger/')).map((x) => x.data);
+    expect(ledger.some((l) => l.reason === 'quest')).toBe(false);
+    expect(ledger.some((l) => l.delta === 0)).toBe(false);
+    expect(at(d, 'players/demo-maya')?.points).toBe(15);
   });
 
   it('with it off, no rewards', () => {

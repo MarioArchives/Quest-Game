@@ -369,7 +369,7 @@ function StatementTag({ sub, mine, now }: { sub: Doc<Submission>; mine: boolean;
             className="gl-btn gl-btn--teal"
             busy={busyKey === `approve:${sub.id}`}
             disabled={locked}
-            onClick={() => void run(`approve:${sub.id}`, () => reviewSubmission({ submissionId: sub.id, approve: true }), `Confirmed. +${settings.questPoints}.`)}
+            onClick={() => void run(`approve:${sub.id}`, () => reviewSubmission({ submissionId: sub.id, approve: true }), settings.questPoints ? `Confirmed. +${settings.questPoints}.` : 'Confirmed.')}
           >
             Confirm
           </Button>

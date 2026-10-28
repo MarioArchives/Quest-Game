@@ -136,7 +136,7 @@ export function Hand({ quests, loading, rerollsLeft }: { quests: Doc<Quest>[]; l
                     </>
                   ) : (
                     <>
-                      <span className="qcard__state">Active &middot; +{settings.questPoints}</span>
+                      <span className="qcard__state">Active{settings.questPoints ? ` · +${settings.questPoints}` : ''}</span>
                       <button
                         type="button"
                         className="btn-icon"

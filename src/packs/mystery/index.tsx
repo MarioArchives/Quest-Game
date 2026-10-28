@@ -37,6 +37,8 @@ const look: PackLook = {
     // A vote that needs you takes over the whole app: polaroids to swipe, then a cork board to choose on.
     vote: lazy(() => import('./screens/PolaroidVote')),
   },
+  // The torch tour over the app: a specimen night lit one stop at a time (tour/; offered on the sealed file, kept in My file).
+  layer: lazy(() => import('./tour/TourHost')),
   error: { title: 'This page has been tampered with', body: 'Something broke on our side. Reload, or go back to the board.', home: 'Back to the board' },
   reward: { title: 'Evidence secured', clean: 'Destroy', frame: 'Frame', pickTitle: 'Frame who?' },
   // Frame who? as the suspect sheet, with who is close to a line under the two choices.

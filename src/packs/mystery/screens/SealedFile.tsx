@@ -14,6 +14,7 @@ import { orderStops } from '../../../modules/map/stops';
 import { t, zone } from '../../../pack';
 import type { Stop } from '../../../shared';
 import { Bee, HoneycombStamp } from '../booking/stamps';
+import { TourOffer } from '../tour/TourOffer';
 import { Paperclip } from './CaseKit';
 import './sealed.css';
 
@@ -183,8 +184,8 @@ function useMovedToast(opening: Opening | null, moved: { from: number; at: numbe
   }, [at, opensAtMs, from, toast]);
 }
 
-/** The folder with its tab, in the stack's frame (the tab joins the body). */
-function Frame({ tab, open, children }: { tab: ReactNode; open?: boolean; children: ReactNode }) {
+/** The folder with its tab, in the stack's frame (the tab joins the body); the tour's offer tied on under the wax. */
+function Frame({ tab, open, offer, children }: { tab: ReactNode; open?: boolean; offer?: boolean; children: ReactNode }) {
   return (
     <div className="ms1">
       <div className="ms1__tabs">
@@ -194,6 +195,7 @@ function Frame({ tab, open, children }: { tab: ReactNode; open?: boolean; childr
         <Paperclip />
         {children}
       </div>
+      {offer ? <TourOffer anchor=".wax" /> : null}
     </div>
   );
 }
@@ -227,7 +229,7 @@ export function SealedFile({ fallback }: { fallback: ReactNode }) {
   if (opening) {
     const final = opening.stage === 'final' || opening.stage === 'zero';
     return (
-      <Frame tab={<>Sealed · <b>{chipCountdown(opening.remainingMs)}</b></>}>
+      <Frame tab={<>Sealed · <b>{chipCountdown(opening.remainingMs)}</b></>} offer>
         <Label opening={opening} moved={moved} />
         <Twine />
         <Wax />

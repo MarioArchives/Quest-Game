@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, type MouseEvent } from 'react';
+import { Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { Loader } from '../components/Loader';
 import { Avatar } from '../components/Avatar';
@@ -36,6 +36,8 @@ const FEED_TAB = Boolean(look.screens?.feed);
 const OWN_MAP = Boolean(look.screens?.map);
 /** The pack's own app bar title for the screens that otherwise show its name. */
 const PackTitle = look.appTitle;
+/** The pack's own layer over the app, if it has one. */
+const PackLayer = look.layer;
 
 const TITLES: Record<string, string> = {
   '/': pack.name,
@@ -82,6 +84,8 @@ export function AppFrame() {
 
 function Frame() {
   const { showing: voting } = useVoteTakeover();
+  // The pack's layer is over the app: the app is inert under it.
+  const [covering, setCovering] = useState(false);
   const { player, user, isAdmin } = useSession();
   const { state, me } = useGame();
   const { pathname } = useLocation();
@@ -146,7 +150,7 @@ function Frame() {
 
   return (
     <>
-    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`} inert={voting !== null}>
+    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`} inert={voting !== null || covering}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to content
       </a>
@@ -206,6 +210,11 @@ function Frame() {
       </nav>
     </div>
     <VoteLayer />
+    {PackLayer ? (
+      <Suspense fallback={null}>
+        <PackLayer setCovering={setCovering} />
+      </Suspense>
+    ) : null}
     </>
   );
 }

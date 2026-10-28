@@ -358,10 +358,10 @@ describe('M18. the mystery pack', () => {
     });
   });
 
-  it('scores every move as 5 points, with a guess limit of 3, and scores may go below zero', () => {
+  it('scores every move as 5 points (a confirmed mission only through its reward), with a guess limit of 3, and scores may go below zero', () => {
     const s = defaultSettingsFor(getPack('mystery'));
     expect(s).toMatchObject({
-      questPoints: 5,
+      questPoints: 0,
       sideQuestPoints: 5,
       exposePenalty: 5,
       correctGuessReward: 5,

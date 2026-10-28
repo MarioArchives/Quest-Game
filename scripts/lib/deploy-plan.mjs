@@ -223,6 +223,32 @@ export function reminders({ changed, pack, lastCommit }) {
 }
 
 /**
+ * The files a pack's tour snapshot was taken from that have changed since (edited, added or removed), so the screens it
+ * shows may no longer match the game's. Packs without a snapshot have nothing to compare.
+ * @param {{ files: Record<string, string> } | null} source the snapshot's source.json, or null
+ * @param {Record<string, string>} now the same paths' hashes as they are now
+ * @returns {string[]}
+ */
+export function snapshotDrift(source, now) {
+  if (!source?.files) return [];
+  const paths = new Set([...Object.keys(source.files), ...Object.keys(now)]);
+  return [...paths].filter((p) => source.files[p] !== now[p]).sort();
+}
+
+/**
+ * The preflight's advisory line about the snapshot, or null when it's up to date (or the pack has none).
+ * @param {string[]} drift from snapshotDrift
+ * @param {string} pack
+ * @returns {string | null}
+ */
+export function snapshotWarning(drift, pack) {
+  if (drift.length === 0) return null;
+  const shown = drift.slice(0, 3).join(', ');
+  const more = drift.length > 3 ? ` and ${drift.length - 3} more` : '';
+  return `the tour's specimen screens may be stale: ${shown}${more} changed since its snapshot. Re-take it: node scripts/packs/${pack}/snapshot-tour.mjs`;
+}
+
+/**
  * @param {{ tty: boolean, yes: boolean, dryRun: boolean }} input
  * @returns {string | null} a problem, or null
  */

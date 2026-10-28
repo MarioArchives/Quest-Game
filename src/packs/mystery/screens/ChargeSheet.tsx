@@ -104,7 +104,7 @@ export function ChargeTag({ target }: { target: RankedPlayer }) {
   const pending = remaining > 0 && latest ? latest : null;
 
   return (
-    <Strung className="pf-accuse" label={`Charge ${first}`}>
+    <Strung className="pf-accuse" label={`Charge ${first}`} tour="form3">
       <Tag>
         <TagTop
           left="Accusation · Form 3"
@@ -305,7 +305,7 @@ function SearchStep({
   const shown = query.trim();
   return (
     <>
-      <dl className="cs-form cs-form--big">
+      <dl className="cs-form cs-form--big" data-tour="cs-search">
         <SuspectLine suspect={suspect} />
         <div className="cs-line">
           <dt>
@@ -347,7 +347,7 @@ function SearchStep({
           <p className="cs-fine">Try another word from it, or clear the line for all {total}.</p>
         ) : null}
         {hits.length > 0 ? (
-          <ul className="cs-hits">
+          <ul className="cs-hits" data-tour="cs-hits">
             {hits.map((c) => {
               const { what, proof } = splitProof(c.description ?? '');
               const marks = (text: string) => highlight(text, typed ? query : '');
@@ -454,7 +454,7 @@ function SignStep({
           </dd>
         </div>
       </dl>
-      <IndexCard className="cs-terms">
+      <IndexCard className="cs-terms" tour="cs-terms">
         <h4>Terms · read before you sign</h4>
         <dl>
           <div>
@@ -483,7 +483,7 @@ function SignStep({
           ) : null}
         </dl>
       </IndexCard>
-      <p className="cs-sign">
+      <p className="cs-sign" data-tour="cs-sign">
         <span>Signed</span>
         <em>{signer}</em>
         <span>{clockTime(now, zone)}</span>
@@ -557,6 +557,7 @@ function HoldToFile({ busy, onFile }: { busy: boolean; onFile(): void }) {
     <>
       <button
         type="button"
+        data-tour="cs-file"
         className={`cs-hold${holding ? ' is-holding' : ''}${armed ? ' is-armed' : ''}`}
         style={{ '--hold-ms': `${HOLD_MS}ms` } as CSSProperties}
         disabled={busy}
@@ -619,7 +620,7 @@ function UpheldStep({
 
   return (
     <div className="cs-scroll">
-      <div className="cs-stampwrap">
+      <div className="cs-stampwrap" data-tour="cs-upheld">
         <dl className="cs-form cs-form--big">
           <SuspectLine suspect={suspect} />
           <div className="cs-line">
@@ -637,7 +638,7 @@ function UpheldStep({
           Upheld
         </Stamp>
       </div>
-      <div className="cs-result" ref={result} tabIndex={-1}>
+      <div className="cs-result" ref={result} tabIndex={-1} data-tour="cs-result">
         <b>{formatDelta(mine)}</b>
         <span>
           to you · {first} {formatDelta(theirs)}
@@ -650,7 +651,7 @@ function UpheldStep({
           <p className="cs-count">
             <span>On the Board now</span>
           </p>
-          <Strung className="cs-post" label="On the Board now">
+          <Strung className="cs-post" label="On the Board now" tour="cs-post">
             <BoardPost item={post} ms={tsMs(post.createdAt) || at} />
           </Strung>
         </>

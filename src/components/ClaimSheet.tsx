@@ -55,7 +55,7 @@ export function ClaimSheet({ quest, onClose }: { quest: Doc<Quest>; onClose(): v
       <div className="field">
         <WitnessPicker myUid={myUid} value={witness?.id ?? null} onChange={setChosen} disabled={busy} />
         <span className="field__hint">
-          Pick a friend who saw you do it. They approve (you earn +{settings.questPoints}) or reject (you lose {settings.rejectPenalty} and get a
+          Pick a friend who saw you do it. They approve{settings.questPoints ? ` (you earn +${settings.questPoints})` : ''} or reject (you lose {settings.rejectPenalty} and get a
           fresh {t.quest.one}). You can&apos;t approve your own, and neither can the {t.gm.One}. Add a photo or a comment once it&apos;s approved.
         </span>
       </div>

@@ -26,9 +26,10 @@ export const mystery: GamePack = {
   timeZone: 'Europe/London',
   locale: 'en-GB',
   scoring: 'classic',
-  // Every move is worth 5 points (the standings grid is ±25 in squares of 5); the GM nudges by 1.
+  // Every move is worth 5 points (the standings grid is ±25 in squares of 5); the GM nudges by 1. A confirmed tampering
+  // mission pays only through its reward: destroy the evidence (+5 to you) or frame someone (−5 to them).
   settings: {
-    questPoints: 5,
+    questPoints: 0,
     sideQuestPoints: 5,
     exposePenalty: 5,
     correctGuessReward: 5,
@@ -195,7 +196,7 @@ export const mystery: GamePack = {
     gambler: { title: 'Cold Case Shuffler', description: 'Swapped the most missions' },
     'good-sport': { title: 'Innocent Bystander', description: 'Nothing to see here, officer' },
   },
-  // The Lancaster festival's missions (68 tampering, 20 group), copied so the two catalogues can drift apart.
+  // The Lancaster festival's missions, copied so the two catalogues can drift apart (now 92 tampering, 19 group).
   // (the JSON types 'judging' as plain text)
   catalogue: quests as Catalogue,
   map: {

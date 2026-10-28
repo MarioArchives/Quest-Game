@@ -9,7 +9,7 @@ import { Stamp } from '../store/stamp.ts';
 import type { DocData } from '../store/types.ts';
 import type { Settings } from '../types.ts';
 import { voteStyleOf } from '../votes.ts';
-import { BOTS, hashString, particularsFor, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES } from './bots.ts';
+import { BOTS, hashString, particularsFor, mulberry32, NEWCOMER, REACTIONS, shuffled, VOTES, type Bot } from './bots.ts';
 import { posterSvg } from './poster.ts';
 
 export interface DemoFile {
@@ -65,6 +65,11 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
   const { personal, global: sideQuests } = pack.catalogue;
   const questPoints = settings.questPoints;
   const rejectPenalty = settings.rejectPenalty;
+  // With the reward choice, each player has already used every confirmed quest's reward to clean (destroy the
+  // evidence), so a pack whose quests pay only through the reward (questPoints 0) still has a night of scores.
+  const rewards = pack.features.rewardChoice;
+  const cleanPoints = settings.cleanPoints;
+  const usedRewards = (bot: Bot) => (rewards ? bot.done.length : 0);
   const sidePoints = settings.sideQuestPoints;
   const windowMin = settings.globalWindowMin;
   const handSize = settings.starterQuestCount;
@@ -144,7 +149,7 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
         displayName: bot.name,
         photoURL: null,
         joinedAt: at(240),
-        points: questPoints * bot.done.length - (bot.rejected ? rejectPenalty : 0),
+        points: questPoints * bot.done.length + cleanPoints * usedRewards(bot) - (bot.rejected ? rejectPenalty : 0),
         rerollsUsed: bot.rerolls,
         questsCompleted: bot.done.length,
         bookedAt: at(238),
@@ -204,11 +209,25 @@ export function buildDemo({ pack, settings, nowMs }: DemoOptions): DemoGame {
           refillQuestId: `q${n}`,
         },
       ]);
-      entries.push([
-        `pointsLedger/ledger-${subId}`,
-        { uid: bot.uid, delta: questPoints, reason: 'quest', ref: subId, by: witness.uid, note: d.note, createdAt: at(minutesAgo) },
-      ]);
-      if (pack.features.rewardChoice) {
+      // As the game does, a quest that pays nothing by itself (only through its reward) has no ledger line.
+      if (questPoints !== 0) {
+        entries.push([
+          `pointsLedger/ledger-${subId}`,
+          { uid: bot.uid, delta: questPoints, reason: 'quest', ref: subId, by: witness.uid, note: d.note, createdAt: at(minutesAgo) },
+        ]);
+      }
+      if (rewards && i < usedRewards(bot)) {
+        entries.push([
+          `rewards/${subId}`,
+          { uid: bot.uid, submissionId: subId, status: 'cleaned', createdAt: at(minutesAgo), resolvedAt: at(minutesAgo - 2), targetUid: null, applied: cleanPoints },
+        ]);
+        if (cleanPoints !== 0) {
+          entries.push([
+            `pointsLedger/ledger-${subId}-cleared`,
+            { uid: bot.uid, delta: cleanPoints, reason: 'cleared', ref: subId, by: 'system', createdAt: at(minutesAgo - 2) },
+          ]);
+        }
+      } else if (rewards) {
         entries.push([`rewards/${subId}`, { uid: bot.uid, submissionId: subId, status: 'pending', createdAt: at(minutesAgo) }]);
       }
       pushPost(postId, at(minutesAgo), {

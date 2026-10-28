@@ -19,6 +19,7 @@ import type { Doc, GlobalQuest } from '../../../shared';
 import { Paperclip } from './CaseKit';
 import { checkinRule, missionRule, sendBack, STACK_MAX, tabSlots } from './missionDeck';
 import { SealedFile } from './SealedFile';
+import { TourOffer } from '../tour/TourOffer';
 import type { DeckMission } from './useMissionDeck';
 
 /** How far the front folder must be dragged to go to the back. */
@@ -189,6 +190,8 @@ export function MissionStack({ missions, order, onOrder, onVote }: { missions: D
         <Paperclip />
         <FrontFolder key={front.id} m={front} index={index} count={missions.length} onVote={onVote} />
       </div>
+      {/* Booked in after the case opened: the tour's offer, on its own tack under the folders. */}
+      <TourOffer />
       <span className="visually-hidden" aria-live="polite">
         {order.length > 1 ? `In front: ${front.kicker}, ${front.title}` : ''}
       </span>
@@ -398,6 +401,8 @@ function EmptyStack() {
         <h3 className="ms-t">Nothing open right now</h3>
         <p className="ms-desc">{text}</p>
       </div>
+      {/* Before the case opens with no start time, or booked in after it opened: the tour's offer under the folder. */}
+      <TourOffer />
     </div>
   );
 }

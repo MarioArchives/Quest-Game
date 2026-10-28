@@ -28,7 +28,10 @@ import {
   prodAlias,
   reminders,
   secretsNeeded,
+  snapshotDrift,
+  snapshotWarning,
 } from './lib/deploy-plan.mjs';
+import { sourceHashes } from './lib/source-hashes.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const LAST = `${ROOT}.deploy-last.json`;
@@ -115,6 +118,19 @@ function preflight(/** @type {ReturnType<typeof parseArgs>} */ opts) {
         errors.push(...missing);
         if (missing.length === 0) ok(`secrets ${needed.join(', ')}`);
       }
+    }
+  }
+
+  // A pack with a tour snapshot: advisory only, when the screens it shows have changed since it was taken.
+  const snapText = fn.GAME_PACK ? readOrNull(`${ROOT}src/packs/${fn.GAME_PACK}/tour/snap/source.json`) : null;
+  if (snapText) {
+    try {
+      const source = JSON.parse(snapText);
+      const stale = snapshotWarning(snapshotDrift(source, sourceHashes(ROOT, source.watch ?? [])), fn.GAME_PACK);
+      if (stale) warn(stale);
+      else ok('tour snapshot matches the screens');
+    } catch {
+      warn('the tour snapshot\'s source.json is unreadable: re-take the snapshot.');
     }
   }
 

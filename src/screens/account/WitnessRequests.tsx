@@ -29,7 +29,9 @@ export function RequestCard({ request, as: Wrap = 'li' }: { request: Doc<Submiss
       await reviewSubmission({ submissionId: request.id, approve, ...(note.trim() ? { note: note.trim() } : {}) });
       toast(
         approve
-          ? `Approved. ${ownerName} banks +${settings.questPoints}.`
+          ? settings.questPoints
+            ? `Approved. ${ownerName} banks +${settings.questPoints}.`
+            : `Approved for ${ownerName}.`
           : `Rejected. ${ownerName} loses ${settings.rejectPenalty} and gets a fresh ${t.quest.one}.`,
         approve ? 'success' : 'info',
       );

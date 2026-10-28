@@ -78,9 +78,12 @@ export function MissionDividers({ deck, onPull }: { deck: Deck; onPull(id: strin
   );
 }
 
+/** The dividers' names for the torch tour (data-tour), which lights them. */
+const TOUR: Record<SectionId, string> = { group: 'events', periodic: 'rollcall', story: 'story' };
+
 function Section({ id, aside, children }: { id: SectionId; aside: string; children: ReactNode }) {
   return (
-    <section className="ms-sec" aria-labelledby={`ms-sec-${id}`}>
+    <section className="ms-sec" aria-labelledby={`ms-sec-${id}`} data-tour={TOUR[id]}>
       <header className="ms-sec__h">
         <h3 id={`ms-sec-${id}`}>
           {SECTIONS[id].title}

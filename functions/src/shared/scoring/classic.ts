@@ -88,6 +88,8 @@ export const classic: ScoringRules = {
   params: [],
   score: classicScore,
   describe(settings, _params, t, features) {
-    return [[`${t.quest.One} points`, `+${settings.questPoints}`], ...sharedRows(settings, t, features)];
+    // A pack whose missions pay only through the reward (questPoints 0) has no row for the mission itself.
+    const quest: [string, string][] = settings.questPoints ? [[`${t.quest.One} points`, `+${settings.questPoints}`]] : [];
+    return [...quest, ...sharedRows(settings, t, features)];
   },
 };

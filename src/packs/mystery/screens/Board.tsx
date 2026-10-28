@@ -263,7 +263,7 @@ function Standings() {
           <span key={tick.value} className={`st__line${tick.value === 0 ? ' st__line--zero' : ''}`} style={vars({ '--x': at(tick.value) })} />
         ))}
       </div>
-      <div className="st__top">
+      <div className="st__top" data-tour="st-top">
         <div className="st__heads" aria-hidden="true">
           <span className="st__head st__head--suspect">&larr; Under suspicion</span>
           <span className="st__head st__head--clear">In the clear &rarr;</span>
@@ -278,7 +278,7 @@ function Standings() {
           )}
         </div>
       </div>
-      <ol className="st__rows" ref={list}>
+      <ol className="st__rows" ref={list} data-tour="standings">
         {bars.map((b) => {
           const now = Math.round(shown[b.uid] ?? b.points);
           const side = now > 0 ? 'plus' : now < 0 ? 'minus' : 'zero';

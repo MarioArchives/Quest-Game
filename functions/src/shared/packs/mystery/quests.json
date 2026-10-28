@@ -61,11 +61,6 @@
       "description": "Keep telling people how much you love Overcooked until another player agrees with you. Proof: which player agreed, and what they said."
     },
     {
-      "id": "p-sam-rhone",
-      "title": "Sam Rhone lookalike",
-      "description": "Tell a stranger they look just like Sam Rhone and show them a picture to prove it. Proof: their reaction (a photo together if they're up for it)."
-    },
-    {
       "id": "p-heads-up",
       "title": "Heads up",
       "description": "Balance an object on the heads of three players without them noticing. Proof: a photo of each one."
@@ -339,6 +334,131 @@
       "id": "p-human-statue",
       "title": "Statue",
       "description": "Freeze like a statue in a busy spot until someone asks if you're OK. Proof: who asked, and a player who saw it."
+    },
+    {
+      "id": "p-hidden-faces",
+      "title": "Hidden faces",
+      "description": "Point out a face hiding in something ordinary (a plug socket, a tap, the foam on a pint) and get someone to agree they can see it too. Proof: a photo of the face, and who agreed."
+    },
+    {
+      "id": "p-sign-of-the-times",
+      "title": "Sign of the times",
+      "description": "Get someone to read a sign, notice or chalkboard in the bar out loud to you. Proof: who read it, and what it said."
+    },
+    {
+      "id": "p-busy-bee",
+      "title": "Busy bee",
+      "description": "Get someone to tell you why there are bees all over Manchester. Proof: who told you, and their answer."
+    },
+    {
+      "id": "p-not-a-mirror",
+      "title": "Not a mirror",
+      "description": "Get someone to check their reflection in anything but a mirror: a spoon, a window, a phone screen. Proof: who did it, and what they used."
+    },
+    {
+      "id": "p-colour-match",
+      "title": "Colour match",
+      "description": "Get someone to tell you your outfit matches something in the bar. Proof: who said it, and what matched."
+    },
+    {
+      "id": "p-line-up",
+      "title": "The line-up",
+      "description": "Get three people to stand against a wall with you for a photo, like a police line-up, without telling them why. Proof: the photo."
+    },
+    {
+      "id": "p-hardboiled",
+      "title": "Hardboiled",
+      "description": "Talk like a hardboiled detective (\"the night was dark, and so was the stout\") until someone comments on it. Proof: who noticed, and what they said."
+    },
+    {
+      "id": "p-strike-a-pose",
+      "title": "Strike a pose",
+      "description": "Get someone to copy the pose of a person in a picture, poster or painting in the bar. Proof: a photo of them next to it."
+    },
+    {
+      "id": "p-rainbow-line",
+      "title": "Rainbow line",
+      "description": "Get three people in different colours to stand in rainbow order for a photo, without telling them why. Proof: the photo."
+    },
+    {
+      "id": "p-human-alphabet",
+      "title": "Human alphabet",
+      "description": "Get someone to make a letter of the alphabet with their arms. Proof: a photo, or a player who saw it."
+    },
+    {
+      "id": "p-shadow-play",
+      "title": "Shadow play",
+      "description": "Get someone to make a shadow puppet on the wall with you, by phone torch. Proof: a photo of the shadow."
+    },
+    {
+      "id": "p-chalk-outline",
+      "title": "Chalk outline",
+      "description": "Lay out the outline of a body on your table in beer mats, napkins or straws, and get someone to ask what it is. Proof: a photo, and who asked."
+    },
+    {
+      "id": "p-wheres-bob",
+      "title": "Where's Bob?",
+      "description": "Hide your miniature Bob somewhere in the bar and get another player to find him. Proof: who found him, and where."
+    },
+    {
+      "id": "p-last-words",
+      "title": "Last words",
+      "description": "Get someone to guess Bob's last words. Proof: who guessed, and what they said."
+    },
+    {
+      "id": "p-front-page",
+      "title": "Front page",
+      "description": "Get someone to come up with tomorrow's newspaper headline about tonight. Proof: who said it, and the headline."
+    },
+    {
+      "id": "p-jury-of-one",
+      "title": "Jury of one",
+      "description": "Tell a stranger about Bob's murder in one sentence and get them to point at a suspect in your group. Proof: who they picked, and a player who heard it."
+    },
+    {
+      "id": "p-beer-mat-haiku",
+      "title": "Beer mat haiku",
+      "description": "Get someone to write a line of poetry on a beer mat for you. Proof: the beer mat."
+    },
+    {
+      "id": "p-manc-lesson",
+      "title": "Manc lesson",
+      "description": "Get a local to teach you a bit of Manc slang, then use it on another player without explaining it. Proof: the word, and who you used it on."
+    },
+    {
+      "id": "p-good-deed",
+      "title": "Good deed",
+      "description": "Do something small and kind for a stranger (hold a door, find them a seat, pay them a compliment) and get a thank-you. Proof: what you did, and a player who saw it."
+    },
+    {
+      "id": "p-thank-you-note",
+      "title": "Thank-you note",
+      "description": "Leave the bar staff a thank-you note on a napkin when they're not rushed, and get a smile out of them. Proof: a photo of the note, or a player who saw it."
+    },
+    {
+      "id": "p-wingman",
+      "title": "Wingman",
+      "description": "Get someone to write their phone number on a piece of paper and give it to Kacper. Proof: the paper, or a player who saw it handed over."
+    },
+    {
+      "id": "p-bar-photo",
+      "title": "Staff photo",
+      "description": "Get the bartender to pose for a photo with you and your miniature Bob. Proof: the photo."
+    },
+    {
+      "id": "p-coasters",
+      "title": "Lids on",
+      "description": "Put a coaster on top of at least four people's drinks before anyone calls you out. Proof: a photo of each, or a player who saw them."
+    },
+    {
+      "id": "p-taylor-who",
+      "title": "Taylor who?",
+      "description": "Act as if you've never heard of Taylor Swift and get someone to explain who Taylor Swift is. Proof: who explained, and the best bit."
+    },
+    {
+      "id": "p-despicable",
+      "title": "Despicable plot",
+      "description": "Get someone to tell you the plot of Despicable Me. Proof: who told it, and a player who heard it."
     }
   ],
   "global": [
@@ -365,12 +485,6 @@
       "title": "Album cover remake",
       "description": "Recreate a famous album cover with whatever (and whoever) is to hand. Name the album in your comment. Most faithful, or most ridiculous, wins.",
       "windowMin": 45
-    },
-    {
-      "id": "g-dody-rename",
-      "title": "Doug who?",
-      "description": "Rename Douglas: funniest name wins. For the rest of the night, anyone who doesn't call Douglas by the new name loses 5 points (the GM docks them).",
-      "windowMin": 30
     },
     {
       "id": "g-pocket-lottery",

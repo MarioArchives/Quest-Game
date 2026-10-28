@@ -39,7 +39,7 @@ export function AddEvidenceBanners({ titleById }: { titleById: Map<string, strin
               <li key={s.id} className="evbanner">
                 <Icon name="camera" size={24} strokeWidth={2.2} />
                 <div className="evbanner__text">
-                  <p className="evbanner__title">Approved! +{s.pointsAwarded ?? 0}</p>
+                  <p className="evbanner__title">Approved!{s.pointsAwarded ? ` +${s.pointsAwarded}` : ''}</p>
                   <p className="evbanner__sub">
                     {title}. Add a photo or a comment to your post.
                   </p>

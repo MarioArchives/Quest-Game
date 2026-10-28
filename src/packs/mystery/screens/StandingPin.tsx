@@ -23,7 +23,7 @@ export function StandingPin({ standing }: { standing: PlayerStanding }) {
 export function StandingKey({ lines }: { lines: readonly StandingKeyLine[] }) {
   if (lines.length === 0) return null;
   return (
-    <ul className="st__legend" aria-label="Key to the pins">
+    <ul className="st__legend" aria-label="Key to the pins" data-tour="legend">
       {lines.map((line) => (
         <li key={line.standing} className={`st__lg st__lg--${line.standing}`}>
           <StandingPin standing={line.standing} />

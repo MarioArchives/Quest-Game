@@ -1,0 +1,157 @@
+/* The torch tour's frame (tr-), inside its shadow root next to the snapshot of the game's own CSS (snap/game.css), so
+   the specimen screens look as they did: the stage the tabs turn on, the tab bar, and the tour over it all (the dark,
+   the torch's spot, the twine and the brass tacks, the red pen, the badge and the dock). The tags are hangtag.css. */
+
+/* The game's html and body, renamed so they can live in a shadow root; see-through, so the app shows while the lights
+   go down and come up. */
+snap-root, snap-body { display: block; min-height: 0; height: auto; margin: 0; padding: 0; background: none; }
+
+.tr-app {
+  --glide: cubic-bezier(0.45, 0.05, 0.2, 1);
+  /* the tour's foot: its progress and Skip, under the screen */
+  --tr-dock-h: calc(48px + env(safe-area-inset-bottom, 0px));
+  position: fixed; inset: 0; max-width: var(--app-max, 480px); margin: 0 auto; display: flex; flex-direction: column; overflow: hidden;
+  user-select: none; -webkit-user-select: none;
+}
+/* Wider than a phone, the room outside the app's column goes dark too. */
+.tr-veil { position: fixed; inset: 0; background: var(--room); opacity: 0; pointer-events: none; transition: opacity 0.26s ease; }
+.tr-veil.is-on { opacity: 0.96; }
+.tr-app button { -webkit-tap-highlight-color: transparent; }
+
+/* ---- the frame ---- */
+
+/* What was fixed in the game (a sheet, the toasts) is pinned to this frame instead, which is the phone's screen. The
+   toasts stay over a sheet, as in the game, but under the tour's dark. */
+.tr-app [data-snap-fixed] { position: absolute !important; }
+.tr-app .toasts { z-index: 55; }
+/* A box the snapshot adds round the map's markers, for the torch to find (they sit on transforms). */
+.snap-box { position: absolute; z-index: 0; pointer-events: none; }
+/* Leaflet placed the map for the phone it was snapshotted on; --snap-dx keeps it centred on this one. */
+.leaflet-map-pane { translate: var(--snap-dx, 0px) var(--snap-dy, 0px); }
+
+/* The stage: the three tabs stacked, each a page of the game scrolling on its own under the tab bar, as the game's page
+   scrolls under its sticky one; a page turns over on its left edge as in the game (src/data/tabTurn.ts). --tr-bar-h
+   is the tab bar's height. */
+.tr-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--ink); }
+.tr-pane {
+  position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  transform-origin: 0 50%; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.tr-pane::-webkit-scrollbar { display: none; }
+.tr-pane > .app { position: relative; min-height: 100%; }
+.tr-pane > .app:not(.app--fill)::after { content: ''; flex: none; height: var(--tr-bar-h, 68px); }
+.tr-pane > .app.app--fill { height: 100%; padding-bottom: var(--tr-bar-h, 68px); }
+/* Room to scroll a part near the foot of a page up under the torch, with its tag below it: under the page, so a page
+   that fills the screen (Standings) still fills it as in the game. Not under the map, which doesn't scroll. */
+.tr-pane:not(.is-fill)::after { content: ''; display: block; height: 55vh; }
+/* The swipe's stop: the page lifts a little off its left edge and lies back, showing the next one under it. */
+.tr-app.is-peek .tr-pane--missions { animation: tr-peek 3.2s ease-in-out 0.7s infinite; }
+.tr-app.is-peek .tr-pane--logbook { visibility: visible !important; z-index: 1 !important; animation: tr-peek-under 3.2s ease-in-out 0.7s infinite; }
+@keyframes tr-peek {
+  0%, 18% { transform: none; filter: none; }
+  42%, 58% { transform: perspective(2200px) rotateY(-26deg); filter: brightness(0.86); }
+  82%, 100% { transform: none; filter: none; }
+}
+@keyframes tr-peek-under {
+  0%, 18% { filter: brightness(0.45); }
+  42%, 58% { filter: brightness(0.6); }
+  82%, 100% { filter: brightness(0.45); }
+}
+
+/* The tab bar, the game's own, over the foot of the page. */
+.tr-bar { position: absolute; z-index: 10; left: 0; right: 0; bottom: 0; }
+.tr-bar .tabbar { position: relative; }
+
+/* ---- the tour (TourLayer.tsx) ---- */
+
+.tr-tour { position: absolute; inset: 0; z-index: 60; overflow: hidden; }
+.tr-catch { position: absolute; inset: 0; }
+/* The torch: everything outside the spot in the dark, a soft bright rim round it. It glides between stops. */
+.tr-spot {
+  position: absolute; z-index: 1; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 200vmax var(--torch-dark), 0 0 0 3px var(--torch), 0 0 30px 10px var(--torch);
+  transition: left 0.6s var(--glide), top 0.6s var(--glide), width 0.6s var(--glide), height 0.6s var(--glide);
+}
+/* Before the first stop is placed, the dark with no spot. */
+.tr-spot.is-none { box-shadow: 0 0 0 200vmax var(--torch-dark); }
+.tr-pen { position: absolute; z-index: 2; width: 220px; margin-left: -110px; color: var(--marker); pointer-events: none; text-align: center; animation: tr-rise 0.4s ease-out 0.5s both; }
+.tr-pen svg { display: block; width: 100%; height: 36px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+@keyframes tr-rise { from { opacity: 0; transform: translateY(8px); } }
+/* The twine, the tacks and the tag: hidden while the lights go down or up, gliding with the spot between stops. */
+.tr-hang { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+.tr-hang.is-shown { opacity: 1; }
+.tr-hang:not(.is-shown) .tr-ht--tour { pointer-events: none; }
+.tr-cord {
+  position: absolute; z-index: 1; width: 3px; background: repeating-linear-gradient(180deg, var(--twine) 0 2.6px, var(--twine-dark) 2.6px 3.8px); box-shadow: 1px 0 0 var(--sh-tab);
+  transition: left 0.6s var(--glide), top 0.6s var(--glide), height 0.6s var(--glide);
+}
+.tr-tack { position: absolute; z-index: 4; width: 18px; height: 18px; transition: left 0.6s var(--glide), top 0.6s var(--glide); }
+.tr-tack::before {
+  content: ''; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 50%; border: 0.9px solid var(--pin-gold-edge);
+  background: radial-gradient(circle at 35% 32%, var(--bee-gold), var(--pin-gold) 55%, var(--pin-gold-edge)); box-shadow: 1.6px 2.2px 0 var(--sh-tab);
+}
+.tr-tack::after { content: ''; position: absolute; left: 5.5px; top: 5.5px; width: 3.4px; height: 3.4px; border-radius: 50%; background: var(--shine); opacity: 0.65; }
+.tr-ht--tour { z-index: 3; pointer-events: auto; transition: left 0.6s var(--glide), top 0.6s var(--glide); }
+.tr-tour.is-jump .tr-spot, .tr-tour.is-jump .tr-cord, .tr-tour.is-jump .tr-tack, .tr-tour.is-jump .tr-ht--tour { transition: none; }
+/* The red pen (Marks.tsx): arrows, drawn as if by hand. */
+.tr-marks { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.tr-pen__ink, .tr-pen__halo { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.tr-pen__ink { stroke: var(--marker); stroke-width: 3; }
+.tr-pen__halo { stroke: var(--marker-halo); stroke-width: 7; }
+.tr-pen__draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: tr-draw var(--dur, 0.5s) cubic-bezier(0.35, 0.1, 0.3, 1) var(--delay, 0s) forwards; }
+@keyframes tr-draw { to { stroke-dashoffset: 0; } }
+
+/* The lights going down before the specimen night, and coming up after it. */
+.tr-black { position: absolute; inset: 0; z-index: 5; background: var(--room); opacity: 0; pointer-events: none; transition: opacity 0.26s ease; }
+.tr-tour.is-in .tr-black { opacity: 0.96; animation: tr-down 0.26s ease both; }
+.tr-tour.is-out .tr-black { opacity: 0.96; }
+.tr-tour.is-gone .tr-black { opacity: 0.96; animation: tr-up 0.26s ease 0.36s both; }
+@keyframes tr-down { from { opacity: 0; } }
+@keyframes tr-up { from { opacity: 0.96; } to { opacity: 0; } }
+/* Over the status bar: the badge saying none of this is real. When the torch is on the app bar it steps down under the
+   case number, out of its light. */
+.tr-strip { position: absolute; z-index: 6; left: 0; right: 0; top: calc(var(--safe-top) + 4px); height: 30px; animation: tr-down 0.3s ease both; }
+.tr-tour.is-gone .tr-strip { opacity: 0; transition: opacity 0.2s; }
+.tr-specimen {
+  position: absolute; left: 50%; top: 4px; padding: 2px 8px; border: 2.5px solid var(--warn-on-dark); color: var(--warn-on-dark); transform: translateX(-50%) rotate(-3deg);
+  font: 400 12px/1.2 var(--display); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; transition: top 0.4s var(--glide), left 0.4s var(--glide);
+}
+.tr-strip.is-low .tr-specimen { left: 82px; top: 52px; }
+/* At the foot, under the screen while the tour is on (the screen moves up to make room, its tab bar too, so nothing the
+   torch lights is ever under it): how far through the tour you are, a segment a stop, and Skip. */
+.tr-app.is-touring { bottom: var(--tr-dock-h); --safe-bottom: 0px; }
+.tr-dock {
+  position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; max-width: var(--app-max, 480px); height: var(--tr-dock-h); margin: 0 auto; box-sizing: border-box;
+  display: flex; align-items: center; gap: 14px; padding: 0 10px env(safe-area-inset-bottom, 0px) 16px;
+  background: var(--room); border-top: 1px solid var(--room-rule); animation: tr-down 0.3s ease both;
+}
+.tr-tour.is-gone .tr-dock { opacity: 0; transition: opacity 0.2s; }
+.tr-progress { flex: 1; display: flex; gap: 3px; height: 6px; }
+.tr-progress span { flex: 1; border-radius: 3px; background: var(--track); transition: background-color 0.3s ease; }
+.tr-progress span.is-done, .tr-progress span.is-on { background: var(--pin-gold); }
+.tr-skip {
+  flex: none; min-height: 36px; padding: 0 16px; border: 1.5px solid var(--room-edge); border-radius: 18px; background: transparent;
+  color: var(--room-text); cursor: pointer; font: 700 10.5px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase;
+}
+.tr-skip:focus-visible { outline: 2px solid var(--room-text); outline-offset: 2px; }
+.tr-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* A short screen (a phone on its side): a compact tag, so it still fits between the badge and the dock. */
+@media (max-height: 500px) {
+  .tr-ht--tour .tr-ht__body { min-height: 0; padding-bottom: 8px; }
+  .tr-ht--tour.tr-ht--flip .tr-ht__body { padding-top: 8px; }
+  .tr-ht--tour .tr-ht__sec { margin-top: 12px; }
+  .tr-ht--tour .tr-ht__t { font-size: 18px; }
+  .tr-ht--tour .tr-ht__foot { padding-top: 6px; }
+}
+
+/* Reduced motion: nothing glides or fades; the spot, the tag and the tabs jump, and the pen's arrows are there whole.
+   (base.css only shortens transitions to 0.01ms, which still leaves the old layout in place for a frame, where the
+   tour measures it.) */
+@media (prefers-reduced-motion: reduce) {
+  .tr-app *, .tr-app *::before, .tr-app *::after, .tr-veil { transition-property: none !important; }
+  .tr-app.is-peek .tr-pane--missions, .tr-app.is-peek .tr-pane--logbook { animation: none; }
+  .tr-pen, .tr-strip, .tr-dock, .tr-tour.is-in .tr-black, .tr-tour.is-gone .tr-black { animation: none; }
+  .tr-tour.is-gone .tr-black { opacity: 0; }
+  .tr-pen__draw { animation: none; stroke-dashoffset: 0; }
+}

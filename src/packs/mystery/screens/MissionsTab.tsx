@@ -51,7 +51,7 @@ export function MissionsTab({ deck }: { deck: Deck }) {
   return (
     <div className="ms">
       {features.police ? <PoliceCallCard /> : null}
-      <div ref={stackRef} className="ms-stackwrap">
+      <div ref={stackRef} className="ms-stackwrap" data-tour="live">
         <MissionStack missions={deck.open} order={order} onOrder={setHeld} onVote={deck.voted} />
       </div>
       {deck.open.length > 1 ? <p className="ms-hint">Swipe the front folder away; tap a tab to pull it forward</p> : null}

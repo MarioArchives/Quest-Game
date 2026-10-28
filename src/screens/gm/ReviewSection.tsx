@@ -60,11 +60,11 @@ export function ReviewSection() {
                       void run(
                         `approve:${sub.id}`,
                         () => reviewSubmission({ submissionId: sub.id, approve: true }),
-                        `Approved. +${settings.questPoints}.`,
+                        settings.questPoints ? `Approved. +${settings.questPoints}.` : 'Approved.',
                       )
                     }
                   >
-                    {`Approve +${settings.questPoints}`}
+                    {settings.questPoints ? `Approve +${settings.questPoints}` : 'Approve'}
                   </Button>
                   <Button className="gm-flex1" disabled={mine || ended || busyKey !== null} onClick={() => setRejecting(sub)}>
                     Reject
