@@ -74,7 +74,7 @@ snap-root, snap-body { display: block; min-height: 0; height: auto; margin: 0; p
 }
 /* Before the first stop is placed, the dark with no spot. */
 .tr-spot.is-none { box-shadow: 0 0 0 200vmax var(--torch-dark); }
-.tr-pen { position: absolute; z-index: 2; width: 220px; margin-left: -110px; color: var(--marker); pointer-events: none; text-align: center; animation: tr-rise 0.4s ease-out 0.5s both; }
+.tr-pen { position: absolute; z-index: 4; width: 220px; margin-left: -110px; color: var(--marker); pointer-events: none; text-align: center; animation: tr-rise 0.4s ease-out 0.5s both; }
 .tr-pen svg { display: block; width: 100%; height: 36px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
 @keyframes tr-rise { from { opacity: 0; transform: translateY(8px); } }
 /* The twine, the tacks and the tag: hidden while the lights go down or up, gliding with the spot between stops. */
@@ -93,8 +93,8 @@ snap-root, snap-body { display: block; min-height: 0; height: auto; margin: 0; p
 .tr-tack::after { content: ''; position: absolute; left: 5.5px; top: 5.5px; width: 3.4px; height: 3.4px; border-radius: 50%; background: var(--shine); opacity: 0.65; }
 .tr-ht--tour { z-index: 3; pointer-events: auto; transition: left 0.6s var(--glide), top 0.6s var(--glide); }
 .tr-tour.is-jump .tr-spot, .tr-tour.is-jump .tr-cord, .tr-tour.is-jump .tr-tack, .tr-tour.is-jump .tr-ht--tour { transition: none; }
-/* The red pen (Marks.tsx): arrows, drawn as if by hand. */
-.tr-marks { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+/* The red pen (Marks.tsx): arrows, drawn as if by hand, over the twine and the tag. */
+.tr-marks { position: absolute; inset: 0; z-index: 4; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .tr-pen__ink, .tr-pen__halo { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .tr-pen__ink { stroke: var(--marker); stroke-width: 3; }
 .tr-pen__halo { stroke: var(--marker-halo); stroke-width: 7; }
