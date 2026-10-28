@@ -233,6 +233,34 @@ export function boxIn(el: Element, root: Element): Box {
   return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height };
 }
 
+/**
+ * Calls `then` once `scroller` has come to rest: at `to` when a scroll there was just asked for, else (a scroll that may
+ * still be under way, a fling) unmoved for a few frames running; never later than `max` ms. A smooth scroll takes as
+ * long as the phone likes, so whatever a hop measures after it is measured where it stays. Returns a cancel.
+ */
+export function whenStill(scroller: Pick<HTMLElement, 'scrollTop'>, then: () => void, to: number | null = null, max = 1500): () => void {
+  let start: number | null = null;
+  let last = scroller.scrollTop;
+  let still = 0;
+  let id = 0;
+  const tick = (now: number) => {
+    start ??= now;
+    const y = scroller.scrollTop;
+    still = Math.abs(y - last) < 0.5 ? still + 1 : 0;
+    last = y;
+    // Asked to go somewhere, it's there; or it never set off (nowhere further to go), or stopped short.
+    const rest = to === null ? still >= 3 : (Math.abs(y - to) < 1 && still >= 1) || still >= 10;
+    if (rest || now - start > max) return then();
+    id = requestAnimationFrame(tick);
+  };
+  id = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(id);
+}
+
+/** Where a scroll by `by` ends: as far as the scroller goes. */
+export const scrollEnd = (scroller: Pick<HTMLElement, 'scrollTop' | 'scrollHeight' | 'clientHeight'>, by: number) =>
+  Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, scroller.scrollTop + by));
+
 /** The scroller (a page, or a sheet) a lit element sits in. */
 const scrollerOf = (el: HTMLElement, root: HTMLElement) => {
   const sc = el.parentElement?.closest<HTMLElement>('[data-scroller]') ?? null;

@@ -163,7 +163,7 @@ function usePager(paint: (pos: number) => void, reduced: boolean) {
 
 function Frame({ request, setCovering }: TourFrameProps) {
   const { user } = useSession();
-  const { settings, personalTemplates, myPoliceCall } = useGame();
+  const { settings, myPoliceCall } = useGame();
   const { showing: voting } = useVoteTakeover();
   const { pending: reward } = useRewardSheet();
   const toast = useToast();
@@ -172,8 +172,7 @@ function Frame({ request, setCovering }: TourFrameProps) {
 
   const root = useRef<HTMLDivElement>(null);
   const panes = useRef<(HTMLElement | null)[]>([]);
-  const missions = personalTemplates.filter((tpl) => tpl.active).length || pack.catalogue.personal.length;
-  const stops = useMemo(() => stopsFor(settings, pack, missions), [settings, missions]);
+  const stops = useMemo(() => stopsFor(settings, pack), [settings]);
   const [run, dispatch] = useReducer((r: Run, a: RunAction) => runReducer(r, a), request.part, (part) => {
     const { from, to } = runRange(part);
     return startRun(from, to);

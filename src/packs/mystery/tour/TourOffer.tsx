@@ -1,6 +1,6 @@
 // The offer of the torch tour, a kraft tag tied on under the sealed case file's wax seal, hanging down the file's
 // right-hand side, or, on the mission stack (no start time yet, or booked in after the case opened), hung on a brass tack
-// under the folders, where it covers nothing: "Time to kill? See tonight in 17 stops." Take the tour, or Not now (the
+// under the folders, where it covers nothing: "Time to kill? See tonight in 19 stops." Take the tour, or Not now (the
 // tag drops away, and My file keeps the tour). Who sees it is tourState's offerShown: a player before the case opens,
 // or one who booked in after it opened; never a GM. Under the seal it is rendered inside the file's frame, which it
 // measures.

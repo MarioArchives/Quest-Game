@@ -258,21 +258,21 @@ const wordOf = (title) => ([...title.matchAll(/[A-Za-z]{4,}/g)].map((m) => m[0])
  * marked (the tour pins them to its own frame), a carousel remembers which card sat in its middle, a scrolling sheet is
  * marked as a scroller, and every URL becomes a token for the script to fetch (map tiles stay as they are: they load
  * live). Leaflet's markers sit on transforms, which the tour's measuring ignores, so a map gets a plain box round its
- * markers instead (`box`).
+ * markers instead (`boxes`: a name for each, and the markers it goes round).
  */
 const CAPTURE = (opts) => `(async (opts) => {
   const missing = [];
   const stamped = [];
   const mark = (el, name) => { el.setAttribute('data-tour', name); stamped.push(el); };
   const added = [];
-  if (opts.box) {
+  for (const [boxName, sel] of opts.boxes ?? []) {
     const map = document.querySelector('.leaflet-container');
     const m = map.getBoundingClientRect();
-    const rs = [...map.querySelectorAll(opts.box)].map((e) => e.getBoundingClientRect()).filter((r) => r.bottom > m.top && r.top < m.bottom && r.right > m.left && r.left < m.right);
+    const rs = [...map.querySelectorAll(sel)].map((e) => e.getBoundingClientRect()).filter((r) => r.bottom > m.top && r.top < m.bottom && r.right > m.left && r.left < m.right);
     const x0 = Math.min(...rs.map((r) => r.left)) - m.left, x1 = Math.max(...rs.map((r) => r.right)) - m.left;
     const y0 = Math.min(...rs.map((r) => r.top)) - m.top, y1 = Math.max(...rs.map((r) => r.bottom)) - m.top;
     const box = document.createElement('div');
-    box.setAttribute('data-tour', opts.boxName);
+    box.setAttribute('data-tour', boxName);
     box.className = 'snap-box';
     box.style.cssText = 'left: calc(' + Math.round(x0) + 'px + var(--snap-dx, 0px)); top: calc(' + Math.round(y0) + 'px + var(--snap-dy, 0px)); width: ' + Math.round(x1 - x0) + 'px; height: ' + Math.round(y1 - y0) + 'px';
     map.appendChild(box);
@@ -480,7 +480,13 @@ async function specimenNight(base) {
     for (let i = 1; i <= 10; i++) await b.mouse('mouseMoved', m.x, m.y - (lift * i) / 10);
     await b.mouse('mouseReleased', m.x, m.y - lift);
     await sleep(3000);
-    await keep(b, 'map', { tags: [['strip', '.fqstrip']], box: '.fqpin--stop, .fqpin--player, .fqfoot, .fqpin__label, .fqlabel', boxName: 'route' });
+    await keep(b, 'map', {
+      tags: [['strip', '.fqstrip']],
+      boxes: [
+        ['route', '.fqpin--stop, .fqpin--player, .fqfoot, .fqpin__label, .fqlabel'],
+        ['players', '.fqpin--player, .fqpin--player .fqpin__label'],
+      ],
+    });
 
     await route(b, '#/');
     await b.click('.bd-tab', 'Standings');

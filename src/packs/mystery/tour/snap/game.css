@@ -568,8 +568,8 @@ h1, h2, h3 { text-transform: none; letter-spacing: 0; }
 .section-head__meta { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
 .app__main .section-head__meta { color: var(--rule); }
 .app__main .mf-card .section-head__meta, .app__main .tk .section-head__meta, .sheet .section-head__meta { color: var(--muted); }
-.app__main > .empty, .app__main > section > .empty { color: var(--rule); }
-.app__main > .empty h3, .app__main > section > .empty h3 { color: var(--walltext); }
+.app__main > .empty, .app__main > section > .empty, .tl > .empty { color: var(--rule); }
+.app__main > .empty h3, .app__main > section > .empty h3, .tl > .empty h3 { color: var(--walltext); }
 .app__main :focus-visible { --ring: var(--walltext); }
 .app__main .tk :focus-visible, .app__main .mf-card :focus-visible, .sheet :focus-visible { --ring: var(--ink); }
 

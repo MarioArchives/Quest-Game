@@ -5,7 +5,7 @@
 // goes to each thing you'd tap (a hop), the red pen (Marks.tsx) drawing an arrow to it unless the hop says not to.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { ArrowIcon, CheckIcon, HangTag, Tack, TagText, tagWords } from './HangTag';
-import { boxIn, place, type Limits, type Placement } from './layout';
+import { boxIn, place, scrollEnd, whenStill, type Limits, type Placement } from './layout';
 import { badgeLow, hopArrow, padded, union, within, type Box, type HopArrow } from './marks';
 import { Arrow } from './Marks';
 import type { Phase } from './run';
@@ -128,11 +128,13 @@ export function TourLayer({
   const latest = useRef(relayout);
   latest.current = relayout;
 
-  // Each stop (and the moment the specimen night is in place): measure, then hang.
+  // Each stop (and the moment the specimen night is in place): measure, then hang. Only then: the game's data changing
+  // under the tour words the stops again (from tonight's settings) as new objects, and hanging the stop again would
+  // scroll its page back in the middle of a hop.
   useLayoutEffect(() => {
     if (phase !== 'on') return;
-    relayout(at === null);
-  }, [phase, stop, width, relayout]);
+    latest.current(at === null);
+  }, [phase, stop, width]);
 
   // After a jump, glide again from the next stop on.
   useEffect(() => {
@@ -178,7 +180,8 @@ export function TourLayer({
   }, [at, stop, reduced]);
 
   // A hop: the page brought round to it if it's scrolled away, then the arrow from what was lit to the thing to tap,
-  // the torch going with it unless that thing is inside what's lit already.
+  // the torch going with it unless that thing is inside what's lit already. Nothing is measured while the page is
+  // still moving (the stop's own scroll, or the one bringing the thing round), so the torch lands where it stays.
   const [hopAt, setHopAt] = useState<(HopArrow & { key: string }) | null>(null);
   /** Where the torch is on a hop elsewhere; it stays there between one hop and the next, until the stop. */
   const [hopSpot, setHopSpot] = useState<Box | null>(null);
@@ -196,23 +199,22 @@ export function TourLayer({
     const done = () => shownRef.current(hop.to, hop.i);
     const timers: number[] = [];
     const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
+    const frames: (() => void)[] = [];
+    /** `then` once the scroller is at rest (at `to`, given one); at once with reduced motion, where scrolls jump. */
+    const still = (scroller: HTMLElement | null, then: () => void, to: number | null = null) => {
+      if (!scroller || reduced) then();
+      else frames.push(whenStill(scroller, then, to));
+    };
     later(() => {
       const target = el.querySelector<HTMLElement>(selectorOf(hop.target));
       if (!target) return done();
-      const lim = limits(el, top.current);
       const scroller = target.closest<HTMLElement>('[data-scroller]');
-      const r = boxIn(target, el);
-      let wait = 0;
-      if (scroller && (r.y < lim.top + 10 || r.y + r.h > lim.bottom - 10)) {
-        const by = r.y < lim.top + 10 ? r.y - lim.top - 24 : r.y + r.h - lim.bottom + 24;
-        scroller.scrollBy({ top: by, behavior: reduced ? 'auto' : 'smooth' });
-        wait = reduced ? 0 : 420;
-      }
-      later(() => {
+      /** The arrow to the thing to tap, and the torch going to it, measured where it rests. */
+      const show = () => {
         const to = boxIn(target, el);
         const arrow = hopArrow({
           to,
-          lit: litBox(el, hop.from, lim),
+          lit: litBox(el, hop.from, limits(el, top.current)),
           spot: atRef.current?.spot ?? null,
           tag: tag.current ? boxIn(tag.current, el) : null,
           elsewhere: hop.elsewhere,
@@ -221,9 +223,22 @@ export function TourLayer({
         if (!arrow.inner) setHopSpot(padded(to, el.clientWidth));
         // The arrow and its head take this long to draw (or, without one, the torch to get there); a moment, then on.
         later(done, reduced ? 650 : !hop.arrow ? 900 : arrow.inner ? 1050 : 1250);
-      }, wait);
+      };
+      // Once the page is still, the thing is brought round if it's scrolled away, and shown when that scroll is done.
+      still(scroller, () => {
+        const lim = limits(el, top.current);
+        const r = boxIn(target, el);
+        if (!scroller || (r.y >= lim.top + 10 && r.y + r.h <= lim.bottom - 10)) return show();
+        const by = r.y < lim.top + 10 ? r.y - lim.top - 24 : r.y + r.h - lim.bottom + 24;
+        const end = scrollEnd(scroller, by);
+        scroller.scrollBy({ top: by, behavior: reduced ? 'auto' : 'smooth' });
+        still(scroller, show, end);
+      });
     }, hop.settle);
-    return () => timers.forEach((id) => window.clearTimeout(id));
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      frames.forEach((stop) => stop());
+    };
   }, [hop, phase, root, reduced]);
 
   const shown = phase === 'on' && at;
