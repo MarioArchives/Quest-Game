@@ -1,6 +1,8 @@
-// Makes a signed-in user a GM (game master) by writing admins/{uid} in Firestore.
+// Makes a signed-in user a GM (game master) by writing admins/{uid} in Firestore, or takes it away again.
 //
 //   npm run make-admin -- you@example.com
+//   npm run make-admin -- --list                         lists the GMs (uid, email, name)
+//   npm run make-admin -- them@example.com --remove      deletes admins/{uid}: they're a player again
 //   npm run make-admin -- you@example.com --uid <uid>   skip the Auth lookup and use this uid
 //   npm run make-admin -- --uid <uid>                   email is looked up if the user exists
 //   npm run make-admin -- you@example.com --prod        the real project ("prod" in .firebaserc)
@@ -15,13 +17,15 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { explainCredentials, selectTarget } from './lib/target.mjs';
 
-const USAGE = 'Usage: npm run make-admin -- <email> [--uid <uid>] [--prod]';
+const USAGE = 'Usage: npm run make-admin -- <email> [--uid <uid>] [--remove] [--prod]   or   npm run make-admin -- --list [--prod]';
 
-/** @returns {{ email: string | null, uid: string | null }} */
+/** @returns {{ email: string | null, uid: string | null, prod: boolean, remove: boolean, list: boolean }} */
 function parseArgs(argv) {
   let email = null;
   let uid = null;
   let prod = false;
+  let remove = false;
+  let list = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--uid') {
@@ -31,6 +35,10 @@ function parseArgs(argv) {
       uid = a.slice('--uid='.length);
     } else if (a === '--prod') {
       prod = true;
+    } else if (a === '--remove') {
+      remove = true;
+    } else if (a === '--list') {
+      list = true;
     } else if (a === '--help' || a === '-h') {
       console.log(USAGE);
       process.exit(0);
@@ -42,8 +50,9 @@ function parseArgs(argv) {
       throw new Error(`Unexpected argument ${a}.`);
     }
   }
+  if (list) return { email, uid, prod, remove, list };
   if (!email && !uid) throw new Error('Give the GM\'s email address (or --uid).');
-  return { email, uid, prod };
+  return { email, uid, prod, remove, list };
 }
 
 /** Fail fast with a useful message when an emulator is not running. */
@@ -59,7 +68,7 @@ async function assertUp(name, host) {
 }
 
 async function main() {
-  const { email: wantedEmail, uid: wantedUid, prod } = parseArgs(process.argv.slice(2));
+  const { email: wantedEmail, uid: wantedUid, prod, remove, list } = parseArgs(process.argv.slice(2));
   const projectId = selectTarget({
     prod,
     emulators: { FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' },
@@ -67,8 +76,14 @@ async function main() {
   initializeApp({ projectId });
 
   if (!prod) await assertUp('Firestore', process.env.FIRESTORE_EMULATOR_HOST);
+  if (list) return listAdmins(projectId, prod);
   let uid = wantedUid;
   let email = wantedEmail;
+  // Removing goes by the email on the admin doc first, so it works even for a user Auth no longer has.
+  if (remove && !uid) {
+    const hit = await getFirestore().collection('admins').where('email', '==', email).limit(1).get();
+    if (!hit.empty) uid = hit.docs[0].id;
+  }
 
   if (!uid || !email) {
     if (!prod) await assertUp('Auth', process.env.FIREBASE_AUTH_EMULATOR_HOST);
@@ -78,6 +93,7 @@ async function main() {
       email = email ?? user.email?.toLowerCase() ?? null;
     } catch (err) {
       if (err?.code !== 'auth/user-not-found') throw err;
+      if (remove && !uid) throw new Error(`${email} is not a GM in ${projectId}. See them all with --list.`);
       if (!uid) {
         throw new Error(
           prod
@@ -95,9 +111,33 @@ async function main() {
     }
   }
 
+  if (remove) {
+    const ref = getFirestore().doc(`admins/${uid}`);
+    if (!(await ref.get()).exists) throw new Error(`${email || uid} is not a GM in ${projectId}.`);
+    await ref.delete();
+    console.log(`${email || uid} is no longer a GM in ${projectId} (deleted admins/${uid}).`);
+    console.log('Their GM tab goes on their next reload; they can ask to join as a player.');
+    return;
+  }
+
   await getFirestore().doc(`admins/${uid}`).set({ email: email ?? '' }, { merge: true });
   console.log(`${email || uid} is now a GM in ${projectId} (admins/${uid}).`);
   console.log('Reload the app; the GM tab appears in the bottom bar.');
+}
+
+/** Prints every GM: uid, the email on the admin doc, and the name Auth knows them by. */
+async function listAdmins(projectId, prod) {
+  const snap = await getFirestore().collection('admins').get();
+  if (snap.empty) return console.log(`No GMs in ${projectId}.`);
+  if (!prod) await assertUp('Auth', process.env.FIREBASE_AUTH_EMULATOR_HOST);
+  console.log(`GMs in ${projectId}:`);
+  for (const d of snap.docs) {
+    const name = await getAuth()
+      .getUser(d.id)
+      .then((u) => u.displayName ?? '')
+      .catch(() => '(no Auth user)');
+    console.log(`  ${d.id}  ${d.data().email || '-'}  ${name}`);
+  }
 }
 
 main().catch((err) => {

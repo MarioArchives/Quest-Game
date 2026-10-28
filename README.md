@@ -132,7 +132,7 @@ Phones on your Wi‑Fi can't join this setup yet: the app connects to the emulat
 | `npm run seed -- --reset-demo` | Deletes the demo players and everything they own, then seeds them again (use it after the data shapes change). |
 | `npm run seed -- --reset-settings` | Overwrite `game/settings` with the defaults. |
 | `npm run players` | Three more copies of the app on ports 5174–5176, one player each (run alongside `npm run dev`). |
-| `npm run make-admin -- <email>` | Adds the signed-in user to `admins/`. `--uid <uid>` skips the Auth lookup. |
+| `npm run make-admin -- <email>` | Adds the signed-in user to `admins/`. `--uid <uid>` skips the Auth lookup; `--remove` takes a GM off again; `--list` (no email) lists the GMs. |
 | `npm run import-schedule` | Refreshes the Lancaster pack's festival schedule (see below). |
 | `node scripts/packs/mystery/snapshot-tour.mjs` | Re-takes the mystery torch tour's specimen screens (`src/packs/mystery/tour/snap/`) from the in-memory demo, on a mock server of its own (it refuses anything but the mock backend) in a headless Chrome; fails, writing nothing, when a name a stop lights is missing. `--check` takes the tour itself at 360×640, 390×844 and 430×932 and checks every tag is on the screen and clear of what's lit (screenshots in `--scratch`); `--url` uses a demo already running. Needs Google Chrome. |
 
