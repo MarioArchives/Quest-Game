@@ -532,6 +532,42 @@ snap-root {
 
   --shadow: 0 4px 0 var(--wall-shadow);
 
+  
+  --night: #0d0e0f;
+  --wood: #4a3220;
+  --wood-2: #3a2617;
+  --wood-grain: rgba(0, 0, 0, 0.18);
+  --lamp: rgba(255, 214, 150, 0.3);
+  --lamp-core: rgba(255, 226, 178, 0.55);
+  --lamp-edge: rgba(0, 0, 0, 0.72);
+  --lamp-falloff: rgba(0, 0, 0, 0.6);
+  --brass: #c8a24a;
+  --brass-dark: #8a6d2c;
+  --sh-desk: rgba(0, 0, 0, 0.55);
+  --sh-paper: rgba(0, 0, 0, 0.5);
+  --sheet: #f6f4ee;
+  --news-back: #e4e0d4;
+  --news-rule: #2a2116;
+  --news-grey: #6b675e;
+  --grid-ink-2: rgba(91, 74, 51, 0.28);
+  --teal-wash: rgba(31, 138, 133, 0.13);
+  --map-land: #e9d6a3;
+  --map-road: #f6ebcb;
+  --map-park: #d3c68c;
+  --map-label: #6b5638;
+  --pin-shadow: rgba(0, 0, 0, 0.3);
+  --ph-wall: #4b3a2c;
+  --ph-skin: #d6ad86;
+  --ph-dark: #241c16;
+  --ph-table: #6e5238;
+  --ph-light: #efe6cf;
+  --ph-chart: #d6d9d4;
+  --ph-blank: #cfc8b6;
+  --ph-metal: #858c91;
+  --mast: 'Playfair Display', 'Times New Roman', Georgia, serif;
+  --serif: 'PT Serif', Georgia, 'Times New Roman', serif;
+  --condensed: 'Archivo Variable', 'Archivo', 'Arial Narrow', system-ui, sans-serif;
+
   --display: 'Archivo Black', 'Arial Black', system-ui, sans-serif;
   --display-weight: 400;
   --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -1611,6 +1647,10 @@ snap-root .tipoff__fine { font-family: var(--mono); font-size: 11px; line-height
 
 .app--fill { height: 100dvh; min-height: 0; overflow: hidden; }
 .app--fill .app__main { padding: 0; gap: 0; min-height: 0; overflow: hidden; }
+
+.app--bare { height: 100dvh; min-height: 0; overflow: hidden; }
+.app--bare .appbar, .app--bare .tabbar { display: none; }
+.app--bare .app__main { flex: 1; padding: 0; gap: 0; min-height: 0; overflow: hidden; }
 
 .skip-link {
   position: absolute;
@@ -4973,6 +5013,13 @@ button.fqstrip__now, button.fqstrip__next { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .ml-flip, .ml-tag { transition: none; }
 }
+
+
+
+.ml-seal { display: grid; justify-items: center; padding: 37px 0 18px; }
+.ml-seal > .tr-ht { position: relative; grid-area: 1 / 1; }
+.ml-seal__tag { z-index: 2; }
+.ml-seal__tag .tr-ht__t { margin-top: 12px; }
 
 /* src/screens/account/account.css */
 

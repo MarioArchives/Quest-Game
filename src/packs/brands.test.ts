@@ -25,7 +25,7 @@ describe('pack looks', () => {
   });
 
   it('mystery: Missions, Log book and My file (a folder and a notebook), with silhouettes on per-player tints', () => {
-    expect(labelsFor('mystery')).toEqual({ home: 'Missions', feed: 'Log book', map: 'Map', account: 'My file', gm: 'GM', wrap: 'Case file' });
+    expect(labelsFor('mystery')).toEqual({ home: 'Public file', feed: 'Log book', map: 'Map', account: 'My file', gm: 'GM', wrap: 'Case file' });
     expect(brands.mystery!.tabIcons).toEqual({ home: 'folder', feed: 'notebook' });
     const avatar = brands.mystery!.avatar!;
     expect(avatar.placeholder).toBe('silhouette');

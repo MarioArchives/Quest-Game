@@ -131,3 +131,11 @@
 @media (prefers-reduced-motion: reduce) {
   .ml-flip, .ml-tag { transition: none; }
 }
+
+/* ---------- before the case opens (SealedLine.tsx): the hand face down, one upright tag in its place ---------- */
+/* The tags share one cell, so the line keeps its height while the offer drops away and the sealed tag takes its place;
+   the knot sits on the twine where it sags in the middle. */
+.ml-seal { display: grid; justify-items: center; padding: 37px 0 18px; }
+.ml-seal > .tr-ht { position: relative; grid-area: 1 / 1; }
+.ml-seal__tag { z-index: 2; }
+.ml-seal__tag .tr-ht__t { margin-top: 12px; }

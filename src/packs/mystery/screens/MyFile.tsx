@@ -1,8 +1,8 @@
 // My file as a case file (E4·1): witness requests first, as tags asking for your word; your suspect folder (the
 // classification band for your standing, police tape while your check-in is open, mugshot, case number, character,
 // stats, your particulars from the booking desk, the sealed motive); a pending reward; your tampering missions on a
-// line, one kraft tag at a time (MissionLine); the exhibits folder of clipped prints; then the engine's working cards
-// as folders.
+// line, one kraft tag at a time (MissionLine; face down before the case opens, SealedLine); the exhibits folder of
+// clipped prints; then the engine's working cards as folders.
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Avatar } from '../../../components/Avatar';
@@ -30,6 +30,7 @@ import { rerollAllowance, rerollsLeft as rerollsLeftFor, type Quest } from '../.
 import { Folder, Stamp, Strung, Tag, TagTop, tiltFor } from './CaseKit';
 import { ExhibitsFolder, ParticularsSlip, PoliceTape, SealedNote, StandingBand, Stat, SuspectHead, TopStrip } from './FileParts';
 import { MissionLine } from './MissionLine';
+import { SealedLine } from './SealedLine';
 import '../../../screens/account/account.css';
 import './myfile.css';
 
@@ -37,7 +38,7 @@ const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] 
 
 export default function MyFile() {
   const { user, player, isAdmin, signOut } = useSession();
-  const { me, settings, ready, players, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests } = useGame();
+  const { me, settings, state, ready, players, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests } = useGame();
   const reward = useRewardSheet();
   const { stopAndClear } = useLocationSharing();
   const navigate = useNavigate();
@@ -132,8 +133,6 @@ export default function MyFile() {
             ) : null}
           </Folder>
 
-          {/* The torch tour: under the suspect file before the case opens, under your missions once it has. */}
-
           {reward.pending ? (
             <Strung label="Reward">
               <Tag>
@@ -149,6 +148,8 @@ export default function MyFile() {
 
           {quests.loading ? (
             <Loader className="app__loader" caption="Dealing" />
+          ) : state.status === 'lobby' ? (
+            <SealedLine count={hand.length} />
           ) : (
             <MissionLine uid={uid ?? ''} hand={hand} rerollsLeft={rerollsLeft} rerollsTotal={rerollsTotal} />
           )}

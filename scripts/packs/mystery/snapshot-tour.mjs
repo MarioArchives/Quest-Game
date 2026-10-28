@@ -9,8 +9,8 @@
 //   src/packs/mystery/tour/snap/source.json  the commit it was taken at and a hash of every file whose change could
 //                                            change the screens (npm run deploy warns when they no longer match)
 //
-// The pack's own components carry data-tour="…" names; the engine's elements and one-off ones (the tip-off sheet, the
-// route on the map, the entry that says Autograph) are stamped as they are captured. Every name a stop uses is checked
+// The pack's own components carry data-tour="…" names; the engine's elements and one-off ones (the route on the map,
+// the standings' rows, the log book's newest entry) are stamped as they are captured. Every name a stop uses is checked
 // on the screen it is used on; a missing one fails the run (exit 1) and nothing is written. Run it again after changing
 // a screen the tour shows:
 //
@@ -242,7 +242,7 @@ const TIDY = withBackend(`
   return { removed: n, verdicts, checkins };
 `);
 
-/** Alex's hand, by title: the charge that's upheld is one of these, the dismissed one isn't. */
+/** Alex's hand, by title: the charge the tour types is one of these. */
 const ALEX = withBackend(`
   return (await all('players/demo-alex/quests')).map((q) => q.data()).filter((q) => q.status !== 'replaced').map((q) => q.title);
 `);
@@ -441,26 +441,16 @@ async function chargeSearch(b, word) {
   await sleep(1200);
 }
 
-/** Picks the charge called `title`, or (given a hand instead) the first one found that isn't in it. */
-async function pickCharge(b, { title, notIn }) {
+/** Picks the charge called `title`. */
+async function pickCharge(b, title) {
   const picked = await b.ev(`(() => {
-    const hits = [...document.querySelectorAll('.cs-hit')];
-    const name = (e) => e.querySelector('b')?.textContent.trim();
-    const hit = ${JSON.stringify(title ?? null)} ? hits.find((e) => name(e) === ${JSON.stringify(title ?? '')}) : hits.find((e) => !${JSON.stringify(notIn ?? [])}.includes(name(e)));
+    const hit = [...document.querySelectorAll('.cs-hit')].find((e) => e.querySelector('b')?.textContent.trim() === ${JSON.stringify(title)});
     hit?.click();
-    return hit ? name(hit) : null;
+    return hit ? ${JSON.stringify(title)} : null;
   })()`);
-  if (!picked) throw new Error(`No charge to pick (${title ?? 'one not in Alex\'s hand'})`);
+  if (!picked) throw new Error(`No charge to pick (${title})`);
   log(`charged Alex with "${picked}"`);
   await sleep(1200);
-}
-
-async function fileCharge(b) {
-  // The hold to file: a tap arms it, a second files it.
-  await b.click('.cs-hold');
-  await sleep(300);
-  await b.click('.cs-hold');
-  await sleep(2500);
 }
 
 async function specimenNight(base) {
@@ -517,50 +507,8 @@ async function specimenNight(base) {
     const hand = await b.ev(ALEX);
     await chargeSearch(b, wordOf(hand[0]));
     await keep(b, 'search');
-    await pickCharge(b, { title: hand[0] });
+    await pickCharge(b, hand[0]);
     await keep(b, 'terms');
-    await fileCharge(b);
-    await keep(b, 'upheld');
-  } finally {
-    b.close();
-  }
-}
-
-/** A dismissed charge on Alex, then (on his file still) Maya, a trusted confidant, tipping off the police about him:
- * the phone in the app bar, who to tip off, what they've been up to, sent, and the tip in the log book. A session of its
- * own, so the tip touches no other screen. */
-async function wrongChargeAndTip(base) {
-  const b = await launch();
-  try {
-    await signIn(b, base, SPECIMEN);
-    await letTheNightRun(b);
-    const hand = await b.ev(ALEX);
-    await chargeSearch(b, 'drink');
-    await pickCharge(b, { notIn: hand });
-    await fileCharge(b);
-    await sleep(400);
-    await keep(b, 'wrong');
-
-    // Let the toast go, then the tip line.
-    await sleep(6000);
-    await b.ev('scrollTo(0, 0)');
-    await b.click('.tipline');
-    await sleep(1200);
-    await keep(b, 'tip-pick', { tags: [['tip-pick', '.sheet .tipoff-pick'], ['tip-alex', '.sheet .tipoff-pick__who', 'Alex']] });
-    await b.click('.tipoff-pick__who', 'Alex');
-    await sleep(1000);
-    await b.ev(`document.querySelector('.sheet textarea')?.focus()`);
-    await b.type('seen slipping something into Sam’s drink');
-    await sleep(600);
-    await b.ev(`document.activeElement?.blur()`);
-    await sleep(300);
-    await keep(b, 'tip-note', { tags: [['tip-field', '.sheet .field'], ['tip-send', '.sheet .btn--danger']] });
-    await b.click('.sheet .btn--danger');
-    await sleep(1200);
-    await keep(b, 'tip-sent');
-    await b.ev(TIDY);
-    await route(b, '#/feed', 2500);
-    await keep(b, 'tip-logbook', { tags: [['tip-entry', '.tl__chapter:not(.tl__shut) .cf-strung > li', 'tipped off']] });
   } finally {
     b.close();
   }
@@ -687,7 +635,6 @@ const git = (...a) => {
 async function snapshot(base) {
   log(`snapshotting ${base} at ${WIDTH}×${HEIGHT}`);
   await specimenNight(base);
-  await wrongChargeAndTip(base);
 
   // Every name a stop uses must be on the screen it's used on.
   const b = await launch();

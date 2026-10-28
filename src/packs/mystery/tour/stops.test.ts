@@ -42,8 +42,8 @@ function uses(): { stop: number; name: string; scene: SceneId; overlays: boolean
 }
 
 describe('18. the stops', () => {
-  it('there are nineteen, on the three tabs', () => {
-    expect(STOPS).toHaveLength(19);
+  it('there are ten, on the three tabs', () => {
+    expect(STOPS).toHaveLength(10);
     for (const s of STOPS) expect(TABS).toContain(s.tab);
   });
 
@@ -60,7 +60,7 @@ describe('18. the stops', () => {
   });
 
   it('a hop’s screen is the last of its hops so far that moves', () => {
-    const via = STOPS[10]!.via!;
+    const via = STOPS[7]!.via!;
     expect(hopScreen(via, 0)).toBeNull();
     expect(hopScreen(via, 1)).toEqual({ tab: 'missions', scene: 'missions' });
     expect(hopScreen(via, 2)).toEqual({ tab: 'missions', scene: 'standings' });

@@ -1,4 +1,4 @@
-// The torch tour's nineteen stops, in order (a run is the whole tour, from the offer on Missions). Each stop names the tab it
+// The torch tour's ten stops, in order (a run is the whole tour, from the offer on Missions). Each stop names the tab it
 // happens on, the specimen screen shown there (a snapshot of the demo in snap/scenes.json, taken by
 // scripts/packs/mystery/snapshot-tour.mjs), the elements the torch lights and the tag's heading. What the tag says is
 // in words.ts, worded from tonight's settings. A lit name is a data-tour name (on the pack's own components, or stamped
@@ -11,21 +11,7 @@ export type TabId = 'missions' | 'logbook' | 'file';
 export const TABS: TabId[] = ['missions', 'logbook', 'file'];
 
 /** The snapshots, by the names the snapshot script keeps them under. */
-export type SceneId =
-  | 'missions'
-  | 'map'
-  | 'standings'
-  | 'logbook'
-  | 'file'
-  | 'alex'
-  | 'search'
-  | 'terms'
-  | 'upheld'
-  | 'wrong'
-  | 'tip-pick'
-  | 'tip-note'
-  | 'tip-sent'
-  | 'tip-logbook';
+export type SceneId = 'missions' | 'map' | 'standings' | 'logbook' | 'file' | 'alex' | 'search' | 'terms';
 
 /** What each tab shows on the specimen night when no stop is on it. */
 export const SPECIMEN: Record<TabId, SceneId> = { missions: 'missions', logbook: 'logbook', file: 'file' };
@@ -44,26 +30,7 @@ export interface Hop {
 }
 
 /** What a stop's tag says, worded by words.ts. */
-export type SayId =
-  | 'live'
-  | 'events'
-  | 'periodic'
-  | 'story'
-  | 'map'
-  | 'standings'
-  | 'standing-lines'
-  | 'swipe'
-  | 'logbook'
-  | 'missions'
-  | 'accuse'
-  | 'search'
-  | 'sign'
-  | 'upheld'
-  | 'wrong'
-  | 'police'
-  | 'tip'
-  | 'tip-note'
-  | 'tip-call';
+export type SayId = 'live' | 'kinds' | 'map' | 'standings' | 'standing-lines' | 'logbook' | 'missions' | 'accuse' | 'search' | 'sign';
 
 export interface Stop {
   tab: TabId;
@@ -92,18 +59,15 @@ export interface Stop {
 }
 
 export const STOPS: Stop[] = [
-  { tab: 'missions', scene: 'missions', title: 'Live now', say: 'live', lit: ['live'], width: 240 },
-  { tab: 'missions', scene: 'missions', title: 'Group events', say: 'events', lit: ['events'] },
-  { tab: 'missions', scene: 'missions', title: 'Periodic missions', say: 'periodic', lit: ['rollcall'] },
-  { tab: 'missions', scene: 'missions', title: 'Story missions', say: 'story', lit: ['story'] },
+  { tab: 'missions', scene: 'missions', title: 'Active missions', say: 'live', lit: ['live'], width: 240 },
+  { tab: 'missions', scene: 'missions', title: 'Kinds of mission', say: 'kinds', lit: ['events', 'rollcall', 'story'], core: ['events', 'rollcall'] },
   {
     tab: 'missions',
     scene: 'map',
     via: [{ target: '.tr-pane--missions .bd-tab:nth-child(2)', label: 'the Map' }],
     title: 'Map',
     say: 'map',
-    lit: ['strip', 'players'],
-    core: ['strip'],
+    lit: ['strip', '.tr-pane--missions .leaflet-container'],
   },
   {
     tab: 'missions',
@@ -114,8 +78,7 @@ export const STOPS: Stop[] = [
     lit: ['st-top', 'st-row3'],
     core: ['st-top', 'st-row2'],
   },
-  { tab: 'missions', scene: 'standings', title: 'Trusted or watched', say: 'standing-lines', width: 262, lit: ['legend'] },
-  { tab: 'missions', scene: 'standings', title: 'Swipe between tabs', say: 'swipe', lit: ['tabbar'], growTop: 130, pen: 'swipe', peek: true },
+  { tab: 'missions', scene: 'standings', title: 'Trusted or watched', say: 'standing-lines', width: 240, lit: ['legend'] },
   {
     tab: 'logbook',
     scene: 'logbook',
@@ -124,7 +87,7 @@ export const STOPS: Stop[] = [
     say: 'logbook',
     lit: ['top-card', 'entry-new'],
     core: ['entry-new'],
-    width: 262,
+    width: 240,
   },
   {
     tab: 'file',
@@ -133,17 +96,17 @@ export const STOPS: Stop[] = [
     title: 'Your missions',
     say: 'missions',
     lit: ['mission'],
-    width: 240,
+    width: 262,
   },
   {
     tab: 'missions',
     scene: 'alex',
     via: [
-      { target: '.tr-bar .tabbar__tab:nth-child(1)', label: 'Missions' },
+      { target: '.tr-bar .tabbar__tab:nth-child(1)', label: 'Public file' },
       { at: { tab: 'missions', scene: 'missions' }, target: '.tr-pane--missions .bd-tab:nth-child(3)', label: 'Standings' },
       { at: { tab: 'missions', scene: 'standings' }, target: '.tr-pane--missions .st__li[data-uid="demo-alex"] .st__face', label: 'Alex’s file' },
     ],
-    title: 'Press charges',
+    title: 'Call them out',
     say: 'accuse',
     lit: ['suspect-head', 'form3'],
     core: ['form3'],
@@ -161,54 +124,15 @@ export const STOPS: Stop[] = [
     tab: 'missions',
     scene: 'terms',
     via: [{ target: '.tr-over .cs-hit', label: 'pick one' }],
-    title: 'Sign and file',
+    title: 'Charge them',
     say: 'sign',
     lit: ['cs-terms', 'cs-file'],
     core: ['cs-sign', 'cs-file'],
   },
-  {
-    tab: 'missions',
-    scene: 'upheld',
-    via: [{ target: '.tr-over .cs-hold', label: 'hold to file' }],
-    title: 'Sustained or dropped',
-    say: 'upheld',
-    lit: ['cs-upheld', 'cs-result'],
-  },
-  { tab: 'missions', scene: 'wrong', title: 'If you’re wrong', say: 'wrong', lit: ['form3'] },
-  { tab: 'missions', scene: 'wrong', bare: true, title: 'The police', say: 'police', width: 236, lit: ['.tr-pane--missions .appbar__score'] },
-  {
-    tab: 'missions',
-    scene: 'tip-pick',
-    via: [{ target: '.tr-pane--missions .tipline', label: 'the tip line' }],
-    title: 'Tip them off',
-    say: 'tip',
-    lit: ['tip-pick'],
-  },
-  {
-    tab: 'missions',
-    scene: 'tip-note',
-    via: [{ target: 'tip-alex', label: 'Alex' }],
-    title: 'What they’ve been up to',
-    say: 'tip-note',
-    lit: ['tip-field', 'tip-send'],
-    core: ['tip-field'],
-  },
-  {
-    tab: 'logbook',
-    scene: 'tip-logbook',
-    bare: true,
-    via: [
-      { target: 'tip-send', label: 'send' },
-      { at: { tab: 'missions', scene: 'tip-sent' }, target: '.tr-bar .tabbar__tab:nth-child(2)', label: 'Log book' },
-    ],
-    title: 'The police ring them',
-    say: 'tip-call',
-    lit: ['tip-entry'],
-  },
 ];
 
 /** How each tag hangs: a degree or so off straight, never the same way twice running. */
-export const TILT = [-1, 1, -0.8, 1, -0.9, 0.8, -1, 0.9, -0.8, 1, -1, 1, -1, 0.8, -0.8, 1.1, -1.2, 0.9, -1];
+export const TILT = [-1, 1, -0.8, 1, -0.9, 0.8, -1, 0.9, -0.8, 1];
 
 /** Where a name points: a data-tour name, or a selector as it is. */
 export const selectorOf = (name: string) => (/^[.#[]/.test(name) ? name : `[data-tour="${name}"]`);

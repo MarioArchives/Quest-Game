@@ -1,9 +1,10 @@
 // The offer of the torch tour, a kraft tag tied on under the sealed case file's wax seal, hanging down the file's
 // right-hand side, or, on the mission stack (no start time yet, or booked in after the case opened), hung on a brass tack
-// under the folders, where it covers nothing: "Time to kill? See tonight in 19 stops." Take the tour, or No thanks (the
+// under the folders, where it covers nothing; before the case opens it also hangs straight down from My file's twine in
+// the tampering missions' place (SealedLine): "Time to kill? See tonight in 10 stops." Take the tour, or No thanks (the
 // tag drops away, and with it the tour: it's the only way in). Who sees it is tourState's offerShown: a player before
 // the case opens, or one who booked in after it opened; never a GM. Under the seal it is rendered inside the file's
-// frame, which it measures.
+// frame, which it measures; on the twine it sits in the line's own grid.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { tsMs } from '../../../data/hooks';
 import { useGame } from '../../../data/GameProvider';
@@ -45,10 +46,10 @@ export function useBooked(): number | undefined {
 }
 
 /**
- * The offer, tied on under `anchor` (the wax seal, inside the positioned element this renders in), or without one hung
- * on its own tack in the page's flow.
+ * The offer, tied on under `anchor` (the wax seal, inside the positioned element this renders in), hung straight down
+ * from a twine the parent draws (`line`), or without either hung on its own tack in the page's flow.
  */
-export function TourOffer({ anchor }: { anchor?: '.wax' }) {
+export function TourOffer({ anchor, line = false }: { anchor?: '.wax'; line?: boolean }) {
   const { user } = useSession();
   const shown = useTourOffer();
   const booked = useBooked();
@@ -68,7 +69,7 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
   useLayoutEffect(() => {
     const tag = ref.current;
     const frame = tag?.parentElement;
-    if (!tag || !frame) return;
+    if (line || !tag || !frame) return;
     const measure = () => {
       if (!anchor) {
         setAt({ x: Math.max(4, (frame.clientWidth - WIDTH) / 2), y: PIN_DROP });
@@ -85,7 +86,7 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
     const seen = new ResizeObserver(measure);
     seen.observe(frame);
     return () => seen.disconnect();
-  }, [anchor, shown, leaving]);
+  }, [anchor, line, shown, leaving]);
 
   if (!uid || (!shown && !leaving)) return null;
 
@@ -101,14 +102,14 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
   const tag = (
     <HangTag
       width={WIDTH}
-      tilt={2}
-      className={`tr-offer${leaving ? ' is-gone' : ''}`}
-      style={at ? { left: at.x, top: at.y } : { visibility: 'hidden' }}
+      tilt={line ? 0 : 2}
+      className={`tr-offer${line ? ' tr-offer--line' : ''}${leaving ? ' is-gone' : ''}`}
+      style={line ? undefined : at ? { left: at.x, top: at.y } : { visibility: 'hidden' }}
       ref={ref}
     >
       <p className="tr-ht__no">
         <span>Tour</span>
-        <span>3 min</span>
+        <span>2 min</span>
       </p>
       <p className="tr-ht__t">Time to kill? See tonight in {STOPS.length} stops.</p>
       <div className="tr-ht__stack">
@@ -121,7 +122,7 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
       </div>
     </HangTag>
   );
-  if (anchor) return tag;
+  if (anchor || line) return tag;
   return (
     <div className="tr-offer-pin" style={{ height: height || undefined }}>
       <span className="tr-offer-pin__tack" aria-hidden="true" />
