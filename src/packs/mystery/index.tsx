@@ -36,6 +36,8 @@ const look: PackLook = {
     onboarding: lazy(() => import('./booking/Booking')),
     // A vote that needs you takes over the whole app: polaroids to swipe, then a cork board to choose on.
     vote: lazy(() => import('./screens/PolaroidVote')),
+    // Case closed: Natalia's desk, the night's papers landing one at a time and your profile last.
+    wrap: lazy(() => import('./caseClosed/CaseClosed')),
   },
   // The torch tour over the app: a specimen night lit one stop at a time (tour/; offered on Missions, the only way in).
   layer: lazy(() => import('./tour/TourHost')),

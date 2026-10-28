@@ -11,7 +11,7 @@ import { RouteError } from './screens/RouteError';
 const AccountScreen = look.screens?.account ?? lazy(() => import('./screens/AccountScreen'));
 const MapScreen = lazy(() => import('./modules/map/MapScreen'));
 const GMConsole = look.screens?.gm ?? lazy(() => import('./screens/gm/GMConsole'));
-const WrapScreen = lazy(() => import('./screens/WrapScreen'));
+const WrapScreen = look.screens?.wrap ?? lazy(() => import('./screens/WrapScreen'));
 const JoinScreen = lazy(() => import('./screens/JoinScreen'));
 const StandingsScreen = lazy(() => import('./screens/StandingsScreen'));
 const PlayerScreen = look.screens?.player ?? lazy(() => import('./screens/PlayerScreen'));

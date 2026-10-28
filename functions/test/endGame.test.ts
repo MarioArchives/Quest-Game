@@ -2,6 +2,8 @@
 // the top photo is the most-reacted post).
 import { describe, expect, it } from 'vitest';
 import { computeAwards, endGame, type PlayerStats } from '../src/game/endGame.js';
+import { getPack } from '../src/shared/packs/index.js';
+import type { CaseFile } from '../src/shared/packs/mystery/caseClosed.js';
 import type { Venue } from '../src/shared/types.js';
 import {
   addMin,
@@ -337,3 +339,58 @@ describe('endGame', () => {
     expect((await getData(db(), 'game/state'))?.status).toBe('active');
   });
 });
+
+describe("endGame and a pack's closing hook", () => {
+  it('a pack without the hook writes game/final as before, with no closing', async () => {
+    await scenario();
+    await endGame(db(), ctx('gm'), { venues: VENUES });
+    expect(await getData(db(), 'game/final')).not.toHaveProperty('closing');
+  });
+
+  it("stores what the mystery hook works out from the whole night, private collections included, as game/final.closing", async () => {
+    const mystery = getPack('mystery');
+    await seedGame(db(), { status: 'active', state: { startedAt: ts(addMin(T0, -300)) } });
+    await seedAdmin(db(), 'gm');
+    const joinedAt = addMin(T0, -300);
+    await seedPlayer(db(), 'alice', { displayName: 'Alice', points: 10, joinedAt });
+    await seedPlayer(db(), 'bob', { displayName: 'Bob', points: -10, joinedAt });
+    await seedPlayer(db(), 'carol', { displayName: 'Carol', points: 0, joinedAt });
+
+    // The incriminating photos, voted yes/no: two tag bob (3 + 1 damning votes), one tags carol (2).
+    await db().doc('globalQuests/inc').set({
+      title: 'Incriminating evidence', description: '', bonusPoints: 2, source: 'story', templateId: null, storyId: 's-incriminating',
+      startsAt: ts(addMin(T0, -200)), endsAt: ts(addMin(T0, -20)), status: 'closed', votingEndsAt: null,
+      winnerUids: ['bob'], winningSubmissionIds: ['i1'], tally: { i1: 2, i2: 0, i3: 1 }, yesNo: { i1: { yes: 3, no: 1 }, i2: { yes: 1, no: 1 }, i3: { yes: 2, no: 1 } },
+    });
+    await seedSubmission(db(), 'i1', { uid: 'alice', kind: 'global', questId: 'inc', witnessUid: null, status: 'approved', createdAt: addMin(T0, -100), extra: { taggedUid: 'bob' } });
+    await seedSubmission(db(), 'i2', { uid: 'carol', kind: 'global', questId: 'inc', witnessUid: null, status: 'approved', createdAt: addMin(T0, -90), extra: { taggedUid: 'bob' } });
+    await seedSubmission(db(), 'i3', { uid: 'bob', kind: 'global', questId: 'inc', witnessUid: null, status: 'approved', createdAt: addMin(T0, -80), extra: { taggedUid: 'carol' } });
+    // Only the server reads these: carol wrote bob's motive, alice framed bob twice.
+    await db().doc('motives/bob').set({ text: 'He spoiled Line of Duty.', updatedAt: ts(addMin(T0, -150)), byUid: 'carol' });
+    await db().doc('rewards/r1').set({ uid: 'alice', submissionId: 'r1', status: 'framed', targetUid: 'bob', createdAt: ts(addMin(T0, -60)) });
+    await db().doc('rewards/r2').set({ uid: 'alice', submissionId: 'r2', status: 'framed', targetUid: 'bob', createdAt: ts(addMin(T0, -50)) });
+    await db().doc('policeCalls/c1').set({ uid: 'bob', kind: 'tip', byUid: 'alice', status: 'missed', startsAt: ts(addMin(T0, -40)) });
+    // A roll call (carol missed it), and the time of death as the story fixed it, on London's clock.
+    await db().doc('checkins/k1').set({ periodicId: 'roll-call', name: 'Roll call', prompt: '', number: 1, startsAt: ts(addMin(T0, -120)), endsAt: ts(addMin(T0, -105)), status: 'closed', penalty: 5, missedUids: ['carol'] });
+    await db().doc('checkins/k1/answers/alice').set({ uid: 'alice', imagePath: null, thumbPath: null, caption: 'here', createdAt: ts(addMin(T0, -118)), feedId: 'f9' });
+    await db().doc('checkins/k1/answers/bob').set({ uid: 'bob', imagePath: null, thumbPath: null, caption: 'here', createdAt: ts(addMin(T0, -110)), feedId: 'f8' });
+    await db().doc('facts/timeOfDeath').set({ key: 'timeOfDeath', label: 'Time of death', value: '14:40', entries: [], storyId: 's-time-of-death', at: ts(addMin(T0, -100)) });
+    await db().doc('pointsLedger/l1').set({ uid: 'alice', delta: 10, reason: 'cleared', ref: null, by: 'system', createdAt: ts(addMin(T0, -55)) });
+    await db().doc('pointsLedger/l2').set({ uid: 'bob', delta: -5, reason: 'framed', ref: null, by: 'system', createdAt: ts(addMin(T0, -60)) });
+    await db().doc('pointsLedger/l3').set({ uid: 'bob', delta: -5, reason: 'framed', ref: null, by: 'system', createdAt: ts(addMin(T0, -50)) });
+
+    await endGame(db(), ctx('gm', T0, undefined, undefined, mystery), { venues: [] });
+    const file = (await getData(db(), 'game/final'))!.closing as CaseFile;
+
+    expect(file.verdict).toEqual({ opened: true, tally: { bob: 4, carol: 2 }, photos: { bob: 2, carol: 1 }, uids: ['bob'], motiveBy: { bob: 'carol' } });
+    const won = Object.fromEntries(file.awards.map((a) => [a.id, a.uids]));
+    expect(won).toMatchObject({ murderer: ['bob'], innocent: ['carol'], pen: ['carol'], puppet: ['alice'], fallguy: ['bob'], snitch: ['alice'] });
+    expect(file.awards.find((a) => a.id === 'puppet')?.n).toEqual({ alice: { frames: 2 } });
+    expect(file.timeline.map((l) => [l.uid, l.delta])).toEqual([['bob', -5], ['alice', 10], ['bob', -5]]);
+    // 14:40 BST is 13:40 UTC, 20 minutes before the close: bob answered the roll call last before it.
+    expect(file.deathAt).toBe(addMin(T0, -20).getTime());
+    expect(won.lastseen).toEqual(['bob']);
+    expect(JSON.stringify(file)).not.toContain('targetUid');
+  });
+});
+

@@ -1,6 +1,6 @@
 import { Stamp } from '../shared/store/stamp.js';
 import type { Batch } from '../shared/store/types.js';
-import type { Feature, Features, AwardCopy } from '../shared/packs/types.js';
+import type { AwardCopy, ClosingInput, Feature, Features } from '../shared/packs/types.js';
 import { termForms } from '../shared/packs/terms.js';
 import { competitionRanks } from '../shared/ranking.js';
 import { rerollAllowance } from '../shared/rerolls.js';
@@ -8,16 +8,24 @@ import { VENUE_RADIUS_M } from '../shared/settings.js';
 import type {
   Award,
   AwardKey,
+  Checkin,
+  CheckinAnswer,
+  Fact,
   FeedItem,
   FinalStandings,
   GlobalQuest,
   Guess,
   LedgerEntry,
+  Motive,
   Player,
+  PoliceCall,
   Quest,
   QuestTemplate,
+  Reward,
+  Settings,
   Standing,
   Submission,
+  TopPost,
   Venue,
   Wrap,
 } from '../shared/types.js';
@@ -164,6 +172,109 @@ async function commitInBatches(db: Db, ops: Array<(batch: Batch) => void>): Prom
 async function docs<T>(db: Db, path: string): Promise<Array<Doc<T>>> {
   const snap = await db.collection(path).get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }));
+}
+
+/** The night as a pack's closing hook takes it: what endGame already read, plus what only the server may read. */
+async function closingInput(
+  db: Db,
+  read: {
+    startedAt: number | null;
+    endedAt: number;
+    timeZone: string;
+    settings: Settings;
+    standings: Standing[];
+    players: Array<Doc<Player>>;
+    ledger: Array<Doc<LedgerEntry>>;
+    guesses: Array<Doc<Guess>>;
+    submissions: Array<Doc<Submission>>;
+    globals: Array<Doc<GlobalQuest>>;
+    feed: Array<Doc<FeedItem>>;
+  },
+): Promise<ClosingInput> {
+  const [rewards, motives, calls, checkins, facts, topSnap] = await Promise.all([
+    docs<Reward>(db, 'rewards'),
+    docs<Motive>(db, 'motives'),
+    docs<PoliceCall>(db, 'policeCalls'),
+    docs<Checkin>(db, 'checkins'),
+    docs<Fact>(db, 'facts'),
+    db.doc('game/top').get(),
+  ]);
+  const answers = await Promise.all(checkins.map((c) => docs<CheckinAnswer>(db, `checkins/${c.id}/answers`)));
+  const player = new Map(read.players.map((p) => [p.id, p]));
+  const inGame = (uid: string) => player.has(uid);
+  const top = topSnap.exists ? (topSnap.data() as TopPost) : null;
+  const topPost = top?.feedId ? read.feed.find((f) => f.id === top.feedId) : undefined;
+  return {
+    startedAt: read.startedAt,
+    endedAt: read.endedAt,
+    timeZone: read.timeZone,
+    settings: read.settings,
+    players: read.standings.map((s) => {
+      const p = player.get(s.uid);
+      return {
+        uid: s.uid,
+        displayName: s.displayName,
+        points: s.points,
+        rank: s.rank,
+        joinedAt: ms(p?.joinedAt),
+        bookedAt: p?.bookedAt ? ms(p.bookedAt) : null,
+        relation: p?.particulars?.relation ?? null,
+      };
+    }),
+    ledger: read.ledger
+      .filter((l) => inGame(l.uid))
+      .map((l) => ({ uid: l.uid, t: ms(l.createdAt), delta: l.delta, reason: l.reason, ref: l.ref ?? null, note: l.note ?? null }))
+      .sort((a, b) => a.t - b.t),
+    guesses: read.guesses.map((g) => ({ guesserUid: g.guesserUid, targetUid: g.targetUid, correct: g.correct, t: ms(g.createdAt) })),
+    submissions: read.submissions.map((s) => ({
+      id: s.id,
+      uid: s.uid,
+      kind: s.kind,
+      questId: s.questId,
+      status: s.status,
+      checked: s.checked ?? null,
+      taggedUid: s.taggedUid ?? null,
+      t: ms(s.createdAt),
+    })),
+    globals: read.globals.map((g) => ({
+      id: g.id,
+      storyId: g.storyId ?? null,
+      kind: g.kind ?? 'mission',
+      status: g.status,
+      startsAt: ms(g.startsAt),
+      winnerUids: g.winnerUids ?? [],
+      winningSubmissionIds: g.winningSubmissionIds ?? [],
+      tally: g.tally ?? null,
+      yesNo: g.yesNo ?? null,
+    })),
+    feed: read.feed.map((f) => ({
+      id: f.id,
+      type: f.type,
+      uid: f.uid ?? null,
+      actorUid: f.actorUid ?? null,
+      up: f.up ?? 0,
+      down: f.down ?? 0,
+      t: ms(f.createdAt),
+    })),
+    top: top?.feedId ? { feedId: top.feedId, uid: topPost?.uid ?? null, up: top.up, down: top.down } : null,
+    rewards: rewards.map((r) => ({ uid: r.uid, status: r.status, targetUid: r.targetUid ?? null, t: ms(r.createdAt) })),
+    motives: motives.map((m) => ({ uid: m.id, byUid: m.byUid ?? null })),
+    policeCalls: calls.map((c) => ({ uid: c.uid, kind: c.kind, byUid: c.byUid ?? null, status: c.status, t: ms(c.startsAt) })),
+    checkins: checkins.map((c, i) => ({
+      id: c.id,
+      startsAt: ms(c.startsAt),
+      endsAt: ms(c.endsAt),
+      status: c.status,
+      missedUids: c.missedUids ?? [],
+      answers: answers[i].map((a) => ({ uid: a.uid ?? a.id, t: ms(a.createdAt) })),
+    })),
+    facts: facts.map((f) => ({
+      key: f.key ?? f.id,
+      value: f.value ?? null,
+      entries: (f.entries ?? []).map((e) => ({ uid: e.uid, votes: e.votes })),
+      at: ms(f.at),
+    })),
+  };
 }
 
 /**
@@ -332,7 +443,24 @@ export async function endGame(db: Db, ctx: Ctx, opts: { venues?: Venue[] } = {})
 
   const awards = computeAwards(stats, { features: ctx.pack.features, copy: ctx.pack.awards });
 
-  const final: FinalStandings = { standings, endedAt };
+  const closing = ctx.pack.closing
+    ? ctx.pack.closing(
+        await closingInput(db, {
+          startedAt: state.startedAt ? ms(state.startedAt) : null,
+          endedAt: ctx.now.getTime(),
+          timeZone: ctx.pack.timeZone,
+          settings,
+          standings,
+          players,
+          ledger,
+          guesses,
+          submissions,
+          globals,
+          feed,
+        }),
+      )
+    : null;
+  const final: FinalStandings = { standings, endedAt, ...(closing ? { closing } : {}) };
   const ops: Array<(batch: Batch) => void> = [];
   for (const [uid, wrap] of wraps) {
     const doc: Wrap = { ...wrap, award: awards[uid] };

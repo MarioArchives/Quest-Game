@@ -16,6 +16,10 @@
 /* The map screen fills the space between the app bar and the tab bar; nothing scrolls the page behind it. */
 .app--fill { height: 100dvh; min-height: 0; overflow: hidden; }
 .app--fill .app__main { padding: 0; gap: 0; min-height: 0; overflow: hidden; }
+/* A pack's own wrap: the whole screen, no bars (it brings its own way out). */
+.app--bare { height: 100dvh; min-height: 0; overflow: hidden; }
+.app--bare .appbar, .app--bare .tabbar { display: none; }
+.app--bare .app__main { flex: 1; padding: 0; gap: 0; min-height: 0; overflow: hidden; }
 
 .skip-link {
   position: absolute;

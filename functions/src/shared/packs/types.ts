@@ -2,7 +2,21 @@
 // This is the rules half (wording, features, catalogue, defaults), shared by the functions, the app and the
 // scripts. The look half (theme, art, long copy, public files) lives in src/packs/<id>/.
 import type { ChatLineKey, VoiceLineKey } from '../phone.ts';
-import type { AwardKey, Settings, StoryEntry, Venue } from '../types.ts';
+import type {
+  AwardKey,
+  CheckinStatus,
+  FeedType,
+  GlobalQuestStatus,
+  LedgerReason,
+  PoliceCallKind,
+  PoliceCallStatus,
+  RewardStatus,
+  Settings,
+  StoryEntry,
+  SubmissionKind,
+  SubmissionStatus,
+  Venue,
+} from '../types.ts';
 
 /** A periodic mission a pack starts with: a path-safe id and what the GM would set on it. */
 export interface PeriodicSeed {
@@ -228,6 +242,65 @@ export interface GamePack {
   pushKinds?: PushKind[];
   /** What players put on feed posts: emoji (default) or one Credible / Doubtful vote each, with a top entry. */
   reactions?: 'emoji' | 'votes';
+  /**
+   * Works out what the pack's own wrap shows, once, as the GM ends the game: endGame hands it the whole night (with
+   * what players can't read, like rewards and motives) and stores what it returns as game/final.closing. Pure; the
+   * result must be plain data with no undefined values.
+   */
+  closing?: (night: ClosingInput) => Record<string, unknown>;
+}
+
+/** The night as endGame hands it to a pack's `closing`: plain data, every time in epoch ms. */
+export interface ClosingInput {
+  startedAt: number | null;
+  endedAt: number;
+  /** The pack's zone, for wall-clock times in the story. */
+  timeZone: string;
+  settings: Settings;
+  /** Everyone still in the game (not put out), in standings order, with their final rank. */
+  players: Array<{
+    uid: string;
+    displayName: string;
+    points: number;
+    rank: number;
+    joinedAt: number;
+    bookedAt: number | null;
+    relation: string | null;
+  }>;
+  /** Every points line of those players, oldest first. */
+  ledger: Array<{ uid: string; t: number; delta: number; reason: LedgerReason; ref: string | null; note: string | null }>;
+  guesses: Array<{ guesserUid: string; targetUid: string; correct: boolean; t: number }>;
+  submissions: Array<{
+    id: string;
+    uid: string;
+    kind: SubmissionKind;
+    questId: string;
+    status: SubmissionStatus;
+    checked: 'accepted' | 'rejected' | null;
+    taggedUid: string | null;
+    t: number;
+  }>;
+  globals: Array<{
+    id: string;
+    storyId: string | null;
+    kind: 'mission' | 'announce';
+    status: GlobalQuestStatus;
+    startsAt: number;
+    winnerUids: string[];
+    winningSubmissionIds: string[];
+    tally: Record<string, number> | null;
+    yesNo: Record<string, { yes: number; no: number }> | null;
+  }>;
+  feed: Array<{ id: string; type: FeedType; uid: string | null; actorUid: string | null; up: number; down: number; t: number }>;
+  /** The log book's top entry when the game ended (vote packs), with whose it is. */
+  top: { feedId: string; uid: string | null; up: number; down: number } | null;
+  /** Reward choices (who cleaned, who framed whom): only the owner and the GM can read these in the app. */
+  rewards: Array<{ uid: string; status: RewardStatus; targetUid: string | null; t: number }>;
+  /** Who wrote each player's motive, where another player did. */
+  motives: Array<{ uid: string; byUid: string | null }>;
+  policeCalls: Array<{ uid: string; kind: PoliceCallKind; byUid: string | null; status: PoliceCallStatus; t: number }>;
+  checkins: Array<{ id: string; startsAt: number; endsAt: number; status: CheckinStatus; missedUids: string[]; answers: Array<{ uid: string; t: number }> }>;
+  facts: Array<{ key: string; value: string | null; entries: Array<{ uid: string; votes: number }>; at: number }>;
 }
 
 /** Every kind of push the game can send: the feed-driven ones (standing split into gained and lost) and the rest. */

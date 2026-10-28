@@ -34,6 +34,8 @@ const LABELS = tabLabels(brand.tabs, { gm: t.gm.One, wrap: t.wrap.One });
 const FEED_TAB = Boolean(look.screens?.feed);
 /** The pack hosts the map in a screen of its own (a folder tab under Home), so there is no Map tab. */
 const OWN_MAP = Boolean(look.screens?.map);
+/** The pack draws its own wrap, which takes the whole screen. */
+const OWN_WRAP = Boolean(look.screens?.wrap);
 /** The pack's own app bar title for the screens that otherwise show its name. */
 const PackTitle = look.appTitle;
 /** The pack's own layer over the app, if it has one. */
@@ -131,7 +133,15 @@ function Frame() {
   if (FEED_TAB && lit === 'home') dots.home = false;
   const tabs = tabsFor({ features, isAdmin, ended: state.status === 'ended', feed: FEED_TAB, ownMap: OWN_MAP }).map((id) => ({ ...TABS[id], id, dot: dots[id] }));
 
-  useTabSwipe(mainRef, tabs, lit, pathname !== '/map');
+  // A pack's own wrap has the screen to itself: no bars, no tab swipes.
+  const bare = OWN_WRAP && pathname === '/wrap';
+  useTabSwipe(mainRef, tabs, lit, pathname !== '/map' && !bare);
+
+  // The first time this device sees the game over, a pack's own wrap opens by itself (its seen mark is the wrap tab's dot).
+  const unseenWrap = OWN_WRAP && badges.wrap;
+  useEffect(() => {
+    if (unseenWrap && pathname !== '/wrap') navigate('/wrap');
+  }, [unseenWrap, pathname, navigate]);
 
   // A tap on another tab turns the page too (in a pack that does), just without a finger.
   const tapTab = (e: MouseEvent<HTMLAnchorElement>, tab: (typeof tabs)[number]) => {
@@ -150,7 +160,7 @@ function Frame() {
 
   return (
     <>
-    <div className={`app${pathname === '/map' ? ' app--fill' : ''}`} inert={voting !== null || covering}>
+    <div className={`app${pathname === '/map' ? ' app--fill' : ''}${bare ? ' app--bare' : ''}`} inert={voting !== null || covering}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to content
       </a>

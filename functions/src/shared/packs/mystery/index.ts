@@ -2,6 +2,7 @@
 // witnessed, group missions are photo challenges, and every confirmed mission ends in destroying evidence or
 // framing a fellow suspect. Each player has a character with a secret motive. Venues come later.
 import type { Catalogue, GamePack } from '../types.ts';
+import { closeCase } from './caseClosed.ts';
 import quests from './quests.json' with { type: 'json' };
 
 export const mystery: GamePack = {
@@ -248,4 +249,6 @@ export const mystery: GamePack = {
       motive: 'He owed Bob a fortune, and the only record of the debt was in his desk.',
     },
   ],
+  // The case file the desk draws when the case closes: the verdict, the night's awards and every points line.
+  closing: closeCase,
 };

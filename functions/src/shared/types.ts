@@ -898,6 +898,8 @@ export interface Standing {
 export interface FinalStandings {
   standings: Standing[];
   endedAt: TS;
+  /** What the pack's `closing` hook worked out for its own wrap (packs with one); its shape is the pack's. */
+  closing?: Record<string, unknown>;
 }
 
 export type AwardKey =

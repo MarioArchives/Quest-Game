@@ -208,6 +208,12 @@ export interface PackLook {
      * engine shows it over the whole app (not on /gm, not during a police check-in). Without it the cards stay as they are.
      */
     vote?: LazyExoticComponent<ComponentType<VoteScreenProps>>;
+    /**
+     * The wrap at `/wrap` once the game has ended, drawn by the pack (it reads game/final, with what its `closing` hook
+     * worked out). It takes the whole screen: no app bar or tab bar there, so it brings its own way out. The first time
+     * a device sees the game ended, the app opens it. Without it the engine's WrapScreen.
+     */
+    wrap?: LazyExoticComponent<ComponentType>;
   };
   /** The reward pop-up's words; the engine has plain defaults. */
   reward?: RewardCopy;

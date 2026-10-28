@@ -185,6 +185,42 @@
 
   --shadow: 0 4px 0 var(--wall-shadow);
 
+  /* case closed (caseClosed/desk.css): the desk at night under the lamp, and the Evening Post on it */
+  --night: #0d0e0f;
+  --wood: #4a3220;
+  --wood-2: #3a2617;
+  --wood-grain: rgba(0, 0, 0, 0.18);
+  --lamp: rgba(255, 214, 150, 0.3);
+  --lamp-core: rgba(255, 226, 178, 0.55);
+  --lamp-edge: rgba(0, 0, 0, 0.72);
+  --lamp-falloff: rgba(0, 0, 0, 0.6);
+  --brass: #c8a24a;
+  --brass-dark: #8a6d2c;
+  --sh-desk: rgba(0, 0, 0, 0.55);
+  --sh-paper: rgba(0, 0, 0, 0.5);
+  --sheet: #f6f4ee;
+  --news-back: #e4e0d4;
+  --news-rule: #2a2116;
+  --news-grey: #6b675e;
+  --grid-ink-2: rgba(91, 74, 51, 0.28);
+  --teal-wash: rgba(31, 138, 133, 0.13);
+  --map-land: #e9d6a3;
+  --map-road: #f6ebcb;
+  --map-park: #d3c68c;
+  --map-label: #6b5638;
+  --pin-shadow: rgba(0, 0, 0, 0.3);
+  --ph-wall: #4b3a2c;
+  --ph-skin: #d6ad86;
+  --ph-dark: #241c16;
+  --ph-table: #6e5238;
+  --ph-light: #efe6cf;
+  --ph-chart: #d6d9d4;
+  --ph-blank: #cfc8b6;
+  --ph-metal: #858c91;
+  --mast: 'Playfair Display', 'Times New Roman', Georgia, serif;
+  --serif: 'PT Serif', Georgia, 'Times New Roman', serif;
+  --condensed: 'Archivo Variable', 'Archivo', 'Arial Narrow', system-ui, sans-serif;
+
   --display: 'Archivo Black', 'Arial Black', system-ui, sans-serif;
   --display-weight: 400;
   --body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
