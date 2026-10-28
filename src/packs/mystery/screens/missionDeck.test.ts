@@ -4,11 +4,11 @@ import {
   byDeadline,
   checkinMark,
   checkinRule,
+  isStillOpen,
+  liveAside,
   missionRule,
-  openLine,
-  opensLine,
+  nextLine,
   pullForward,
-  rangeLabel,
   sendBack,
   shortName,
   stackOrder,
@@ -64,7 +64,7 @@ describe('the stack', () => {
   });
 });
 
-describe('shortName (a folder tab and its chip)', () => {
+describe('shortName (a folder tab)', () => {
   it('drops a leading article and a closing mark', () => {
     expect(shortName('The line-up')).toBe('Line-up');
     expect(shortName('Hats only!')).toBe('Hats only');
@@ -78,15 +78,6 @@ describe('shortName (a folder tab and its chip)', () => {
 
   it('cuts a single long word short', () => {
     expect(shortName('Extraordinarily')).toBe('Extraordi…');
-  });
-});
-
-describe('rangeLabel', () => {
-  it('joins runs of chapters', () => {
-    expect(rangeLabel([3, 4, 5, 6, 7])).toBe('3–7');
-    expect(rangeLabel([7, 3, 5, 6])).toBe('3, 5–7');
-    expect(rangeLabel([4])).toBe('4');
-    expect(rangeLabel([])).toBe('');
   });
 });
 
@@ -125,29 +116,6 @@ describe('checkinMark', () => {
   });
 });
 
-describe('openLine', () => {
-  const playing = { playing: true, done: false };
-
-  it('says the time left and whether you are in, red while it needs you', () => {
-    expect(openLine('group', 'live', '18:20', { playing: true, done: true })).toEqual({ text: '18:20 left · you’re in', tone: 'ok' });
-    expect(openLine('story', 'live', '12:04', playing)).toEqual({ text: '12:04 left · not in', tone: 'hot' });
-    expect(openLine('periodic', 'live', '09:12', playing)).toEqual({ text: '09:12 left · not answered', tone: 'hot' });
-    expect(openLine('periodic', 'live', '09:12', { playing: true, done: true })).toEqual({ text: '09:12 left · answered', tone: 'ok' });
-  });
-
-  it('covers the check and the vote', () => {
-    expect(openLine('group', 'checking', null, playing)).toEqual({ text: 'entries being checked', tone: 'plain' });
-    expect(openLine('group', 'voting', '04:10', playing)).toEqual({ text: 'vote · 04:10 left · not voted', tone: 'hot' });
-    expect(openLine('group', 'voting', '04:10', { playing: true, done: true })).toEqual({ text: 'vote · 04:10 left · you voted', tone: 'ok' });
-    expect(openLine('group', 'voting', '04:10', { ...playing, nothingToVote: true })).toEqual({ text: 'vote · 04:10 left', tone: 'plain' });
-  });
-
-  it('asks nothing of a GM who only runs the game', () => {
-    expect(openLine('group', 'live', '18:20', { playing: false, done: false })).toEqual({ text: '18:20 left', tone: 'plain' });
-    expect(openLine('group', 'live', null, { playing: false, done: false }).text).toBe('time’s up');
-  });
-});
-
 describe('the rules on a folder', () => {
   it('a submit mission pays each entry, a vote mission its winner, with the fine for not entering', () => {
     expect(missionRule({ judging: 'submit', bonusPoints: 3, fastestBonus: 2 }, 3)).toBe('+3 each, the fastest +2 · −3 if you don’t');
@@ -166,25 +134,9 @@ describe('the rules on a folder', () => {
     expect(checkinRule(5)).toBe('−5 if you don’t · one answer, a photo or a comment');
     expect(checkinRule(0)).toBe('No fine · one answer, a photo or a comment');
   });
-
-  it('when the next one opens', () => {
-    expect(opensLine('22:42', 54 * MIN, 0)).toBe('opens 22:42 · in 54 min');
-    expect(opensLine('22:42', 0, MIN)).toBe('opens 22:42 · any minute');
-  });
 });
 
-describe('a long-running mission and announcements in the deck (plan "Mystery pack: minimal notifications…", edge case 28)', () => {
-  const playing = { playing: true, done: false };
-
-  it('a long-running mission shows its hours-long clock like any other', () => {
-    expect(openLine('story', 'live', '4:59:12', playing)).toEqual({ text: '4:59:12 left · not in', tone: 'hot' });
-  });
-
-  it('after its deadline it waits for its vote, not a check', () => {
-    expect(openLine('story', 'checking', null, playing, { longRun: true })).toEqual({ text: 'entries closed · vote opens later', tone: 'plain' });
-    expect(openLine('group', 'checking', null, playing)).toEqual({ text: 'entries being checked', tone: 'plain' });
-  });
-
+describe('announcements in the deck (plan "Mystery pack: minimal notifications…", edge case 28)', () => {
   it('lists the announcements that have fired, in the story order, never the missions', () => {
     const story = [
       { id: 's-photo' },
@@ -195,5 +147,47 @@ describe('a long-running mission and announcements in the deck (plan "Mystery pa
     expect(announcementsFired(story, [])).toEqual([]);
     expect(announcementsFired(story, ['s-reveal', 's-photo', 's-time']).map((s) => s.id)).toEqual(['s-time', 's-reveal']);
     expect(announcementsFired(story, ['s-time', 's-time', null, 's-gone']).map((s) => s.id)).toEqual(['s-time']);
+  });
+});
+
+describe('Live and Still open', () => {
+  const you = (done: boolean, playing = true) => ({ playing, done });
+
+  it('a group or story mission you are in, still taking entries, is Still open', () => {
+    expect(isStillOpen({ kind: 'group', status: 'live', you: you(true) })).toBe(true);
+    expect(isStillOpen({ kind: 'story', status: 'live', you: you(true) })).toBe(true);
+  });
+
+  it('one you are not in, a vote, entries being checked and roll calls stay in the stack', () => {
+    expect(isStillOpen({ kind: 'group', status: 'live', you: you(false) })).toBe(false);
+    expect(isStillOpen({ kind: 'group', status: 'voting', you: you(true) })).toBe(false);
+    expect(isStillOpen({ kind: 'story', status: 'checking', you: you(true) })).toBe(false);
+    expect(isStillOpen({ kind: 'periodic', status: 'live', you: you(true) })).toBe(false);
+  });
+
+  it('a GM who only runs the game has nothing Still open', () => {
+    expect(isStillOpen({ kind: 'group', status: 'live', you: you(true, false) })).toBe(false);
+  });
+
+  it('the Live heading counts what needs you, and offers the tabs only with more than one folder', () => {
+    expect(liveAside(2, 3)).toBe('2 need you · tap a tab');
+    expect(liveAside(1, 1)).toBe('1 needs you');
+    expect(liveAside(0, 2)).toBe('nothing needs you · tap a tab');
+  });
+});
+
+describe('the Next line', () => {
+  const base = { checkin: null, groups: true, drops: true, sealed: 0, gm: 'GM' };
+
+  it('names the next roll call (the GM’s), the drops and the sealed chapters', () => {
+    expect(nextLine({ ...base, checkin: { name: 'Roll call', clock: '23:00' }, sealed: 2 })).toBe('Next: roll call at 23:00 · random drops on · 2 chapters sealed');
+  });
+
+  it('says who sends group events when drops are off, and one chapter in the singular', () => {
+    expect(nextLine({ ...base, drops: false, sealed: 1 })).toBe('Next: group events from the GM · 1 chapter sealed');
+  });
+
+  it('is null with nothing to say', () => {
+    expect(nextLine({ ...base, groups: false })).toBeNull();
   });
 });

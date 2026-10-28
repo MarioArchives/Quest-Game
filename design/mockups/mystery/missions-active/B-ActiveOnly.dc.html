@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>B: Active, nothing else</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+.ph{width:390px;height:1000px;display:flex;flex-direction:column;background:#3d4042;color:#2a2116;font-family:'Archivo',system-ui,sans-serif;overflow:hidden}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:20px 16px 10px;color:#e9ebec}
+.cn{display:flex;flex-direction:column;gap:3px;font-family:'Space Mono',monospace}
+.cn small{font-size:10px;letter-spacing:2px;color:#b9bec1}
+.cn b{font-size:17px;letter-spacing:1px}
+.right{display:flex;align-items:center;gap:10px}
+.cop{display:grid;place-items:center;width:36px;height:36px;border-radius:6px;background:#9b3128;color:#ffffff}
+.pts{font:700 12px 'Space Mono',monospace;letter-spacing:1px}
+.av{width:38px;height:38px;border-radius:50%;background:#8d9294;border:2px solid #e9ebec}
+.ftabs{display:flex;gap:4px;padding:6px 12px 0}
+.ftab{padding:11px 14px 9px;border-radius:9px 9px 0 0;background:#c9a974;font:700 12px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase}
+.ftab.on{background:#e6cf98}
+.page{flex:1;min-height:0;overflow:hidden;background:#e6cf98;padding:12px 12px 16px;display:flex;flex-direction:column;gap:10px}
+.stack{position:relative;padding-top:26px}
+.backtabs{position:absolute;top:0;right:4px;display:flex;gap:4px}
+.btab{padding:6px 10px 12px;border-radius:7px 7px 0 0;background:#d9bd7e;border:1.5px solid #8e7550;border-bottom:0;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.btab i,.ftab2 i{font-style:normal;color:#9b3128}
+.folder{position:relative;background:#d9bd7e;border:1.5px solid #8e7550;border-radius:0 8px 8px 8px;box-shadow:0 3px 0 #8e7550}
+.ftab2{position:absolute;top:-26px;left:-1.5px;padding:6px 12px 9px;border-radius:7px 7px 0 0;background:#d9bd7e;border:1.5px solid #8e7550;border-bottom:0;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.card{margin:8px;padding:12px 13px 14px;background:#ecdcae;border:1.5px solid #2a2116;display:flex;flex-direction:column;gap:7px}
+.k{font:700 10px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.red{color:#9b3128}
+.teal{color:#146460}
+.top{display:flex;justify-content:space-between}
+.ttl{margin:0;font:400 25px/1.04 'Archivo Black',sans-serif}
+.desc{margin:0;font-size:14px;line-height:1.38;color:#3d3122}
+.rule{margin:0;font-size:12.5px;font-weight:600;color:#5b4a33}
+.clockrow{display:flex;align-items:flex-end;justify-content:space-between}
+.clock{font:400 38px/1 'Archivo Black',sans-serif}
+.left{font:700 11px 'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-left:8px}
+.prints{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font:700 9.5px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border:2px solid #2a2116;background:transparent;color:#2a2116;font:700 13px 'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase}
+.hint{margin:0;text-align:center;font:400 10.5px 'Space Mono',monospace;color:#5b4a33}
+.sec{display:flex;flex-direction:column}
+.sec h3{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 0;padding-bottom:4px;border-bottom:2.5px solid #2a2116;font:400 22px 'Archivo Black',sans-serif}
+.sec h3 small{font:700 9.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.r{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 2px;border-bottom:1px dashed #8e7550;background:transparent;border-left:0;border-right:0;border-top:0;text-align:left;color:#2a2116;font-family:'Archivo',system-ui,sans-serif}
+.r > span:first-child{flex:1;min-width:0}
+.kind{display:block;font:700 9.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.r b{display:block;font-size:16px;font-weight:600;margin:2px 0}
+.l{display:block;font:400 11px 'Space Mono',monospace;color:#5b4a33}
+.pill{flex:none;padding:6px 10px;border-radius:14px;background:#2a2116;color:#e6cf98;font:700 12px 'Space Mono',monospace;letter-spacing:.5px}
+.pill.hot{background:#9b3128;color:#ffffff}
+.go{flex:none;color:#5b4a33}
+.more{display:flex;justify-content:center;padding-top:6px}
+.more a{font:700 11px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#2a2116;text-decoration:underline;text-underline-offset:3px}
+.tabbar{display:flex;justify-content:space-around;padding:10px 8px 22px;background:#1f2022}
+.tb{display:flex;flex-direction:column;align-items:center;gap:5px;font:700 10.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#c9cdd0}
+.tb.on{color:#d9bd7e}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <div class="cn"><small>Case no.</small><b>64 · 721897</b></div>
+    <div class="right">
+      <span class="cop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.5h2.9l1.8 4.7-1.9 1.7a14 14 0 0 0 4.7 4.7l1.7-1.9 4.7 1.8v2.9a2 2 0 0 1-2 2C10.5 19.4 4.6 13.5 4.6 5.5a2 2 0 0 1 2-2Z"></path></svg></span>
+      <span class="pts">15 pts · #1</span>
+      <span class="av"></span>
+    </div>
+  </div>
+  <div class="ftabs"><span class="ftab on">Missions</span><span class="ftab">Map</span><span class="ftab">Standings</span></div>
+  <div class="page">
+    <div class="stack">
+      <div class="backtabs"><span class="btab">Roll call <i>8:12</i></span><span class="btab">Couldn’t <i>2h59</i></span></div>
+      <div class="folder">
+        <span class="ftab2">Remake <i>34:49</i></span>
+        <div class="card">
+          <div class="top"><span class="k">Group event · No. 3</span><span class="k red">1 of 3 live</span></div>
+          <h2 class="ttl">Album cover remake</h2>
+          <p class="desc">Recreate a famous album cover with whatever (and whoever) is to hand. Name the album in your comment.</p>
+          <p class="rule">Most yes (less no) wins +5 · −5 if you don’t</p>
+          <div class="clockrow">
+            <div><span class="clock">34:49</span><span class="left">left</span></div>
+            <div class="prints">
+              <svg width="78" height="14" viewBox="0 0 78 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="#2a2116"></circle><circle cx="23" cy="7" r="6" fill="#2a2116"></circle><circle cx="39" cy="7" r="5.2" fill="none" stroke="#8e7550" stroke-width="1.5"></circle><circle cx="55" cy="7" r="5.2" fill="none" stroke="#8e7550" stroke-width="1.5"></circle><circle cx="71" cy="7" r="5.2" fill="none" stroke="#8e7550" stroke-width="1.5"></circle></svg>
+              <span>2 of 5 in</span>
+            </div>
+          </div>
+          <span class="k teal">You’re in · hidden until voting</span>
+          <button class="btn" type="button">Edit your entry</button>
+        </div>
+      </div>
+    </div>
+    <p class="hint">Swipe the front folder away; tap a row to pull it forward</p>
+    <section class="sec">
+      <h3>Active <small>3 live</small></h3>
+      <button class="r" type="button"><span><span class="kind">Roll call · No. 2</span><b>Show us your drink</b><span class="l red">not answered</span></span><span class="pill hot">8:12</span></button>
+      <button class="r" type="button"><span><span class="kind">Group event · No. 3</span><b>Album cover remake</b><span class="l teal">you’re in</span></span><span class="pill">34:49</span></button>
+      <button class="r" type="button"><span><span class="kind">Story · Ch. 6</span><b>Couldn’t be me</b><span class="l red">vote · not voted</span></span><span class="pill">2h59</span></button>
+    </section>
+    <p class="more"><a href="#logbook">Tonight’s results are in the Log book ›</a></p>
+  </div>
+  <nav class="tabbar" aria-label="Main">
+    <span class="tb on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"></path></svg>Missions</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4"></path></svg>Log book</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>My file</span>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-28T20:47:49Z"
+  },
+  "title": "Missions: one active section",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "Today: three dividers (for comparison)"
+    },
+    "A-Active.dc.html": {
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "A · One Active divider"
+    },
+    "B-ActiveOnly.dc.html": {
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "B · Active, nothing else"
+    },
+    "C-Drawer.dc.html": {
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "C · The stack is the list"
+    },
+    "D-Toggle.dc.html": {
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "D · Active | Filed",
+      "is_interactive": true
+    },
+    "E-Sheet.dc.html": {
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 1000,
+      "title": "E · No stack: a sheet of active missions"
+    },
+    "C2-Drawer.dc.html": {
+      "x": 2820,
+      "y": 0,
+      "w": 390,
+      "h": 1080,
+      "title": "C2 · A bigger live folder, and what you can still change",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "A-Active.dc.html",
+    "B-ActiveOnly.dc.html",
+    "C-Drawer.dc.html",
+    "D-Toggle.dc.html",
+    "E-Sheet.dc.html",
+    "C2-Drawer.dc.html"
+  ],
+  "notes": {
+    "head": {
+      "x": 0,
+      "y": -300,
+      "text": "Missions tab: one Active section instead of Group, Periodic and Story",
+      "kind": "title1",
+      "maxW": 3210
+    },
+    "nToday": {
+      "x": 0,
+      "y": 1060,
+      "w": 390,
+      "text": "Today: the stack, then three dividers (Group events, Periodic missions, Story missions), each with what's open, what's next and what's filed.",
+      "color": "gray"
+    },
+    "nA": {
+      "x": 470,
+      "y": 1060,
+      "w": 390,
+      "text": "A: the stack stays. One Active divider lists every live mission, soonest first, its kind as a small label. One line says what's coming, one folded line holds everything filed tonight.",
+      "color": "gray"
+    },
+    "nB": {
+      "x": 940,
+      "y": 1060,
+      "w": 390,
+      "text": "B: the stack and an Active list, nothing more. Results already land in the Log book, so the filed lines go; one link points there.",
+      "color": "gray"
+    },
+    "nC": {
+      "x": 1410,
+      "y": 1060,
+      "w": 390,
+      "text": "C: no separate list. The stack's own folder tabs run down the page as an index, one per live mission with its clock; tap one to open it. Filed tonight is a closed folder at the bottom.",
+      "color": "gray"
+    },
+    "nD": {
+      "x": 1880,
+      "y": 1060,
+      "w": 390,
+      "text": "D: under the stack, two index tabs: Active (live missions and what's coming) and Filed (tonight's results). Tap to switch.",
+      "color": "gray"
+    },
+    "nE": {
+      "x": 2350,
+      "y": 1060,
+      "w": 390,
+      "text": "E: no swiping stack at all. Every live mission is a card down one sheet, soonest first, with its own button; coming and filed fold at the foot.",
+      "color": "gray"
+    },
+    "nC2": {
+      "x": 2820,
+      "y": 1140,
+      "w": 390,
+      "text": "C2: the stack as it is today (tap a tab at the top to bring that mission forward), with a bigger front folder: description, then the clock, a tracker row with how many players have answered, and a Submit button. Below, a second folder holds the entries you can still change. Filed tonight closes the page. The bottom tab is now Public file.",
+      "color": "orange"
+    }
+  },
+  "designSystems": []
+}

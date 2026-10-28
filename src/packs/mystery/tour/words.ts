@@ -48,7 +48,7 @@ export function stopsFor(settings: Rules, pack: PackRules): TourStop[] {
 
   const say: Record<SayId, string> = {
     live: `Active missions appear here. Submit your answer before the time runs out${s.sideQuestSkipPenalty > 0 ? ', or you’ll get a penalty' : ''}.`,
-    kinds: 'Here you can see the different kinds of mission that will appear.',
+    still: 'Once you’ve submitted, a mission waits here until it closes, so you can still change your answer. Closed ones are filed below.',
     map: 'The current pub and everyone’s location can be seen here!',
     standings: 'Player scores are found here.',
     'standing-lines': 'The police check on suspicious players, and trust the word of trustworthy ones!',

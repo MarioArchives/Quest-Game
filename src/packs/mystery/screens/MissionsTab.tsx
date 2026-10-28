@@ -1,13 +1,14 @@
-// The Missions folder tab (option E, "the stack"): a police check-in on top when one is open for you, the stack of
-// open missions (MissionStack), and the night's three kinds below as index dividers (MissionDividers). A feed post's
-// "Open in Missions" lands here with its mission brought to the front.
-import { useEffect, useRef, useState } from 'react';
+// The Missions folder tab (the missions-active mockups, C2): a police check-in on top when one is open for you, then
+// Live, the stack of what's open (MissionStack) but for the entries you can still change, which wait below under Still
+// open, then Filed tonight and what comes next (MissionFiles). A feed post's "Open in Missions" lands here with its
+// mission brought to the front, or its slip scrolled to.
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { features } from '../../../pack';
 import { PoliceCallCard } from '../../../screens/home/PoliceCallCard';
-import { MissionDividers } from './MissionDividers';
+import { MissionFiles, slipId } from './MissionFiles';
 import { MissionStack } from './MissionStack';
-import { pullForward, stackOrder } from './missionDeck';
+import { liveAside, pullForward, stackOrder } from './missionDeck';
 import type { Deck } from './useMissionDeck';
 import './missions.css';
 
@@ -29,33 +30,36 @@ export function MissionsTab({ deck }: { deck: Deck }) {
   const navigate = useNavigate();
   // Null until the viewer moves a folder: the stack then follows the deadlines.
   const [held, setHeld] = useState<string[] | null>(null);
-  const deadline = deck.open.map((m) => m.id);
+  const deadline = deck.live.map((m) => m.id);
   const order = stackOrder(deadline, held);
-  const stackRef = useRef<HTMLDivElement>(null);
+  const need = deck.live.filter((m) => m.needsYou).length;
 
-  const pull = (id: string) => {
-    setHeld(pullForward(order, id));
-    const top = stackRef.current?.getBoundingClientRect().top ?? 0;
-    if (top < 0) stackRef.current?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
-  };
-
-  // Arrived from a feed post: its mission comes to the front, once it is among the open ones.
+  // Arrived from a feed post: its mission comes to the front once it is among the open ones, or, when it's an entry
+  // you can still change, its slip scrolls into view.
   const wanted = (location.state as MissionsLinkState | null)?.mission ?? null;
   const key = deadline.join(' ');
+  const inKey = deck.stillOpen.map((m) => m.id).join(' ');
   useEffect(() => {
-    if (!wanted || !key.split(' ').includes(wanted)) return;
-    setHeld((h) => pullForward(stackOrder(key.split(' '), h), wanted));
+    if (!wanted) return;
+    if (key.split(' ').includes(wanted)) setHeld((h) => pullForward(stackOrder(key.split(' '), h), wanted));
+    else if (inKey.split(' ').includes(wanted)) document.getElementById(slipId(wanted))?.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    else return;
     void navigate(location.pathname, { replace: true, state: null });
-  }, [wanted, key, navigate, location.pathname]);
+  }, [wanted, key, inKey, navigate, location.pathname]);
 
   return (
     <div className="ms">
       {features.police ? <PoliceCallCard /> : null}
-      <div ref={stackRef} className="ms-stackwrap" data-tour="live">
-        <MissionStack missions={deck.open} order={order} onOrder={setHeld} onVote={deck.voted} />
+      {deck.live.length > 0 ? (
+        <header className="ms-sec__h ms-live__h">
+          <h3>Live</h3>
+          <span>{liveAside(need, deck.live.length)}</span>
+        </header>
+      ) : null}
+      <div className="ms-stackwrap" data-tour="live">
+        <MissionStack missions={deck.live} order={order} onOrder={setHeld} onVote={deck.voted} entered={deck.stillOpen.length} />
       </div>
-      {deck.open.length > 1 ? <p className="ms-hint">Swipe the front folder away; tap a tab to pull it forward</p> : null}
-      <MissionDividers deck={deck} onPull={pull} />
+      <MissionFiles deck={deck} />
     </div>
   );
 }

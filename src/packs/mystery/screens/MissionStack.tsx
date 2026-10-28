@@ -1,7 +1,8 @@
-// The stack (option E): one folder per open mission inside the Missions folder, soonest deadline in front. Each
-// folder's tab shows its name and clock and keeps its place however the stack is shuffled; swipe the front folder to
-// send it to the back, or tap a tab to pull one forward (the tabs are a tablist, so the arrow keys do it too). The
-// front folder holds the whole mission and its button.
+// The stack (option E, made bigger in the missions-active mockups' C2): one folder per live mission inside the
+// Missions folder, soonest deadline in front. Each folder's tab shows its name and clock and keeps its place however
+// the stack is shuffled; swipe the front folder to send it to the back, or tap a tab to pull one forward (the tabs are
+// a tablist, so the arrow keys do it too). The front folder holds the whole mission: its brief, the clock, a row of
+// prints for who's in so far, and its button.
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { EvidenceSheet, type EvidenceTarget } from '../../../components/EvidenceSheet';
 import { Icon } from '../../../components/Icon';
@@ -36,9 +37,21 @@ function reducedMotion(): boolean {
 
 /**
  * `missions` in deadline order; `order` is the stack, front first (missionDeck's stackOrder). `onOrder` takes the new
- * order after a swipe, a tab or a key.
+ * order after a swipe, a tab or a key. `entered` counts the entries waiting under Still open, for the empty folder.
  */
-export function MissionStack({ missions, order, onOrder, onVote }: { missions: DeckMission[]; order: string[]; onOrder(next: string[]): void; onVote(): void }) {
+export function MissionStack({
+  missions,
+  order,
+  onOrder,
+  onVote,
+  entered = 0,
+}: {
+  missions: DeckMission[];
+  order: string[];
+  onOrder(next: string[]): void;
+  onVote(): void;
+  entered?: number;
+}) {
   const byId = new Map(missions.map((m) => [m.id, m]));
   const shown = order.slice(0, STACK_MAX).filter((id) => byId.has(id));
   const more = order.length - shown.length;
@@ -118,7 +131,7 @@ export function MissionStack({ missions, order, onOrder, onVote }: { missions: D
     pull(byPlace[next]!, true);
   };
 
-  if (!front) return <SealedFile fallback={<EmptyStack />} />;
+  if (!front) return <SealedFile fallback={<EmptyStack entered={entered} />} />;
 
   const layers = shown.length;
   const style = { '--layers': layers, '--n': layers, '--more-w': more > 0 ? '40px' : '0px', '--dx': `${dx}px`, '--tilt': `${dx / 40}deg` } as CSSProperties;
@@ -272,7 +285,20 @@ export function VotingFront({ quest, eyebrow, onVote, head }: { quest: Doc<Globa
   );
 }
 
-/** A live group or story mission: its brief, the rule, the clock, the prints of who is in, and Enter. */
+/** Who's in so far, on a row of its own: a print per player, inked for each one in, and the count. */
+function Tracker({ verb, filled, total }: { verb: string; filled: number; total: number }) {
+  return (
+    <p className="ms-track" aria-label={`${verb}: ${filled} of ${total}`}>
+      <span aria-hidden="true">{verb}</span>
+      <Pips filled={filled} total={total} />
+      <b aria-hidden="true">
+        {filled} of {total}
+      </b>
+    </p>
+  );
+}
+
+/** A live group or story mission: its brief, the rule, the clock, the prints of who is in, and Submit. */
 function LiveFront({ m, head }: { m: DeckMission; head: ReactNode }) {
   const quest = m.quest!;
   const { player } = useSession();
@@ -291,18 +317,13 @@ function LiveFront({ m, head }: { m: DeckMission; head: ReactNode }) {
       <p className="ms-rule">{missionRule(quest, skipFine(quest, settings), quest.voteStyle ?? settings.voteStyle)}</p>
       <div className="ms-row">
         <Clock endsMs={tsMs(quest.endsAt)} />
-        <div className="ms-prints">
-          <Pips filled={entered.size} total={total} />
-          <span>
-            {entered.size} of {total} in
-          </span>
-        </div>
+        {playing ? (
+          <p className={`ms-you ${mine ? 'ok' : 'hot'}`}>{mine ? (mine.status === 'sealed' ? 'You’re in · hidden until voting' : 'You’re in') : 'Not in yet'}</p>
+        ) : (
+          <p className="ms-you">Only players enter</p>
+        )}
       </div>
-      {playing ? (
-        <p className={`ms-you ${mine ? 'ok' : 'hot'}`}>{mine ? (mine.status === 'sealed' ? 'You’re in · hidden until voting' : 'You’re in') : 'You’re not in'}</p>
-      ) : (
-        <p className="ms-you">Only players enter</p>
-      )}
+      <Tracker verb="Entered" filled={entered.size} total={total} />
       {playing ? (
         mine ? (
           <button type="button" className="cf-btn ms-cta" disabled={!active} onClick={() => setSheet({ mode: 'evidence', submission: mine, title: quest.title })}>
@@ -312,7 +333,7 @@ function LiveFront({ m, head }: { m: DeckMission; head: ReactNode }) {
         ) : (
           <button type="button" className="cf-btn cf-btn--go ms-cta" disabled={!active} onClick={() => setSheet({ mode: 'enter', quest })}>
             <Icon name="camera" size={18} strokeWidth={2.2} />
-            Enter
+            Submit
           </button>
         )
       ) : null}
@@ -322,7 +343,7 @@ function LiveFront({ m, head }: { m: DeckMission; head: ReactNode }) {
   );
 }
 
-/** An open periodic mission: the prompt, the fine, the clock, the prints of who has answered, and Answer. */
+/** An open periodic mission: the prompt, the fine, the clock, the prints of who has answered, and Submit. */
 function CheckinFront({ m, head }: { m: DeckMission; head: ReactNode }) {
   const checkin = m.checkin!;
   const { activePlayers, me } = useGame();
@@ -342,26 +363,22 @@ function CheckinFront({ m, head }: { m: DeckMission; head: ReactNode }) {
       <p className="ms-rule">{checkinRule(checkin.penalty)}</p>
       <div className="ms-row">
         <Clock endsMs={tsMs(checkin.endsAt)} />
-        <div className="ms-prints">
-          <Pips filled={answered.size} total={total} />
-          <span>
-            {answered.size} of {total} answered
-          </span>
-        </div>
-      </div>
-      {playing ? (
-        mine ? (
-          <p className="ms-you ok">Present · {mine.caption ? `“${mine.caption}”` : 'your photo is in'}</p>
+        {playing ? (
+          mine ? (
+            <p className="ms-you ok">Present</p>
+          ) : (
+            <p className="ms-you hot">{timeUp ? 'Time’s up' : 'Not answered yet'}</p>
+          )
         ) : (
-          <p className="ms-you hot">{timeUp ? 'Time’s up' : 'Not answered yet'}</p>
-        )
-      ) : (
-        <p className="ms-you">Only players answer</p>
-      )}
+          <p className="ms-you">Only players answer</p>
+        )}
+      </div>
+      <Tracker verb="Answered" filled={answered.size} total={total} />
+      {playing && mine ? <p className="ms-you ok">{mine.caption ? `“${mine.caption}”` : 'Your photo is in'}</p> : null}
       {playing && !mine ? (
         <button type="button" className="cf-btn cf-btn--go ms-cta" disabled={timeUp} onClick={() => setAnswering(true)}>
           <Icon name="camera" size={18} strokeWidth={2.2} />
-          Answer
+          Submit
         </button>
       ) : null}
       {answering ? <EvidenceSheet target={{ mode: 'checkin', checkin }} onClose={() => setAnswering(false)} /> : null}
@@ -369,8 +386,8 @@ function CheckinFront({ m, head }: { m: DeckMission; head: ReactNode }) {
   );
 }
 
-/** Nothing open: one empty folder saying when missions come. */
-function EmptyStack() {
+/** Nothing live: one empty folder saying when missions come (or, with entries still open below, that you're up to date). */
+function EmptyStack({ entered }: { entered: number }) {
   const { state, settings } = useGame();
   const hours = (min: number) => Math.round((min / 60) * 10) / 10;
   const story = (pack.catalogue.story?.length ?? 0) > 0;
@@ -381,9 +398,11 @@ function EmptyStack() {
         ? `The game is paused. Missions open again when the ${t.gm.One} carries on.`
         : state.status === 'ended'
           ? 'The case is closed. Every mission is filed below.'
-          : settings.autoSideQuests
-            ? `Random drops land roughly every ${hours(settings.globalIntervalMin)}–${hours(settings.globalIntervalMax)} hours${story ? `, and the ${t.gm.One} opens the story’s chapters as the night goes on.` : '.'}`
-            : `The ${t.gm.One} sends them as the night goes on.`;
+          : entered > 0
+            ? `Your ${entered === 1 ? 'entry stays' : 'entries stay'} open below until ${entered === 1 ? 'it closes' : 'they close'}.`
+            : settings.autoSideQuests
+              ? `Random drops land roughly every ${hours(settings.globalIntervalMin)}–${hours(settings.globalIntervalMax)} hours${story ? `, and the ${t.gm.One} opens the story’s chapters as the night goes on.` : '.'}`
+              : `The ${t.gm.One} sends them as the night goes on.`;
   return (
     <div className="ms-stack ms-stack--empty" style={{ '--layers': 1, '--n': 1 } as CSSProperties}>
       <div className="ms-stack__tabs">
@@ -398,7 +417,7 @@ function EmptyStack() {
         <p className="ms-k">
           <span>Open missions</span>
         </p>
-        <h3 className="ms-t">Nothing open right now</h3>
+        <h3 className="ms-t">{entered > 0 && state.status !== 'ended' ? 'Nothing needs you right now' : 'Nothing open right now'}</h3>
         <p className="ms-desc">{text}</p>
       </div>
       {/* Before the case opens with no start time, or booked in after it opened: the tour's offer under the folder. */}

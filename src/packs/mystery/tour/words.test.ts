@@ -1,5 +1,5 @@
 // Torch tour plan edge cases 19–20: what the tags say follows tonight's settings, and with the pack's own it is the
-// shortened intro (shortened-intro.md, 2026-10-28) word for word, tidied.
+// shortened intro (shortened-intro.md, 2026-10-28) word for word, tidied; stop 2 follows the Missions tab's Still open.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -17,7 +17,7 @@ const textOf = (settings: Settings, title: string) => stopsFor(settings, mystery
 /** The shortened intro's words, in the tour's order. */
 const APPROVED = [
   'Active missions appear here. Submit your answer before the time runs out, or you’ll get a penalty.',
-  'Here you can see the different kinds of mission that will appear.',
+  'Once you’ve submitted, a mission waits here until it closes, so you can still change your answer. Closed ones are filed below.',
   'The current pub and everyone’s location can be seen here!',
   'Player scores are found here.',
   'The police check on suspicious players, and trust the word of trustworthy ones!',

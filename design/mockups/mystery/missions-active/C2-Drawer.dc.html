@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>C2: a bigger live folder, and what you can still change</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+.ph{width:390px;height:1080px;display:flex;flex-direction:column;background:#3d4042;color:#2a2116;font-family:'Archivo',system-ui,sans-serif;overflow:hidden}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:20px 16px 10px;color:#e9ebec}
+.cn{display:flex;flex-direction:column;gap:3px;font-family:'Space Mono',monospace}
+.cn small{font-size:10px;letter-spacing:2px;color:#b9bec1}
+.cn b{font-size:17px;letter-spacing:1px}
+.right{display:flex;align-items:center;gap:10px}
+.cop{display:grid;place-items:center;width:36px;height:36px;border-radius:6px;background:#9b3128;color:#ffffff}
+.pts{font:700 12px 'Space Mono',monospace;letter-spacing:1px}
+.av{width:38px;height:38px;border-radius:50%;background:#8d9294;border:2px solid #e9ebec}
+.ftabs{display:flex;gap:4px;padding:6px 12px 0}
+.ftab{padding:11px 14px 9px;border-radius:9px 9px 0 0;background:#c9a974;font:700 12px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase}
+.ftab.on{background:#e6cf98}
+.page{flex:1;min-height:0;overflow:hidden;background:#e6cf98;padding:12px 12px 16px;display:flex;flex-direction:column}
+.lbl{margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:4px;border-bottom:2.5px solid #2a2116}
+.lbl b{font:400 21px 'Archivo Black',sans-serif}
+.lbl span{font:700 9.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.lbl2{margin-top:26px}
+.stack{position:relative;padding-top:26px}
+.backtabs{position:absolute;top:0;right:4px;display:flex;gap:4px}
+.btab{height:30px;padding:6px 10px 0;border-radius:7px 7px 0 0;background:#cfb06f;border:1.5px solid #8e7550;border-bottom:0;color:#2a2116;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;cursor:pointer;box-sizing:border-box}
+.btab i,.ftab2 i{font-style:normal;color:#9b3128}
+.folder{position:relative;background:#d9bd7e;border:1.5px solid #8e7550;border-radius:0 8px 8px 8px;box-shadow:0 3px 0 #8e7550}
+.folder.in{margin-top:26px;background:#c4d3c4;border-color:#5f7d72;box-shadow:0 3px 0 #5f7d72;padding:4px 0}
+.ftab2{position:absolute;top:-26px;left:-1.5px;padding:6px 12px 9px;border-radius:7px 7px 0 0;background:inherit;border:1.5px solid #8e7550;border-bottom:0;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.folder.in .ftab2{border-color:#5f7d72}
+.folder.in .ftab2 i{color:#146460}
+.card{margin:8px;padding:16px 15px 16px;background:#ecdcae;border:1.5px solid #2a2116;display:flex;flex-direction:column;gap:10px}
+.k{font:700 10px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.red{color:#9b3128}
+.teal{color:#146460}
+.top{display:flex;justify-content:space-between;gap:8px}
+.ttl{margin:0;font:400 28px/1.04 'Archivo Black',sans-serif}
+.desc{margin:0;font-size:15px;line-height:1.42;color:#3d3122}
+.clockrow{display:flex;align-items:flex-end;justify-content:space-between;margin-top:4px}
+.clock{font:400 46px/1 'Archivo Black',sans-serif}
+.left{font:700 11px 'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-left:8px}
+.tracker{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed #8e7550;border-bottom:1px dashed #8e7550}
+.tracker .k{flex:none;width:74px}
+.dots{display:flex;gap:5px;flex:1}
+.dot{width:14px;height:14px;border-radius:50%;border:1.5px solid #8e7550;box-sizing:border-box}
+.dot.in{background:#2a2116;border-color:#2a2116}
+.tracker b{flex:none;font:700 12px 'Space Mono',monospace;letter-spacing:.5px}
+.btn{display:flex;align-items:center;justify-content:center;min-height:52px;border:2px solid #2a2116;background:#2a2116;color:#e6cf98;font:700 14px 'Space Mono',monospace;letter-spacing:3px;text-transform:uppercase;cursor:pointer}
+.l{display:block;font:400 11px 'Space Mono',monospace;color:#5b4a33}
+.l.teal{color:#146460}
+.clk{flex:none;display:flex;flex-direction:column;align-items:flex-end;font:400 20px/1 'Archivo Black',sans-serif}
+.clk small{margin-top:4px;font:700 9px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:#5b4a33}
+.slip{display:flex;align-items:center;gap:11px;margin:6px 8px;padding:11px 11px 11px 10px;background:#ecdcae;border:1.5px solid #2a2116}
+.thumb{flex:none;width:50px;height:58px;background:repeating-linear-gradient(135deg,#b9a57a 0 4px,#a8936a 4px 8px);border:3px solid #f6ecd2;box-shadow:0 1px 0 #8e7550;transform:rotate(-3deg)}
+.sb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sb b{font-size:16px;font-weight:700;line-height:1.15;margin:1px 0}
+.sr{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.chip{padding:7px 10px;border:1.5px solid #146460;border-radius:3px;background:#e6cf98;box-shadow:0 2px 0 #146460;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:#146460;cursor:pointer}
+.filed{display:flex;align-items:center;gap:10px;width:100%;margin-top:22px;padding:15px 12px 13px;background:#b89a62;border:1.5px solid #8e7550;border-radius:8px;box-shadow:0 3px 0 #8e7550;color:#2a2116}
+.filed b{font:700 11px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase}
+.marks{display:flex;gap:4px;flex:1}
+.mk{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#e6cf98;border:1.5px solid #146460;color:#146460;font:700 11px/1 'Space Mono',monospace;font-style:normal}
+.mk.x{border-color:#9b3128;color:#9b3128}
+.next{margin:14px 0 0;font:400 11px/1.5 'Space Mono',monospace;color:#5b4a33;text-align:center}
+.tabbar{display:flex;justify-content:space-around;padding:10px 8px 22px;background:#1f2022}
+.tb{display:flex;flex-direction:column;align-items:center;gap:5px;font:700 10.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#c9cdd0}
+.tb.on{color:#d9bd7e}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <div class="cn"><small>Case no.</small><b>64 · 721897</b></div>
+    <div class="right">
+      <span class="cop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.5h2.9l1.8 4.7-1.9 1.7a14 14 0 0 0 4.7 4.7l1.7-1.9 4.7 1.8v2.9a2 2 0 0 1-2 2C10.5 19.4 4.6 13.5 4.6 5.5a2 2 0 0 1 2-2Z"></path></svg></span>
+      <span class="pts">15 pts · #1</span>
+      <span class="av"></span>
+    </div>
+  </div>
+  <div class="ftabs"><span class="ftab on">Missions</span><span class="ftab">Map</span><span class="ftab">Standings</span></div>
+  <div class="page">
+    <p class="lbl"><b>Live</b><span>3 need you · tap a tab</span></p>
+    <div class="stack">
+      <div class="backtabs">
+        <sc-for list="{{ behind }}" as="m" hint-placeholder-count="2">
+          <button class="btab" type="button" onClick="{{ m.pick }}">{{ m.tab }} <i>{{ m.clock }}</i></button>
+        </sc-for>
+      </div>
+      <div class="folder">
+        <span class="ftab2">{{ front.tab }} <i>{{ front.clock }}</i></span>
+        <div class="card">
+          <div class="top"><span class="k">{{ front.kind }}</span><span class="k red">{{ front.stake }}</span></div>
+          <h2 class="ttl">{{ front.title }}</h2>
+          <p class="desc">{{ front.desc }}</p>
+          <div class="clockrow"><div><span class="clock">{{ front.clock }}</span><span class="left">{{ front.unit }}</span></div><span class="k red">{{ front.status }}</span></div>
+          <div class="tracker">
+            <span class="k">{{ front.verb }}</span>
+            <span class="dots">
+              <sc-for list="{{ front.dots }}" as="d" hint-placeholder-count="9"><span class="dot {{ d.cls }}"></span></sc-for>
+            </span>
+            <b>{{ front.done }} of {{ front.of }}</b>
+          </div>
+          <button class="btn" type="button">{{ front.button }}</button>
+        </div>
+      </div>
+    </div>
+    <p class="lbl lbl2"><b>Still open</b><span>you’re in · change it till it closes</span></p>
+    <div class="folder in">
+      <span class="ftab2">Your entries <i>2</i></span>
+      <sc-for list="{{ entries }}" as="s" hint-placeholder-count="2">
+        <div class="slip">
+          <span class="thumb" aria-hidden="true"></span>
+          <div class="sb"><span class="k">{{ s.kind }}</span><b>{{ s.title }}</b><span class="l teal">{{ s.entry }}</span><span class="l">{{ s.note }}</span></div>
+          <div class="sr"><span class="clk">{{ s.clock }}<small>left</small></span><button class="chip" type="button">Change</button></div>
+        </div>
+      </sc-for>
+    </div>
+    <button class="filed" type="button"><b>Filed tonight</b><span class="marks"><i class="mk">✓</i><i class="mk">✓</i><i class="mk x">✗</i><i class="mk">✓</i><i class="mk">✓</i><i class="mk">✓</i><i class="mk x">✗</i></span><b>7 ›</b></button>
+    <p class="next">Next: roll call at 23:00 · random drops on · 1 chapter sealed</p>
+  </div>
+  <nav class="tabbar" aria-label="Main">
+    <span class="tb on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"></path></svg>Public file</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4"></path></svg>Log book</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>My file</span>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1080}}'>
+const PLAYERS = 9;
+const LIVE = [
+  { id: 'roll', tab: 'Roll call', kind: 'Roll call · No. 2', title: 'Show us what you’re drinking', desc: 'A photo or a line. Everyone sees it in the Log book.', stake: '−5 if you miss it', clock: '8:12', unit: 'left', status: 'Not in yet', verb: 'Answered', done: 6, button: 'Submit' },
+  { id: 'scene', tab: 'The room', kind: 'Story · Ch. 7', title: 'The room where it happened', desc: 'Photograph the place Bob was murdered and say why. The most voted becomes the scene of the crime.', stake: 'Most voted wins', clock: '1h12', unit: 'left', status: 'Not entered', verb: 'Entered', done: 3, button: 'Submit' },
+  { id: 'alibi', tab: 'Couldn’t', kind: 'Story · Ch. 6', title: 'Couldn’t be me', desc: 'The alibi videos are in. Vote for the one you believe.', stake: 'Your vote is secret', clock: '2h59', unit: 'to vote', status: 'Not voted', verb: 'Voted', done: 5, button: 'Vote' },
+];
+const ENTRIES = [
+  { kind: 'Group event · No. 3', title: 'Album cover remake', entry: 'Your photo · sent 21:40', note: 'hidden until voting', clock: '34:49' },
+  { kind: 'Story · Ch. 3', title: 'The good old days', entry: 'Your photo with Bob · 20:15', note: 'open all night', clock: '2h10' },
+];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 'roll' };
+  }
+  renderVals() {
+    const m = LIVE.find((x) => x.id === this.state.open) ?? LIVE[0];
+    const dots = Array.from({ length: PLAYERS }, (_, i) => ({ cls: i < m.done ? 'in' : '' }));
+    const behind = LIVE.filter((x) => x !== m).map((x) => ({ ...x, pick: () => this.setState({ open: x.id }) }));
+    return { front: { ...m, dots, of: PLAYERS }, behind, entries: ENTRIES };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>D: Active and Filed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+.ph{width:390px;height:1000px;display:flex;flex-direction:column;background:#3d4042;color:#2a2116;font-family:'Archivo',system-ui,sans-serif;overflow:hidden}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:20px 16px 10px;color:#e9ebec}
+.cn{display:flex;flex-direction:column;gap:3px;font-family:'Space Mono',monospace}
+.cn small{font-size:10px;letter-spacing:2px;color:#b9bec1}
+.cn b{font-size:17px;letter-spacing:1px}
+.right{display:flex;align-items:center;gap:10px}
+.cop{display:grid;place-items:center;width:36px;height:36px;border-radius:6px;background:#9b3128;color:#ffffff}
+.pts{font:700 12px 'Space Mono',monospace;letter-spacing:1px}
+.av{width:38px;height:38px;border-radius:50%;background:#8d9294;border:2px solid #e9ebec}
+.ftabs{display:flex;gap:4px;padding:6px 12px 0}
+.ftab{padding:11px 14px 9px;border-radius:9px 9px 0 0;background:#c9a974;font:700 12px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase}
+.ftab.on{background:#e6cf98}
+.page{flex:1;min-height:0;overflow:hidden;background:#e6cf98;padding:12px 12px 16px;display:flex;flex-direction:column;gap:10px}
+.stack{position:relative;padding-top:26px}
+.backtabs{position:absolute;top:0;right:4px;display:flex;gap:4px}
+.btab{padding:6px 10px 12px;border-radius:7px 7px 0 0;background:#d9bd7e;border:1.5px solid #8e7550;border-bottom:0;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.btab i,.ftab2 i{font-style:normal;color:#9b3128}
+.folder{position:relative;background:#d9bd7e;border:1.5px solid #8e7550;border-radius:0 8px 8px 8px;box-shadow:0 3px 0 #8e7550}
+.ftab2{position:absolute;top:-26px;left:-1.5px;padding:6px 12px 9px;border-radius:7px 7px 0 0;background:#d9bd7e;border:1.5px solid #8e7550;border-bottom:0;font:700 10px 'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.card{margin:8px;padding:12px 13px 14px;background:#ecdcae;border:1.5px solid #2a2116;display:flex;flex-direction:column;gap:7px}
+.k{font:700 10px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.red{color:#9b3128}
+.teal{color:#146460}
+.top{display:flex;justify-content:space-between}
+.ttl{margin:0;font:400 25px/1.04 'Archivo Black',sans-serif}
+.desc{margin:0;font-size:14px;line-height:1.38;color:#3d3122}
+.clockrow{display:flex;align-items:flex-end;justify-content:space-between}
+.clock{font:400 38px/1 'Archivo Black',sans-serif}
+.left{font:700 11px 'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-left:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border:2px solid #2a2116;background:transparent;color:#2a2116;font:700 13px 'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase}
+.itabs{display:flex;gap:0;margin-top:6px;border-bottom:2.5px solid #2a2116}
+.itab{flex:1;min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:8px 8px 0 0;background:transparent;color:#5b4a33;font:400 18px 'Archivo Black',sans-serif;cursor:pointer}
+.itab.on{background:#2a2116;color:#e6cf98}
+.itab small{font:700 11px 'Space Mono',monospace}
+.list{display:flex;flex-direction:column}
+.r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px dashed #8e7550}
+.kind{display:block;font:700 9.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#5b4a33}
+.r b{display:block;font-size:15.5px;font-weight:600;margin:1px 0}
+.l{display:block;font:400 11px 'Space Mono',monospace;color:#5b4a33}
+.t{font:400 17px 'Archivo Black',sans-serif;text-align:right}
+.res{display:flex;align-items:center;gap:6px;font:700 13px 'Space Mono',monospace}
+.mk{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #146460;color:#146460;font:700 11px/1 'Space Mono',monospace}
+.mk.x{border-color:#9b3128;color:#9b3128}
+.pos{color:#146460}
+.neg{color:#9b3128}
+.next{padding:10px 2px;font:400 11px/1.5 'Space Mono',monospace;color:#5b4a33}
+.tabbar{display:flex;justify-content:space-around;padding:10px 8px 22px;background:#1f2022}
+.tb{display:flex;flex-direction:column;align-items:center;gap:5px;font:700 10.5px 'Space Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:#c9cdd0}
+.tb.on{color:#d9bd7e}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <div class="cn"><small>Case no.</small><b>64 · 721897</b></div>
+    <div class="right">
+      <span class="cop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.5h2.9l1.8 4.7-1.9 1.7a14 14 0 0 0 4.7 4.7l1.7-1.9 4.7 1.8v2.9a2 2 0 0 1-2 2C10.5 19.4 4.6 13.5 4.6 5.5a2 2 0 0 1 2-2Z"></path></svg></span>
+      <span class="pts">15 pts · #1</span>
+      <span class="av"></span>
+    </div>
+  </div>
+  <div class="ftabs"><span class="ftab on">Missions</span><span class="ftab">Map</span><span class="ftab">Standings</span></div>
+  <div class="page">
+    <div class="stack">
+      <div class="backtabs"><span class="btab">Roll call <i>8:12</i></span><span class="btab">Couldn’t <i>2h59</i></span></div>
+      <div class="folder">
+        <span class="ftab2">Remake <i>34:49</i></span>
+        <div class="card">
+          <div class="top"><span class="k">Group event · No. 3</span><span class="k red">1 of 3 live</span></div>
+          <h2 class="ttl">Album cover remake</h2>
+          <p class="desc">Recreate a famous album cover with whatever (and whoever) is to hand. Name the album in your comment.</p>
+          <div class="clockrow"><div><span class="clock">34:49</span><span class="left">left</span></div><span class="k teal">You’re in</span></div>
+          <button class="btn" type="button">Edit your entry</button>
+        </div>
+      </div>
+    </div>
+    <div class="itabs" role="tablist">
+      <button class="itab {{activeOn}}" type="button" role="tab" aria-selected="{{isActive}}" onClick="{{showActive}}">Active <small>3</small></button>
+      <button class="itab {{filedOn}}" type="button" role="tab" aria-selected="{{isFiled}}" onClick="{{showFiled}}">Filed <small>7</small></button>
+    </div>
+    <sc-if value="{{isActive}}" hint-placeholder-val="{{ true }}">
+      <div class="list">
+        <div class="r"><div><span class="kind">Roll call · No. 2</span><b>Show us your drink</b><span class="l red">not answered</span></div><span class="t red">8:12</span></div>
+        <div class="r"><div><span class="kind">Group event · No. 3</span><b>Album cover remake</b><span class="l teal">you’re in</span></div><span class="t">34:49</span></div>
+        <div class="r"><div><span class="kind">Story · Ch. 6</span><b>Couldn’t be me</b><span class="l red">vote · not voted</span></div><span class="t">2h59</span></div>
+        <p class="next">Next: roll call at 23:00 · random drops on · 2 chapters sealed</p>
+      </div>
+    </sc-if>
+    <sc-if value="{{isFiled}}" hint-placeholder-val="{{ false }}">
+      <div class="list">
+        <div class="r"><div><span class="kind">Group event · No. 2</span><b>Pub quiz face</b><span class="l">missed it</span></div><span class="res"><span class="neg">−2</span><i class="mk x">✗</i></span></div>
+        <div class="r"><div><span class="kind">Roll call · No. 1</span><b>Your best detective face</b><span class="l">answered</span></div><span class="res"><i class="mk">✓</i></span></div>
+        <div class="r"><div><span class="kind">Story · Ch. 4</span><b>Murder weapon</b><span class="l">the corkscrew won</span></div><span class="res"><span class="pos">+2</span><i class="mk">✓</i></span></div>
+        <div class="r"><div><span class="kind">Group event · No. 1</span><b>Human pyramid</b><span class="l">you won</span></div><span class="res"><span class="pos">+5</span><i class="mk">✓</i></span></div>
+        <div class="r"><div><span class="kind">Story · Ch. 1–3</span><b>Three chapters</b><span class="l">2 entered, 1 skipped</span></div><span class="res"><span class="neg">−2</span><i class="mk x">✗</i></span></div>
+      </div>
+    </sc-if>
+  </div>
+  <nav class="tabbar" aria-label="Main">
+    <span class="tb on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"></path></svg>Missions</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4"></path></svg>Log book</span>
+    <span class="tb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>My file</span>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'active' };
+  }
+  renderVals() {
+    const active = this.state.tab === 'active';
+    return {
+      isActive: active,
+      isFiled: !active,
+      activeOn: active ? 'on' : '',
+      filedOn: active ? '' : 'on',
+      showActive: () => this.setState({ tab: 'active' }),
+      showFiled: () => this.setState({ tab: 'filed' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

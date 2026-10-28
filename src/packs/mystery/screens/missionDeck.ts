@@ -1,10 +1,10 @@
-// The Missions tab (option E, "the stack"): every open mission as a folder in a stack, soonest deadline in front, and
-// the night's three kinds below as index dividers (group events, periodic missions, story missions). Pure, so it is
-// testable; MissionsTab.tsx turns the game's docs into these shapes (times in ms).
+// The Missions tab (the missions-active mockups, C2): what needs you as folders in a stack, soonest deadline in front;
+// under it what you're in and can still change, then what's filed tonight and what comes next. Pure, so it is
+// testable; useMissionDeck.ts turns the game's docs into these shapes (times in ms).
 import type { Mark } from '../../../lib/missionTabs';
 import type { VoteStyle } from '../../../shared';
 
-/** The three kinds of mission, as the dividers file them. */
+/** The three kinds of mission. */
 export type DeckKind = 'group' | 'periodic' | 'story';
 
 /** What the stack needs of an open mission. */
@@ -51,8 +51,8 @@ export function tabSlots(deadline: string[], shown: string[]): Map<string, numbe
 }
 
 /**
- * The name on a folder's tab and the chip that matches it in the dividers: without a leading "The" / "A" or a closing
- * mark, and when that is too long, its longest word ("Pocket lottery" → "Lottery").
+ * The name on a folder's tab: without a leading "The" / "A" or a closing mark, and when that is too long, its longest
+ * word ("Pocket lottery" → "Lottery").
  */
 export function shortName(title: string, max = 10): string {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -66,19 +66,6 @@ export function shortName(title: string, max = 10): string {
   const longest = words.reduce((best, w) => (w.length >= best.length ? w : best), '');
   if (longest && longest.length <= max) return cap(longest);
   return `${cap(plain.slice(0, max - 1).trimEnd())}…`;
-}
-
-/** Chapter numbers as ranges: [3, 4, 5, 6, 7] → "3–7", [3, 5, 6, 7] → "3, 5–7", [4] → "4". */
-export function rangeLabel(numbers: number[]): string {
-  const sorted = [...new Set(numbers)].sort((a, b) => a - b);
-  const parts: string[] = [];
-  for (let i = 0; i < sorted.length; ) {
-    let j = i;
-    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j]! + 1) j++;
-    parts.push(j > i ? `${sorted[i]}–${sorted[j]}` : String(sorted[i]));
-    i = j + 1;
-  }
-  return parts.join(', ');
 }
 
 /**
@@ -127,32 +114,6 @@ export interface YouNow {
   nothingToVote?: boolean;
 }
 
-export type Tone = 'hot' | 'ok' | 'plain';
-
-/**
- * An open mission's line in the dividers: "18:20 left · you're in", "09:12 left · not answered", "vote · 04:12 left ·
- * not voted", "entries being checked". `clock` is the time left; red (hot) while it needs you.
- */
-export function openLine(
-  kind: DeckKind,
-  status: 'live' | 'checking' | 'voting',
-  clock: string | null,
-  you: YouNow,
-  /** A long-running mission: after its deadline it waits for its vote rather than a GM's check. */
-  opts: { longRun?: boolean } = {},
-): { text: string; tone: Tone } {
-  if (status === 'checking' && opts.longRun) return { text: 'entries closed · vote opens later', tone: 'plain' };
-  if (status === 'checking') return { text: 'entries being checked', tone: 'plain' };
-  const left = clock ? `${clock} left` : 'time’s up';
-  if (status === 'voting') {
-    if (!you.playing || you.nothingToVote) return { text: `vote · ${left}`, tone: 'plain' };
-    return you.done ? { text: `vote · ${left} · you voted`, tone: 'ok' } : { text: `vote · ${left} · not voted`, tone: 'hot' };
-  }
-  if (!you.playing) return { text: left, tone: 'plain' };
-  if (kind === 'periodic') return you.done ? { text: `${left} · answered`, tone: 'ok' } : { text: `${left} · not answered`, tone: 'hot' };
-  return you.done ? { text: `${left} · you’re in`, tone: 'ok' } : { text: `${left} · not in`, tone: 'hot' };
-}
-
 /** The rule on a group or story mission's folder: "+3 each, the fastest +2 · −3 if you don't". */
 export function missionRule(m: { judging?: 'vote' | 'submit'; bonusPoints: number; fastestBonus?: number }, fine: number, style: VoteStyle = 'pick'): string {
   const fast = m.fastestBonus ?? 0;
@@ -168,8 +129,30 @@ export function checkinRule(penalty: number): string {
   return `${penalty > 0 ? `−${penalty} if you don’t` : 'No fine'} · one answer, a photo or a comment`;
 }
 
-/** "opens 22:42 · in 54 min" (or "· any minute" once it is due). */
-export function opensLine(clock: string, atMs: number, nowMs: number): string {
-  const min = Math.ceil((atMs - nowMs) / 60_000);
-  return `opens ${clock} · ${min > 0 ? `in ${min} min` : 'any minute'}`;
+/**
+ * Whether an open mission sits under Still open rather than in the stack: a group or story mission you're in while it
+ * still takes entries, so you can change yours. Everything else open (what needs you, a vote, entries being checked,
+ * a roll call, answered or not) stays in the stack.
+ */
+export function isStillOpen(m: { kind: DeckKind; status: 'live' | 'checking' | 'voting'; you: YouNow }): boolean {
+  return m.kind !== 'periodic' && m.status === 'live' && m.you.playing && m.you.done;
+}
+
+/** The Live heading's aside: "2 need you · tap a tab", "1 needs you", "nothing needs you". */
+export function liveAside(need: number, folders: number): string {
+  const head = need === 0 ? 'nothing needs you' : `${need} ${need === 1 ? 'needs' : 'need'} you`;
+  return folders > 1 ? `${head} · tap a tab` : head;
+}
+
+/**
+ * The line under what's filed: "Next: roll call at 23:00 · random drops on · 2 chapters sealed". The next roll call is
+ * the GM's only (players can't read the series); null when there is nothing to say.
+ */
+export function nextLine(o: { checkin: { name: string; clock: string } | null; groups: boolean; drops: boolean; sealed: number; gm: string }): string | null {
+  const parts = [
+    o.checkin ? `${o.checkin.name.charAt(0).toLowerCase()}${o.checkin.name.slice(1)} at ${o.checkin.clock}` : null,
+    o.groups ? (o.drops ? 'random drops on' : `group events from the ${o.gm}`) : null,
+    o.sealed > 0 ? `${o.sealed} ${o.sealed === 1 ? 'chapter' : 'chapters'} sealed` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? `Next: ${parts.join(' · ')}` : null;
 }

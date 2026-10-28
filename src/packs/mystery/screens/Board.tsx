@@ -1,7 +1,8 @@
-// The Missions folder (option E): a manila folder with the folder tabs Missions, Map and Standings; the open tab and
-// its page are one sheet (manila, chart paper for Standings). Missions is the stack of open missions over the night's
-// three kinds (MissionsTab); Map is the case map inside the folder, at /map (deep links and the GM's "Open the Map"
-// land on it); Standings is bars from zero on a squared grid (±25 in squares of 5, wider when someone goes past it).
+// The Missions folder (option E; the Public file tab): a manila folder with the folder tabs Missions, Map and
+// Standings; the open tab and its page are one sheet (manila, chart paper for Standings). Missions is Live, the stack
+// of open missions, over Still open and Filed tonight (MissionsTab); Map is the case map inside the folder, at /map
+// (deep links and the GM's "Open the Map" land on it); Standings is bars from zero on a squared grid (±25 in squares
+// of 5, wider when someone goes past it).
 // The standings move: scores glide from what you last saw to where they are, rows slide to their new places, and
 // each change since then shows as a "+5" / "−5" chip for a few seconds. A trusted confidant's face wears a phone pin
 // and a person of interest's an eye, explained by the key at the foot.

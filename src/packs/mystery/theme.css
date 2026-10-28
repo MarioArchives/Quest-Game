@@ -49,6 +49,9 @@
   --kraft-line: #8e7550;
   /* the back of a tag (My file's missions turned over for a reroll; ruled in --grid-ink) */
   --kraft-back: #bd9c66;
+  /* Still open on the Missions tab: a green folder for the entries you can still change. */
+  --folder-green: #c4d3c4;
+  --folder-green-line: #5f7d72;
   --twine: #b59e78;
   --twine-dark: #a48c66;
   --eyelet: #9aa0a3;

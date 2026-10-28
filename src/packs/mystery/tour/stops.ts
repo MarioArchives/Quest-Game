@@ -30,7 +30,7 @@ export interface Hop {
 }
 
 /** What a stop's tag says, worded by words.ts. */
-export type SayId = 'live' | 'kinds' | 'map' | 'standings' | 'standing-lines' | 'logbook' | 'missions' | 'accuse' | 'search' | 'sign';
+export type SayId = 'live' | 'still' | 'map' | 'standings' | 'standing-lines' | 'logbook' | 'missions' | 'accuse' | 'search' | 'sign';
 
 export interface Stop {
   tab: TabId;
@@ -60,7 +60,7 @@ export interface Stop {
 
 export const STOPS: Stop[] = [
   { tab: 'missions', scene: 'missions', title: 'Active missions', say: 'live', lit: ['live'], width: 240 },
-  { tab: 'missions', scene: 'missions', title: 'Kinds of mission', say: 'kinds', lit: ['events', 'rollcall', 'story'], core: ['events', 'rollcall'] },
+  { tab: 'missions', scene: 'missions', title: 'Still open', say: 'still', lit: ['still-open', 'filed'], core: ['still-open'] },
   {
     tab: 'missions',
     scene: 'map',
