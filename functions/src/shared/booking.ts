@@ -23,14 +23,18 @@ function oneLine(value: unknown, max: number, what: string): { value: string | n
   return { value: text || null };
 }
 
+/** Without a relation, where the pack lists them; an app from before the list has no way to pick one. */
+const RELATION_NEEDED = 'Pick a relation from the list. No list to pick from? Reload the page.';
+
 /**
  * What the player sent, checked: clean particulars, or the first thing wrong with them. `booking` is the pack's booking
- * desk: a relation must be one of its relation ids (a pack without a list takes none).
+ * desk: with a relation list, one of its relation ids is required (the police ask about them later); a pack without a
+ * list takes none. Height and marks are always optional.
  */
 export function checkParticulars(raw: unknown, booking?: { relations?: readonly RelationChoice[] } | null): { particulars: Particulars } | { problem: string } {
   const relations = booking?.relations?.length ? booking.relations : null;
   if (raw === undefined || raw === null) {
-    return { particulars: relations ? { heightCm: null, relation: null, drink: null, marks: null } : { heightCm: null, drink: null, marks: null } };
+    return relations ? { problem: RELATION_NEEDED } : { particulars: { heightCm: null, drink: null, marks: null } };
   }
   if (typeof raw !== 'object' || Array.isArray(raw)) return { problem: 'Send the particulars as an object.' };
   const data = raw as Record<string, unknown>;
@@ -48,11 +52,9 @@ export function checkParticulars(raw: unknown, booking?: { relations?: readonly 
   const marks = oneLine(data.marks, MARKS_MAX, 'Distinguishing marks');
   if ('problem' in marks) return marks;
   if (relations) {
-    let relation: string | null = null;
-    if (data.relation !== undefined && data.relation !== null && data.relation !== '') {
-      if (typeof data.relation !== 'string' || !relations.some((r) => r.id === data.relation)) return { problem: 'Pick a relation from the list.' };
-      relation = data.relation;
-    }
+    const relation = data.relation;
+    if (relation === undefined || relation === null || relation === '') return { problem: RELATION_NEEDED };
+    if (typeof relation !== 'string' || !relations.some((r) => r.id === relation)) return { problem: 'Pick a relation from the list.' };
     return { particulars: { heightCm, relation, drink: drink.value, marks: marks.value } };
   }
   if (data.relation !== undefined && data.relation !== null && data.relation !== '') return { problem: 'This game has no relation to pick.' };

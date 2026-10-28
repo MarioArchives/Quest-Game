@@ -336,8 +336,11 @@ function ParticularsSheet({
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
+  const relationRef = useRef<HTMLFieldSetElement>(null);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => onChange({ ...who, [key]: value });
   const missingName = nameEditable && !who.name.trim();
+  // The police ask about it later, so there's no booking in without one.
+  const missingRelation = RELATIONS.length > 0 && !who.relation;
   const digits = cleanUkNumber(who.phone);
   const askPhone = phoneOn && !who.noPhone;
   const phoneOk = !askPhone || isUkMobile(digits);
@@ -347,6 +350,10 @@ function ParticularsSheet({
     if (busy) return;
     if (missingName) return nameRef.current?.focus();
     if (!phoneOk) return phoneRef.current?.focus();
+    if (missingRelation) {
+      relationRef.current?.scrollIntoView({ block: 'center', behavior: lessMotion() ? 'auto' : 'smooth' });
+      return relationRef.current?.querySelector('input')?.focus({ preventScroll: true });
+    }
     // Tidy what they typed into the number we'll ring.
     if (askPhone) set('phone', showUkNumber(digits));
     buzz(12);
@@ -475,8 +482,15 @@ function ParticularsSheet({
           )}
         </Field>
 
-        <fieldset className="bk-field">
-          <legend className="bk-label">Relation to the victim</legend>
+        <fieldset ref={relationRef} className={`bk-field${tried && missingRelation ? ' is-missing' : ''}`} aria-describedby={`relation-hint-${uid}`}>
+          <legend className="bk-label">
+            Relation to the victim
+            {tried && missingRelation ? (
+              <Stamp tone="red" className="bk-stamp--tiny">
+                Needed
+              </Stamp>
+            ) : null}
+          </legend>
           <div className="bk-chips">
             {RELATIONS.map((r) => (
               <label key={r.id} className={`bk-chip${who.relation === r.id ? ' is-on' : ''}`}>
@@ -486,19 +500,19 @@ function ParticularsSheet({
                   name={`relation-${uid}`}
                   value={r.id}
                   checked={who.relation === r.id}
+                  required
                   onChange={() => {
                     buzz(6);
                     set('relation', r.id);
-                  }}
-                  // Tapping the one already picked takes it back off.
-                  onClick={() => {
-                    if (who.relation === r.id) set('relation', null);
                   }}
                 />
                 {r.label}
               </label>
             ))}
           </div>
+          <span id={`relation-hint-${uid}`} className="bk-hint">
+            Pick one
+          </span>
         </fieldset>
 
         <Field label="Distinguishing marks" hint="Optional">

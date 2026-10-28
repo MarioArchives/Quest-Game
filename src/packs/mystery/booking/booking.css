@@ -410,6 +410,7 @@
 }
 .bk-chip.is-on { background: var(--btn-on-bg); color: var(--btn-on-fg); transform: rotate(-2deg); }
 .bk-chip:has(input:focus-visible) { outline: 3px solid var(--btn-ring); outline-offset: 2px; }
+.bk-field.is-missing .bk-chip { border-color: var(--warn); background: rgba(163, 52, 42, 0.09); }
 
 /* The big go button: the case-brown key with its kraft rim, on the folder or on the machine. Busy holds it down in full colour. */
 .bk-go {

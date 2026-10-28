@@ -8,8 +8,9 @@ import { fail, requireUid } from './guards.js';
 import { toTs } from './util.js';
 
 /**
- * Callable: the caller's own particulars (height, relation, marks; each optional) onto their player doc, and `bookedAt`
- * the first time. Only a player (so not before the GM's approval) still in the game; booking in again just updates them.
+ * Callable: the caller's own particulars (height and marks optional; a relation required where the pack lists them)
+ * onto their player doc, and `bookedAt` the first time. Only a player (so not before the GM's approval) still in the
+ * game; booking in again just updates them.
  */
 export async function bookIn(db: Db, ctx: Ctx, data: { particulars?: unknown }): Promise<{ booked: true }> {
   const uid = requireUid(ctx);

@@ -166,12 +166,16 @@ export interface Player {
   particulars?: Particulars | null;
 }
 
-/** A player's particulars from the onboarding, each optional (`bookIn` checks them; limits in shared/booking.ts). */
+/**
+ * A player's particulars from the onboarding: height and marks optional, a relation required where the pack lists them
+ * (`bookIn` checks them; limits in shared/booking.ts).
+ */
 export interface Particulars {
   heightCm: number | null;
   /** Anything that would pick them out of a crowd. */
   marks: string | null;
-  /** Their relation to the story's victim: a RelationChoice id from the pack's booking list. */
+  /** Their relation to the story's victim: a RelationChoice id from the pack's booking list (null on a file booked in
+   * while it was optional). */
   relation?: string | null;
   /** Their usual drink, in a word or two (asked before relations; kept on older docs). */
   drink?: string | null;

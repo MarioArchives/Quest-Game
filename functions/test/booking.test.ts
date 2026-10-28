@@ -1,5 +1,6 @@
 // Onboarding (a pack's look.screens.onboarding): approval leaves bookedAt null, and bookIn takes the player's own
-// particulars (each optional, checked), sets bookedAt once, and is only for players still in the game.
+// particulars (height and marks optional, a relation required where the pack lists them; all checked), sets bookedAt
+// once, and is only for players still in the game.
 import { describe, expect, it } from 'vitest';
 import { bookIn } from '../src/game/booking.js';
 import { requestJoin, reviewJoinRequest } from '../src/game/join.js';
@@ -139,18 +140,21 @@ describe('a relation to the victim', () => {
   const REL = testPack({ booking: { relations: RELATIONS } });
   const book = (particulars: unknown, now = T0) => bookIn(db(), ctx('sam', now, undefined, undefined, REL), { particulars });
 
-  it("keeps one of the pack's relations, and clears it again", async () => {
+  it("keeps one of the pack's relations, and won't take it off again", async () => {
     await approvedSam();
     await book({ heightCm: 183, relation: 'best-friend', marks: 'A green jacket' });
     expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: 183, relation: 'best-friend', drink: null, marks: 'A green jacket' });
-    await book({ heightCm: 183, relation: null, marks: 'A green jacket' }, addMin(T0, 5));
-    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: 183, relation: null, drink: null, marks: 'A green jacket' });
+    await expectCode(book({ heightCm: 183, relation: null, marks: 'A green jacket' }, addMin(T0, 5)), 'invalid-argument');
+    await book({ heightCm: 183, relation: 'lover', marks: null }, addMin(T0, 6));
+    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: 183, relation: 'lover', drink: null, marks: null });
   });
 
-  it('a pack with a relation list still takes a drink from an older app', async () => {
+  it('nobody books in without a relation: none, a blank one, no particulars, or a drink from an app older than the list', async () => {
     await approvedSam();
-    await book({ heightCm: null, drink: 'Gin', marks: null });
-    expect((await getPlayer(db(), 'sam')).particulars).toEqual({ heightCm: null, relation: null, drink: 'Gin', marks: null });
+    for (const particulars of [{ heightCm: 170, marks: 'Tall' }, { relation: '' }, { relation: null }, undefined, null, { heightCm: null, drink: 'Gin', marks: null }]) {
+      await expectCode(book(particulars), 'invalid-argument');
+    }
+    expect((await getPlayer(db(), 'sam')).bookedAt).toBeNull();
   });
 
   it("refuses a relation that isn't on the list, or isn't text", async () => {
@@ -169,10 +173,13 @@ describe('a relation to the victim', () => {
 
   it('checkParticulars, on its own', () => {
     expect(checkParticulars({ relation: 'lover' }, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: 'lover', drink: null, marks: null } });
-    expect(checkParticulars({ relation: '' }, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: null, drink: null, marks: null } });
+    expect(checkParticulars({ relation: 'lover', heightCm: 170 }, { relations: RELATIONS })).toEqual({ particulars: { heightCm: 170, relation: 'lover', drink: null, marks: null } });
+    // Left out, the player is asked for one, and told to reload if their app has no list to pick from.
+    expect(checkParticulars({ relation: '' }, { relations: RELATIONS })).toEqual({ problem: expect.stringMatching(/pick a relation.*reload/i) });
+    expect(checkParticulars({ heightCm: 170 }, { relations: RELATIONS })).toEqual({ problem: expect.stringMatching(/pick a relation.*reload/i) });
     expect(checkParticulars({ relation: 'nemesis' }, { relations: RELATIONS })).toEqual({ problem: expect.stringMatching(/relation/i) });
     expect(checkParticulars({ relation: 'lover' })).toEqual({ problem: expect.stringMatching(/relation/i) });
-    expect(checkParticulars(null, { relations: RELATIONS })).toEqual({ particulars: { heightCm: null, relation: null, drink: null, marks: null } });
+    expect(checkParticulars(null, { relations: RELATIONS })).toEqual({ problem: expect.stringMatching(/pick a relation/i) });
   });
 });
 
