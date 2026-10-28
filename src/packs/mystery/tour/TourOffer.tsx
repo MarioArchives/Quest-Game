@@ -36,7 +36,13 @@ export function useTourOffer(): boolean {
   const running = useTourRequest() !== null;
   const bookedAt = player?.bookedAt ? tsMs(player.bookedAt) : null;
   const startedAt = state.startedAt ? tsMs(state.startedAt) : null;
-  return offerShown({ gm: isAdmin, player: Boolean(player && !player.left), status: state.status, late: lateJoiner(bookedAt, startedAt), mark, running });
+  return offerShown({ gm: isAdmin, player: Boolean(player && !player.left), status: state.status, late: lateJoiner(bookedAt, startedAt), mark, bookedAt, running });
+}
+
+/** The player's booking, for a mark to answer (see TourMark). */
+export function useBooked(): number | undefined {
+  const { player } = useSession();
+  return player?.bookedAt ? tsMs(player.bookedAt) : undefined;
 }
 
 /**
@@ -47,6 +53,7 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
   const { user } = useSession();
   const toast = useToast();
   const shown = useTourOffer();
+  const booked = useBooked();
   const [leaving, setLeaving] = useState(false);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const [height, setHeight] = useState(0);
@@ -86,10 +93,10 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
 
   const take = () => {
     if (!startTour(null)) return;
-    writeMark(uid, { offer: 'taken' });
+    writeMark(uid, { offer: 'taken', booked });
   };
   const later = () => {
-    writeMark(uid, { offer: 'later' });
+    writeMark(uid, { offer: 'later', booked });
     toast('No rush. The tour is kept in My file.');
     if (reducedMotion()) return;
     setLeaving(true);

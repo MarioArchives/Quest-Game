@@ -7,10 +7,14 @@ import type { GameStatus } from '../../../shared';
 
 /* ---------------------------------------------------------------- what this device remembers */
 
-/** Taken or put off, for this player on this device; and when a run last reached its last stop. */
+/**
+ * Taken or put off, for this player on this device; when a run last reached its last stop; and the booking it answers
+ * (the player's `bookedAt` then, in ms): after a reset and a fresh booking the offer comes back.
+ */
 export interface TourMark {
   offer: 'taken' | 'later';
   touredAt?: number;
+  booked?: number;
 }
 
 export const markKey = (uid: string) => `mystery.tour.${uid}`;
@@ -21,7 +25,8 @@ export function parseMark(raw: string | null): TourMark | null {
   try {
     const v = JSON.parse(raw) as Partial<TourMark> | null;
     if (!v || (v.offer !== 'taken' && v.offer !== 'later')) return null;
-    return typeof v.touredAt === 'number' && Number.isFinite(v.touredAt) ? { offer: v.offer, touredAt: v.touredAt } : { offer: v.offer };
+    const time = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
+    return { offer: v.offer, ...(time(v.touredAt) ? { touredAt: v.touredAt } : {}), ...(time(v.booked) ? { booked: v.booked } : {}) };
   } catch {
     return null;
   }
@@ -103,12 +108,27 @@ function markAt(uid: string, v: number): TourMark | null {
 export const lateJoiner = (bookedAtMs: number | null, startedAtMs: number | null) => bookedAtMs !== null && startedAtMs !== null && bookedAtMs > startedAtMs;
 
 /**
- * Whether the offer hangs on the Missions folder: for a player (never a GM, even one who plays) who hasn't taken it or
- * put it off, before the case opens (the sealed file, or the empty folder without a start time), or once the case is
- * open for someone who booked in after it opened; never while a run is on.
+ * Whether a mark answers the player's booking: one written for an earlier booking (the game reset, and they booked in
+ * again), or before marks noted their booking, doesn't. A file from before the booking desk has no booking: any mark.
  */
-export function offerShown(input: { gm: boolean; player: boolean; status: GameStatus; late: boolean; mark: TourMark | null; running: boolean }): boolean {
-  if (input.gm || !input.player || input.running || input.mark) return false;
+export const markHolds = (mark: TourMark | null, bookedAtMs: number | null): boolean =>
+  mark !== null && (bookedAtMs === null || (mark.booked ?? -Infinity) >= bookedAtMs);
+
+/**
+ * Whether the offer hangs on the Missions folder: for a player (never a GM, even one who plays) who hasn't taken it or
+ * put it off since booking in, before the case opens (the sealed file, or the empty folder without a start time), or
+ * once the case is open for someone who booked in after it opened; never while a run is on.
+ */
+export function offerShown(input: {
+  gm: boolean;
+  player: boolean;
+  status: GameStatus;
+  late: boolean;
+  mark: TourMark | null;
+  bookedAt: number | null;
+  running: boolean;
+}): boolean {
+  if (input.gm || !input.player || input.running || markHolds(input.mark, input.bookedAt)) return false;
   if (input.status === 'lobby') return true;
   return (input.status === 'active' || input.status === 'paused') && input.late;
 }

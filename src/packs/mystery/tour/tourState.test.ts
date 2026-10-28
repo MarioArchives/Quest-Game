@@ -1,7 +1,7 @@
 // Torch tour plan edge cases 1–5 and 11: who is offered the tour, what this device remembers about it (per player,
 // and harmlessly when it can't remember anything), and one run at a time.
 import { afterEach, describe, expect, it } from 'vitest';
-import { closeTour, forgetSession, lateJoiner, markKey, offerShown, parseMark, readMark, startTour, writeMark, type MarkStore } from './tourState';
+import { closeTour, forgetSession, lateJoiner, markHolds, markKey, offerShown, parseMark, readMark, startTour, writeMark, type MarkStore } from './tourState';
 
 /** A device's storage, in memory. */
 function memory(): MarkStore & { data: Map<string, string> } {
@@ -20,7 +20,8 @@ const blocked: MarkStore = {
 
 afterEach(() => forgetSession());
 
-const base = { gm: false, player: true, status: 'lobby' as const, late: false, mark: null, running: false };
+const BOOKED = 1_793_100_000_000;
+const base = { gm: false, player: true, status: 'lobby' as const, late: false, mark: null, bookedAt: BOOKED, running: false };
 
 describe('1, 5. who is offered it', () => {
   it('a booked-in player before the case opens (the sealed file, or the empty folder without a start time)', () => {
@@ -39,10 +40,19 @@ describe('1, 5. who is offered it', () => {
     expect(offerShown({ ...base, status: 'ended', late: true })).toBe(false);
   });
 
-  it('not once taken or put off, nor while a run is on', () => {
-    expect(offerShown({ ...base, mark: { offer: 'taken' } })).toBe(false);
-    expect(offerShown({ ...base, mark: { offer: 'later' } })).toBe(false);
+  it('not once taken or put off since booking in, nor while a run is on', () => {
+    expect(offerShown({ ...base, mark: { offer: 'taken', booked: BOOKED } })).toBe(false);
+    expect(offerShown({ ...base, mark: { offer: 'later', booked: BOOKED } })).toBe(false);
     expect(offerShown({ ...base, running: true })).toBe(false);
+  });
+
+  it('back again after a reset and a fresh booking: a mark from an earlier booking, or with none noted, no longer holds', () => {
+    expect(offerShown({ ...base, mark: { offer: 'taken', booked: BOOKED - 3_600_000 } })).toBe(true);
+    expect(offerShown({ ...base, mark: { offer: 'later', touredAt: BOOKED - 60_000 } })).toBe(true);
+    // A file from before the booking desk has no booking time: any mark holds.
+    expect(offerShown({ ...base, bookedAt: null, mark: { offer: 'later' } })).toBe(false);
+    expect(markHolds(null, BOOKED)).toBe(false);
+    expect(markHolds({ offer: 'taken', booked: BOOKED }, BOOKED)).toBe(true);
   });
 
   it('late means booked in after the case opened; a file from before the booking desk is not late', () => {
@@ -74,13 +84,16 @@ describe('2–3. what this device remembers, per player', () => {
   it('anything else stored is no mark', () => {
     for (const raw of [null, '', 'nope', '{}', '{"offer":"maybe"}', 'null', '[1]']) expect(parseMark(raw)).toBeNull();
     expect(parseMark('{"offer":"taken","touredAt":"noon"}')).toEqual({ offer: 'taken' });
+    expect(parseMark('{"offer":"later","booked":1793100000000}')).toEqual({ offer: 'later', booked: 1_793_100_000_000 });
+    expect(parseMark('{"offer":"later","booked":"today"}')).toEqual({ offer: 'later' });
   });
 });
 
 describe('4. storage blocked or throwing', () => {
   it('nothing crashes, the answer holds for this visit, and the offer is back next visit', () => {
-    expect(writeMark('maya', { offer: 'later' }, blocked)).toBe(false);
-    expect(readMark('maya', blocked)).toEqual({ offer: 'later' });
+    expect(writeMark('maya', { offer: 'later', booked: BOOKED }, blocked)).toBe(false);
+    expect(readMark('maya', blocked)).toEqual({ offer: 'later', booked: BOOKED });
+    expect(offerShown({ ...base, mark: readMark('maya', blocked) })).toBe(false);
     forgetSession();
     expect(readMark('maya', blocked)).toBeNull();
     expect(offerShown({ ...base, mark: readMark('maya', blocked) })).toBe(true);

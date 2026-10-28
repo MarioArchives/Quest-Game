@@ -23,6 +23,7 @@ import tourCss from './tour.css?inline';
 import { goodbye, progressOf, runReducer, startRun, type Run, type RunAction } from './run';
 import { hopScreen, runRange, SPECIMEN, STOPS, TABS, type SceneId, type TabId } from './stops';
 import { closeTour, onTourBack, readMark, writeMark, type TourRequest } from './tourState';
+import { useBooked } from './TourOffer';
 import { TourLayer, type HopView } from './TourLayer';
 import { stopsFor } from './words';
 
@@ -168,6 +169,7 @@ function Frame({ request, setCovering }: TourFrameProps) {
   const { pending: reward } = useRewardSheet();
   const toast = useToast();
   const uid = user?.uid ?? null;
+  const booked = useBooked();
   const reduced = useReducedMotion();
 
   const root = useRef<HTMLDivElement>(null);
@@ -198,10 +200,10 @@ function Frame({ request, setCovering }: TourFrameProps) {
     };
   }, [setCovering, request.opener]);
 
-  // Taking it, from anywhere, answers the offer for good.
+  // Taking it, from anywhere, answers the offer for this booking.
   useEffect(() => {
-    if (uid && readMark(uid)?.offer !== 'taken') writeMark(uid, { ...readMark(uid), offer: 'taken' });
-  }, [uid]);
+    if (uid) writeMark(uid, { ...readMark(uid), offer: 'taken', booked });
+  }, [uid, booked]);
 
   // ---- the lights, and the end ----
   const runRef = useRef(run);
@@ -229,8 +231,8 @@ function Frame({ request, setCovering }: TourFrameProps) {
 
   // Reaching the last stop is touring it: the card in My file says when.
   useEffect(() => {
-    if (run.phase === 'out' && run.done && uid) writeMark(uid, { offer: 'taken', touredAt: Date.now() });
-  }, [run.phase, run.done, uid]);
+    if (run.phase === 'out' && run.done && uid) writeMark(uid, { offer: 'taken', touredAt: Date.now(), booked });
+  }, [run.phase, run.done, uid, booked]);
 
   const finish = useCallback((done: boolean, why?: string) => dispatch({ type: 'finish', done, why }), []);
   const step = useCallback((by: 1 | -1) => dispatch({ type: 'step', by }), []);
