@@ -1,4 +1,4 @@
-// The torch tour's nineteen stops, in order, and the five parts My file can start it at. Each stop names the tab it
+// The torch tour's nineteen stops, in order (a run is the whole tour, from the offer on Missions). Each stop names the tab it
 // happens on, the specimen screen shown there (a snapshot of the demo in snap/scenes.json, taken by
 // scripts/packs/mystery/snapshot-tour.mjs), the elements the torch lights and the tag's heading. What the tag says is
 // in words.ts, worded from tonight's settings. A lit name is a data-tour name (on the pack's own components, or stamped
@@ -207,29 +207,8 @@ export const STOPS: Stop[] = [
   },
 ];
 
-/** A part of the tour, as stop indexes (from and to, both included). */
-export interface Part {
-  label: string;
-  from: number;
-  to: number;
-}
-
-export const PARTS: Part[] = [
-  { label: 'Missions', from: 0, to: 7 },
-  { label: 'Log book', from: 8, to: 8 },
-  { label: 'Your missions', from: 9, to: 9 },
-  { label: 'Accusing', from: 10, to: 14 },
-  { label: 'Police', from: 15, to: 18 },
-];
-
 /** How each tag hangs: a degree or so off straight, never the same way twice running. */
 export const TILT = [-1, 1, -0.8, 1, -0.9, 0.8, -1, 0.9, -0.8, 1, -1, 1, -1, 0.8, -0.8, 1.1, -1.2, 0.9, -1];
-
-/** The stops a run covers: one part (by its index in PARTS) or, with none, the whole tour. */
-export function runRange(part: number | null): { from: number; to: number } {
-  const p = part === null ? null : PARTS[part];
-  return p ? { from: p.from, to: p.to } : { from: 0, to: STOPS.length - 1 };
-}
 
 /** Where a name points: a data-tour name, or a selector as it is. */
 export const selectorOf = (name: string) => (/^[.#[]/.test(name) ? name : `[data-tour="${name}"]`);

@@ -1,5 +1,5 @@
 // The torch tour's small, always-loaded half: who may be offered it, what this device remembers about it, and the
-// one run there can be at a time. The offer (TourOffer.tsx) and My file's card (TourCard.tsx) call `startTour`; the
+// one run there can be at a time. The offer on Missions (TourOffer.tsx), the only way in, calls `startTour`; the
 // pack's layer (TourHost.tsx) loads the heavy TourFrame when a run starts. A run adds one history entry, so Back on the
 // phone ends it rather than leaving the screen underneath; it's taken off again when the run ends.
 import { useSyncExternalStore } from 'react';
@@ -8,12 +8,11 @@ import type { GameStatus } from '../../../shared';
 /* ---------------------------------------------------------------- what this device remembers */
 
 /**
- * Taken or put off, for this player on this device; when a run last reached its last stop; and the booking it answers
- * (the player's `bookedAt` then, in ms): after a reset and a fresh booking the offer comes back.
+ * Taken or put off, for this player on this device, and the booking it answers (the player's `bookedAt` then, in ms):
+ * after a reset and a fresh booking the offer comes back.
  */
 export interface TourMark {
   offer: 'taken' | 'later';
-  touredAt?: number;
   booked?: number;
 }
 
@@ -25,8 +24,7 @@ export function parseMark(raw: string | null): TourMark | null {
   try {
     const v = JSON.parse(raw) as Partial<TourMark> | null;
     if (!v || (v.offer !== 'taken' && v.offer !== 'later')) return null;
-    const time = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
-    return { offer: v.offer, ...(time(v.touredAt) ? { touredAt: v.touredAt } : {}), ...(time(v.booked) ? { booked: v.booked } : {}) };
+    return typeof v.booked === 'number' && Number.isFinite(v.booked) ? { offer: v.offer, booked: v.booked } : { offer: v.offer };
   } catch {
     return null;
   }
@@ -135,10 +133,9 @@ export function offerShown(input: {
 
 /* ---------------------------------------------------------------- the run */
 
-/** A run asked for: the whole tour (`part` null) or one part, and what had focus, to give it back afterwards. */
+/** A run asked for, and what had focus, to give it back afterwards. */
 export interface TourRequest {
   id: number;
-  part: number | null;
   opener: HTMLElement | null;
 }
 
@@ -161,11 +158,11 @@ function onPop() {
  * Starts a run unless one is on (a second tap, or a start from elsewhere, gives the same one run). `opener` is what was
  * tapped, to give focus back to afterwards (a tap doesn't focus a button everywhere); else whatever has focus.
  */
-export function startTour(part: number | null = null, opener?: HTMLElement | null): boolean {
+export function startTour(opener?: HTMLElement | null): boolean {
   if (current) return false;
   const active = opener ?? (typeof document !== 'undefined' ? document.activeElement : null);
   const isEl = typeof HTMLElement !== 'undefined' && active instanceof HTMLElement && active !== document.body;
-  current = { id: nextId++, part, opener: isEl ? active : null };
+  current = { id: nextId++, opener: isEl ? active : null };
   if (typeof window !== 'undefined') {
     try {
       window.history.pushState({ ...(window.history.state as object | null), tour: current.id }, '');

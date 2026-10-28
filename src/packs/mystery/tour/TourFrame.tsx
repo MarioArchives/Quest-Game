@@ -21,7 +21,7 @@ import scenesJson from './snap/scenes.json?raw';
 import hangtagCss from './hangtag.css?inline';
 import tourCss from './tour.css?inline';
 import { goodbye, progressOf, runReducer, startRun, type Run, type RunAction } from './run';
-import { hopScreen, runRange, SPECIMEN, STOPS, TABS, type SceneId, type TabId } from './stops';
+import { hopScreen, SPECIMEN, STOPS, TABS, type SceneId, type TabId } from './stops';
 import { closeTour, onTourBack, readMark, writeMark, type TourRequest } from './tourState';
 import { useBooked } from './TourOffer';
 import { TourLayer, type HopView } from './TourLayer';
@@ -175,10 +175,7 @@ function Frame({ request, setCovering }: TourFrameProps) {
   const root = useRef<HTMLDivElement>(null);
   const panes = useRef<(HTMLElement | null)[]>([]);
   const stops = useMemo(() => stopsFor(settings, pack), [settings]);
-  const [run, dispatch] = useReducer((r: Run, a: RunAction) => runReducer(r, a), request.part, (part) => {
-    const { from, to } = runRange(part);
-    return startRun(from, to);
-  });
+  const [run, dispatch] = useReducer((r: Run, a: RunAction) => runReducer(r, a), null, () => startRun(0, STOPS.length - 1));
 
   // ---- while a run is on: the app inert and still, the keyboard here, focus back where it was afterwards ----
   useLayoutEffect(() => {
@@ -200,7 +197,8 @@ function Frame({ request, setCovering }: TourFrameProps) {
     };
   }, [setCovering, request.opener]);
 
-  // Taking it, from anywhere, answers the offer for this booking.
+  // Once it's running, the offer is answered for this booking: there's no taking it again (a frame that never loaded
+  // leaves the offer up, to try again).
   useEffect(() => {
     if (uid) writeMark(uid, { ...readMark(uid), offer: 'taken', booked });
   }, [uid, booked]);
@@ -228,11 +226,6 @@ function Frame({ request, setCovering }: TourFrameProps) {
       return () => window.clearTimeout(id);
     }
   }, [run.phase, reduced, toast]);
-
-  // Reaching the last stop is touring it: the card in My file says when.
-  useEffect(() => {
-    if (run.phase === 'out' && run.done && uid) writeMark(uid, { offer: 'taken', touredAt: Date.now(), booked });
-  }, [run.phase, run.done, uid, booked]);
 
   const finish = useCallback((done: boolean, why?: string) => dispatch({ type: 'finish', done, why }), []);
   const step = useCallback((by: 1 | -1) => dispatch({ type: 'step', by }), []);

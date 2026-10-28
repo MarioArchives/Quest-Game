@@ -48,7 +48,7 @@ describe('1, 5. who is offered it', () => {
 
   it('back again after a reset and a fresh booking: a mark from an earlier booking, or with none noted, no longer holds', () => {
     expect(offerShown({ ...base, mark: { offer: 'taken', booked: BOOKED - 3_600_000 } })).toBe(true);
-    expect(offerShown({ ...base, mark: { offer: 'later', touredAt: BOOKED - 60_000 } })).toBe(true);
+    expect(offerShown({ ...base, mark: { offer: 'later' } })).toBe(true);
     // A file from before the booking desk has no booking time: any mark holds.
     expect(offerShown({ ...base, bookedAt: null, mark: { offer: 'later' } })).toBe(false);
     expect(markHolds(null, BOOKED)).toBe(false);
@@ -73,17 +73,17 @@ describe('2–3. what this device remembers, per player', () => {
     expect(readMark('sam', store)).toBeNull();
   });
 
-  it('taking it, then a run reaching its last stop, keeps when it was toured', () => {
+  it('keeps the booking a mark answers, for the next visit', () => {
     const store = memory();
-    writeMark('maya', { offer: 'taken' }, store);
-    writeMark('maya', { offer: 'taken', touredAt: 1_793_000_000_000 }, store);
+    writeMark('maya', { offer: 'later', booked: BOOKED }, store);
+    writeMark('maya', { offer: 'taken', booked: BOOKED }, store);
     forgetSession();
-    expect(readMark('maya', store)).toEqual({ offer: 'taken', touredAt: 1_793_000_000_000 });
+    expect(readMark('maya', store)).toEqual({ offer: 'taken', booked: BOOKED });
   });
 
   it('anything else stored is no mark', () => {
     for (const raw of [null, '', 'nope', '{}', '{"offer":"maybe"}', 'null', '[1]']) expect(parseMark(raw)).toBeNull();
-    expect(parseMark('{"offer":"taken","touredAt":"noon"}')).toEqual({ offer: 'taken' });
+    expect(parseMark('{"offer":"taken","touredAt":1793000000000}')).toEqual({ offer: 'taken' });
     expect(parseMark('{"offer":"later","booked":1793100000000}')).toEqual({ offer: 'later', booked: 1_793_100_000_000 });
     expect(parseMark('{"offer":"later","booked":"today"}')).toEqual({ offer: 'later' });
   });
@@ -107,11 +107,10 @@ describe('4. storage blocked or throwing', () => {
 
 describe('11. one run at a time', () => {
   it('a double tap, or a start while a run is on, gives one run; another can start once it ends', () => {
-    expect(startTour(null)).toBe(true);
-    expect(startTour(null)).toBe(false);
-    expect(startTour(3)).toBe(false);
+    expect(startTour()).toBe(true);
+    expect(startTour()).toBe(false);
     closeTour();
-    expect(startTour(3)).toBe(true);
+    expect(startTour()).toBe(true);
     closeTour();
   });
 });

@@ -1,5 +1,5 @@
-/* The torch tour's kraft tags on twine (HangTag.tsx), the offer tied on under the sealed file's wax seal, and "How
-   tonight works" in My file. Used on the live page and, inlined, in the tour's shadow root (tour.css has the rest).
+/* The torch tour's kraft tags on twine (HangTag.tsx) and the offer tied on under the sealed file's wax seal. Used on the
+   live page and, inlined, in the tour's shadow root (tour.css has the rest).
    Small text keeps 4.5:1: dark inks on kraft. Never a CSS mask or a drop-shadow filter on a tag: over its text, Chrome on
    some GPUs leaves ghosts of the tag on the page (its hole is cut by a clip-path, its shadow cast by a box behind it). */
 
@@ -87,21 +87,6 @@
 .tr-offer .tr-ht__later { min-height: 30px; }
 .tr-offer.is-gone { animation: tr-drop 0.42s ease-in forwards; pointer-events: none; }
 @keyframes tr-drop { to { opacity: 0; transform: translate3d(0, 70px, 0) rotate(9deg); } }
-
-/* ---- "How tonight works", strung in My file with the case-file kit (cf-…) ---- */
-
-.tr-tourcard .cf-tag { gap: 9px; }
-.tr-tourcard-wrap { display: flex; flex-direction: column; }
-.tr-tourcard__t { margin: 0; font: 400 21px/1.05 var(--display); }
-.tr-tourcard__fine { margin: 0; font: 400 11px/1.4 var(--mono); color: var(--kraft-sub); }
-.tr-parts { display: flex; flex-wrap: wrap; gap: 7px; }
-.tr-part {
-  min-height: 36px; padding: 0 12px; border: 2px solid var(--manila-ink); border-radius: 18px; background: var(--print); color: var(--manila-ink);
-  font: 700 11.5px/1 var(--mono); cursor: pointer;
-}
-.tr-part:active { background: var(--manila-ink); color: var(--manila); }
-.tr-part:focus-visible, .tr-tourcard .cf-btn:focus-visible { outline: 3px solid var(--manila-ink); outline-offset: 2px; }
-.tr-tourcard .cf-btn { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   .tr-offer.is-gone { animation: none; opacity: 0; }

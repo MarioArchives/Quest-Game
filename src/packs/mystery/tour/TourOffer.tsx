@@ -1,11 +1,10 @@
 // The offer of the torch tour, a kraft tag tied on under the sealed case file's wax seal, hanging down the file's
 // right-hand side, or, on the mission stack (no start time yet, or booked in after the case opened), hung on a brass tack
-// under the folders, where it covers nothing: "Time to kill? See tonight in 19 stops." Take the tour, or Not now (the
-// tag drops away, and My file keeps the tour). Who sees it is tourState's offerShown: a player before the case opens,
-// or one who booked in after it opened; never a GM. Under the seal it is rendered inside the file's frame, which it
-// measures.
+// under the folders, where it covers nothing: "Time to kill? See tonight in 19 stops." Take the tour, or No thanks (the
+// tag drops away, and with it the tour: it's the only way in). Who sees it is tourState's offerShown: a player before
+// the case opens, or one who booked in after it opened; never a GM. Under the seal it is rendered inside the file's
+// frame, which it measures.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useToast } from '../../../components/Toast';
 import { tsMs } from '../../../data/hooks';
 import { useGame } from '../../../data/GameProvider';
 import { useSession } from '../../../session/SessionProvider';
@@ -51,7 +50,6 @@ export function useBooked(): number | undefined {
  */
 export function TourOffer({ anchor }: { anchor?: '.wax' }) {
   const { user } = useSession();
-  const toast = useToast();
   const shown = useTourOffer();
   const booked = useBooked();
   const [leaving, setLeaving] = useState(false);
@@ -91,13 +89,10 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
 
   if (!uid || (!shown && !leaving)) return null;
 
-  const take = () => {
-    if (!startTour(null)) return;
-    writeMark(uid, { offer: 'taken', booked });
-  };
+  // Taken, the run answers the offer once it's going (TourFrame), so a tour that fails to load can be tried again.
+  const take = () => void startTour();
   const later = () => {
     writeMark(uid, { offer: 'later', booked });
-    toast('No rush. The tour is kept in My file.');
     if (reducedMotion()) return;
     setLeaving(true);
     window.setTimeout(() => setLeaving(false), DROP_MS);
@@ -121,7 +116,7 @@ export function TourOffer({ anchor }: { anchor?: '.wax' }) {
           Take the tour <ArrowIcon />
         </button>
         <button type="button" className="tr-ht__later" onClick={later} disabled={leaving}>
-          Not now
+          No thanks
         </button>
       </div>
     </HangTag>

@@ -1,7 +1,7 @@
 // Torch tour plan edge cases 8–12: a run's moves, its hops, its parts and how it ends.
 import { describe, expect, it } from 'vitest';
 import { goodbye, progressOf, runReducer, startRun, type Run, type RunAction } from './run';
-import { PARTS, runRange, STOPS } from './stops';
+import { STOPS } from './stops';
 
 const play = (run: Run, ...actions: RunAction[]) => actions.reduce((r, a) => runReducer(r, a), run);
 const lit = (from = 0, to = STOPS.length - 1) => play(startRun(from, to), { type: 'lit' });
@@ -53,24 +53,17 @@ describe('8. hops and Back', () => {
   it('Next on the last stop ends the run as done', () => {
     const r = play(lit(18, 18), next);
     expect(r).toMatchObject({ phase: 'out', done: true });
-    expect(goodbye(r)).toBe('Tour done. It stays in My file: How tonight works.');
+    expect(goodbye(r)).toBe('Tour done. Good luck tonight.');
   });
 });
 
-describe('9. a part of the tour', () => {
-  it('Accusing counts its own stops, 1 to 5, while each keeps its number in the tour', () => {
-    const { from, to } = runRange(PARTS.findIndex((p) => p.label === 'Accusing'));
-    let r = lit(from, to); // a part starts on its first stop, no hops
-    expect(r).toMatchObject({ stop: 10, hop: undefined });
-    expect(progressOf(r)).toEqual({ at: 1, of: 5 });
-    r = play(r, next, next, next, next, next, next, next); // each stop after it by its hop (Next skips it)
-    expect(r.stop).toBe(14);
-    expect(progressOf(r)).toEqual({ at: 5, of: 5 });
-    expect(play(r, next)).toMatchObject({ phase: 'out', done: true });
-  });
-
-  it('the whole tour is every stop', () => {
-    expect(runRange(null)).toEqual({ from: 0, to: STOPS.length - 1 });
+describe('9. the progress bar', () => {
+  it('counts every stop of the tour, and each hop lands on the next', () => {
+    let r = lit();
+    expect(progressOf(r)).toEqual({ at: 1, of: 19 });
+    r = play(r, next, next, next, next, next); // stop 5, the Map, by its hop (Next skips it)
+    expect(r).toMatchObject({ stop: MAP, hop: undefined });
+    expect(progressOf(r)).toEqual({ at: 5, of: 19 });
   });
 });
 
@@ -78,7 +71,7 @@ describe('10–11. leaving, once', () => {
   it('Skip, Escape and Back on the phone end it without touring it', () => {
     const r = play(lit(), next, { type: 'finish', done: false });
     expect(r).toMatchObject({ phase: 'out', done: false, hop: undefined });
-    expect(goodbye(r)).toBe('Tour closed. Pick it up in My file whenever you like.');
+    expect(goodbye(r)).toBe('Tour closed.');
   });
 
   it('ends once: a second finish, or a step on the way out, changes nothing', () => {

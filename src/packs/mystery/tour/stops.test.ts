@@ -2,7 +2,7 @@
 // the snapshot of the screen it is used on (the snapshot script checks the same in a browser, selectors and all).
 import { describe, expect, it } from 'vitest';
 import scenesJson from './snap/scenes.json?raw';
-import { hopScreen, PARTS, selectorOf, STOPS, TABS, TILT, type SceneId, type Stop } from './stops';
+import { hopScreen, selectorOf, STOPS, TABS, TILT, type SceneId, type Stop } from './stops';
 
 interface Scene {
   appClass: string;
@@ -45,11 +45,6 @@ describe('18. the stops', () => {
   it('there are nineteen, on the three tabs', () => {
     expect(STOPS).toHaveLength(19);
     for (const s of STOPS) expect(TABS).toContain(s.tab);
-  });
-
-  it('the parts cover every stop once, in order', () => {
-    const covered = PARTS.flatMap((p) => Array.from({ length: p.to - p.from + 1 }, (_, i) => p.from + i));
-    expect(covered).toEqual(STOPS.map((_, i) => i));
   });
 
   it('the tags tilt a little, never the same way twice running', () => {

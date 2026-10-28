@@ -7,7 +7,7 @@ import type { PackLayerProps } from '../../types';
 import type { TourFrameProps } from './TourFrame';
 import { closeTour, loadFrame, useTourRequest } from './tourState';
 
-const FAILED = 'The tour didn’t load. Check your connection, then try again from My file.';
+const FAILED = 'The tour didn’t load. Check your connection, then take it from Missions again.';
 
 export default function TourHost({ setCovering }: PackLayerProps) {
   const request = useTourRequest();

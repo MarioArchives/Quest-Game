@@ -753,9 +753,14 @@ async function check(base) {
     const b = await launch(w, h);
     try {
       await signIn(b, base, null);
-      await route(b, '#/account', 2500);
-      if (!(await b.until(`!!document.querySelector('.tr-tourcard .cf-btn')`, 15000))) throw new Error('No "How tonight works" card in My file');
-      await b.click('.tr-tourcard .cf-btn');
+      // The tag on Missions is the only way in, and the demo's Maya booked in before the case opened (no tag there):
+      // start a run as the tag does, through the module the app loaded.
+      await route(b, '#/', 2500);
+      const started = await b.ev(`(async () => {
+        const url = performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/src/packs/mystery/tour/tourState.ts')).pop();
+        return url ? (await import(url)).startTour() : false;
+      })()`);
+      if (!started) throw new Error('Could not start the tour in the demo');
       for (let n = 1; n <= STOPS.length; n++) {
         const at = await b.until(IN_TOUR(`return (sh.querySelector('.tr-sr')?.textContent ?? '').startsWith('Stop ${n} of ${STOPS.length}');`), 15000);
         if (!at) {

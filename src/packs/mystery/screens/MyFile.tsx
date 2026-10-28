@@ -30,7 +30,6 @@ import { rerollAllowance, rerollsLeft as rerollsLeftFor, type Quest } from '../.
 import { Folder, Stamp, Strung, Tag, TagTop, tiltFor } from './CaseKit';
 import { ExhibitsFolder, ParticularsSlip, PoliceTape, SealedNote, StandingBand, Stat, SuspectHead, TopStrip } from './FileParts';
 import { MissionLine } from './MissionLine';
-import { TourCard } from '../tour/TourCard';
 import '../../../screens/account/account.css';
 import './myfile.css';
 
@@ -38,7 +37,7 @@ const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] 
 
 export default function MyFile() {
   const { user, player, isAdmin, signOut } = useSession();
-  const { me, settings, ready, players, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests, state } = useGame();
+  const { me, settings, ready, players, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests } = useGame();
   const reward = useRewardSheet();
   const { stopAndClear } = useLocationSharing();
   const navigate = useNavigate();
@@ -62,8 +61,6 @@ export default function MyFile() {
   const character = features.characters ? player?.character : null;
   const charName = character?.name?.trim() || displayName;
   const exhibits = uid ? exhibitsFor(uid, mySubmissions, globalQuests) : [];
-  // Before the case opens, the tour comes straight after your file.
-  const sealed = state.status === 'lobby';
 
   const leave = async () => {
     setSigningOut(true);
@@ -136,7 +133,6 @@ export default function MyFile() {
           </Folder>
 
           {/* The torch tour: under the suspect file before the case opens, under your missions once it has. */}
-          {sealed ? <TourCard /> : null}
 
           {reward.pending ? (
             <Strung label="Reward">
@@ -157,7 +153,6 @@ export default function MyFile() {
             <MissionLine uid={uid ?? ''} hand={hand} rerollsLeft={rerollsLeft} rerollsTotal={rerollsTotal} />
           )}
 
-          {sealed ? null : <TourCard />}
 
           <ExhibitsFolder
             exhibits={exhibits}
@@ -209,7 +204,6 @@ export default function MyFile() {
       )}
       {!player && isAdmin ? (
         <>
-          <TourCard />
           <div className="mf-card mf-work">
             <NotificationsCard gmOnly />
           </div>

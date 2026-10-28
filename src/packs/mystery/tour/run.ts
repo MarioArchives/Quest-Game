@@ -8,7 +8,7 @@ export type Phase = 'in' | 'on' | 'out' | 'gone';
 
 export interface Run {
   stop: number;
-  /** The stops this run covers (the whole tour, or one part), both included. */
+  /** The stops this run covers, both included: the whole tour (the tests walk shorter stretches). */
   from: number;
   to: number;
   phase: Phase;
@@ -65,11 +65,11 @@ export function runReducer(run: Run, action: RunAction, stops: ReadonlyArray<{ v
   }
 }
 
-/** How far through the run this stop is: the `at`th of `of` (a part counts only its own stops). */
+/** How far through the run this stop is: the `at`th of `of`. */
 export const progressOf = (run: Pick<Run, 'stop' | 'from' | 'to'>) => ({ at: run.stop - run.from + 1, of: run.to - run.from + 1 });
 
 /** What the toast says as the run ends. */
 export function goodbye(run: Pick<Run, 'done' | 'why'>): string {
   if (run.why) return `Tour closed: ${run.why}.`;
-  return run.done ? 'Tour done. It stays in My file: How tonight works.' : 'Tour closed. Pick it up in My file whenever you like.';
+  return run.done ? 'Tour done. Good luck tonight.' : 'Tour closed.';
 }
