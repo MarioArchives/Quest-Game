@@ -1,5 +1,5 @@
 import look from '@pack';
-import { Suspense, type ComponentType, type ReactNode } from 'react';
+import { Suspense, useEffect, type ComponentType, type ReactNode } from 'react';
 import { RouterProvider } from 'react-router';
 import { packMismatch } from '../functions/src/shared/packs/index.ts';
 import { Loader } from './components/Loader';
@@ -60,13 +60,19 @@ function PackCheck({ children }: { children: ReactNode }) {
 /** Decides what the signed-in state sees: sign in, sign up, waiting, rejected, the pack's onboarding, or the app. */
 export function Gate() {
   const session = useSession();
+  // Let in, but not booked in yet: the pack's onboarding first (GMs go straight in to run the game).
+  const booking = Boolean(PackOnboarding && session.player && !session.isAdmin && needsBooking(session.player));
+
+  // Meanwhile the app waits on Home, so finishing the onboarding opens it there (where a pack shows what comes next),
+  // not on whatever page a link or a notification had opened.
+  useEffect(() => {
+    if (booking && router.state.location.pathname !== '/') void router.navigate('/', { replace: true });
+  }, [booking]);
 
   if (session.phase === 'loading') return loading();
   if (session.phase === 'signed-out') return PackSignIn ? packScreen(PackSignIn, {}) : <SignInScreen />;
 
   if (session.player || session.isAdmin) {
-    // Let in, but not booked in yet: the pack's onboarding first (GMs go straight in to run the game).
-    const booking = Boolean(PackOnboarding && session.player && !session.isAdmin && needsBooking(session.player));
     return (
       <ToastProvider>
         <GameProvider>
