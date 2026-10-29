@@ -125,6 +125,12 @@ export interface JoinScreenProps {
   onCancel?(): void;
 }
 
+/** What the Gate hands a pack's onboarding. */
+export interface OnboardingProps {
+  /** A GM who asked for it from their file: back to the game without booking in. */
+  onCancel?(): void;
+}
+
 /** The pack's full-screen vote (look.screens.vote), shown by the engine while a vote needs the player. */
 export interface VoteScreenProps {
   /** The vote. It may close while shown (status 'closed'): then show who won, and offer only putAside. */
@@ -200,9 +206,10 @@ export interface PackLook {
     rejected?: LazyExoticComponent<ComponentType>;
     /**
      * Once approved, before the game: shown to a player who still needs booking in (`needsBooking`: `bookedAt` null)
-     * until it calls `bookIn`. Packs without one go straight to the game; GMs always do.
+     * until it calls `bookIn`. Packs without one go straight to the game; so do GMs, unless one who joined as a player
+     * asks for it (session `setBookingOpen`), when `onCancel` takes them back.
      */
-    onboarding?: LazyExoticComponent<ComponentType>;
+    onboarding?: LazyExoticComponent<ComponentType<OnboardingProps>>;
     /**
      * The full-screen vote: while a side quest's vote needs the player (in voting, not finished, not put aside), the
      * engine shows it over the whole app (not on /gm, not during a police check-in). Without it the cards stay as they are.

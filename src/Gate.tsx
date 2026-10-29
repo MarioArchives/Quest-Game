@@ -60,8 +60,9 @@ function PackCheck({ children }: { children: ReactNode }) {
 /** Decides what the signed-in state sees: sign in, sign up, waiting, rejected, the pack's onboarding, or the app. */
 export function Gate() {
   const session = useSession();
-  // Let in, but not booked in yet: the pack's onboarding first (GMs go straight in to run the game).
-  const booking = Boolean(PackOnboarding && session.player && !session.isAdmin && needsBooking(session.player));
+  // Let in, but not booked in yet: the pack's onboarding first. GMs go straight in to run the game, and get it only when
+  // they ask for it from their file (and may go back without booking in).
+  const booking = Boolean(PackOnboarding && session.player && needsBooking(session.player) && (!session.isAdmin || session.bookingOpen));
 
   // Meanwhile the app waits on Home, so finishing the onboarding opens it there (where a pack shows what comes next),
   // not on whatever page a link or a notification had opened.
@@ -78,7 +79,7 @@ export function Gate() {
         <GameProvider>
           <PackCheck>
             {booking && PackOnboarding ? (
-              packScreen(PackOnboarding, {})
+              packScreen(PackOnboarding, { onCancel: session.isAdmin ? () => session.setBookingOpen(false) : undefined })
             ) : (
               <LocationProvider>
                 <PhotoViewerProvider>

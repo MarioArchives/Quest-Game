@@ -32,7 +32,8 @@ function GoogleG() {
 }
 
 /** "Signed in as Sam Rivers · Not you?", which signs out. */
-export function SignedInAs() {
+/** Who is signed in, with a way out; `onBack` (a GM who came from their file) also goes back to the game. */
+export function SignedInAs({ onBack }: { onBack?(): void }) {
   const { user, signOut } = useSession();
   const google = !backend().auth.accounts;
   return (
@@ -44,6 +45,11 @@ export function SignedInAs() {
       <button type="button" className="bk-who__out" onClick={() => void signOut()}>
         Not you?
       </button>
+      {onBack ? (
+        <button type="button" className="bk-who__out" onClick={onBack}>
+          Back to the game
+        </button>
+      ) : null}
     </div>
   );
 }

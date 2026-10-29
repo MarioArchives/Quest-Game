@@ -16,6 +16,7 @@ import { tsMs, useQuery } from '../../../data/hooks';
 import { useLocationSharing } from '../../../data/LocationProvider';
 import { forgetThisDevice } from '../../../data/usePush';
 import { exhibitsFor } from '../../../lib/exhibits';
+import { isTelegramPolice } from '../../../lib/telegram';
 import { features, t } from '../../../pack';
 import { AddEvidenceBanners } from '../../../screens/account/AddEvidenceBanners';
 import { ClaimHistory } from '../../../screens/account/ClaimHistory';
@@ -26,7 +27,7 @@ import { SideQuestEntries } from '../../../screens/account/SideQuestEntries';
 import { RequestCard } from '../../../screens/account/WitnessRequests';
 import { characterLine } from '../../../screens/player/PlayerTicket';
 import { useSession } from '../../../session/SessionProvider';
-import { rerollAllowance, rerollsLeft as rerollsLeftFor, type Quest } from '../../../shared';
+import { needsBooking, rerollAllowance, rerollsLeft as rerollsLeftFor, type Quest } from '../../../shared';
 import { Folder, Stamp, Strung, Tag, TagTop, tiltFor } from './CaseKit';
 import { ExhibitsFolder, ParticularsSlip, PoliceTape, SealedNote, StandingBand, Stat, SuspectHead, TopStrip } from './FileParts';
 import { MissionLine } from './MissionLine';
@@ -37,7 +38,7 @@ import './myfile.css';
 const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] ?? '';
 
 export default function MyFile() {
-  const { user, player, isAdmin, signOut } = useSession();
+  const { user, player, isAdmin, signOut, setBookingOpen } = useSession();
   const { me, settings, state, ready, players, myMotive, myGuesses, mySubmissions, globalQuests, witnessRequests } = useGame();
   const reward = useRewardSheet();
   const { stopAndClear } = useLocationSharing();
@@ -122,7 +123,20 @@ export default function MyFile() {
                 </Stat>
               ) : null}
             </dl>
-            <ParticularsSlip uid={uid ?? ''} particulars={player.particulars} />
+            {/* A GM who joined as a player skipped the booking desk: nothing is on file until they go through it. */}
+            {isAdmin && needsBooking(player) ? (
+              <div className="mf-desk">
+                <p>
+                  As the {t.gm.One} you skipped the booking desk, so nothing about you is on file. Go through it to give your height, your relation to Bob
+                  {features.police && (settings.policePhone || isTelegramPolice(settings)) ? ' and your number for police calls' : ''}.
+                </p>
+                <Button small variant="primary" onClick={() => setBookingOpen(true)}>
+                  Go to the booking desk
+                </Button>
+              </div>
+            ) : (
+              <ParticularsSlip uid={uid ?? ''} particulars={player.particulars} />
+            )}
             {features.characters ? (
               <SealedNote label="Motive · not for the record">
                 {myMotive?.text ? <p className="mf-sealed__text">{myMotive.text}</p> : <p className="mf-sealed__text mf-sealed__text--none">The GM hasn&apos;t given you a motive yet.</p>}

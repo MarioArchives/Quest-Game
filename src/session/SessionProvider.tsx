@@ -15,6 +15,9 @@ export interface SessionValue {
   /** The user asked to change their sign-up details while waiting. */
   editingSignup: boolean;
   setEditingSignup(value: boolean): void;
+  /** A GM who joined as a player asked for the pack's onboarding (GMs skip it otherwise; see Gate). */
+  bookingOpen: boolean;
+  setBookingOpen(value: boolean): void;
   signIn(): Promise<void>;
   signOut(): Promise<void>;
 }
@@ -37,6 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [joinRequest, setJoinRequest] = useState<Doc<JoinRequest> | null>(null);
   const [loaded, setLoaded] = useState<Loaded>(NOT_LOADED);
   const [editingSignup, setEditingSignup] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   useEffect(
     () =>
@@ -49,6 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setJoinRequest(null);
           setLoaded(NOT_LOADED);
           setEditingSignup(false);
+          setBookingOpen(false);
         }
       }),
     [],
@@ -115,8 +120,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         : 'loading';
 
   const value = useMemo<SessionValue>(
-    () => ({ phase, user, player, isAdmin, joinRequest, editingSignup, setEditingSignup, signIn, signOut }),
-    [phase, user, player, isAdmin, joinRequest, editingSignup, signIn, signOut],
+    () => ({ phase, user, player, isAdmin, joinRequest, editingSignup, setEditingSignup, bookingOpen, setBookingOpen, signIn, signOut }),
+    [phase, user, player, isAdmin, joinRequest, editingSignup, bookingOpen, signIn, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -7,7 +7,8 @@
 // police's calling card to save and a test call to their mobile; or, with the police on Telegram (settings.policeTelegram),
 // their Telegram card instead (TelegramCard: get Telegram if they haven't, then say hello to the police there, and expect
 // a Telegram call tonight). The case opens with `bookIn`, which files the particulars and lets them into the game. A
-// reload carries on from the desk they were at (kept on this tab only).
+// reload carries on from the desk they were at (kept on this tab only). A GM who joined as a player comes here only from
+// their file, and may go back to the game (`onCancel`) without booking in.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { bookIn, friendlyError, setPoliceLine } from '../../../api';
 import { backend } from '../../../backend';
@@ -19,6 +20,7 @@ import { compressAvatar, uploadAvatar } from '../../../lib/upload';
 import { features, pack } from '../../../pack';
 import { useSession } from '../../../session/SessionProvider';
 import { DISPLAY_NAME_MAX, MARKS_MAX, normalisePhone, type PlayerPhone } from '../../../shared';
+import type { OnboardingProps } from '../../types';
 import { caseNumber } from '../dossier';
 import { CallingCard } from './CallingCard';
 import { CaseOpen, Terminal, TestCall } from './Checks';
@@ -70,7 +72,7 @@ const RESUME: Partial<Record<string, Step>> = {
   open: 'open',
 };
 
-export default function Booking() {
+export default function Booking({ onCancel }: OnboardingProps) {
   const { user, player, signOut } = useSession();
   const { settings, state } = useGame();
   const uid = user?.uid ?? '';
@@ -246,7 +248,7 @@ export default function Booking() {
     <div className="bk">
       <div className="bk__beam" aria-hidden="true" />
       <Board title="Booking desk" />
-      <SignedInAs />
+      <SignedInAs onBack={onCancel} />
       <Steps step={step} />
       <div key={step} className="bk-step">
         {step === 'particulars' ? (
